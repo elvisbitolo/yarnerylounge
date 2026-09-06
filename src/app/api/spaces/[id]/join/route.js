@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
+import { getCapabilities, canJoinNeighborhoods } from "@/lib/server/capabilities";
 import {
   getSpace,
   isSpaceMember,
@@ -21,6 +22,14 @@ export async function POST(req, { params }) {
   const sub = await getAccessSub(user.uid);
   if (!isActiveSub(sub)) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
+  }
+  const caps = await getCapabilities(user.uid);
+  const canJoin = canJoinNeighborhoods(caps);
+  if (!canJoin) {
+    return NextResponse.json(
+      { error: "Neighborhoods are for premium members" },
+      { status: 403 }
+    );
   }
   const limited = rateLimitGuard(`space-join:${user.uid}`, { limit: 20 });
   if (limited) return limited;

@@ -1121,6 +1121,34 @@
   border-top: 1px solid #e5d9dc;
 }
 
+.upgradePrompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fdf3f6;
+  border-top: 1px solid #e5d9dc;
+  font-size: 13px;
+  color: #716a70;
+}
+
+.upgradePromptIcon {
+  flex-shrink: 0;
+  color: #8b3a62;
+}
+
+.upgradePromptLink {
+  margin-left: auto;
+  color: #8b3a62;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.upgradePromptLink:hover {
+  text-decoration: underline;
+}
+
 .emojiPanel {
   position: absolute;
   left: 14px;

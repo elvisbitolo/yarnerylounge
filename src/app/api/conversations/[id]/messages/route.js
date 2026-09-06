@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { addMessage, getConversation } from "@/lib/server/chat";
 import { createNotification } from "@/lib/server/notifications";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
@@ -123,6 +124,14 @@ export async function POST(req, { params }) {
   if (!isActiveSub(sub)) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
   }
+  const userDoc = await getUserDoc(user.uid);
+  const caps = await getCapabilities(user.uid);
+  if (!canWriteChat(caps) && !canModerate(userDoc)) {
+    return NextResponse.json(
+      { error: "Upgrade to chat with the group!" },
+      { status: 403 }
+    );
+  }
   const limited = rateLimitGuard(`message:${user.uid}`, { limit: 30 });
   if (limited) return limited;
 
@@ -160,7 +169,6 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Message required" }, { status: 400 });
   }
 
-  const userDoc = await getUserDoc(user.uid);
   const senderName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
   const messageId = await addMessage(
     conversationId,

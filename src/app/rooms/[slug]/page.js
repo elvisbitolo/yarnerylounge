@@ -4,6 +4,7 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getRoomBySlug } from "@/lib/server/rooms";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import { getScopedHostRights } from "@/lib/server/hosts";
+import { getCapabilities } from "@/lib/server/capabilities";
 import Nav from "@/components/Nav";
 import RoomClient from "./RoomClient";
 import styles from "./room.module.css";
@@ -31,6 +32,7 @@ export default async function RoomPage({ params }) {
 
   const opensAt = await getUpcomingRoomStart(slug);
   const rights = await getScopedHostRights(user.uid, "room", room.id);
+  const caps = await getCapabilities(user.uid);
 
   return (
     <>
@@ -44,6 +46,9 @@ export default async function RoomPage({ params }) {
         opensAt={opensAt}
         isHost={rights.isHost}
         isCoHost={rights.isCoHost}
+        canPublishPlan={caps.video.canPublish}
+        canWriteChatPlan={caps.chat.write}
+        planKey={caps.key}
         alwaysOn={!!room.alwaysOn}
         vibe={room.vibe || ""}
         musicUrl={room.musicUrl || ""}

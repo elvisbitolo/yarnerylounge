@@ -50,6 +50,141 @@
   border-radius: 16px;
 }
 
+.blindDateCard {
+  margin-bottom: 24px;
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0b0b12, #15152a);
+  border: 1px solid rgba(199,210,254,0.18);
+  color: #f4f1ea;
+}
+
+.blindDateHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.blindDateIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fbbf24, #b45309);
+  color: #1a1206;
+  flex-shrink: 0;
+}
+
+.blindDateKicker {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.blindDateTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.blindDateBody {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.blindDateBody:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.blindDateAvatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fbbf24, #b45309);
+  color: #1a1206;
+  font-weight: 800;
+  font-size: 16px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.blindDatePhoto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.blindDateInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.blindDateName {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.blindDateHeadline {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blindDateMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+}
+
+.blindDateSparkle {
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.blindDateNote {
+  margin: 14px 2px 0;
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.blindDateNoteIcon {
+  font-size: 13px;
+}
+
+.blindDateLoading,
+.blindDateError {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+}
+
 .matchmakerTitle {
   margin: 0;
   font-size: 16px;

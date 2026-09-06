@@ -11,6 +11,7 @@ import {
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getUserDoc } from "@/lib/server/auth";
+import { getCapabilities, canPublishRemote, canHost } from "@/lib/server/capabilities";
 
 export async function POST(req) {
   const auth = await requireActiveMember();
@@ -69,8 +70,12 @@ export async function POST(req) {
     if (groupDenied) return groupDenied;
   }
 
-  let canPublish = true;
-  if (room.kind === "broadcast" && !roomHost) {
+  // Moving In (host) can always publish; free/Flirting are view-only (muted).
+  const caps = await getCapabilities(auth.user.uid);
+  const canPublishUser = canPublishRemote(caps) || canHost(caps);
+
+  let canPublish = canPublishUser;
+  if (room.kind === "broadcast" && !roomHost && !canHost(caps)) {
     canPublish = false;
   }
 

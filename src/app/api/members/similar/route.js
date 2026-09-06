@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
+import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { adminDb } from "@/lib/firebase/admin";
 
 function similarityScore(a, b) {
@@ -53,6 +54,11 @@ export async function GET(req) {
   const auth = await requireUser();
   const denied = guardJson(auth);
   if (denied) return denied;
+
+  const caps = await getCapabilities(auth.user.uid);
+  if (!canUseMatchmaker(caps)) {
+    return NextResponse.json({ members: [] });
+  }
 
   const url = new URL(req.url);
   const forUid = url.searchParams.get("for") || null;

@@ -4,7 +4,7 @@ import { isActiveSub as isActiveSubLogic } from "@/lib/server/billing";
 const FREE_ACCESS_SUB = {
   provider: "free",
   status: "active",
-  tier: "lounge",
+  tier: "flirting",
   plan: "monthly",
   isFreeAccess: true,
 };

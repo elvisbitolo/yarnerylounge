@@ -717,6 +717,8 @@
     "captionsOn": "Sous-titres activés",
     "captionsNotSupported": "Non pris en charge par ce navigateur",
     "noMicrophone": "Aucun microphone trouvé",
-    "noCamera": "Aucune caméra trouvée"
+    "noCamera": "Aucune caméra trouvée",
+    "upgradeToChat": "Passez à Premium pour discuter avec le groupe !",
+    "upgrade": "Passer au niveau supérieur"
   }
 }

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { getUserDoc } from "@/lib/server/auth";
+import { getUserDoc, canModerate } from "@/lib/server/auth";
 import { getScopedHostRights } from "@/lib/server/hosts";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import {
   getRoomForChat,
   listRoomMessages,
@@ -80,6 +81,18 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
+  const userDoc = await getUserDoc(auth.user.uid);
+  const caps = await getCapabilities(auth.user.uid);
+  const hostRights = await getScopedHostRights(auth.user.uid, "room", roomId);
+  const canWriteAnyway =
+    canModerate(userDoc) || hostRights.isHost || hostRights.isCoHost;
+  if (!canWriteChat(caps) && !canWriteAnyway) {
+    return NextResponse.json(
+      { error: "Upgrade to chat with the group!" },
+      { status: 403 }
+    );
+  }
+
   const body = await req.json().catch(() => ({}));
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   const hasImage = validImageData(body?.imageData);
@@ -102,7 +115,6 @@ export async function POST(req, { params }) {
     };
   }
 
-  const userDoc = await getUserDoc(auth.user.uid);
   const senderName = userDoc?.name || auth.user.name || auth.user.email?.split("@")[0] || "Member";
   const role = await roleFor(roomId, userDoc, auth.user.uid);
 

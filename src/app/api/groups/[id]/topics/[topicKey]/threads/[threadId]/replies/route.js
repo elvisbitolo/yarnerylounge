@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
 import { isGroupMember } from "@/lib/server/groups";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { listThreadReplies, addThreadReply, getTopicThread } from "@/lib/server/group-topics";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,14 @@ export async function POST(req, { params }) {
   if (!isActiveSub(sub)) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
   }
+  const userDoc = await getUserDoc(user.uid);
+  const caps = await getCapabilities(user.uid);
+  if (!canWriteChat(caps) && !canModerate(userDoc)) {
+    return NextResponse.json(
+      { error: "Upgrade to chat with the group!" },
+      { status: 403 }
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const text = (body.text || "").trim();
@@ -44,7 +53,6 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Reply must be under 2000 characters" }, { status: 400 });
   }
 
-  const userDoc = await getUserDoc(user.uid);
   const created = await addThreadReply({
     threadId,
     groupId,

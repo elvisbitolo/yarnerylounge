@@ -717,6 +717,8 @@
     "captionsOn": "Untertitel eingeschaltet",
     "captionsNotSupported": "In diesem Browser nicht unterstützt",
     "noMicrophone": "Kein Mikrofon gefunden",
-    "noCamera": "Keine Kamera gefunden"
+    "noCamera": "Keine Kamera gefunden",
+    "upgradeToChat": "Upgraden, um mit der Gruppe zu chatten!",
+    "upgrade": "Upgraden"
   }
 }

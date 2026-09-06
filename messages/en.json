@@ -657,6 +657,8 @@
     "mention": "Mention someone",
     "writeMessage": "Write a message…",
     "send": "Send",
+    "upgradeToChat": "Upgrade to chat with the group!",
+    "upgrade": "Upgrade",
     "muteMic": "Mute mic",
     "unmuteMic": "Unmute mic",
     "turnOffCam": "Turn off camera",

@@ -113,6 +113,71 @@ function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) 
   );
 }
 
+function BottomNav({ t, role }) {
+  const pathname = usePathname();
+  const items = [
+    { href: "/dashboard", label: t("dashboard"), icon: "home", show: true },
+    { href: "/rooms", label: t("rooms"), icon: "rooms", show: true },
+    { href: "/feed", label: t("feed"), icon: "feed", show: true },
+    { href: "/members", label: t("members"), icon: "members", show: true },
+    { href: "/dashboard/membership", label: t("membership"), icon: "sparkle", show: role !== "owner" },
+  ];
+  const visible = items.filter((i) => i.show);
+  if (pathname?.startsWith("/rooms/")) return null;
+  return (
+    <nav className={styles.bottomNav} aria-label="Bottom navigation">
+      {visible.map((item) => {
+        const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={active ? `${styles.bottomNavLink} ${styles.bottomNavActive}` : styles.bottomNavLink}
+          >
+            <span className={styles.bottomNavIcon}>{icons[item.icon]}</span>
+            <span className={styles.bottomNavLabel}>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+const icons = {
+  home: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 11.5 12 4l9 7.5" />
+      <path d="M5 9.8V20h5v-6h4v6h5V9.8" />
+    </svg>
+  ),
+  rooms: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="4" width="7" height="6" rx="1" />
+      <rect x="14" y="4" width="7" height="6" rx="1" />
+      <rect x="3" y="14" width="7" height="6" rx="1" />
+      <rect x="14" y="14" width="7" height="6" rx="1" />
+    </svg>
+  ),
+  feed: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 6h16M4 12h16M4 18h10" />
+    </svg>
+  ),
+  members: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M17.5 15c2.4.3 4 1.7 4.5 4" />
+    </svg>
+  ),
+  sparkle: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1M12 7.5l1.2 2.4 2.6.3-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.3z" />
+    </svg>
+  ),
+};
+
 export default function Nav({ role, children }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -335,6 +400,7 @@ export default function Nav({ role, children }) {
           {children}
         </div>
       </div>
+      <BottomNav t={t} role={role} />
     </>
   );
 }

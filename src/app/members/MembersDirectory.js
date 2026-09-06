@@ -135,7 +135,7 @@ const TOOLTIP_W = 300;
 const TOOLTIP_H = 400;
 const HIDE_DELAY = 220;
 
-export default function MembersDirectory({ members, viewer, role, todayKey }) {
+export default function MembersDirectory({ members, viewer, role, todayKey, matchmakerEnabled = true }) {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
   const [country, setCountry] = useState("");
@@ -284,6 +284,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
           ))}
         </div>
       </div>
+      {matchmakerEnabled && (
       <div className={styles.matchmakerPanel}>
         <p className={styles.matchmakerTitle}>
           <span className={styles.matchmakerSparkle}>✦</span> Find Members
@@ -342,6 +343,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
           ))}
         </div>
       </div>
+      )}
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>

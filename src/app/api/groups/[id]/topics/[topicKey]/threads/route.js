@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { isGroupMember } from "@/lib/server/groups";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { listTopicThreads, createTopicThread } from "@/lib/server/group-topics";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,14 @@ export async function POST(req, { params }) {
   if (!isActiveSub(sub)) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
   }
+  const caps = await getCapabilities(user.uid);
+  const userDoc = await getUserDoc(user.uid);
+  if (!canWriteChat(caps) && !canModerate(userDoc)) {
+    return NextResponse.json(
+      { error: "Upgrade to chat with the group!" },
+      { status: 403 }
+    );
+  }
   const groupSnap = await adminDb().collection("groups").doc(groupId).get();
   if (!groupSnap.exists || groupSnap.data().status !== "active") {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
@@ -49,7 +58,6 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Post must be under 2000 characters" }, { status: 400 });
   }
 
-  const userDoc = await getUserDoc(user.uid);
   const created = await createTopicThread({
     groupId,
     topicKey,

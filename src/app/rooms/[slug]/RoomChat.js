@@ -15,6 +15,7 @@ import {
   ChevronUp,
   Loader2,
   Clock,
+  Lock,
 } from "lucide-react";
 import { useRoomData } from "./RoomDataProvider";
 import styles from "./room.module.css";
@@ -188,7 +189,7 @@ function MessageRow({ msg, hostId, currentUserId, canModerate, onToggleReaction,
   );
 }
 
-export default function RoomChat({ hostId, currentUserId }) {
+export default function RoomChat({ hostId, currentUserId, canWriteChat = true, planKey = "flirting" }) {
   const t = useTranslations("rooms");
   const {
     messages,
@@ -210,6 +211,7 @@ export default function RoomChat({ hostId, currentUserId }) {
   const fileInputRef = useRef(null);
   const nearBottomRef = useRef(true);
   const prevLenRef = useRef(0);
+  const canPost = canWriteChat || canModerate;
 
   useEffect(() => {
     const el = listRef.current;
@@ -362,6 +364,17 @@ export default function RoomChat({ hostId, currentUserId }) {
 
       {chatError && <div className={styles.chatError}>{chatError}</div>}
 
+      {!canPost && (
+        <div className={styles.upgradePrompt}>
+          <Lock size={15} className={styles.upgradePromptIcon} />
+          <span>{t("upgradeToChat")}</span>
+          <a className={styles.upgradePromptLink} href="/membership">
+            {t("upgrade")}
+          </a>
+        </div>
+      )}
+
+      {canPost && (
       <div className={styles.composer}>
         {showEmoji && (
           <div className={styles.emojiPanel}>
@@ -439,6 +452,7 @@ export default function RoomChat({ hostId, currentUserId }) {
           <SendHorizontal size={18} />
         </button>
       </div>
+      )}
     </div>
   );
 }

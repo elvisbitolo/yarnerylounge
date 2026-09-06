@@ -1,65 +1,66 @@
 :root {
   /* ================= Secret Yarnery color system =================
-     Boutique palette — Hot pink primary accent, Navy secondary.
-     Pink  #F42E79
-     Navy  #090C26
+     Dark Luxury — Black background, Action Green primary, Gold accent.
+     Black  #000000
+     Green  #2E7D32
+     Gold   #D4AF37
   */
 
-  /* Boutique tokens (inspired by secretyarnery.com) */
-  --navy: #090c26;
-  --navy-deep: #050814;
-  --pink: #f42e79;
-  --pink-hover: #d81f66;
-  --pink-soft: rgba(244, 46, 121, 0.1);
-  --cream: #fbf7f1;
-  --blush: rgb(243, 230, 226);
-  --rust: rgb(135, 42, 13);
-  --greige: rgb(182, 177, 164);
-  --warm-border: #eadfd2;
+  /* Luxury tokens */
+  --navy: #000000;
+  --navy-deep: #050505;
+  --pink: #2e7d32;
+  --pink-hover: #266c2a;
+  --pink-soft: rgba(46, 125, 50, 0.14);
+  --cream: #0d0d0d;
+  --blush: rgb(20, 20, 20);
+  --rust: rgb(212, 175, 55);
+  --greige: rgb(120, 120, 120);
+  --warm-border: #242424;
 
-  /* 1-2. Primary (Hot pink) */
-  --primary: #f42e79;
-  --primary-light: #ff7cab;
-  --primary-hover: #d81f66;
-  --primary-active: #b01451;
+  /* 1-2. Primary (Action Green) */
+  --primary: #2e7d32;
+  --primary-light: #43a047;
+  --primary-hover: #266c2a;
+  --primary-active: #1b5e20;
   --primary-contrast: #ffffff;
 
-  /* 3-4. Secondary (Navy) */
-  --secondary: #7c3aed;
-  --secondary-light: #a78bfa;
-  --secondary-hover: #6d28d9;
+  /* 3-4. Secondary (Deep green-black) */
+  --secondary: #1b5e20;
+  --secondary-light: #2e7d32;
+  --secondary-hover: #145a18;
   --secondary-contrast: #ffffff;
 
-  /* 5. Accent (Hot pink) */
-  --accent: #f42e79;
-  --accent-light: #ff7cab;
-  --accent-hover: #0891b2;
+  /* 5. Accent (Gold) */
+  --accent: #d4af37;
+  --accent-light: #e6c969;
+  --accent-hover: #b8962e;
 
   /* 11-13. Success / Warning / Error */
-  --success: #16a34a;
-  --success-light: #22c55e;
-  --warning: #f59e0b;
-  --error: #dc2626;
-  --error-light: #ef4444;
-  --highlight: #ffd23f;
+  --success: #2e7d32;
+  --success-light: #43a047;
+  --warning: #d4af37;
+  --error: #e5484d;
+  --error-light: #ff5c61;
+  --highlight: #d4af37;
 
   /* 16. Gradients */
-  --gradient-primary: linear-gradient(135deg, #f42e79 0%, #7c3aed 100%);
-  --gradient-brand: linear-gradient(135deg, #090c26 0%, #f42e79 100%);
+  --gradient-primary: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  --gradient-brand: linear-gradient(135deg, #000000 0%, #2e7d32 100%);
 
-  /* 6-10. App neutrals — boutique neutrals */
-  --background: #f7f1e9;
-  --foreground: #171a33;
-  --surface: #ffffff;
-  --surface-muted: #f5f5ff;
-  --text: #17181c;
-  --muted: #6b6b7b;
-  --border: #e4e4ee;
-  --selection: #f42e7933;
+  /* 6-10. App neutrals — black luxury neutrals */
+  --background: #000000;
+  --foreground: #f2f2f2;
+  --surface: #0f0f0f;
+  --surface-muted: #141414;
+  --text: #f2f2f2;
+  --muted: #9a9a9a;
+  --border: #262626;
+  --selection: #2e7d3233;
 
   /* 15. Links */
-  --link: #f42e79;
-  --link-hover: #d81f66;
+  --link: #43a047;
+  --link-hover: #66bb6a;
 
   /* 14. Buttons */
   --button-primary-bg: var(--primary);
@@ -70,26 +71,26 @@
   --button-secondary-text: var(--secondary-contrast);
   --button-accent-bg: var(--accent);
   --button-accent-hover: var(--accent-hover);
-  --button-accent-text: #ffffff;
+  --button-accent-text: #000000;
 
-  /* Dashboard theme (light boutique shell) — accents use hot pink */
-  --dash-bg: #f7f1e9;
-  --dash-surface: #ffffff;
-  --dash-border: #eadfd2;
-  --dash-text: #171a33;
-  --dash-muted: #8a7c6f;
-  --dash-accent: #f42e79;
-  --dash-accent-light: #ff7cab;
-  --dash-accent-hover: #d81f66;
-  --dash-secondary: #090c26;
-  --dash-secondary-light: var(--secondary-light);
-  --dash-secondary-hover: var(--secondary-hover);
-  --dash-cyan: #06b6d4;
-  --dash-cyan-light: #67e8f9;
-  --dash-success: #16a34a;
-  --dash-warning: #f59e0b;
-  --dash-info: #06b6d4;
-  --dash-highlight: var(--highlight);
+  /* Dashboard theme (dark luxury shell) — green action, gold accent */
+  --dash-bg: #000000;
+  --dash-surface: #0f0f0f;
+  --dash-border: #262626;
+  --dash-text: #f2f2f2;
+  --dash-muted: #9a9a9a;
+  --dash-accent: #2e7d32;
+  --dash-accent-light: #43a047;
+  --dash-accent-hover: #266c2a;
+  --dash-secondary: #d4af37;
+  --dash-secondary-light: #e6c969;
+  --dash-secondary-hover: #b8962e;
+  --dash-cyan: #2e7d32;
+  --dash-cyan-light: #43a047;
+  --dash-success: #2e7d32;
+  --dash-warning: #d4af37;
+  --dash-info: #43a047;
+  --dash-highlight: #d4af37;
 }
 
 html {

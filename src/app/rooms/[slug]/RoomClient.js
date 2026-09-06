@@ -104,6 +104,9 @@ export default function RoomClient({
   opensAt,
   isHost,
   isCoHost,
+  canPublishPlan = true,
+  canWriteChatPlan = false,
+  planKey = "flirting",
   alwaysOn,
   vibe = "",
   musicUrl,
@@ -163,6 +166,8 @@ export default function RoomClient({
   const isStaff = role === "owner" || role === "moderator";
   const isModerator = role === "moderator";
   const viewerOnly = isBroadcast && !isHost && !isCoHost;
+  const planCanPublish = canPublishPlan || isStaff || isHost || isCoHost;
+  const canWriteChat = canWriteChatPlan || isStaff || isHost || isCoHost;
   const waiting = Boolean(opensAt) && !isHost && now < opensAt;
   const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
 
@@ -226,9 +231,16 @@ export default function RoomClient({
       setToken(data.token);
       tokenRef.current = data.token;
       setServerUrl(data.serverUrl);
-      setIsViewer(data.kind === "broadcast" && data.canPublish === false);
+      const tokenViewer = data.kind === "broadcast" && data.canPublish === false;
+      const planViewer = data.canPublish === false;
+      setIsViewer(tokenViewer || planViewer);
       setJoinPrefs(
-        prefs || { micOn: true, camOn: true, audioDeviceId: "", videoDeviceId: "" }
+        prefs || {
+          micOn: planCanPublish ? true : false,
+          camOn: planCanPublish ? true : false,
+          audioDeviceId: "",
+          videoDeviceId: "",
+        }
       );
       setJoined(true);
       reconnectCountRef.current = 0;
@@ -270,6 +282,9 @@ export default function RoomClient({
           setToken(data.token);
           tokenRef.current = data.token;
           setServerUrl(data.serverUrl);
+          const reconnectViewer = data.kind === "broadcast" && data.canPublish === false;
+          const reconnectPlanViewer = data.canPublish === false;
+          setIsViewer(reconnectViewer || reconnectPlanViewer);
           reconnectCountRef.current = count + 1;
           setStatusMsg("");
           scheduleRefresh(alwaysOn ? 86400 : 14400);
@@ -343,7 +358,9 @@ export default function RoomClient({
             userName={userName}
             userAvatar={userAvatar}
             subtitle={
-              alwaysOn && vibe === "silent"
+              !planCanPublish
+                ? "Viewing as a guest — upgrades unlock your camera & mic."
+                : alwaysOn && vibe === "silent"
                 ? "Zero-distraction zone. Cameras on, microphones muted — absolute silence for your focus."
                 : alwaysOn && vibe === "focus"
                 ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
@@ -358,7 +375,7 @@ export default function RoomClient({
             }
             busy={busy}
             error={error}
-            viewerOnly={viewerOnly}
+            viewerOnly={viewerOnly || !planCanPublish}
             micDefaultOn={vibe !== "silent" && vibe !== "focus"}
             onJoin={(prefs) => handleJoin(prefs)}
           />
@@ -463,7 +480,7 @@ export default function RoomClient({
 
               <RoomControls
                 isHost={isHost}
-                canPublish={!isViewer}
+                canPublish={planCanPublish && !isViewer}
                 currentUserName={userName}
                 chatOpen={showChat}
                 participantsOpen={showParticipants}
@@ -479,6 +496,8 @@ export default function RoomClient({
                     currentUserId={userId}
                     currentUserName={userName}
                     currentUserAvatar={userAvatar}
+                    canWriteChat={canWriteChat}
+                    planKey={planKey}
                   />
                 </section>
               )}
