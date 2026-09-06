@@ -9,7 +9,7 @@ function deny(status, error) {
 }
 
 export async function authorize(options = {}) {
-  const { active, tier, owner, moderator, groupId, self } = options;
+  const { active, tier, owner, moderator, host, groupId, self } = options;
 
   const user = await getCurrentUser();
   if (!user) return deny(401, "Not signed in");
@@ -19,6 +19,14 @@ export async function authorize(options = {}) {
   if (owner && userDoc?.role !== "owner") return deny(403, "Forbidden");
   if (moderator && !canModerate(userDoc)) return deny(403, "Forbidden");
   if (self && user.uid !== self && !canModerate(userDoc)) return deny(403, "Forbidden");
+
+  if (host) {
+    const sub = await getAccessSub(user.uid);
+    const isHost =
+      userDoc?.role === "owner" ||
+      (userDoc?.role === "host" && isActiveSub(sub));
+    if (!isHost) return deny(403, "Host access required");
+  }
 
   let sub = null;
   const needsSub = active !== false || tier;
@@ -53,6 +61,9 @@ export const requireTier = (tier, options = {}) =>
 
 export const requireOwner = (options = {}) =>
   authorize({ owner: true, active: false, ...options });
+
+export const requireHostUser = (options = {}) =>
+  authorize({ host: true, active: false, ...options });
 
 export const requireModerator = (options = {}) =>
   authorize({ moderator: true, active: false, ...options });

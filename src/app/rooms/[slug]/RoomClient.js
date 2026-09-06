@@ -105,6 +105,7 @@ export default function RoomClient({
   isHost,
   isCoHost,
   alwaysOn,
+  vibe = "",
   musicUrl,
   musicPlaying,
   musicFileId,
@@ -342,8 +343,12 @@ export default function RoomClient({
             userName={userName}
             userAvatar={userAvatar}
             subtitle={
-              alwaysOn
-                ? "Always open — pop in anytime. A cozy lounge video plays while you're here."
+              alwaysOn && vibe === "silent"
+                ? "Zero-distraction zone. Cameras on, microphones muted — absolute silence for your focus."
+                : alwaysOn && vibe === "focus"
+                ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
+                : alwaysOn
+                ? "Always open — pop in anytime. Meet new members and settle into the lounge."
                 : isBroadcast
                 ? "This is a live broadcast. Join to watch the stream."
                 : "Get ready, then join the live room."
@@ -354,6 +359,7 @@ export default function RoomClient({
             busy={busy}
             error={error}
             viewerOnly={viewerOnly}
+            micDefaultOn={vibe !== "silent" && vibe !== "focus"}
             onJoin={(prefs) => handleJoin(prefs)}
           />
         </div>
@@ -374,7 +380,7 @@ export default function RoomClient({
           hasVideoBackdrop={alwaysOn}
           pauseWhenBusy={participantCount > 1}
         />
-        {alwaysOn && isStaff && <RoomMusicPicker isStaff={isStaff} />}
+        {alwaysOn && isStaff && <RoomMusicPicker isStaff={isStaff} roomSlug={slug} />}
         {statusMsg && (
           <div className={styles.reconnectBanner}>
             <span>{statusMsg}</span>

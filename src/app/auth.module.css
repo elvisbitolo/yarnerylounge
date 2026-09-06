@@ -56,6 +56,159 @@
   line-height: 1.5;
 }
 
+.aside {
+  display: flex;
+  flex-direction: column;
+  padding: 40px 32px;
+  background: #19141d;
+  color: #eae2ef;
+  overflow: auto;
+}
+
+.asideBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.asideBrandWord {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f2e8f7;
+}
+
+.asideTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: #f7ecfa;
+  margin: 0 0 6px;
+}
+
+.asideSub {
+  font-size: 13px;
+  color: #a08fb0;
+  margin: 0 0 22px;
+}
+
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faqItem {
+  border: 1px solid #2f2440;
+  border-radius: 10px;
+  background: #1f1927;
+  padding: 0 14px;
+}
+
+.faqQ {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e6d3ef;
+  padding: 13px 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.faqQ::-webkit-details-marker {
+  display: none;
+}
+
+.faqQ::after {
+  content: "+";
+  font-size: 16px;
+  line-height: 1;
+  color: #a78bfa;
+  transition: transform 0.15s ease;
+}
+
+.faqItem[open] .faqQ::after {
+  transform: rotate(45deg);
+}
+
+.faqA {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #b9a9c4;
+  margin: 0 0 14px;
+  padding-top: 2px;
+}
+
+.asideToS {
+  margin: 24px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8d7c99;
+}
+
+.asideLink {
+  color: #c084fc;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.asideLink:hover {
+  text-decoration: underline;
+}
+
+.tosField {
+  margin: 18px 0 0;
+}
+
+.tosLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6b6b7b;
+  cursor: pointer;
+}
+
+.tosCheckbox {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.tosError {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  background: #fdecee;
+  border: 1px solid #f5c2c7;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #c0392b;
+  line-height: 1.45;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b6b7b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.backLink:hover {
+  color: var(--primary);
+}
+
 .brand {
   font-size: 20px;
   font-weight: 700;
@@ -283,6 +436,10 @@
   }
 
   .authImage {
+    display: none;
+  }
+
+  .aside {
     display: none;
   }
 

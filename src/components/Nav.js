@@ -82,6 +82,7 @@ const OVERVIEW_ITEMS = [
 
 const CONNECT_ITEMS = [
   { href: "/rooms", key: "rooms" },
+  { href: "/calendar", key: "calendar" },
   { href: "/events", key: "events" },
   { href: "/challenges", key: "crochetAlong" },
   { href: "/members", key: "members" },
@@ -123,7 +124,7 @@ export default function Nav({ role, children }) {
   const [openGroups, setOpenGroups] = useState(() => new Set());
   const [collections, setCollections] = useState([]);
   const [hasHostTools, setHasHostTools] = useState(
-    () => role === "owner" || role === "moderator"
+    () => role === "owner" || role === "moderator" || role === "host"
   );
   const [mobileSearch, setMobileSearch] = useState(false);
   const [sidebarData, setSidebarData] = useState(null);

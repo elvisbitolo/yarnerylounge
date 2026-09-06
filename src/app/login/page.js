@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { auth } from "@/lib/firebase/client";
 import { sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
 import { loginWithEmail, loginWithGoogle } from "@/lib/client-auth";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
+import AuthAside from "@/components/AuthAside";
 import styles from "../auth.module.css";
+
+const LANDING_URL =
+  process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
@@ -113,10 +116,13 @@ export default function LoginPage() {
       <main className={styles.page}>
         <div className={styles.authContainer}>
           <div className={styles.authForm}>
-            <p className={styles.brand}><Link className={styles.brandLink} href="/">
+            <a className={styles.backLink} href={LANDING_URL}>
+              ← {t("backToLanding")}
+            </a>
+            <p className={styles.brand}><a className={styles.brandLink} href={LANDING_URL}>
               <Image src="/brand/secretyarnery-logo.webp" alt="" width={90} height={28} className={styles.brandLogo} />
               <span className={styles.brandWord}>Secret Yarnery</span>
-            </Link></p>
+            </a></p>
             <h1 className={styles.title}>{t("resetPassword")}</h1>
             <p className={styles.subtitle}>{t("resetPasswordDesc")}</p>
 
@@ -167,12 +173,7 @@ export default function LoginPage() {
               </a>
             </p>
           </div>
-<div className={styles.authImage}>
-          <Image src="/images/crochet/model_in_shop_05.jpeg" alt="Welcome back" fill sizes="(max-width: 768px) 0px, 460px" style={{ objectFit: "cover" }} />
-          <div className={styles.authImageOverlay}>
-            <p className={styles.authImageText}>Welcome back to your creative community.</p>
-          </div>
-        </div>
+<AuthAside />
       </div>
 
       {busy && (
@@ -189,10 +190,13 @@ export default function LoginPage() {
     <main className={styles.page}>
       <div className={styles.authContainer}>
         <div className={styles.authForm}>
-          <p className={styles.brand}><Link className={styles.brandLink} href="/">
+          <a className={styles.backLink} href={LANDING_URL}>
+            ← {t("backToLanding")}
+          </a>
+          <p className={styles.brand}><a className={styles.brandLink} href={LANDING_URL}>
             <Image src="/brand/secretyarnery-logo.webp" alt="" width={90} height={28} className={styles.brandLogo} />
             <span className={styles.brandWord}>Secret Yarnery</span>
-          </Link></p>
+          </a></p>
           <h1 className={styles.title}>{t("welcomeBack")}</h1>
           <p className={styles.subtitle}>{t("signInToJoin")}</p>
 
@@ -240,12 +244,7 @@ export default function LoginPage() {
             {t("newHere")} <a className={styles.link} href="/signup">{t("createAccountLink")}</a>
           </p>
         </div>
-        <div className={styles.authImage}>
-          <Image src="/images/crochet/model_in_shop_05.jpeg" alt="Welcome back" fill sizes="(max-width: 768px) 0px, 460px" style={{ objectFit: "cover" }} />
-          <div className={styles.authImageOverlay}>
-            <p className={styles.authImageText}>Welcome back to your creative community.</p>
-          </div>
-        </div>
+        <AuthAside />
       </div>
 
       {busy && (

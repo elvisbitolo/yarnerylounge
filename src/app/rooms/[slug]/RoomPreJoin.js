@@ -17,9 +17,10 @@ export default function RoomPreJoin({
   error,
   onJoin,
   viewerOnly = false,
+  micDefaultOn = true,
 }) {
   const t = useTranslations("rooms");
-  const [micOn, setMicOn] = useState(!viewerOnly);
+  const [micOn, setMicOn] = useState(viewerOnly ? false : micDefaultOn);
   const [camOn, setCamOn] = useState(!viewerOnly);
   const [audioDeviceId, setAudioDeviceId] = useState("");
   const [videoDeviceId, setVideoDeviceId] = useState("");

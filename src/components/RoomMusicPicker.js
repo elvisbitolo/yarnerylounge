@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Music4, Upload, Check } from "lucide-react";
 
-export default function RoomMusicPicker({ isStaff }) {
+export default function RoomMusicPicker({ isStaff, roomSlug }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [fileId, setFileId] = useState("");
@@ -18,7 +18,8 @@ export default function RoomMusicPicker({ isStaff }) {
 
   useEffect(() => {
     if (!isStaff) return;
-    fetch("/api/rooms/music", { credentials: "include" })
+    const qs = roomSlug ? `?room=${encodeURIComponent(roomSlug)}` : "";
+    fetch(`/api/rooms/music${qs}`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {
@@ -30,7 +31,7 @@ export default function RoomMusicPicker({ isStaff }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [isStaff]);
+  }, [isStaff, roomSlug]);
 
   useEffect(() => {
     if (!open) return;
@@ -99,7 +100,7 @@ export default function RoomMusicPicker({ isStaff }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ roomSlug, ...updates }),
         signal: controller.signal,
       });
       clearTimeout(timer);

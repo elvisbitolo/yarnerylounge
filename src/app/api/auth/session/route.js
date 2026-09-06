@@ -65,13 +65,63 @@ export async function POST(req) {
       }
       isNewUser = true;
       const memberName = name || decoded.name || decoded.email?.split("@")[0] || "Member";
+
+      const prepaidEmail = (decoded.email || "").toLowerCase().trim();
+      let prepaid = null;
+      if (prepaidEmail) {
+        const found = await users
+          .where("email", "==", prepaidEmail)
+          .where("isPrePaid", "==", true)
+          .limit(1)
+          .get();
+        if (!found.empty) {
+          const doc = found.docs[0];
+          const data = doc.data();
+          if (!data.expiresAt || new Date(data.expiresAt) > new Date()) {
+            prepaid = data;
+          } else {
+            // Expired pre-paid record — discard and keep free account.
+            await users.doc(doc.id).delete().catch(() => {});
+          }
+        }
+      }
+
       await userRef.set({
         name: memberName,
         email: decoded.email || "",
         photoURL: decoded.picture || "",
-        role: "member",
+        role: prepaid?.role || "member",
+        plan: prepaid?.plan || "flirting",
+        paymentStatus: prepaid?.paymentStatus || "unpaid",
+        isPrePaid: false,
+        shopifyCustomerId: prepaid?.shopifyCustomerId || "",
+        shopifyOrderId: prepaid?.shopifyOrderId || "",
+        expiresAt: prepaid?.expiresAt || "",
         createdAt: new Date(),
       });
+
+      if (prepaid) {
+        await adminDb()
+          .collection("subscriptions")
+          .doc(decoded.uid)
+          .set({
+            provider: "shopify",
+            status: "active",
+            plan: prepaid.plan,
+            planName: prepaid.plan,
+            tier: prepaid.role === "host" ? "host" : "lounge",
+            role: prepaid.role,
+            shopifyCustomerId: prepaid.shopifyCustomerId || "",
+            shopifyOrderId: prepaid.shopifyOrderId || "",
+            currentPeriodEnd: prepaid.expiresAt
+              ? new Date(prepaid.expiresAt)
+              : null,
+            updatedAt: new Date(),
+          });
+        // Remove the pre-paid placeholder doc so future webhooks resolve to the
+        // real profile by uid, not the email-keyed record.
+        await users.doc(prepaidEmail).delete().catch(() => {});
+      }
 
       if (decoded.email) {
         const { sendEmail } = await import("@/lib/server/email");

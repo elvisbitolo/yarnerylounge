@@ -7,6 +7,7 @@ import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import Feed from "@/app/feed/Feed";
 import GroupJoinButton from "../GroupJoinButton";
+import GroupTopics from "../GroupTopics";
 import styles from "../groups.module.css";
 
 export const dynamic = "force-dynamic";
@@ -48,8 +49,24 @@ export default async function GroupPage({ params }) {
         </p>
 
         <div className={styles.groupHeader}>
-          <h1 className={styles.title}>{group.name}</h1>
-          {group.description && <p className={styles.subtitle}>{group.description}</p>}
+          <h1 className={styles.title}>
+            {group.emoji ? `${group.emoji} ` : ""}{group.name}
+          </h1>
+          {group.sidebarDescription && (
+            <p className={styles.subtitle}>{group.sidebarDescription}</p>
+          )}
+          {group.description && (
+            <p className={styles.cardDesc}>{group.description}</p>
+          )}
+          {group.hangoutTag && (
+            <p className={styles.hangoutTag} style={{ color: group.color || undefined }}>
+              <span className={styles.hangoutDot} style={{ background: group.color || undefined }} />
+              {group.emoji ? `${group.emoji} ` : ""}
+              <Link className={styles.link} href={`/rooms/${group.hangoutRoomSlug || ""}`}>
+                Weekly Hangout · {group.hangoutTag}
+              </Link>
+            </p>
+          )}
           <p className={styles.cardMeta}>
             {members.length} {members.length === 1 ? "member" : "members"}
             {memberNames.length > 0 && (
@@ -71,31 +88,41 @@ export default async function GroupPage({ params }) {
         </div>
 
         <h2 className={styles.sectionTitle}>Group feed</h2>
-        {membership || userDoc?.role === "owner" ? (
-          <Feed
+        <div className={styles.groupLayout}>
+          <div className={styles.groupMain}>
+            {membership || userDoc?.role === "owner" ? (
+              <Feed
+                uid={user.uid}
+                userName={userDoc?.name || user.name || "Member"}
+                role={userDoc?.role || "member"}
+                groupId={group.id}
+              />
+            ) : (
+              <p className={styles.empty}>Join this group to see and post in its feed.</p>
+            )}
+
+            {activeGroupRooms.length > 0 && (
+              <>
+                <h2 className={styles.sectionTitle}>Group rooms</h2>
+                <div className={styles.roomGrid}>
+                  {activeGroupRooms.map((room) => (
+                    <Link key={room.id} href={`/rooms/${room.slug}`} className={styles.roomCard}>
+                      <h3 className={styles.roomName}>{room.name}</h3>
+                      {room.description && <p className={styles.roomDesc}>{room.description}</p>}
+                      <p className={styles.roomMeta}>Up to {room.maxParticipants} members · live</p>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <GroupTopics
+            groupId={group.id}
+            canPost={!!membership || userDoc?.role === "owner"}
             uid={user.uid}
             userName={userDoc?.name || user.name || "Member"}
-            role={userDoc?.role || "member"}
-            groupId={group.id}
           />
-        ) : (
-          <p className={styles.empty}>Join this group to see and post in its feed.</p>
-        )}
-
-        {activeGroupRooms.length > 0 && (
-          <>
-            <h2 className={styles.sectionTitle}>Group rooms</h2>
-            <div className={styles.roomGrid}>
-              {activeGroupRooms.map((room) => (
-                <Link key={room.id} href={`/rooms/${room.slug}`} className={styles.roomCard}>
-                  <h3 className={styles.roomName}>{room.name}</h3>
-                  {room.description && <p className={styles.roomDesc}>{room.description}</p>}
-                  <p className={styles.roomMeta}>Up to {room.maxParticipants} members · live</p>
-                </Link>
-              ))}
-            </div>
-          </>
-        )}
+        </div>
       </div>
 </Nav>
   );

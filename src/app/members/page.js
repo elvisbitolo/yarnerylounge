@@ -49,6 +49,10 @@ export default async function MembersPage() {
       photoURL: m.photoURL || "",
       favoriteColors: Array.isArray(m.favoriteColors) ? m.favoriteColors : [],
       crafts: Array.isArray(m.crafts) ? m.crafts : [],
+      hobbies: Array.isArray(m.hobbies) ? m.hobbies : [],
+      crochetTechniques: Array.isArray(m.crochetTechniques) ? m.crochetTechniques : [],
+      goToYarn: m.goToYarn || "",
+      favoriteHookSize: m.favoriteHookSize || "",
       role: m.role || "member",
       foundingMember: !!m.foundingMember,
       live: liveUids.has(m.id),
@@ -72,10 +76,12 @@ export default async function MembersPage() {
           members={members}
           viewer={{
             country: userDoc?.country || "",
+            location: userDoc?.location || "",
             goToYarn: userDoc?.goToYarn || "",
             favoriteHookSize: userDoc?.favoriteHookSize || "",
             favoriteColors: Array.isArray(userDoc?.favoriteColors) ? userDoc.favoriteColors : [],
             crafts: Array.isArray(userDoc?.crafts) ? userDoc.crafts : [],
+            hobbies: Array.isArray(userDoc?.hobbies) ? userDoc.hobbies : [],
             crochetTechniques: Array.isArray(userDoc?.crochetTechniques) ? userDoc.crochetTechniques : [],
           }}
           role={userDoc?.role}

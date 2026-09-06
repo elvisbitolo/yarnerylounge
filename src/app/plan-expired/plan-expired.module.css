@@ -1,0 +1,73 @@
+.wrap {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(ellipse at top, #1b0f24 0%, #0b0510 60%);
+}
+
+.card {
+  max-width: 460px;
+  width: 100%;
+  background: #161119;
+  border: 1px solid #2b2233;
+  border-radius: 18px;
+  padding: 40px 32px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.emoji {
+  font-size: 44px;
+  line-height: 1;
+  margin: 0 0 12px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: #f7ecfa;
+}
+
+.subtitle {
+  font-size: 15px;
+  line-height: 1.55;
+  color: #b9a9c4;
+  margin: 0 0 28px;
+}
+
+.renewBtn {
+  display: block;
+  width: 100%;
+  background: #1f9d63;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  padding: 14px 18px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+.renewBtn:hover {
+  background: #25b473;
+}
+
+.ghostBtn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  background: none;
+  border: none;
+  color: #8d7c99;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.ghostBtn:hover {
+  color: #c7b6d2;
+}

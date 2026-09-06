@@ -66,6 +66,17 @@
   gap: 16px;
 }
 
+.alwaysOnGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.alwaysOnCard {
+  border-top: 3px solid var(--roomColor, #a78bfa);
+}
+
 .card {
   display: block;
   background: #ffffff;
@@ -212,8 +223,14 @@
 .alwaysOnCard {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(109, 93, 246, 0.15), rgba(167, 139, 250, 0.08));
-  border: 1px solid rgba(167, 139, 250, 0.3);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--roomColor, #a78bfa) 15%, #ffffff), rgba(255, 255, 255, 0.85));
+  border: 1px solid color-mix(in srgb, var(--roomColor, #a78bfa) 30%, #e6e6ef);
+}
+
+@media (max-width: 480px) {
+  .alwaysOnGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .alwaysOnBadge {

@@ -45,6 +45,7 @@ export default async function RoomPage({ params }) {
         isHost={rights.isHost}
         isCoHost={rights.isCoHost}
         alwaysOn={!!room.alwaysOn}
+        vibe={room.vibe || ""}
         musicUrl={room.musicUrl || ""}
         musicPlaying={!!room.musicPlaying}
         musicFileId={room.musicFileId || ""}

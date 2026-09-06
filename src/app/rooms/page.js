@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { listRooms, seedAlwaysOnRoom } from "@/lib/server/rooms";
+import { listRooms, seedAlwaysOnRoom, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
 import { adminDb } from "@/lib/firebase/admin";
 import Nav from "@/components/Nav";
 import styles from "./rooms.module.css";
@@ -27,8 +27,9 @@ export default async function RoomsPage() {
         : Number.NaN;
     return Number.isFinite(t) ? t <= now : true;
   };
-  const alwaysOnRoom = activeRooms.find((room) => room.alwaysOn);
-  const regularRooms = activeRooms.filter((room) => !room.alwaysOn);
+  const canonicalSlugs = new Set(ALWAYS_ON_ROOMS.map((r) => r.slug));
+  const alwaysOnRooms = activeRooms.filter((room) => room.alwaysOn && canonicalSlugs.has(room.slug));
+  const regularRooms = activeRooms.filter((room) => !room.alwaysOn || !canonicalSlugs.has(room.slug));
   const liveBroadcasts = regularRooms.filter(
     (room) => (room.kind || "standard") === "broadcast" && isLiveNow(room)
   );
@@ -88,24 +89,34 @@ export default async function RoomsPage() {
           <p className={styles.empty}>No open rooms right now — check back soon.</p>
         ) : (
           <div className={styles.grid}>
-            {alwaysOnRoom && (
-              <Link
-                href={`/rooms/${alwaysOnRoom.slug}`}
-                className={`${styles.card} ${styles.alwaysOnCard}`}
-              >
-                <span className={styles.alwaysOnBadge}>
-                  <span className={styles.alwaysOnBadgeDot} aria-hidden="true" />
-                  Always Open
-                </span>
-                <h2 className={`${styles.cardTitle} ${styles.alwaysOnTitle}`}>
-                  {alwaysOnRoom.name}
-                </h2>
-                <p className={styles.cardDesc}>{alwaysOnRoom.description}</p>
-                <p className={styles.cardMeta}>
-                  Pop in anytime · background music plays when you&apos;re alone
-                </p>
-              </Link>
-            )}
+            {alwaysOnRooms.length > 0 && (
+            <div className={styles.alwaysOnGrid}>
+              {alwaysOnRooms.map((room) => (
+                <Link
+                  key={room.id}
+                  href={`/rooms/${room.slug}`}
+                  className={`${styles.card} ${styles.alwaysOnCard}`}
+                  style={room.color ? { "--roomColor": room.color } : undefined}
+                >
+                  <span className={styles.alwaysOnBadge}>
+                    <span className={styles.alwaysOnBadgeDot} aria-hidden="true" />
+                    Always Open
+                  </span>
+                  <h2 className={`${styles.cardTitle} ${styles.alwaysOnTitle}`}>
+                    {room.name}
+                  </h2>
+                  <p className={styles.cardDesc}>{room.description}</p>
+                  <p className={styles.cardMeta}>
+                    {room.vibe === "silent"
+                      ? "Pop in anytime · no music, pure focus"
+                      : room.vibe === "social"
+                        ? "Pop in anytime · upbeat background grooves"
+                        : "Pop in anytime · ambient background music"}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          )}
             {gridRooms.map((room) => (
               <Link key={room.id} href={`/rooms/${room.slug}`} className={styles.card}>
                 <h2 className={styles.cardTitle}>

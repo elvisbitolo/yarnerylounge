@@ -26,6 +26,23 @@ const CRAFTS = [
   { value: "macrame", label: "Macrame" },
 ];
 
+const HOBBIES = [
+  { value: "cooking", label: "Cooking" },
+  { value: "baking", label: "Baking" },
+  { value: "gardening", label: "Gardening" },
+  { value: "thrifting", label: "Thrifting" },
+  { value: "yoga", label: "Yoga" },
+  { value: "pottery", label: "Pottery" },
+  { value: "painting", label: "Painting" },
+  { value: "photography", label: "Photography" },
+  { value: "reading", label: "Reading" },
+  { value: "antiquing", label: "Antiquing" },
+  { value: "sewing", label: "Sewing" },
+  { value: "woodworking", label: "Woodworking" },
+  { value: "board games", label: "Board games" },
+  { value: "card games", label: "Card games" },
+];
+
 const PRESETS = {
   desktop: { width: 960, height: 560 },
   tablet: { width: 720, height: 540 },
@@ -60,6 +77,12 @@ function commoStrings(viewer, member) {
       found.push(
         `${overlap.length} shared ${overlap.length === 1 ? "craft" : "crafts"}: ${overlap.map(craftLabel).join(", ")}`
       );
+    }
+  }
+  if (Array.isArray(viewer.hobbies) && Array.isArray(member.hobbies)) {
+    const overlap = viewer.hobbies.filter((h) => member.hobbies.includes(h));
+    if (overlap.length > 0) {
+      found.push(`${overlap.length} shared ${overlap.length === 1 ? "hobby" : "hobbies"} in common`);
     }
   }
   if (Array.isArray(viewer.crochetTechniques) && Array.isArray(member.crochetTechniques)) {
@@ -116,7 +139,9 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
   const [country, setCountry] = useState("");
+  const [location, setLocation] = useState("");
   const [craft, setCraft] = useState("");
+  const [hobby, setHobby] = useState("");
   const [hover, setHover] = useState(null);
   const hideTimer = useRef(null);
 
@@ -172,6 +197,19 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
     return [...all, ...inUse.filter((c) => !all.includes(c))];
   }, [members]);
 
+  const locations = useMemo(() => distinct(members.map((m) => m.location)), [members]);
+
+  const hobbiesInUse = useMemo(
+    () => distinct(([]).concat(members.flatMap((m) => (Array.isArray(m.hobbies) ? m.hobbies : [])))),
+    [members]
+  );
+
+  const hobbyOptions = useMemo(() => {
+    const known = new Map(HOBBIES.map((h) => [h.value, h.label]));
+    const used = hobbiesInUse.map((h) => ({ value: h, label: known.get(h) || h }));
+    return used.sort((a, b) => a.label.localeCompare(b.label));
+  }, [hobbiesInUse]);
+
   const query = search.trim().toLowerCase();
 
   const filtered = useMemo(() => {
@@ -181,13 +219,17 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
       if (tab === "hosts" && member.role !== "owner" && member.role !== "moderator") return false;
       if (craft && !member.crafts?.includes(craft)) return false;
       if (country && member.country !== country) return false;
+      if (location && member.location !== location) return false;
+      if (hobby && !(Array.isArray(member.hobbies) && member.hobbies.includes(hobby))) return false;
       if (!query) return true;
       return (
         member.name?.toLowerCase().includes(query) ||
         member.headline?.toLowerCase().includes(query) ||
         member.location?.toLowerCase().includes(query) ||
         member.country?.toLowerCase().includes(query) ||
-        member.bio?.toLowerCase().includes(query)
+        member.bio?.toLowerCase().includes(query) ||
+        (Array.isArray(member.hobbies) &&
+          member.hobbies.some((h) => h.toLowerCase().includes(query)))
       );
     });
     if (tab === "newest") {
@@ -197,7 +239,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
       return [...pool].sort((a, b) => (b.points || 0) - (a.points || 0));
     }
     return [...pool].sort((a, b) => a.name.localeCompare(b.name));
-  }, [members, tab, query, country, craft, todayKey]);
+  }, [members, tab, query, country, location, craft, hobby, todayKey]);
 
   const DENSE_BASE = 20;
   const DENSE_STEP = Math.round((14 * 960) / preset.width);
@@ -242,41 +284,68 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
           ))}
         </div>
       </div>
-      <div className={styles.locationFilters}>
-        <select
-          className={styles.locationSelect}
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          aria-label="Filter by country"
-        >
-          <option value="">All countries</option>
-          {countries.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </div>
-      <div className={styles.craftRow}>
-        <span className={styles.craftLabel}>Crafts</span>
-        <button
-          className={!craft ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
-          onClick={() => setCraft("")}
-        >
-          All
-        </button>
-        {CRAFTS.map((c) => (
-          <button
-            key={c.value}
-            className={craft === c.value ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
-            onClick={() => setCraft(craft === c.value ? "" : c.value)}
+      <div className={styles.matchmakerPanel}>
+        <p className={styles.matchmakerTitle}>
+          <span className={styles.matchmakerSparkle}>✦</span> Find Members
+        </p>
+        <div className={styles.locationFilters}>
+          <select
+            className={styles.locationSelect}
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            aria-label="Filter by country"
           >
-            {c.label}
+            <option value="">All countries</option>
+            {countries.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            className={styles.locationSelect}
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            aria-label="Filter by location"
+          >
+            <option value="">All locations</option>
+            {locations.map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+          <select
+            className={styles.locationSelect}
+            value={hobby}
+            onChange={(e) => setHobby(e.target.value)}
+            aria-label="Filter by hobby"
+          >
+            <option value="">All hobbies</option>
+            {hobbyOptions.map((h) => (
+              <option key={h.value} value={h.value}>{h.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.craftRow}>
+          <span className={styles.craftLabel}>Crafts</span>
+          <button
+            className={!craft ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
+            onClick={() => setCraft("")}
+          >
+            All
           </button>
-        ))}
+          {CRAFTS.map((c) => (
+            <button
+              key={c.value}
+              className={craft === c.value ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
+              onClick={() => setCraft(craft === c.value ? "" : c.value)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>
-          {query || tab !== "all" || country || craft
+          {query || tab !== "all" || country || location || craft || hobby
             ? "No members match this view."
             : "No members yet."}
         </p>
@@ -387,6 +456,12 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
           )}
           {hover.member.crafts?.length > 0 && (
             <p className={styles.tooltipCrafts}>{hover.member.crafts.map(craftLabel).join(" · ")}</p>
+          )}
+          {hover.member.hobbies?.length > 0 && (
+            <p className={styles.tooltipHobbies}>
+              <span className={styles.tooltipHobbyIcon}>✦</span>{" "}
+              {hover.member.hobbies.slice(0, 5).join(" · ")}
+            </p>
           )}
           {hover.member.favoriteColors?.length > 0 && (
             <span className={styles.tooltipDots}>

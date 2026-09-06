@@ -109,6 +109,16 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
+    match /availability/{availId} {
+      allow read: if isSignedIn() && isActiveSub();
+      allow write: if false;
+    }
+
+    match /availabilityRsvps/{id} {
+      allow read: if isSignedIn() && isActiveSub();
+      allow write: if false;
+    }
+
     match /pollVotes/{voteId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create, update, delete: if isSignedIn()
@@ -204,6 +214,21 @@ service cloud.firestore {
 
     match /groupMembers/{id} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isOwner());
+      allow create, update, delete: if false;
+    }
+
+    match /groupTopics/{topicId} {
+      allow read: if isSignedIn() && isNotSuspended();
+      allow create, update, delete: if false;
+    }
+
+    match /topicThreads/{threadId} {
+      allow read: if isSignedIn() && isNotSuspended();
+      allow create, update, delete: if false;
+    }
+
+    match /topicReplies/{replyId} {
+      allow read: if isSignedIn() && isNotSuspended();
       allow create, update, delete: if false;
     }
 

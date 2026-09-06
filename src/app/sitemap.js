@@ -5,12 +5,12 @@ export const dynamic = "force-dynamic";
 export default async function sitemap() {
   const base = "https://yarnerylounge.vercel.app";
 
-  const staticRoutes = ["", "/explore", "/about", "/guidelines", "/login", "/signup"].map(
+  const staticRoutes = ["/signup", "/login", "/about", "/guidelines"].map(
     (path) => ({
       url: `${base}${path}`,
       lastModified: new Date(),
-      changeFrequency: path === "" ? "weekly" : "monthly",
-      priority: path === "" ? 1 : 0.7,
+      changeFrequency: path === "/signup" ? "weekly" : "monthly",
+      priority: path === "/signup" ? 1 : 0.7,
     })
   );
 

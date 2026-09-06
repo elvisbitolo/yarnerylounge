@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { listGroups, isGroupMember } from "@/lib/server/groups";
-import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
+import { requireUser, requireHostUser, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { serialize } from "@/lib/server/serialize";
 
@@ -27,7 +27,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  const auth = await requireOwner();
+  const auth = await requireHostUser();
   const denied = guardJson(auth);
   if (denied) return denied;
 

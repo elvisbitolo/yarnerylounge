@@ -35,8 +35,16 @@ export default function GroupsBoard({ groups, uid }) {
         {groups.map((group) => (
           <div key={group.id} className={styles.card}>
             <div className={styles.cardBody}>
+              {group.hangoutTag && (
+                <span className={styles.hangoutTag} style={{ color: group.color || undefined }}>
+                  <span className={styles.hangoutDot} style={{ background: group.color || undefined }} />
+                  {group.emoji ? `${group.emoji} ` : ""}Hangout · {group.hangoutTag}
+                </span>
+              )}
               <Link className={styles.cardLink} href={`/groups/${group.slug}`}>
-                <h2 className={styles.cardTitle}>{group.name}</h2>
+                <h2 className={styles.cardTitle}>
+                  {group.emoji ? `${group.emoji} ` : ""}{group.name}
+                </h2>
               </Link>
               {group.description && <p className={styles.cardDesc}>{group.description}</p>}
               <p className={styles.cardMeta}>
