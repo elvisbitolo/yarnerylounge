@@ -61,6 +61,13 @@ export default async function MembersPage() {
       goToYarn: m.goToYarn || "",
       favoriteHookSize: m.favoriteHookSize || "",
       role: m.role || "member",
+      roleLabel: m.roleLabel || "",
+      plan: m.plan || "flirting",
+      expiresAt: m.expiresAt?.toMillis
+        ? m.expiresAt.toMillis()
+        : m.expiresAt
+          ? new Date(m.expiresAt).getTime()
+          : 0,
       foundingMember: !!m.foundingMember,
       live: liveUids.has(m.id),
       points: gami.get(m.id)?.points || 0,

@@ -200,6 +200,33 @@
   border-top: 1px solid #e6e6ef;
 }
 
+.upgradePrompt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid #e6e6ef;
+  font-size: 14px;
+  font-weight: 600;
+  color: #a33a1d;
+  background: #fff7f2;
+}
+
+.upgradePromptLink {
+  margin-left: auto;
+  background: var(--primary);
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.upgradePromptLink:hover {
+  background: var(--primary-hover);
+}
+
 .input {
   flex: 1;
   height: 44px;

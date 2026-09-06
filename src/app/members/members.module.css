@@ -477,6 +477,19 @@
   font-size: 11px;
 }
 
+.tierDot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  left: auto;
+  bottom: auto;
+  padding: 1px 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  line-height: 1;
+}
+
 .tooltip {
   position: fixed;
   z-index: 100;
@@ -679,6 +692,68 @@
 .tooltipActionPrimary:hover {
   background: var(--primary-dark, var(--primary));
   color: #ffffff;
+}
+
+.tooltipActionMatch {
+  background: rgba(255, 200, 30, 0.14);
+  border-color: rgba(255, 200, 30, 0.5);
+  color: #ffc81e;
+}
+
+.tooltipActionMatch:hover {
+  background: rgba(255, 200, 30, 0.24);
+}
+
+.matchOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.matchDialog {
+  position: relative;
+  width: min(420px, 100%);
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  padding: 26px 22px 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.matchClose {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #9a9a9a;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.matchTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffc81e;
+}
+
+.matchText {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #d4d4d4;
+}
+
+.matchButtons {
+  display: flex;
+  gap: 10px;
 }
 
 .similarSection {

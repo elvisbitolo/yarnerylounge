@@ -13,9 +13,9 @@
     "or": "or"
   },
   "nav": {
-    "overview": "Overview",
-    "connect": "Connect",
-    "learn": "Learn",
+    "overview": "Lounge Access",
+    "connect": "The Inner Circle",
+    "learn": "The Registry",
     "community": "Community",
     "host": "Host",
     "analytics": "Analytics",
@@ -23,8 +23,8 @@
     "automation": "Automation",
     "administration": "Administration",
     "collections": "Collections",
-    "dashboard": "Dashboard",
-    "feed": "Feed",
+    "dashboard": "Lounge Access",
+    "feed": "The Inner Circle",
     "rooms": "Rooms",
     "events": "Events",
     "calendar": "Calendar",
@@ -32,7 +32,7 @@
     "courses": "Courses",
     "articles": "Articles",
     "recordings": "Recordings",
-    "members": "Members",
+    "members": "The Registry",
     "groups": "Groups",
     "spaces": "Spaces",
     "gallery": "Gallery",
@@ -126,6 +126,8 @@
     "askPoll": "Ask a question, then add options below…",
     "askQuestion": "What do you want to ask the community?…",
     "newPost": "New post",
+    "upgradeToChat": "Upgrade to post, chat and react with the community!",
+    "upgrade": "Upgrade",
     "askAPoll": "Ask a poll",
     "askAQuestion": "Ask a question",
     "posting": "Posting…",
@@ -303,7 +305,9 @@
     "faqMovingQ": "What do I get with Moving In?",
     "faqMovingA": "Moving In is the global host membership: create rooms and groups, host parties, and get featured up front. It's $17.95/month or $179.50/year.",
     "tosCheckbox": "I agree to the {terms} of Service and understand the membership renews on the plan I pick.",
-    "tosRequired": "Please accept the Terms of Service to continue."
+    "tosRequired": "Please accept the Terms of Service to continue.",
+    "onlyPaidMembers": "This account needs a paid Speakeasy membership before joining.",
+    "signupFailed": "Sign-up failed"
   },
   "landing": {
     "liveCommunities": "Live communities · Courses · Events",
@@ -719,6 +723,7 @@
     "captionsOn": "Captions on",
     "captionsNotSupported": "Not supported in this browser",
     "noMicrophone": "No microphone found",
-    "noCamera": "No camera found"
+    "noCamera": "No camera found",
+    "muteParticipant": "Mute"
   }
 }

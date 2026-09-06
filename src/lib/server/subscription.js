@@ -5,7 +5,8 @@ const FREE_ACCESS_SUB = {
   provider: "free",
   status: "active",
   tier: "flirting",
-  plan: "monthly",
+  plan: "flirting",
+  planName: "flirting",
   isFreeAccess: true,
 };
 
@@ -22,7 +23,7 @@ export async function getAccessSub(uid) {
   const doc = await adminDb().collection("users").doc(uid).get();
   const userDoc = doc.exists ? { id: doc.id, ...doc.data() } : null;
   if (isStaff(userDoc)) {
-    return { status: "active", tier: "host", isStaffAccess: true };
+    return { status: "active", tier: "moving-in", planName: "moving-in", isStaffAccess: true };
   }
 
   const sub = await getSubscription(uid);
@@ -39,5 +40,5 @@ export function isActiveSub(sub) {
 export async function getTier(uid) {
   const sub = await getAccessSub(uid);
   if (!isActiveSubLogic(sub)) return null;
-  return sub.tier || "lounge";
+  return sub.tier || "flirting";
 }

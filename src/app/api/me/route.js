@@ -12,6 +12,16 @@ export async function GET() {
   }
   const userDoc = await getUserDoc(user.uid);
   const gamification = await getGamification(user.uid, userDoc?.name || "Member");
+
+  const expiresAt = userDoc?.expiresAt
+    ? (userDoc.expiresAt.toMillis
+        ? userDoc.expiresAt.toMillis()
+        : new Date(userDoc.expiresAt).getTime())
+    : 0;
+  const plan = userDoc?.plan || "flirting";
+  const isExpired =
+    plan !== "flirting" && expiresAt > 0 && expiresAt < Date.now();
+
   return NextResponse.json({
     uid: user.uid,
     name: userDoc?.name || user.name || user.displayName || "",
@@ -19,6 +29,10 @@ export async function GET() {
     email: user.email,
     role: userDoc?.role || "member",
     roleLabel: userDoc?.roleLabel || "",
+    plan,
+    tier: plan,
+    expiresAt,
+    isExpired,
     headline: userDoc?.headline || "",
     location: userDoc?.location || "",
     country: userDoc?.country || "",

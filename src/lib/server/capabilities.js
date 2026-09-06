@@ -24,7 +24,7 @@ export const CAPABILITIES = {
     matchmaker: true,
     hosting: false,
     neighborhoods: { join: true, build: false },
-    profileBadge: null,
+    profileBadge: { icon: "👑", color: "#d4a017" },
   },
   host: {
     key: "moving-in",
@@ -34,7 +34,7 @@ export const CAPABILITIES = {
     matchmaker: true,
     hosting: true,
     neighborhoods: { join: true, build: true },
-    profileBadge: "Diamond",
+    profileBadge: { icon: "💎", color: "#3b82f6" },
   },
 };
 
@@ -45,19 +45,22 @@ export async function getCapabilities(uid) {
   if (isStaff({ role: sub?.role }) || sub?.isStaffAccess) {
     return { ...CAPABILITIES.host };
   }
-  const tier = sub?.tier || "lounge";
-  if (tier === "host" || sub?.role === "host") {
+  const tier = sub?.tier || "flirting";
+  if (tier === "moving-in" || sub?.planName === "moving-in" || sub?.role === "host") {
     return { ...CAPABILITIES.host };
   }
-  // The Shopify plan name is authoritative. Flirting (free $0 taster) and the
+  // The Shopify plan is authoritative. Flirting (free $0 taster) and the
   // free-access fallback are view-only; any real paid plan ranks as paid.
-  const plan = sub?.planName || "";
-  const paidPlan = plan === "hooking-up" || plan === "moving-in";
-  const hasPeriod = periodEndMillis(sub) > 0;
-  if (tier === "flirting" || sub?.isFreeAccess || (!paidPlan && !hasPeriod)) {
+  const paidPlan = sub?.planName === "hooking-up" || sub?.planName === "moving-in";
+  if (tier === "flirting" || sub?.isFreeAccess || paidPlan === false) {
     return { ...CAPABILITIES.free };
   }
-  return { ...CAPABILITIES.paid };
+  if (paidPlan || tier === "hooking-up") {
+    return { ...CAPABILITIES.paid };
+  }
+  const hasPeriod = periodEndMillis(sub) > 0;
+  if (hasPeriod) return { ...CAPABILITIES.paid };
+  return { ...CAPABILITIES.free };
 }
 
 export function canPublishRemote(caps) {

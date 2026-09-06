@@ -42,7 +42,7 @@ test("summarizeSubscriptions: counts active and breaks down by tier/plan", () =>
   assert.equal(result.total, 5);
   assert.equal(result.active, 3);
   assert.equal(result.cancelAtPeriodEnd, 1);
-  assert.deepEqual(result.byTier, { lounge: 4, host: 1 });
+  assert.deepEqual(result.byTier, { flirting: 4, "hooking-up": 1 });
   assert.deepEqual(result.byPlan, { monthly: 3, yearly: 2 });
   assert.deepEqual(result.byStatus, { active: 3, trialing: 1, canceled: 1 });
   assert.equal(result.estimatedMonthlyCents, 2000 + 2000 + 2000);

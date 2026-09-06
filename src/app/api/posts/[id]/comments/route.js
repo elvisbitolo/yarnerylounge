@@ -3,6 +3,7 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { canAccessPost } from "@/lib/server/posts";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { createNotification } from "@/lib/server/notifications";
 import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
@@ -27,6 +28,10 @@ export async function POST(req, { params }) {
   }
 
   const userDoc = await getUserDoc(user.uid);
+  const caps = await getCapabilities(user.uid);
+  if (!canWriteChat(caps) && !(userDoc?.role === "owner" || userDoc?.role === "moderator")) {
+    return NextResponse.json({ error: "Live interaction requires an active membership" }, { status: 403 });
+  }
   const access = await canAccessPost(postId, user.uid, userDoc);
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status });

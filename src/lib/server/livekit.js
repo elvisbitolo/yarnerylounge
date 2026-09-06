@@ -73,6 +73,27 @@ export async function setLiveParticipantPublish(slug, identity, canPublish) {
   return { ok: true };
 }
 
+// Mutes a participant's published microphone from the host side. The mute is
+// enforced server-side on the LiveKit track, so it sticks regardless of what
+// the participant's client tries.
+export async function muteLiveParticipant(slug, identity) {
+  const client = await getLiveKitAdmin();
+  if (!client) return { ok: false, error: "LiveKit not configured" };
+  const participants = await client.listParticipants(slug);
+  const target = participants.find((p) => p.identity === identity);
+  if (!target) {
+    return { ok: false, error: "Participant not found in this room" };
+  }
+  const audioTrack = (target.tracks || []).find(
+    (t) => t.source === "microphone" && t.trackSid
+  );
+  if (!audioTrack) {
+    return { ok: true, muted: false };
+  }
+  await client.mutePublishedTrack(slug, identity, audioTrack.trackSid, true);
+  return { ok: true, muted: true };
+}
+
 export async function endLiveKitRoom(slug) {
   const client = await getLiveKitAdmin();
   if (!client) return { ok: false, error: "LiveKit not configured" };

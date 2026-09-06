@@ -1,9 +1,9 @@
 export const SHOPIFY_VARIANTS = [
-  { id: "51798394929385", plan: "flirting", role: "member", tier: "lounge", durationDays: 0, label: "Flirting", annual: false },
-  { id: "51798261825769", plan: "hooking-up", role: "member", tier: "lounge", durationDays: 30, label: "Hooking Up", annual: false },
-  { id: "51798264447209", plan: "hooking-up", role: "member", tier: "lounge", durationDays: 365, label: "Hooking Up", annual: true },
-  { id: "51798268575977", plan: "moving-in", role: "host", tier: "host", durationDays: 30, label: "Moving In", annual: false },
-  { id: "51798277882089", plan: "moving-in", role: "host", tier: "host", durationDays: 365, label: "Moving In", annual: true },
+  { id: "51798394929385", plan: "flirting", role: "member", tier: "flirting", durationDays: 0, label: "Flirting", annual: false },
+  { id: "51798261825769", plan: "hooking-up", role: "member", tier: "hooking-up", durationDays: 30, label: "Hooking Up", annual: false },
+  { id: "51798264447209", plan: "hooking-up", role: "member", tier: "hooking-up", durationDays: 365, label: "Hooking Up", annual: true },
+  { id: "51798268575977", plan: "moving-in", role: "host", tier: "moving-in", durationDays: 30, label: "Moving In", annual: false },
+  { id: "51798277882089", plan: "moving-in", role: "host", tier: "moving-in", durationDays: 365, label: "Moving In", annual: true },
 ];
 
 const RANK = { flirting: 0, "hooking-up": 1, "moving-in": 2 };

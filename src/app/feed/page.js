@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { recordDailyVisit } from "@/lib/server/gamification";
 import { loungeGate } from "@/lib/server/lounge-gate";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import Nav from "@/components/Nav";
 import Feed from "./Feed";
 import styles from "./feed.module.css";
@@ -19,6 +20,8 @@ export default async function FeedPage({ searchParams }) {
   const gate = await loungeGate(user.uid, userDoc);
   if (gate) redirect(gate);
 
+  const caps = await getCapabilities(user.uid);
+
   recordDailyVisit(user.uid, userDoc?.name || user.name || "Member").catch(() => {});
 
   return (
@@ -31,6 +34,7 @@ export default async function FeedPage({ searchParams }) {
           userName={userDoc?.name || user.name || "Member"}
           role={userDoc?.role || "member"}
           initialKind={initialKind}
+          canWriteChat={canWriteChat(caps)}
         />
       </div>
 </Nav>

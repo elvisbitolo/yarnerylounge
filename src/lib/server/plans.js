@@ -1,10 +1,23 @@
-export const TIERS = ["lounge", "plus", "host"];
+export const TIERS = ["flirting", "hooking-up", "moving-in"];
 
 export const LEGACY_ALIASES = {
-  standard: "lounge",
-  community: "lounge",
-  premium: "host",
-  creator: "host",
+  lounge: "flirting",
+  standard: "flirting",
+  community: "flirting",
+  free: "flirting",
+  none: "flirting",
+  plus: "hooking-up",
+  premium: "hooking-up",
+  creator: "hooking-up",
+  paid: "hooking-up",
+  host: "moving-in",
+};
+
+export const TIER_RANK = { flirting: 0, "hooking-up": 1, "moving-in": 2 };
+
+export const TIER_BADGE = {
+  "hooking-up": { icon: "👑", color: "#d4a017", label: "Hooking Up" },
+  "moving-in": { icon: "💎", color: "#3b82f6", label: "Moving In" },
 };
 
 function normalize(tier) {
@@ -13,40 +26,56 @@ function normalize(tier) {
 }
 
 export const TIER_INFO = {
-  lounge: {
-    name: "Secret Yarnery",
-    priceCents: 999,
-    founding: { priceCents: 699, slots: 100 },
-    videoChat: { canJoin: true, canHost: false, monthlyHours: 8 },
+  flirting: {
+    name: "Flirting",
+    shortName: "Flirting",
+    handle: "The Front Parlor Pass",
+    priceCents: 0,
+    videoChat: { canJoin: true, canHost: false },
   },
-  plus: {
-    name: "Yarnery Plus",
-    priceCents: 1999,
-    videoChat: { canJoin: true, canHost: false, monthlyHours: 24 },
+  "hooking-up": {
+    name: "Hooking Up",
+    shortName: "Hooking Up",
+    handle: "The Main Floor Ticket",
+    priceCents: 795,
+    videoChat: { canJoin: true, canHost: false },
   },
-  host: {
-    name: "Yarnery Host",
-    priceCents: 2999,
-    videoChat: { canJoin: true, canHost: true, monthlyHours: Infinity },
+  "moving-in": {
+    name: "Moving In",
+    shortName: "Moving In",
+    handle: "The Resident Key",
+    priceCents: 1795,
+    videoChat: { canJoin: true, canHost: true },
   },
 };
 
 export function tierLabel(tier) {
-  return TIER_INFO[normalize(tier)]?.name || "Secret Yarnery";
+  return TIER_INFO[normalize(tier)]?.name || "Flirting";
+}
+
+export function tierShortLabel(tier) {
+  return TIER_INFO[normalize(tier)]?.shortName || "Flirting";
+}
+
+export function tierBadge(tier) {
+  return TIER_BADGE[normalize(tier)] || null;
 }
 
 export function tierRank(tier) {
-  const idx = TIERS.indexOf(normalize(tier) || "");
-  return idx === -1 ? -1 : idx;
+  return TIER_RANK[normalize(tier)] ?? -1;
 }
 
 export function meetsTier(userTier, requiredTier) {
   if (requiredTier == null || requiredTier === "") return true;
   const req = normalize(requiredTier);
-  if (!req || req === "lounge") return true;
+  if (!req || req === "flirting") return true;
   return tierRank(userTier) >= tierRank(req);
 }
 
 export function videoChatRights(tier) {
-  return TIER_INFO[normalize(tier)]?.videoChat || TIER_INFO.lounge.videoChat;
+  return TIER_INFO[normalize(tier)]?.videoChat || TIER_INFO.flirting.videoChat;
+}
+
+export function isAtLeast(userTier, requiredTier) {
+  return meetsTier(userTier, requiredTier);
 }

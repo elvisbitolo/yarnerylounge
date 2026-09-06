@@ -109,6 +109,12 @@ export default function RoomClient({
   planKey = "flirting",
   alwaysOn,
   vibe = "",
+  vibeMode = "",
+  vibeRule = "",
+  autoAudioVideo = false,
+  forceMuteOnJoin = false,
+  raiseHandToTalk = false,
+  disableAudio = false,
   musicUrl,
   musicPlaying,
   musicFileId,
@@ -234,10 +240,14 @@ export default function RoomClient({
       const tokenViewer = data.kind === "broadcast" && data.canPublish === false;
       const planViewer = data.canPublish === false;
       setIsViewer(tokenViewer || planViewer);
+      const vibeMutesAudio = disableAudio || forceMuteOnJoin;
       setJoinPrefs(
         prefs || {
-          micOn: planCanPublish ? true : false,
-          camOn: planCanPublish ? true : false,
+          micOn:
+            planCanPublish && !isViewer && !vibeMutesAudio && autoAudioVideo
+              ? true
+              : false,
+          camOn: planCanPublish && !isViewer ? true : false,
           audioDeviceId: "",
           videoDeviceId: "",
         }
@@ -359,11 +369,15 @@ export default function RoomClient({
             userAvatar={userAvatar}
             subtitle={
               !planCanPublish
-                ? "Viewing as a guest — upgrades unlock your camera & mic."
-                : alwaysOn && vibe === "silent"
-                ? "Zero-distraction zone. Cameras on, microphones muted — absolute silence for your focus."
-                : alwaysOn && vibe === "focus"
+                ? "Viewing as a guest — subscriptions unlock your camera & mic."
+                : vibeMode === "silent"
+                ? "Absolute-silence focus room. Audio stays off — cameras on, microphones muted."
+                : vibeMode === "force-mute"
                 ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
+                : vibeMode === "raise-hand"
+                ? "Soft-spoken room. Raise your hand to talk and the host will bring you in."
+                : vibeMode === "auto"
+                ? "The loud, friendly welcome room — camera and mic are on as soon as you pop in."
                 : alwaysOn
                 ? "Always open — pop in anytime. Meet new members and settle into the lounge."
                 : isBroadcast
@@ -376,7 +390,9 @@ export default function RoomClient({
             busy={busy}
             error={error}
             viewerOnly={viewerOnly || !planCanPublish}
-            micDefaultOn={vibe !== "silent" && vibe !== "focus"}
+            micDefaultOn={vibeMode === "auto"}
+            micLockedOff={disableAudio}
+            showRaiseHint={raiseHandToTalk}
             onJoin={(prefs) => handleJoin(prefs)}
           />
         </div>
@@ -417,7 +433,7 @@ export default function RoomClient({
           serverUrl={serverUrl}
           connect={true}
           video={joinPrefs ? joinPrefs.camOn : true}
-          audio={joinPrefs ? joinPrefs.micOn : true}
+          audio={joinPrefs ? joinPrefs.micOn && !disableAudio : true}
           options={{
             adaptiveStream: true,
             dynacast: true,
@@ -427,7 +443,7 @@ export default function RoomClient({
               videoCaptureDefaults: joinPrefs.camOn
                 ? { deviceId: joinPrefs.videoDeviceId || undefined }
                 : undefined,
-              audioCaptureDefaults: joinPrefs.micOn
+              audioCaptureDefaults: joinPrefs.micOn && !disableAudio
                 ? { deviceId: joinPrefs.audioDeviceId || undefined }
                 : undefined,
             }),
@@ -481,6 +497,8 @@ export default function RoomClient({
               <RoomControls
                 isHost={isHost}
                 canPublish={planCanPublish && !isViewer}
+                disableAudio={disableAudio}
+                vibeRule={vibeRule}
                 currentUserName={userName}
                 chatOpen={showChat}
                 participantsOpen={showParticipants}

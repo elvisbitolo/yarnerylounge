@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
 import { extractHashtags } from "@/lib/server/hashtags";
 import { extractMentions, resolveMentions, sendMentionNotifications } from "@/lib/server/mentions";
@@ -108,6 +109,11 @@ export async function POST(req) {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+  const userDoc = await getUserDoc(user.uid);
+  const caps = await getCapabilities(user.uid);
+  if (!canWriteChat(caps) && !(userDoc?.role === "owner" || userDoc?.role === "moderator")) {
+    return NextResponse.json({ error: "Live interaction requires an active membership" }, { status: 403 });
+  }
   const sub = await getAccessSub(user.uid);
   if (!isActiveSub(sub)) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
@@ -164,7 +170,6 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid image URL" }, { status: 400 });
   }
 
-  const userDoc = await getUserDoc(user.uid);
   const authorName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
   const authorRole = userDoc?.role || "member";
 

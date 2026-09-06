@@ -4,6 +4,7 @@ import { requireScopeHost, guardJson } from "@/lib/server/authorize";
 import {
   removeLiveParticipant,
   setLiveParticipantPublish,
+  muteLiveParticipant,
   listLiveParticipants,
 } from "@/lib/server/livekit";
 import { logAudit } from "@/lib/server/audit";
@@ -22,7 +23,7 @@ export async function POST(req, { params }) {
   }
 
   const { action } = await req.json();
-  if (!["remove", "viewer", "speaker"].includes(action)) {
+  if (!["remove", "viewer", "speaker", "mute"].includes(action)) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
 
@@ -42,6 +43,8 @@ export async function POST(req, { params }) {
   try {
     if (action === "remove") {
       result = await removeLiveParticipant(room.slug, identity);
+    } else if (action === "mute") {
+      result = await muteLiveParticipant(room.slug, identity);
     } else {
       result = await setLiveParticipantPublish(
         room.slug,

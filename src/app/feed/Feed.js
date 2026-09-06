@@ -14,6 +14,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
+import { UPGRADE_URL } from "@/lib/upgrade-url";
 import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
@@ -411,7 +412,7 @@ function ReportButton({ type, targetId, commentPostId, small }) {
   );
 }
 
-function CommentList({ postId, uid, canModerate }) {
+function CommentList({ postId, uid, canModerate, disabled }) {
   const t = useTranslations("feed");
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
@@ -495,12 +496,14 @@ function CommentList({ postId, uid, canModerate }) {
         <input
           className={styles.commentInput}
           type="text"
-          placeholder={t("replyPlaceholder")}
+          placeholder={disabled ? t("upgradeToChat") : t("replyPlaceholder")}
           value={text}
+          disabled={disabled}
+          readOnly={disabled}
           onChange={(e) => setText(e.target.value)}
         />
-        <button className={styles.commentSubmit} type="submit" disabled={!text.trim() || busy}>
-          {busy ? t("replying") : t("reply")}
+        <button className={styles.commentSubmit} type="submit" disabled={disabled || !text.trim() || busy}>
+          {disabled ? t("upgrade") : busy ? t("replying") : t("reply")}
         </button>
       </form>
     </div>
@@ -509,7 +512,7 @@ function CommentList({ postId, uid, canModerate }) {
 
 const EMPTY_POLL = ["", ""];
 
-export default function Feed({ uid, userName, role, groupId, spaceId, initialKind }) {
+export default function Feed({ uid, userName, role, groupId, spaceId, initialKind, canWriteChat = true }) {
   const t = useTranslations("feed");
   const canModerate = role === "owner" || role === "moderator";
   const [posts, setPosts] = useState([]);
@@ -786,6 +789,18 @@ const trimmed = text.trim();
 
   return (
     <div className={styles.feed}>
+      {!canWriteChat && !canModerate ? (
+        <div className={styles.upgradePrompt}>
+          <svg className={styles.upgradePromptIcon} viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>{t("upgradeToChat")}</span>
+          <a className={styles.upgradePromptLink} href={UPGRADE_URL} target="_blank" rel="noopener noreferrer">
+            {t("upgrade")}
+          </a>
+        </div>
+      ) : (
       <form className={styles.composer} onSubmit={handlePost}>
         <div className={styles.kindTabs}>
           {[
@@ -910,6 +925,7 @@ const trimmed = text.trim();
           </button>
         </div>
       </form>
+      )}
 
       <div className={styles.feedBar}>
         <input
@@ -1045,17 +1061,17 @@ const trimmed = text.trim();
               </div>
               {post.text && <p className={styles.postText}>{renderMentions(post.text)}</p>}
               {post.kind === "poll" && (
-                <PollBlock postId={post.id} post={post} uid={uid} />
+                <PollBlock postId={post.id} post={post} uid={uid} disabled={!canWriteChat && !canModerate} />
               )}
               {post.imageUrl && (
                 <img src={post.imageUrl} alt="" className={styles.postImage} />
               )}
               <div className={styles.postActions}>
-                <LikeButton postId={post.id} likes={post.likes} uid={uid} />
-                <BookmarkButton postId={post.id} bookmarks={post.bookmarks} uid={uid} />
+                <LikeButton postId={post.id} likes={post.likes} uid={uid} disabled={!canWriteChat && !canModerate} />
+                <BookmarkButton postId={post.id} bookmarks={post.bookmarks} uid={uid} disabled={!canWriteChat && !canModerate} />
               </div>
-              <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} />
-              <CommentList postId={post.id} uid={uid} canModerate={canModerate} />
+              <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={!canWriteChat && !canModerate} />
+              <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={!canWriteChat && !canModerate} />
             </article>
           ))}
         </div>

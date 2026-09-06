@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "../chat.module.css";
 import tStyles from "./thread.module.css";
 import { renderRichText } from "@/lib/chat-render";
@@ -114,7 +115,7 @@ function BubbleContent({ msg, searchQuery, isReply }) {
   return content ? <p className={bubbleTextClass}>{content}</p> : null;
 }
 
-export default function Thread({ conversationId, uid, initialMessages }) {
+export default function Thread({ conversationId, uid, initialMessages, canWriteChat = true }) {
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -337,6 +338,7 @@ export default function Thread({ conversationId, uid, initialMessages }) {
 
   async function toggleReaction(msg, emoji, e) {
     e?.stopPropagation();
+    if (!canWriteChat) return;
     setReactionsOpen(null);
     try {
       const res = await fetch(
@@ -497,6 +499,7 @@ export default function Thread({ conversationId, uid, initialMessages }) {
                   </a>
                 )}
                 <p className={styles.bubbleTime}>{timeLabel(millis)}</p>
+                {canWriteChat && (
                 <div className={tStyles.replyActions}>
                   {replies.length > 0 && (
                     <button
@@ -535,6 +538,7 @@ export default function Thread({ conversationId, uid, initialMessages }) {
                     🙂
                   </button>
                 </div>
+                )}
                 {reactionSummary(msg).length > 0 && (
                   <div className={tStyles.reactionRow}>
                     {reactionSummary(msg).map(({ emoji, count, reacted }) => (
@@ -679,6 +683,7 @@ export default function Thread({ conversationId, uid, initialMessages }) {
         )}
       </div>
 
+      {canWriteChat ? (
       <form className={styles.composer} onSubmit={handleSend}>
         <button
           type="button"
@@ -723,6 +728,20 @@ export default function Thread({ conversationId, uid, initialMessages }) {
           onChange={handleFile}
         />
       </form>
+      ) : (
+        <div className={styles.upgradePrompt}>
+          <span>🔒</span>
+          <span>Upgrade to chat with the community!</span>
+          <a
+            className={styles.upgradePromptLink}
+            href={UPGRADE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Upgrade
+          </a>
+        </div>
+      )}
     </div>
   );
 }

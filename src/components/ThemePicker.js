@@ -2,7 +2,24 @@
 
 import { useState, useEffect } from "react";
 
+// Magenta + Yellow is the default Secret Yarnery brand theme (index 0). The
+// alternate palettes are available for members who prefer a different accent.
 const THEMES = [
+  {
+    name: "Yarnery",
+    primary: "#e91e63",
+    primaryLight: "#f06292",
+    primaryHover: "#c2185b",
+    secondary: "#6d0f35",
+    secondaryLight: "#ad1457",
+    secondaryHover: "#56091f",
+    accent: "#ffc81e",
+    accentLight: "#ffd54f",
+    accentHover: "#e6b31a",
+    success: "#e91e63",
+    warning: "#f59e0b",
+    highlight: "#ffc81e",
+  },
   {
     name: "Blue",
     primary: "#2563eb",
@@ -79,22 +96,47 @@ function applyTheme(theme) {
   root.style.setProperty("--success", theme.success);
   root.style.setProperty("--warning", theme.warning);
   root.style.setProperty("--highlight", theme.highlight);
+  root.style.setProperty("--dash-accent", theme.primary);
+  root.style.setProperty("--dash-accent-light", theme.primaryLight);
+  root.style.setProperty("--dash-accent-hover", theme.primaryHover);
+  root.style.setProperty("--dash-secondary", theme.accent);
+  root.style.setProperty("--dash-secondary-light", theme.accentLight);
+  root.style.setProperty("--dash-secondary-hover", theme.accentHover);
+  root.style.setProperty("--dash-cyan", theme.primary);
+  root.style.setProperty("--dash-cyan-light", theme.primaryLight);
+  root.style.setProperty("--dash-success", theme.success);
+  root.style.setProperty("--dash-warning", theme.warning);
+  root.style.setProperty("--dash-highlight", theme.highlight);
+  root.style.setProperty("--link", theme.primaryLight);
 }
 
+function applyFontSize(percent) {
+  const root = document.documentElement;
+  root.style.fontSize = percent === 100 ? "" : `${percent}%`;
+}
+
+const SIZE_STEP = 6;
+
 export default function ThemePicker() {
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    const saved = parseInt(localStorage.getItem("yarnerylounge-theme"), 10);
+    return saved >= 0 && saved < THEMES.length ? saved : 0;
+  });
   const [open, setOpen] = useState(false);
+  const [fontPct, setFontPct] = useState(() => {
+    if (typeof window === "undefined") return 100;
+    const saved = parseInt(localStorage.getItem("yarnerylounge-font-size"), 10);
+    return saved >= 82 && saved <= 124 ? saved : 100;
+  });
 
   useEffect(() => {
-    const saved = localStorage.getItem("yarnerylounge-theme");
-    if (saved !== null) {
-      const idx = parseInt(saved, 10);
-      if (idx >= 0 && idx < THEMES.length) {
-        setActive(idx);
-        applyTheme(THEMES[idx]);
-      }
-    }
-  }, []);
+    applyTheme(THEMES[active]);
+  }, [active]);
+
+  useEffect(() => {
+    applyFontSize(fontPct);
+  }, [fontPct]);
 
   const select = (idx) => {
     setActive(idx);
@@ -102,22 +144,36 @@ export default function ThemePicker() {
     localStorage.setItem("yarnerylounge-theme", idx.toString());
   };
 
+  const resize = (delta) => {
+    const next = Math.min(124, Math.max(82, fontPct + delta));
+    setFontPct(next);
+    applyFontSize(next);
+    localStorage.setItem("yarnerylounge-font-size", next.toString());
+  };
+
+  const resizeReset = () => {
+    setFontPct(100);
+    applyFontSize(100);
+    localStorage.removeItem("yarnerylounge-font-size");
+  };
+
   return (
     <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100 }}>
       <button
         onClick={() => setOpen(!open)}
         aria-label="Change theme"
+        title="Theme & text size"
         style={{
           width: 44,
           height: 44,
           borderRadius: "50%",
           border: "2px solid rgba(255,255,255,0.15)",
-          background: THEMES[active].primary,
+          background: active !== null ? THEMES[active].primary : "#e91e63",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: `0 4px 16px ${THEMES[active].primary}44`,
+          boxShadow: `0 4px 16px ${active !== null ? THEMES[active].primary : "#e91e63"}44`,
           transition: "all 0.2s ease",
         }}
       >
@@ -139,6 +195,7 @@ export default function ThemePicker() {
             padding: 16,
             width: 200,
             boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
+            zIndex: 101,
           }}
         >
           <p style={{ fontSize: 12, fontWeight: 700, color: "#a1a1aa", margin: "0 0 12px", textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -181,10 +238,46 @@ export default function ThemePicker() {
             ))}
           </div>
           <p style={{ fontSize: 11, color: "#71717a", margin: "12px 0 0", textAlign: "center" }}>
-            {THEMES[active].name}
+            {active !== null ? THEMES[active].name : ""}
           </p>
+
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", marginTop: 14, paddingTop: 14 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#a1a1aa", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Text size ({fontPct}%)
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <button
+                onClick={() => resize(-SIZE_STEP)}
+                aria-label="Decrease text size"
+                style={sizeBtnStyle}
+              >
+                A-
+              </button>
+              <button onClick={resizeReset} aria-label="Reset text size" style={sizeBtnStyle}>
+                Reset
+              </button>
+              <button
+                onClick={() => resize(SIZE_STEP)}
+                aria-label="Increase text size"
+                style={sizeBtnStyle}
+              >
+                A+
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+const sizeBtnStyle = {
+  background: "#2b2b2f",
+  border: "1px solid rgba(255,255,255,0.1)",
+  color: "#e4e4e7",
+  borderRadius: 8,
+  padding: "8px 0",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+};

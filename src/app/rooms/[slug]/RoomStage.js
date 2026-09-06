@@ -91,6 +91,7 @@ export default function RoomStage({ hostId, currentUserId, currentUserAvatar = "
                 isActive ? styles.tileActive : "",
                 isMe ? styles.tileMe : "",
                 !showVideo ? styles.tileOffCam : "",
+                showVideo ? styles.tileCamOn : "",
               ].filter(Boolean).join(" ")}
             >
               {showVideo ? (

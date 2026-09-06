@@ -240,6 +240,63 @@
   border-right: none;
 }
 
+.collapseToggle {
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  z-index: 5;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #141414;
+  color: #9a9a9a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.collapseToggle:hover {
+  background: #1f1f1f;
+  color: #f2f2f2;
+}
+
+.reopenToggle {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  z-index: 59;
+  width: 22px;
+  height: 76px;
+  border-radius: 0 10px 10px 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: none;
+  background: #111111;
+  color: #9a9a9a;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.reopenToggle:hover {
+  background: #1a1a1a;
+  color: #f2f2f2;
+}
+
+.reopenVisible {
+  display: flex;
+}
+
+@media (max-width: 900px) {
+  .reopenToggle {
+    display: none;
+  }
+}
+
 .content {
   flex: 1;
   min-width: 0;
@@ -248,7 +305,7 @@
 }
 
 .liveBanner {
-  background: linear-gradient(120deg, #2e7d32, #43a047);
+  background: linear-gradient(120deg, #e91e63, #f06292);
 }
 
 .liveLink {
@@ -381,7 +438,7 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #000000, #2e7d32);
+  background: linear-gradient(135deg, #000000, #e91e63);
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -440,7 +497,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #000000, #2e7d32);
+  background: linear-gradient(135deg, #000000, #e91e63);
   color: #ffffff;
   font-size: 16px;
   font-weight: 700;
@@ -479,7 +536,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #d4af37;
+  color: #ffc81e;
   font-weight: 600;
   background: rgba(244, 46, 121, 0.12);
   border-radius: 999px;
@@ -555,7 +612,7 @@
 }
 
 .topbarInput:focus {
-  border-color: var(--primary, #2e7d32);
+  border-color: var(--primary, #e91e63);
   background: #0f0f0f;
 }
 
@@ -747,7 +804,7 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #000000, #2e7d32);
+  background: linear-gradient(135deg, #000000, #e91e63);
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -786,7 +843,7 @@
   margin: 2px 0 0;
   font-size: 11px;
   font-weight: 600;
-  color: #d4af37;
+  color: #ffc81e;
   font-weight: 600;
 }
 
@@ -804,7 +861,7 @@
 }
 
 .profileViewBtn:hover {
-  background: linear-gradient(135deg, #000000, #2e7d32);
+  background: linear-gradient(135deg, #000000, #e91e63);
   color: #ffffff;
 }
 
@@ -841,12 +898,12 @@
 }
 
 .bottomNavLink:hover {
-  color: #43a047;
+  color: #f06292;
   background: rgba(46, 125, 50, 0.08);
 }
 
 .bottomNavActive {
-  color: #d4af37;
+  color: #ffc81e;
 }
 
 .bottomNavActive .bottomNavIcon {

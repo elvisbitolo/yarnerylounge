@@ -4,6 +4,8 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import PushSetup from "@/components/PushSetup";
 import GlobalTheme from "@/components/GlobalTheme";
+import LoungeExpiryGuard from "@/components/LoungeExpiryGuard";
+import ThemePicker from "@/components/ThemePicker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -72,7 +74,10 @@ export default async function RootLayout({ children }) {
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${assistant.variable}`}>
       <body>
         <Providers messages={messages} locale={locale}>
+          <LoungeExpiryGuard />
           <PushSetup />
+          <GlobalTheme />
+          <ThemePicker />
           {children}
         </Providers>
       </body>

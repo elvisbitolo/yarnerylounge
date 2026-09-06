@@ -24,6 +24,12 @@ async function createSession(idToken, name) {
       err.code = "email_not_verified";
       throw err;
     }
+    if (data.error === "not_prepaid") {
+      const err = new Error(data.message || "This account needs a paid Speakeasy membership.");
+      err.code = "not_prepaid";
+      err.redirect = data.redirect || "";
+      throw err;
+    }
     throw new Error(data.error || "Could not create session");
   }
   if (res.status === 409) {
@@ -35,6 +41,26 @@ async function createSession(idToken, name) {
   if (!res.ok) throw new Error("Failed to create session");
   const data = await res.json();
   return { user: null, data };
+}
+
+// The signup wall: verifies an email has a paid Shopify-checkout record in
+// Firestore BEFORE a Firebase Auth account is created. Returns
+// { ok: true } or throws a typed error with `.redirect` to the speakeasy page.
+export async function checkPaidSignup(email) {
+  const res = await fetch("/api/auth/precheck", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (res.ok) {
+    const data = await res.json();
+    return { ok: true, ...data };
+  }
+  const data = await res.json().catch(() => ({}));
+  const err = new Error(data.message || "This account needs a paid Speakeasy membership.");
+  err.code = data.error || "not_prepaid";
+  err.redirect = data.redirect || "";
+  throw err;
 }
 
 export async function loginWithGoogle() {

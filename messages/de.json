@@ -13,9 +13,9 @@
     "or": "oder"
   },
   "nav": {
-    "overview": "Übersicht",
-    "connect": "Verbinden",
-    "learn": "Lernen",
+    "overview": "Lounge-Zugang",
+    "connect": "Der Innere Kreis",
+    "learn": "Das Register",
     "community": "Community",
     "host": "Moderation",
     "analytics": "Analytik",
@@ -23,8 +23,8 @@
     "automation": "Automatisierung",
     "administration": "Verwaltung",
     "collections": "Sammlungen",
-    "dashboard": "Dashboard",
-    "feed": "Feed",
+    "dashboard": "Lounge-Zugang",
+    "feed": "Der Innere Kreis",
     "rooms": "Räume",
     "events": "Events",
     "calendar": "Kalender",
@@ -32,7 +32,7 @@
     "courses": "Kurse",
     "articles": "Artikel",
     "recordings": "Aufzeichnungen",
-    "members": "Mitglieder",
+    "members": "Das Register",
     "groups": "Gruppen",
     "spaces": "Bereiche",
     "gallery": "Galerie",
@@ -126,6 +126,8 @@
     "askPoll": "Stellen Sie eine Frage und fügen Sie unten Optionen hinzu…",
     "askQuestion": "Was möchten Sie der Community fragen?…",
     "newPost": "Neuer Beitrag",
+    "upgradeToChat": "Upgraden, um mit der Community zu posten, chatten und reagieren!",
+    "upgrade": "Upgraden",
     "askAPoll": "Umfrage erstellen",
     "askAQuestion": "Frage stellen",
     "posting": "Wird gepostet…",
@@ -303,7 +305,9 @@
     "faqMovingQ": "Was bringt mir Moving In?",
     "faqMovingA": "Moving In ist die globale Host-Mitgliedschaft: Erstelle Räume und Gruppen, veranstalte Treffen und werde hervorgehoben. Sie kostet 17,95 $/Monat oder 179,50 $/Jahr.",
     "tosCheckbox": "Ich akzeptiere die {terms} und verstehe, dass sich die Mitgliedschaft nach dem gewählten Plan verlängert.",
-    "tosRequired": "Bitte akzeptiere die Nutzungsbedingungen, um fortzufahren."
+    "tosRequired": "Bitte akzeptiere die Nutzungsbedingungen, um fortzufahren.",
+    "onlyPaidMembers": "Dieses Konto benötigt eine kostenpflichtige Speakeasy-Mitgliedschaft, um beizutreten.",
+    "signupFailed": "Kontoerstellung fehlgeschlagen"
   },
   "landing": {
     "liveCommunities": "Live-Communities · Kurse · Events",
@@ -719,6 +723,7 @@
     "noMicrophone": "Kein Mikrofon gefunden",
     "noCamera": "Keine Kamera gefunden",
     "upgradeToChat": "Upgraden, um mit der Gruppe zu chatten!",
-    "upgrade": "Upgraden"
+    "upgrade": "Upgraden",
+    "muteParticipant": "Stummschalten"
   }
 }

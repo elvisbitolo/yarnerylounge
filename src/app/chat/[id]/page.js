@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getConversation, listMessages } from "@/lib/server/chat";
+import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import Thread from "./Thread";
@@ -21,6 +22,7 @@ export default async function ConversationPage({ params }) {
   }
 
   const messages = await listMessages(id);
+  const caps = await getCapabilities(user.uid);
 
   return (
       <Nav role={userDoc?.role}>
@@ -34,6 +36,7 @@ export default async function ConversationPage({ params }) {
             conversationId={id}
             uid={user.uid}
             initialMessages={messages}
+            canWriteChat={canWriteChat(caps) || userDoc?.role === "owner" || userDoc?.role === "moderator"}
           />
         </div>
       </div>

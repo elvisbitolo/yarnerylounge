@@ -1,66 +1,67 @@
 :root {
   /* ================= Secret Yarnery color system =================
-     Dark Luxury — Black background, Action Green primary, Gold accent.
-     Black  #000000
-     Green  #2E7D32
-     Gold   #D4AF37
+     Dark Luxury — Black + Zinc neutrals, Magenta primary, Yellow accent.
+     Black    #000000
+     Zinc     #111111
+     Magenta  #E91E63
+     Yellow   #FFC81E
   */
 
   /* Luxury tokens */
   --navy: #000000;
   --navy-deep: #050505;
-  --pink: #2e7d32;
-  --pink-hover: #266c2a;
-  --pink-soft: rgba(46, 125, 50, 0.14);
+  --pink: #e91e63;
+  --pink-hover: #c2185b;
+  --pink-soft: rgba(233, 30, 99, 0.14);
   --cream: #0d0d0d;
   --blush: rgb(20, 20, 20);
-  --rust: rgb(212, 175, 55);
+  --rust: rgb(255, 200, 30);
   --greige: rgb(120, 120, 120);
-  --warm-border: #242424;
+  --warm-border: #26262b;
 
-  /* 1-2. Primary (Action Green) */
-  --primary: #2e7d32;
-  --primary-light: #43a047;
-  --primary-hover: #266c2a;
-  --primary-active: #1b5e20;
+  /* 1-2. Primary (Magenta) */
+  --primary: #e91e63;
+  --primary-light: #f06292;
+  --primary-hover: #c2185b;
+  --primary-active: #ad1457;
   --primary-contrast: #ffffff;
 
-  /* 3-4. Secondary (Deep green-black) */
-  --secondary: #1b5e20;
-  --secondary-light: #2e7d32;
-  --secondary-hover: #145a18;
+  /* 3-4. Secondary (Deep magenta-black) */
+  --secondary: #6d0f35;
+  --secondary-light: #ad1457;
+  --secondary-hover: #56091f;
   --secondary-contrast: #ffffff;
 
-  /* 5. Accent (Gold) */
-  --accent: #d4af37;
-  --accent-light: #e6c969;
-  --accent-hover: #b8962e;
+  /* 5. Accent (Yellow) */
+  --accent: #ffc81e;
+  --accent-light: #ffd54f;
+  --accent-hover: #e6b31a;
 
   /* 11-13. Success / Warning / Error */
-  --success: #2e7d32;
-  --success-light: #43a047;
-  --warning: #d4af37;
+  --success: #e91e63;
+  --success-light: #f06292;
+  --warning: #f59e0b;
   --error: #e5484d;
   --error-light: #ff5c61;
-  --highlight: #d4af37;
+  --highlight: #ffc81e;
 
   /* 16. Gradients */
-  --gradient-primary: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
-  --gradient-brand: linear-gradient(135deg, #000000 0%, #2e7d32 100%);
+  --gradient-primary: linear-gradient(135deg, #e91e63 0%, #ad1457 100%);
+  --gradient-brand: linear-gradient(135deg, #000000 0%, #e91e63 100%);
 
-  /* 6-10. App neutrals — black luxury neutrals */
+  /* 6-10. App neutrals — black/zinc luxury neutrals */
   --background: #000000;
   --foreground: #f2f2f2;
-  --surface: #0f0f0f;
-  --surface-muted: #141414;
+  --surface: #111111;
+  --surface-muted: #191919;
   --text: #f2f2f2;
   --muted: #9a9a9a;
-  --border: #262626;
-  --selection: #2e7d3233;
+  --border: #27272a;
+  --selection: #e91e6333;
 
   /* 15. Links */
-  --link: #43a047;
-  --link-hover: #66bb6a;
+  --link: #f06292;
+  --link-hover: #ff80ab;
 
   /* 14. Buttons */
   --button-primary-bg: var(--primary);
@@ -73,24 +74,24 @@
   --button-accent-hover: var(--accent-hover);
   --button-accent-text: #000000;
 
-  /* Dashboard theme (dark luxury shell) — green action, gold accent */
+  /* Dashboard theme (dark luxury shell) — magenta action, yellow accent */
   --dash-bg: #000000;
-  --dash-surface: #0f0f0f;
-  --dash-border: #262626;
+  --dash-surface: #111111;
+  --dash-border: #27272a;
   --dash-text: #f2f2f2;
   --dash-muted: #9a9a9a;
-  --dash-accent: #2e7d32;
-  --dash-accent-light: #43a047;
-  --dash-accent-hover: #266c2a;
-  --dash-secondary: #d4af37;
-  --dash-secondary-light: #e6c969;
-  --dash-secondary-hover: #b8962e;
-  --dash-cyan: #2e7d32;
-  --dash-cyan-light: #43a047;
-  --dash-success: #2e7d32;
-  --dash-warning: #d4af37;
-  --dash-info: #43a047;
-  --dash-highlight: #d4af37;
+  --dash-accent: #e91e63;
+  --dash-accent-light: #f06292;
+  --dash-accent-hover: #c2185b;
+  --dash-secondary: #ffc81e;
+  --dash-secondary-light: #ffd54f;
+  --dash-secondary-hover: #e6b31a;
+  --dash-cyan: #e91e63;
+  --dash-cyan-light: #f06292;
+  --dash-success: #e91e63;
+  --dash-warning: #ffc81e;
+  --dash-info: #f06292;
+  --dash-highlight: #ffc81e;
 }
 
 html {

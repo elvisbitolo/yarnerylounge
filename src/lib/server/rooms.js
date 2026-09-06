@@ -91,7 +91,13 @@ export const ALWAYS_ON_ROOMS = [
     description: "The official welcome mat — high-energy, loud, and chatty. The #1 spot for new members to introduce themselves, make friends, and show off yarn hauls.",
     musicName: "Upbeat lounge grooves",
     vibe: "social",
-    color: "#f472b6",
+    color: "#e91e63",
+    rule: "Turn your camera and mic ON. This is the loud, friendly welcome room — show your face and say hi!",
+    vibeMode: "auto",
+    autoAudioVideo: true,
+    forceMuteOnJoin: false,
+    raiseHandToTalk: false,
+    disableAudio: false,
   },
   {
     slug: "lo-fi-and-loops",
@@ -100,6 +106,12 @@ export const ALWAYS_ON_ROOMS = [
     musicName: "Cozy lo-fi hip-hop beats",
     vibe: "focus",
     color: "#2dd4bf",
+    rule: "Mics start muted. This is a flow room — join, craft, and listen to the beats. Text chat stays quiet.",
+    vibeMode: "force-mute",
+    autoAudioVideo: false,
+    forceMuteOnJoin: true,
+    raiseHandToTalk: false,
+    disableAudio: false,
   },
   {
     slug: "velvet-accent-den",
@@ -107,7 +119,13 @@ export const ALWAYS_ON_ROOMS = [
     description: "Calm, intimate, and supportive — like a coffee-shop corner. Mics welcome but voices stay soft for pattern help and gentle storytelling.",
     musicName: "Ambient drones & cinematic piano",
     vibe: "calm",
-    color: "#a78bfa",
+    color: "#701a75",
+    rule: "Raise your hand to talk. This is the soft-spoken room — pattern help and gentle conversation only.",
+    vibeMode: "raise-hand",
+    autoAudioVideo: false,
+    forceMuteOnJoin: false,
+    raiseHandToTalk: true,
+    disableAudio: false,
   },
   {
     slug: "silent-studio",
@@ -115,7 +133,13 @@ export const ALWAYS_ON_ROOMS = [
     description: "Zero-distraction accountability zone. Cameras on for company, but absolute silence — bring your own focus soundtrack.",
     musicName: "",
     vibe: "silent",
-    color: "#94a3b8",
+    color: "#334155",
+    rule: "Audio stays off — always. Just cameras and company for deep-focus crafting.",
+    vibeMode: "silent",
+    autoAudioVideo: false,
+    forceMuteOnJoin: false,
+    raiseHandToTalk: false,
+    disableAudio: true,
   },
 ];
 
@@ -133,8 +157,17 @@ export async function seedAlwaysOnRooms() {
       const patch = { alwaysOn: true };
       if (data.name !== spec.name) patch.name = spec.name;
       if (data.description !== spec.description) patch.description = spec.description;
-      if (!data.vibe) patch.vibe = spec.vibe;
-      if (!data.color) patch.color = spec.color;
+      if (data.color !== spec.color) patch.color = spec.color;
+      for (const key of [
+        "vibeMode",
+        "rule",
+        "autoAudioVideo",
+        "forceMuteOnJoin",
+        "raiseHandToTalk",
+        "disableAudio",
+      ]) {
+        if (data[key] !== spec[key]) patch[key] = spec[key];
+      }
       if (Object.keys(patch).length > 0) {
         await doc.ref.set(patch, { merge: true });
       }
@@ -157,6 +190,12 @@ export async function seedAlwaysOnRooms() {
       alwaysOn: true,
       vibe: spec.vibe,
       color: spec.color,
+      vibeMode: spec.vibeMode,
+      rule: spec.rule,
+      autoAudioVideo: spec.autoAudioVideo,
+      forceMuteOnJoin: spec.forceMuteOnJoin,
+      raiseHandToTalk: spec.raiseHandToTalk,
+      disableAudio: spec.disableAudio,
       createdBy: "system",
       createdAt: new Date(),
     };

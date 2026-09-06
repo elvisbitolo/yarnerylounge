@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import styles from "./Nav.module.css";
+import MemberBadge from "./MemberBadge";
 
 function initials(name) {
   return (name || "?")
@@ -48,7 +49,10 @@ export default function SidebarProfile({ points = 0, streak = 0, close }) {
       <Link className={styles.profileCard} href="/account" onClick={close}>
         <Avatar url={profile?.photoURL} name={name} className={styles.profileCardAvatar} />
         <div className={styles.profileCardBody}>
-          <p className={styles.profileCardName}>{name}</p>
+          <p className={styles.profileCardName}>
+            {name}
+            <MemberBadge plan={profile?.plan} role={profile?.role} size={13} />
+          </p>
           <p className={styles.profileCardHandle}>{handle}</p>
           <p className={styles.profileCardMeta}>
             {xp.toLocaleString()} XP · 🔥 {streak || 0}

@@ -63,7 +63,7 @@
 .join {
   width: 100%;
   height: 48px;
-  background: #8b3a62;
+  background: #c2185b;
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -74,7 +74,7 @@
 }
 
 .join:hover:not(:disabled) {
-  background: #642743;
+  background: #ad1457;
 }
 
 .join:disabled {
@@ -108,7 +108,7 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background: linear-gradient(135deg, #f4e4e8, #ead9e0);
-  color: #642743;
+  color: #ad1457;
   font-size: clamp(26px, 5vw, 44px);
   font-weight: 800;
   display: inline-flex;
@@ -172,7 +172,7 @@
   padding: 10px 14px;
   background: #f4e4e8;
   border: 1px solid #e5d9dc;
-  color: #642743;
+  color: #ad1457;
   border-radius: 10px;
   font-size: 13px;
   text-align: center;
@@ -204,7 +204,7 @@
 
 .nameInput:focus {
   outline: none;
-  border-color: #d98a9e;
+  border-color: #f06292;
   box-shadow: 0 0 0 3px rgba(139, 58, 98, 0.12);
 }
 
@@ -232,14 +232,20 @@
 }
 
 .prejoinToggleOn {
-  background: #8b3a62;
-  border-color: #8b3a62;
+  background: #c2185b;
+  border-color: #c2185b;
   color: #ffffff;
 }
 
-.prejoinToggle:hover {
-  border-color: #d98a9e;
-  color: #8b3a62;
+.prejoinToggle:hover:not(.prejoinToggleLocked) {
+  border-color: #f06292;
+  color: #c2185b;
+}
+
+.prejoinToggleLocked {
+  cursor: not-allowed;
+  opacity: 0.55;
+  border-color: #b9aeb3;
 }
 
 .selectWrap {
@@ -280,7 +286,7 @@
 
 .selectBox select:focus {
   outline: none;
-  border-color: #d98a9e;
+  border-color: #f06292;
 }
 
 .selectChevron {
@@ -297,7 +303,7 @@
   margin-top: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #8b3a62;
+  color: #c2185b;
 }
 
 .link:hover {
@@ -441,7 +447,7 @@
   padding: 6px 11px;
   border-radius: 999px;
   background: #f4e4e8;
-  color: #642743;
+  color: #ad1457;
   font-size: 12px;
   font-weight: 700;
 }
@@ -479,9 +485,9 @@
   justify-content: center;
   gap: 12px;
   padding: 60px 20px;
-  color: #8b3a62;
+  color: #c2185b;
   background: #fbf9fa;
-  border: 1px dashed #d98a9e;
+  border: 1px dashed #f06292;
   border-radius: 18px;
   text-align: center;
 }
@@ -508,6 +514,11 @@
 .tileOffCam {
   aspect-ratio: 1;
   background: linear-gradient(135deg, #2a2026, #3d2e38);
+}
+
+.tileCamOn {
+  border-color: rgba(34, 197, 94, 0.55);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25), 0 10px 22px -18px rgba(37, 35, 41, 0.5);
 }
 
 .tileCompact {
@@ -555,7 +566,7 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background: linear-gradient(135deg, #f4e4e8, #ead9e0);
-  color: #642743;
+  color: #ad1457;
   font-size: clamp(22px, 5vw, 40px);
   font-weight: 800;
   box-shadow: inset 0 0 0 1px rgba(139, 58, 98, 0.16);
@@ -569,12 +580,12 @@
 }
 
 .tileActive {
-  border-color: #8b3a62;
+  border-color: #c2185b;
   box-shadow: 0 0 0 3px rgba(139, 58, 98, 0.15), 0 18px 30px -20px rgba(139, 58, 98, 0.5);
 }
 
 .tileMe {
-  border-color: #d98a9e;
+  border-color: #f06292;
 }
 
 .tileVideo {
@@ -601,7 +612,7 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background: linear-gradient(135deg, #f4e4e8, #ead9e0);
-  color: #642743;
+  color: #ad1457;
   font-size: clamp(24px, 5.5vw, 42px);
   font-weight: 800;
   box-shadow: inset 0 0 0 1px rgba(139, 58, 98, 0.16);
@@ -612,7 +623,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 0 0 3px #4e8b68;
+  box-shadow: inset 0 0 0 3px #e91e63;
   animation: ringPulse 2s ease-in-out infinite;
   border-radius: 14px;
 }
@@ -647,7 +658,7 @@
   letter-spacing: 0.06em;
   padding: 2px 6px;
   border-radius: 999px;
-  background: #8b3a62;
+  background: #c2185b;
   color: #ffffff;
 }
 
@@ -659,13 +670,13 @@
   padding: 2px 6px;
   border-radius: 999px;
   background: rgba(139, 58, 98, 0.12);
-  color: #642743;
+  color: #ad1457;
 }
 
 .tileMic {
   display: inline-flex;
   align-items: center;
-  color: #4e8b68;
+  color: #e91e63;
   flex-shrink: 0;
 }
 
@@ -752,7 +763,7 @@
 }
 
 .peopleStripMain:hover {
-  border-color: #d98a9e;
+  border-color: #f06292;
   box-shadow: 0 12px 26px -20px rgba(139, 58, 98, 0.4);
 }
 
@@ -780,7 +791,7 @@
 .peopleView {
   font-size: 12px;
   font-weight: 700;
-  color: #8b3a62;
+  color: #c2185b;
 }
 
 .galleryCount {
@@ -807,7 +818,7 @@
 .personAvatarSm {
   border-radius: 50%;
   background: linear-gradient(135deg, #f4e4e8, #ead9e0);
-  color: #642743;
+  color: #ad1457;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -879,7 +890,7 @@
 }
 
 .chatHeaderIcon {
-  color: #8b3a62;
+  color: #c2185b;
 }
 
 .chatHeaderTitle {
@@ -900,7 +911,7 @@
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #642743;
+  color: #ad1457;
   background: rgba(139, 58, 98, 0.1);
   padding: 5px 10px;
   border-radius: 999px;
@@ -941,7 +952,7 @@
   height: 34px;
   border-radius: 50%;
   background: #ffffff;
-  color: #642743;
+  color: #ad1457;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -987,7 +998,7 @@
   padding: 2px 7px;
   border-radius: 999px;
   background: rgba(139, 58, 98, 0.16);
-  color: #642743;
+  color: #ad1457;
 }
 
 .chatRowTime {
@@ -1000,7 +1011,7 @@
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: #642743;
+  color: #ad1457;
 }
 
 .chatBubble {
@@ -1012,8 +1023,8 @@
 }
 
 .chatBubbleMe {
-  background: #8b3a62;
-  border-color: #8b3a62;
+  background: #c2185b;
+  border-color: #c2185b;
   color: #ffffff;
   border-radius: 14px 4px 14px 14px;
 }
@@ -1033,7 +1044,7 @@
   align-items: center;
   gap: 2px;
   background: rgba(139, 58, 98, 0.16);
-  color: #642743;
+  color: #ad1457;
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 6px;
@@ -1049,7 +1060,7 @@
 .chatReactionChip {
   font-size: 11px;
   font-weight: 700;
-  color: #642743;
+  color: #ad1457;
   background: #f8f6f2;
   border: 1px solid #e5d9dc;
   padding: 3px 8px;
@@ -1084,8 +1095,8 @@
 }
 
 .chatActionBtn:hover {
-  color: #8b3a62;
-  border-color: #d98a9e;
+  color: #c2185b;
+  border-color: #f06292;
 }
 
 /* Composer */
@@ -1098,7 +1109,7 @@
   background: rgba(255, 255, 255, 0.7);
   border-top: 1px solid #e5d9dc;
   font-size: 12px;
-  color: #642743;
+  color: #ad1457;
 }
 
 .replyingClose {
@@ -1134,12 +1145,12 @@
 
 .upgradePromptIcon {
   flex-shrink: 0;
-  color: #8b3a62;
+  color: #c2185b;
 }
 
 .upgradePromptLink {
   margin-left: auto;
-  color: #8b3a62;
+  color: #c2185b;
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -1191,8 +1202,8 @@
 }
 
 .composerIconBtn:hover {
-  color: #8b3a62;
-  border-color: #d98a9e;
+  color: #c2185b;
+  border-color: #f06292;
 }
 
 .composerInput {
@@ -1210,7 +1221,7 @@
 
 .composerInput:focus {
   outline: none;
-  border-color: #d98a9e;
+  border-color: #f06292;
 }
 
 .composerSend {
@@ -1220,15 +1231,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #8b3a62;
-  border: 1px solid #8b3a62;
+  background: #c2185b;
+  border: 1px solid #c2185b;
   color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .composerSend:hover {
-  background: #642743;
+  background: #ad1457;
 }
 
 .chatBadgeMod {
@@ -1239,7 +1250,7 @@
   padding: 2px 7px;
   border-radius: 999px;
   background: rgba(77, 139, 104, 0.16);
-  color: #4e8b68;
+  color: #e91e63;
 }
 
 .chatDeleted {
@@ -1264,13 +1275,13 @@
 
 .chatReactionChipActive {
   background: rgba(139, 58, 98, 0.16);
-  border-color: #d98a9e;
-  color: #642743;
+  border-color: #f06292;
+  color: #ad1457;
 }
 
 .chatActionOn {
-  color: #642743;
-  border-color: #d98a9e;
+  color: #ad1457;
+  border-color: #f06292;
   background: rgba(139, 58, 98, 0.12);
 }
 
@@ -1286,7 +1297,7 @@
   gap: 5px;
   font-size: 12px;
   font-weight: 700;
-  color: #642743;
+  color: #ad1457;
   background: rgba(139, 58, 98, 0.08);
   border: 1px solid #e5d9dc;
   border-radius: 999px;
@@ -1310,8 +1321,8 @@
   font-size: 12px;
   font-weight: 800;
   color: #ffffff;
-  background: #8b3a62;
-  border: 1px solid #8b3a62;
+  background: #c2185b;
+  border: 1px solid #c2185b;
   border-radius: 999px;
   padding: 5px 12px;
   cursor: pointer;
@@ -1351,6 +1362,26 @@
   flex-shrink: 0;
 }
 
+.vibeRuleBanner {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #e91e630f;
+  border: 1px solid #e91e6333;
+  color: #c2185b;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.vibeRuleIcon {
+  color: #e91e63;
+  flex-shrink: 0;
+}
+
 .controlsLeft,
 .controlsRight {
   display: flex;
@@ -1379,8 +1410,8 @@
 
 .ctrlBtn:hover {
   transform: translateY(-2px);
-  border-color: #d98a9e;
-  color: #8b3a62;
+  border-color: #f06292;
+  color: #c2185b;
 }
 
 .ctrlBtn:disabled {
@@ -1390,14 +1421,14 @@
 }
 
 .ctrlActive {
-  background: #8b3a62;
-  border-color: #8b3a62;
+  background: #c2185b;
+  border-color: #c2185b;
   color: #ffffff;
 }
 
 .ctrlActive:hover {
-  background: #642743;
-  border-color: #642743;
+  background: #ad1457;
+  border-color: #ad1457;
   color: #ffffff;
 }
 
@@ -1493,7 +1524,7 @@
 
 .moreItem:hover {
   background: #fbf9fa;
-  color: #8b3a62;
+  color: #c2185b;
 }
 
 .moreDanger {
@@ -1555,7 +1586,7 @@
   flex-shrink: 0;
   border-radius: 8px;
   background: rgba(139, 58, 98, 0.1);
-  color: #642743;
+  color: #ad1457;
 }
 
 .settingsRowBody {
@@ -1610,7 +1641,7 @@
 }
 
 .settingsRowBtn:hover:not(:disabled) {
-  border-color: #d98a9e;
+  border-color: #f06292;
 }
 
 .settingsRowBtn:disabled {
@@ -1619,7 +1650,7 @@
 }
 
 .settingsRowBtnActive {
-  border-color: #8b3a62;
+  border-color: #c2185b;
   background: rgba(139, 58, 98, 0.08);
 }
 
@@ -1638,7 +1669,7 @@
   height: 42px;
   border: none;
   border-radius: 10px;
-  background: #8b3a62;
+  background: #c2185b;
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
@@ -1646,7 +1677,7 @@
 }
 
 .settingsClose:hover {
-  background: #642743;
+  background: #ad1457;
 }
 
 /* Participant dialog */
@@ -1714,8 +1745,8 @@
 }
 
 .panelClose:hover {
-  color: #8b3a62;
-  border-color: #d98a9e;
+  color: #c2185b;
+  border-color: #f06292;
 }
 
 .panelSearch {
@@ -1758,7 +1789,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #8b3a62;
+  color: #c2185b;
 }
 
 .raisedRow {
@@ -1789,7 +1820,7 @@
   padding: 0 10px;
   border: none;
   border-radius: 8px;
-  background: #8b3a62;
+  background: #c2185b;
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -1824,7 +1855,7 @@
   height: 38px;
   border-radius: 50%;
   background: linear-gradient(135deg, #f4e4e8, #ead9e0);
-  color: #642743;
+  color: #ad1457;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -1861,7 +1892,7 @@
   text-transform: uppercase;
   padding: 2px 6px;
   border-radius: 999px;
-  background: #8b3a62;
+  background: #c2185b;
   color: #ffffff;
 }
 
@@ -1889,12 +1920,12 @@
 
 .panelRoleHost {
   background: rgba(139, 58, 98, 0.14);
-  color: #642743;
+  color: #ad1457;
 }
 
 .panelRoleSpeaker {
   background: rgba(78, 139, 104, 0.12);
-  color: #4e8b68;
+  color: #e91e63;
 }
 
 .panelRoleViewer {
@@ -1940,8 +1971,8 @@
 }
 
 .panelRowBtn:hover:not(:disabled) {
-  border-color: #8b3a62;
-  color: #8b3a62;
+  border-color: #c2185b;
+  color: #c2185b;
 }
 
 .panelRowBtn:disabled {
@@ -1980,13 +2011,13 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4e8b68;
+  background: #e91e63;
   animation: pulse 2s infinite;
 }
 
 .connectionDot[data-state="connecting"],
 .connectionDot[data-state="reconnecting"] {
-  background: #d98a9e;
+  background: #f06292;
   animation: pulse 0.8s infinite;
 }
 
@@ -2020,7 +2051,7 @@
   padding: 8px 18px;
   border: none;
   border-radius: 8px;
-  background: #8b3a62;
+  background: #c2185b;
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
@@ -2045,7 +2076,7 @@
   font-size: 44px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #8b3a62;
+  color: #c2185b;
   margin: 8px 0 4px;
 }
 
@@ -2203,7 +2234,7 @@
   font-size: 13px;
   background: #fdeaea;
   border: 1px solid #f3c2c2;
-  color: #a1253a;
+  color: #c2185b;
 }
 
 .panelWarning {
@@ -2271,18 +2302,18 @@
 }
 
 .inviteAccept {
-  background: #8b3a62;
-  border-color: #8b3a62;
+  background: #c2185b;
+  border-color: #c2185b;
   color: #ffffff;
 }
 
 .inviteAccept:hover {
-  background: #762f53;
+  background: #ad1457;
 }
 
 .inviteDecline:hover {
-  border-color: #d98a9e;
-  color: #8b3a62;
+  border-color: #f06292;
+  color: #c2185b;
 }
 
 .tileCamOff {
@@ -2303,7 +2334,7 @@
 
 .moreItemActive {
   background: #f4e4e8;
-  color: #8b3a62;
+  color: #c2185b;
 }
 
 /* Chat images & hidden upload input */
@@ -2345,7 +2376,7 @@
 
 .captionsFrom {
   font-weight: 800;
-  color: #f0c8d4;
+  color: #f8d7e3;
   flex-shrink: 0;
 }
 

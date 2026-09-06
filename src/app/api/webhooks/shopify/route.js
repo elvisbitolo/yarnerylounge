@@ -144,7 +144,7 @@ async function revokeAccess({ email, paymentStatus }) {
         status: "canceled",
         plan: "monthly",
         planName: "flirting",
-        tier: "lounge",
+        tier: "flirting",
         role: "member",
         currentPeriodEnd: new Date(),
         canceledAt: new Date(),

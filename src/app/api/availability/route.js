@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
+import { canModerate } from "@/lib/server/auth";
 import { getAccessSub } from "@/lib/server/subscription";
+import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import {
   createAvailability,
   listAvailability,
@@ -17,6 +19,11 @@ export async function GET(req) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
+  const caps = await getCapabilities(auth.user.uid);
+  if (!canUseMatchmaker(caps) && !canModerate(auth.userDoc)) {
+    return NextResponse.json({ error: "The matchmaker calendar is a Hooking Up + perk" }, { status: 403 });
+  }
+
   const url = new URL(req.url);
   const from = url.searchParams.get("from") || "";
   const to = url.searchParams.get("to") || "";
@@ -28,6 +35,11 @@ export async function POST(req) {
   const auth = await requireActiveMember();
   const denied = guardJson(auth);
   if (denied) return denied;
+
+  const caps = await getCapabilities(auth.user.uid);
+  if (!canUseMatchmaker(caps) && !canModerate(auth.userDoc)) {
+    return NextResponse.json({ error: "The matchmaker calendar is a Hooking Up + perk" }, { status: 403 });
+  }
 
   const body = await req.json();
   const title = (typeof body.title === "string" ? body.title : "").trim().slice(0, AVAILABILITY_MAX_TITLE);

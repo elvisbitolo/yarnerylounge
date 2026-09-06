@@ -96,6 +96,15 @@ export default function ParticipantPanel({ hostId, roomId, currentUserId, curren
         <button
           type="button"
           className={styles.panelRowBtn}
+          onClick={() => performAction(identity, "mute")}
+          disabled={busyId === identity}
+          title={t("muteParticipant")}
+        >
+          <MicOff size={13} /> {t("muteParticipant")}
+        </button>
+        <button
+          type="button"
+          className={styles.panelRowBtn}
           onClick={() => performAction(identity, "speaker")}
           disabled={busyId === identity || promoteBlocked}
           title={promoteBlocked ? t("stageFull") : ""}

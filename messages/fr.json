@@ -13,9 +13,9 @@
     "or": "ou"
   },
   "nav": {
-    "overview": "Aperçu",
-    "connect": "Se connecter",
-    "learn": "Apprendre",
+    "overview": "Accès au Lounge",
+    "connect": "Le Cercle intérieur",
+    "learn": "Le Registre",
     "community": "Communauté",
     "host": "Animateur",
     "analytics": "Statistiques",
@@ -23,8 +23,8 @@
     "automation": "Automatisation",
     "administration": "Administration",
     "collections": "Collections",
-    "dashboard": "Tableau de bord",
-    "feed": "Fil d'actualité",
+    "dashboard": "Accès au Lounge",
+    "feed": "Le Cercle intérieur",
     "rooms": "Salons",
     "events": "Événements",
     "calendar": "Calendrier",
@@ -32,7 +32,7 @@
     "courses": "Cours",
     "articles": "Articles",
     "recordings": "Enregistrements",
-    "members": "Membres",
+    "members": "Le Registre",
     "groups": "Groupes",
     "spaces": "Espaces",
     "gallery": "Galerie",
@@ -126,6 +126,8 @@
     "askPoll": "Posez une question, puis ajoutez des options ci-dessous…",
     "askQuestion": "Que voulez-vous demander à la communauté ?…",
     "newPost": "Nouveau post",
+    "upgradeToChat": "Passez à Premium pour publier, discuter et réagir avec la communauté !",
+    "upgrade": "Passer au niveau supérieur",
     "askAPoll": "Créer un sondage",
     "askAQuestion": "Poser une question",
     "posting": "Publication…",
@@ -303,7 +305,9 @@
     "faqMovingQ": "Que donne le plan Moving In ?",
     "faqMovingA": "Moving In est l'adhésion d'animateur mondial : créez des salons et des groupes, organisez des rencontres et soyez mis en avant. Il coûte 17,95 $/mois ou 179,50 $/an.",
     "tosCheckbox": "J'accepte les {terms} et je comprends que l'adhésion se renouvelle selon le plan choisi.",
-    "tosRequired": "Veuillez accepter les Conditions de service pour continuer."
+    "tosRequired": "Veuillez accepter les Conditions de service pour continuer.",
+    "onlyPaidMembers": "Ce compte nécessite un abonnement Speakeasy payant avant de rejoindre le salon.",
+    "signupFailed": "Échec de la création du compte"
   },
   "landing": {
     "liveCommunities": "Communautés en direct · Cours · Événements",
@@ -719,6 +723,7 @@
     "noMicrophone": "Aucun microphone trouvé",
     "noCamera": "Aucune caméra trouvée",
     "upgradeToChat": "Passez à Premium pour discuter avec le groupe !",
-    "upgrade": "Passer au niveau supérieur"
+    "upgrade": "Passer au niveau supérieur",
+    "muteParticipant": "Couper le micro"
   }
 }

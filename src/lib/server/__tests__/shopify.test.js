@@ -25,7 +25,7 @@ test("SHOPIFY_VARIANTS covers all 5 documented variants", () => {
 test("variantById resolves each id and unknown returns null", () => {
   assert.equal(variantById("51798261825769").plan, "hooking-up");
   assert.equal(variantById("51798268575977").role, "host");
-  assert.equal(variantById("51798268575977").tier, "host");
+  assert.equal(variantById("51798268575977").tier, "moving-in");
   assert.equal(variantById("999"), null);
   assert.equal(variantById("000"), null);
 });
@@ -62,14 +62,14 @@ test("buildSubscriptionDoc maps anniversary/anual and expiry", () => {
   assert.equal(monthly.provider, "shopify");
   assert.equal(monthly.status, "active");
   assert.equal(monthly.plan, "monthly");
-  assert.equal(monthly.tier, "lounge");
+  assert.equal(monthly.tier, "hooking-up");
   assert.equal(monthly.role, "member");
   assert.equal(monthly.shopifyCustomerId, "c1");
   assert.equal(monthly.currentPeriodEnd.toISOString(), "2025-02-01T00:00:00.000Z");
 
   const annual = buildSubscriptionDoc({ variant: variantById("51798277882089") });
   assert.equal(annual.plan, "annual");
-  assert.equal(annual.tier, "host");
+  assert.equal(annual.tier, "moving-in");
   assert.equal(annual.role, "host");
   assert.equal(annual.currentPeriodEnd, undefined);
 });

@@ -43,6 +43,8 @@ function TooltipBtn({ title, className, onClick, children, active }) {
 export default function RoomControls({
   isHost,
   canPublish = true,
+  disableAudio = false,
+  vibeRule = "",
   onOpenParticipants,
   onOpenChat,
   onLeave,
@@ -72,6 +74,7 @@ export default function RoomControls({
     !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   function toggleMic() {
+    if (disableAudio) return;
     if (localParticipant && typeof localParticipant.setMicrophoneEnabled === "function") {
       localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
     }
@@ -200,12 +203,24 @@ export default function RoomControls({
 
   return (
     <div className={styles.controlsBar}>
+      {vibeRule && (
+        <div className={styles.vibeRuleBanner} role="note">
+          <span className={styles.vibeRuleIcon} aria-hidden="true">✦</span>
+          <span>{vibeRule}</span>
+        </div>
+      )}
       <div className={styles.controlsLeft}>
         {canPublish !== false && (
           <>
-            <TooltipBtn title={isMicrophoneEnabled ? t("muteMic") : t("unmuteMic")} onClick={toggleMic} className={isMicrophoneEnabled ? "" : styles.ctrlDanger}>
-              {isMicrophoneEnabled ? <Mic size={18} /> : <MicOff size={18} />}
-            </TooltipBtn>
+            {disableAudio ? (
+              <TooltipBtn title={t("muteMic")} className={styles.ctrlDanger}>
+                <MicOff size={18} />
+              </TooltipBtn>
+            ) : (
+              <TooltipBtn title={isMicrophoneEnabled ? t("muteMic") : t("unmuteMic")} onClick={toggleMic} className={isMicrophoneEnabled ? "" : styles.ctrlDanger}>
+                {isMicrophoneEnabled ? <Mic size={18} /> : <MicOff size={18} />}
+              </TooltipBtn>
+            )}
             <TooltipBtn title={isCameraEnabled ? t("turnOffCam") : t("turnOnCam")} onClick={toggleCam} className={isCameraEnabled ? "" : styles.ctrlDanger}>
               {isCameraEnabled ? <Video size={18} /> : <VideoOff size={18} />}
             </TooltipBtn>

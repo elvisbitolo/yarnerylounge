@@ -51,6 +51,12 @@ export default async function RoomPage({ params }) {
         planKey={caps.key}
         alwaysOn={!!room.alwaysOn}
         vibe={room.vibe || ""}
+        vibeMode={room.vibeMode || ""}
+        vibeRule={room.rule || ""}
+        autoAudioVideo={!!room.autoAudioVideo}
+        forceMuteOnJoin={!!room.forceMuteOnJoin}
+        raiseHandToTalk={!!room.raiseHandToTalk}
+        disableAudio={!!room.disableAudio}
         musicUrl={room.musicUrl || ""}
         musicPlaying={!!room.musicPlaying}
         musicFileId={room.musicFileId || ""}

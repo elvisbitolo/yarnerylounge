@@ -63,7 +63,7 @@ export default function AdminAnalyticsPage() {
       ]
     : [];
 
-  const tierLabels = { lounge: "Secret Yarnery", plus: "Yarnery Plus", host: "Yarnery Host" };
+  const tierLabels = { flirting: "Flirting", "hooking-up": "Hooking Up", "moving-in": "Moving In", lounge: "Flirting", plus: "Hooking Up", host: "Moving In" };
   const planLabels = { monthly: "Monthly", yearly: "Yearly" };
 
   return (

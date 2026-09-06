@@ -30,6 +30,39 @@
   margin-bottom: 24px;
 }
 
+.upgradePrompt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff7f2;
+  border: 1px solid #f4d0bd;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #a33a1d;
+}
+
+.upgradePromptIcon {
+  flex: 0 0 auto;
+}
+
+.upgradePromptLink {
+  margin-left: auto;
+  background: #e91e63;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.upgradePromptLink:hover {
+  background: #c2185b;
+}
+
 .composerInput {
   width: 100%;
   border: none;

@@ -18,9 +18,11 @@ export default function RoomPreJoin({
   onJoin,
   viewerOnly = false,
   micDefaultOn = true,
+  micLockedOff = false,
+  showRaiseHint = false,
 }) {
   const t = useTranslations("rooms");
-  const [micOn, setMicOn] = useState(viewerOnly ? false : micDefaultOn);
+  const [micOn, setMicOn] = useState(viewerOnly ? false : micLockedOff ? false : micDefaultOn);
   const [camOn, setCamOn] = useState(!viewerOnly);
   const [audioDeviceId, setAudioDeviceId] = useState("");
   const [videoDeviceId, setVideoDeviceId] = useState("");
@@ -30,10 +32,10 @@ export default function RoomPreJoin({
 
   const options = useMemo(
     () => ({
-      audio: micOn ? { deviceId: audioDeviceId || undefined } : false,
-      video: camOn ? { deviceId: videoDeviceId || undefined } : false,
+      audio: micOn && !micLockedOff && !viewerOnly ? { deviceId: audioDeviceId || undefined } : false,
+      video: camOn && !viewerOnly ? { deviceId: videoDeviceId || undefined } : false,
     }),
-    [micOn, camOn, audioDeviceId, videoDeviceId]
+    [micOn, camOn, audioDeviceId, videoDeviceId, micLockedOff, viewerOnly]
   );
 
   const tracks = usePreviewTracks(options, (err) => {
@@ -41,6 +43,9 @@ export default function RoomPreJoin({
   });
 
   useEffect(() => {
+    // Viewers (including flirting-plan members) never enumerate media devices —
+    // no camera/mic is requested or even listed for them.
+    if (viewerOnly) return;
     let cancelled = false;
     navigator.mediaDevices?.enumerateDevices?.().then((list) => {
       if (cancelled) return;
@@ -54,7 +59,7 @@ export default function RoomPreJoin({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [viewerOnly]);
 
   useEffect(() => {
     const track = tracks?.find((tr) => tr.kind === "video");
@@ -87,7 +92,12 @@ export default function RoomPreJoin({
         }
       }
     }
-    onJoin({ micOn, camOn, audioDeviceId, videoDeviceId });
+    onJoin({
+      micOn: micLockedOff ? false : micOn,
+      camOn,
+      audioDeviceId,
+      videoDeviceId,
+    });
   }
 
   return (
@@ -129,19 +139,36 @@ export default function RoomPreJoin({
         </div>
 
         {viewerOnly && <p className={styles.watchNote}>{t("watchingOnly")}</p>}
+        {micLockedOff && !viewerOnly && (
+          <p className={styles.watchNote}>
+            🔇 Audio is always off in this room — cameras stay on for company.
+          </p>
+        )}
+        {showRaiseHint && !viewerOnly && (
+          <p className={styles.watchNote}>
+            🙋 Raise your hand to talk — the host will invite you to speak.
+          </p>
+        )}
 
         {!viewerOnly && (
           <>
             <div className={styles.prejoinToggles}>
-              <button
-                type="button"
-                className={micOn ? styles.prejoinToggleOn : styles.prejoinToggle}
-                onClick={() => setMicOn((v) => !v)}
-                aria-pressed={micOn}
-              >
-                {micOn ? <Mic size={18} /> : <MicOff size={18} />}
-                <span>{micOn ? t("unmuteMic") : t("muteMic")}</span>
-              </button>
+              {micLockedOff ? (
+                <span className={`${styles.prejoinToggle} ${styles.prejoinToggleLocked}`} title="Audio disabled in this room">
+                  <MicOff size={18} />
+                  <span>{t("muteMic")}</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className={micOn ? styles.prejoinToggleOn : styles.prejoinToggle}
+                  onClick={() => setMicOn((v) => !v)}
+                  aria-pressed={micOn}
+                >
+                  {micOn ? <Mic size={18} /> : <MicOff size={18} />}
+                  <span>{micOn ? t("unmuteMic") : t("muteMic")}</span>
+                </button>
+              )}
               <button
                 type="button"
                 className={camOn ? styles.prejoinToggleOn : styles.prejoinToggle}

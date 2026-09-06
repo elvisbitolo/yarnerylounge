@@ -25,6 +25,18 @@ function assertSameOrigin(req) {
   return NextResponse.json({ error: "Cross-origin request blocked" }, { status: 403 });
 }
 
+// Returns true when an email already maps to an owner/moderator profile (used
+// to let staff through the signup wall when they are not ordering on Shopify).
+async function staffByEmail(users, email) {
+  if (!email) return false;
+  const snap = await users
+    .where("email", "==", email)
+    .where("role", "in", ["owner", "moderator"])
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
+
 export async function POST(req) {
   const crossOrigin = assertSameOrigin(req);
   if (crossOrigin) return crossOrigin;
@@ -57,16 +69,10 @@ export async function POST(req) {
     const snap = await userRef.get();
     let isNewUser = false;
     if (!snap.exists) {
-      if (!name) {
-        return NextResponse.json(
-          { error: "no_account" },
-          { status: 409 }
-        );
-      }
-      isNewUser = true;
-      const memberName = name || decoded.name || decoded.email?.split("@")[0] || "Member";
-
       const prepaidEmail = (decoded.email || "").toLowerCase().trim();
+
+      // Find a valid email-keyed prepaid record (created by the Shopify
+      // webhook for a paid checkout that has not signed up yet).
       let prepaid = null;
       if (prepaidEmail) {
         const found = await users
@@ -86,6 +92,34 @@ export async function POST(req) {
         }
       }
 
+      // Hard signup wall: registration is only allowed for paid Speakeasy
+      // checkouts (email-keyed prepaid record) or staff accounts. Anyone else
+      // is sent back to the speakeasy page. This is the server-side guard so a
+      // client that bypasses the pre-check still cannot create a session.
+      const isStaffSignup =
+        prepaid?.role === "owner" ||
+        prepaid?.role === "moderator" ||
+        (await staffByEmail(users, prepaidEmail));
+      if (!prepaid && !isStaffSignup) {
+        if (!name) {
+          return NextResponse.json(
+            { error: "no_account" },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json(
+          {
+            error: "not_prepaid",
+            message: "This account needs a paid Speakeasy membership before joining.",
+            redirect: process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy",
+          },
+          { status: 403 }
+        );
+      }
+
+      isNewUser = true;
+      const memberName = name || decoded.name || decoded.email?.split("@")[0] || "Member";
+
       await userRef.set({
         name: memberName,
         email: decoded.email || "",
@@ -100,7 +134,7 @@ export async function POST(req) {
         createdAt: new Date(),
       });
 
-      if (prepaid) {
+if (prepaid) {
         await adminDb()
           .collection("subscriptions")
           .doc(decoded.uid)
@@ -109,7 +143,7 @@ export async function POST(req) {
             status: "active",
             plan: prepaid.plan,
             planName: prepaid.plan,
-            tier: prepaid.role === "host" ? "host" : "lounge",
+            tier: prepaid.plan,
             role: prepaid.role,
             shopifyCustomerId: prepaid.shopifyCustomerId || "",
             shopifyOrderId: prepaid.shopifyOrderId || "",

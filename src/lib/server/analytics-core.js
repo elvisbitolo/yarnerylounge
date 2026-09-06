@@ -10,7 +10,7 @@ export function toMillis(value) {
 }
 
 export function normalizeTier(tier) {
-  if (!tier) return "lounge";
+  if (!tier) return "flirting";
   return LEGACY_ALIASES[tier] || tier;
 }
 

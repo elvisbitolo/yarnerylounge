@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { sendEmailVerification } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
-import { signupWithEmail, signupWithGoogle, refreshSession } from "@/lib/client-auth";
+import { signupWithEmail, signupWithGoogle, refreshSession, checkPaidSignup } from "@/lib/client-auth";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -59,9 +59,12 @@ export default function SignupPage() {
     try {
       await signupWithGoogle();
       navigated = true;
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
       window.location.assign("/dashboard");
     } catch (err) {
+      if (err.code === "not_prepaid" && err.redirect) {
+        window.location.assign(err.redirect);
+        return;
+      }
       setError(err.message || t("googleFailed"));
     } finally {
       if (!navigated) setBusy("");
@@ -79,18 +82,28 @@ export default function SignupPage() {
     setTosError(false);
     setBusy("email");
     try {
+      // The signup wall: only paid Speakeasy checkout emails may register.
+      // Checked BEFORE any Firebase Auth account is created; blocked emails are
+      // sent to the speakeasy page to purchase a membership.
+      await checkPaidSignup(email);
       await signupWithEmail(name, email, password);
       setVerifyEmail(email);
       setResent(false);
     } catch (err) {
-      if (err.code === "email_not_verified") {
+      if (err.code === "not_prepaid" || err.code === "expired") {
+        if (err.redirect) {
+          window.location.assign(err.redirect);
+          return;
+        }
+        setError(err.message || t("onlyPaidMembers"));
+      } else if (err.code === "email_not_verified") {
         if (auth.currentUser) {
           await sendEmailVerification(auth.currentUser).catch(() => {});
         }
         setVerifyEmail(email);
         setResent(false);
       } else {
-        setError(err.message || "Sign-up failed");
+        setError(err.message || t("signupFailed"));
       }
     } finally {
       setBusy("");

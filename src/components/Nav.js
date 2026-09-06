@@ -113,14 +113,13 @@ function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) 
   );
 }
 
-function BottomNav({ t, role }) {
+function BottomNav({ t }) {
   const pathname = usePathname();
   const items = [
     { href: "/dashboard", label: t("dashboard"), icon: "home", show: true },
-    { href: "/rooms", label: t("rooms"), icon: "rooms", show: true },
     { href: "/feed", label: t("feed"), icon: "feed", show: true },
+    { href: "/rooms", label: t("rooms"), icon: "rooms", show: true },
     { href: "/members", label: t("members"), icon: "members", show: true },
-    { href: "/dashboard/membership", label: t("membership"), icon: "sparkle", show: role !== "owner" },
   ];
   const visible = items.filter((i) => i.show);
   if (pathname?.startsWith("/rooms/")) return null;
@@ -354,6 +353,19 @@ export default function Nav({ role, children }) {
                 : styles.sidebar
           }
         >
+          {!mobileOpen && !collapsed && (
+            <button
+              type="button"
+              className={styles.collapseToggle}
+              onClick={() => setCollapsed(true)}
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m14 6-6 6 6 6" />
+              </svg>
+            </button>
+          )}
           <div className={styles.sidebarInner} data-tour="tour-sidebar">
             <nav className={styles.sidebarNav}>
               <SidebarGroup id="overview" label={t("overview")} items={OVERVIEW_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
@@ -395,12 +407,24 @@ export default function Nav({ role, children }) {
           <div className={styles.backdrop} onClick={close} aria-hidden="true" />
         )}
 
+        <button
+          type="button"
+          className={`${styles.reopenToggle} ${collapsed ? styles.reopenVisible : ""}`}
+          onClick={() => setCollapsed(false)}
+          aria-label="Expand sidebar"
+          title="Expand sidebar"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </button>
+
         <div className={styles.content}>
           {!isRoomPage && <LiveNowBanner />}
           {children}
         </div>
       </div>
-      <BottomNav t={t} role={role} />
+      <BottomNav t={t} />
     </>
   );
 }

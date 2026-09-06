@@ -2,6 +2,8 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import MemberBadge from "@/components/MemberBadge";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import { countryNames } from "@/lib/profile/countries";
 import { composeLayout } from "./avatarLayout";
@@ -136,6 +138,7 @@ const TOOLTIP_H = 400;
 const HIDE_DELAY = 220;
 
 export default function MembersDirectory({ members, viewer, role, todayKey, matchmakerEnabled = true }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
   const [country, setCountry] = useState("");
@@ -143,6 +146,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
   const [craft, setCraft] = useState("");
   const [hobby, setHobby] = useState("");
   const [hover, setHover] = useState(null);
+  const [matchTarget, setMatchTarget] = useState(null);
   const hideTimer = useRef(null);
 
   const viewportKey = useViewportKey();
@@ -405,6 +409,14 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
                         {member.foundingMember && (
                           <span className={`${styles.hostDot} ${styles.foundDot}`} title="Founding Yarnie">🧶</span>
                         )}
+                        {(member.plan === "hooking-up" || member.plan === "moving-in") && slot.size >= 34 && (
+                          <span
+                            className={styles.tierDot}
+                            title={member.plan === "moving-in" ? "Moving In member" : "Hooking Up member"}
+                          >
+                            <MemberBadge plan={member.plan} size={12} tooltip={false} />
+                          </span>
+                        )}
                       </span>
                     </span>
                     {member.live && <span className={styles.liveDot} />}
@@ -438,6 +450,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
             <div className={styles.tooltipMeta}>
               <p className={styles.tooltipName}>
                 {hover.member.name}
+                <MemberBadge plan={hover.member.plan} role={hover.member.role} size={13} />
                 {hover.member.foundingMember && (
                   <span className={styles.tooltipFounding} title="Founding Yarnie · first 100 members">🧶</span>
                 )}
@@ -489,6 +502,13 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
             </div>
           )}
           <div className={styles.tooltipActions}>
+            <button
+              type="button"
+              className={`${styles.tooltipAction} ${styles.tooltipActionMatch}`}
+              onClick={() => setMatchTarget(hover.member)}
+            >
+              ✦ Match
+            </button>
             <Link
               className={styles.tooltipAction}
               href={`/chat?with=${hover.member.id}`}
@@ -503,6 +523,44 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
             >
               View profile
             </Link>
+          </div>
+        </div>
+      )}
+
+      {matchTarget && (
+        <div className={styles.matchOverlay} role="dialog" aria-modal="true" onClick={() => setMatchTarget(null)}>
+          <div className={styles.matchDialog} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={styles.matchClose}
+              onClick={() => setMatchTarget(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <p className={styles.matchTitle}>✦ Match</p>
+            <p className={styles.matchText}>
+              Meet <strong>{matchTarget.name}</strong> in a hangout room? Rooms open on your next visit to the lounge.
+            </p>
+            <div className={styles.matchButtons}>
+              <button
+                type="button"
+                className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
+                onClick={() => {
+                  setMatchTarget(null);
+                  router.push("/rooms");
+                }}
+              >
+                Meet in a room
+              </button>
+              <button
+                type="button"
+                className={styles.tooltipAction}
+                onClick={() => setMatchTarget(null)}
+              >
+                Not now
+              </button>
+            </div>
           </div>
         </div>
       )}

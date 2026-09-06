@@ -1,7 +1,14 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { getAccessSub } from "@/lib/server/subscription";
 
-export const TIER_RANK = { lounge: 1, plus: 2, host: 3 };
+export const TIER_RANK = {
+  flirting: 1,
+  "hooking-up": 2,
+  "moving-in": 3,
+  lounge: 1,
+  plus: 2,
+  host: 3,
+};
 
 export const SHOP_DISCOUNT = {
   code: "SECRET10",
@@ -11,7 +18,7 @@ export const SHOP_DISCOUNT = {
 
 export async function getPerkTier(uid) {
   const sub = await getAccessSub(uid);
-  const tier = sub?.tier || "lounge";
+  const tier = sub?.tier || "flirting";
   const rank = TIER_RANK[tier] || 1;
   return {
     tier,
