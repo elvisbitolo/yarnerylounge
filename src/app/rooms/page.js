@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { loungeGate } from "@/lib/server/lounge-gate";
 import { listRooms, seedAlwaysOnRoom, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
 import { adminDb } from "@/lib/firebase/admin";
 import Nav from "@/components/Nav";
@@ -13,6 +14,9 @@ export default async function RoomsPage() {
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
+
+  const gate = await loungeGate(user.uid, userDoc);
+  if (gate) redirect(gate);
 
   await seedAlwaysOnRoom();
   const now = new Date().getTime();

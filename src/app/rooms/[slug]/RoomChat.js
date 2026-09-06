@@ -18,6 +18,7 @@ import {
   Lock,
 } from "lucide-react";
 import { useRoomData } from "./RoomDataProvider";
+import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "./room.module.css";
 
 const EMOJI = ["❤️", "👍", "👏", "🎉", "😂", "🙌"];
@@ -368,7 +369,7 @@ export default function RoomChat({ hostId, currentUserId, canWriteChat = true, p
         <div className={styles.upgradePrompt}>
           <Lock size={15} className={styles.upgradePromptIcon} />
           <span>{t("upgradeToChat")}</span>
-          <a className={styles.upgradePromptLink} href="/membership">
+          <a className={styles.upgradePromptLink} href={UPGRADE_URL} target="_blank" rel="noopener noreferrer">
             {t("upgrade")}
           </a>
         </div>

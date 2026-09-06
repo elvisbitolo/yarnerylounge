@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { recordDailyVisit } from "@/lib/server/gamification";
+import { loungeGate } from "@/lib/server/lounge-gate";
 import Nav from "@/components/Nav";
 import Feed from "./Feed";
 import styles from "./feed.module.css";
@@ -14,6 +15,9 @@ export default async function FeedPage({ searchParams }) {
   const userDoc = await getUserDoc(user.uid);
   const params = await searchParams;
   const initialKind = params?.kind || "";
+
+  const gate = await loungeGate(user.uid, userDoc);
+  if (gate) redirect(gate);
 
   recordDailyVisit(user.uid, userDoc?.name || user.name || "Member").catch(() => {});
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { auth } from "@/lib/firebase/client";
 import { sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
-import { loginWithEmail, loginWithGoogle } from "@/lib/client-auth";
+import { loginWithEmail, loginWithGoogle, refreshSession } from "@/lib/client-auth";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -25,6 +25,22 @@ export default function LoginPage() {
   const [resetSent, setResetSent] = useState(false);
   const [verifyNotice, setVerifyNotice] = useState("");
   const [resent, setResent] = useState(false);
+
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("session_refresh")) return;
+    let cancelled = false;
+    (async () => {
+      const refreshed = await refreshSession();
+      if (!cancelled && refreshed) {
+        // Full reload so server-rendered pages read the fresh Firestore doc.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
+        window.location.assign("/dashboard");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function resendVerification() {
     if (!auth.currentUser) return;

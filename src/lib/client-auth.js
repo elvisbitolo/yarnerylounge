@@ -70,3 +70,14 @@ export async function logout() {
   await signOut(auth);
   await fetch("/api/auth/logout", { method: "POST" });
 }
+
+// Re-fetches the signed-in user's Firestore doc by refreshing the session,
+// so a just-completed Shopify purchase shows the new plan/badge immediately.
+// Returns true when refreshed, false when there is no signed-in user.
+export async function refreshSession() {
+  const user = auth.currentUser;
+  if (!user) return false;
+  const idToken = await getIdToken(user, true);
+  await createSession(idToken);
+  return true;
+}

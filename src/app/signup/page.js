@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { sendEmailVerification } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
-import { signupWithEmail, signupWithGoogle } from "@/lib/client-auth";
+import { signupWithEmail, signupWithGoogle, refreshSession } from "@/lib/client-auth";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -34,6 +34,22 @@ export default function SignupPage() {
       if (prefill) setEmail(prefill);
     }, 0);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("session_refresh")) return;
+    let cancelled = false;
+    (async () => {
+      const refreshed = await refreshSession();
+      if (!cancelled && refreshed) {
+        // Full reload so server-rendered pages read the fresh Firestore doc.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
+        window.location.assign("/dashboard");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleGoogle() {

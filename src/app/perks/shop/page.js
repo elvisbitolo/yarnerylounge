@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { SHOPIFY_UPGRADE_URL } from "@/lib/server/shopify";
 import { getPerkTier, perkTierAtLeast, SHOP_DISCOUNT } from "@/lib/server/perks";
 import Nav from "@/components/Nav";
 import PerkLocked from "@/components/perks/PerkLocked";
@@ -35,7 +36,7 @@ export default async function ShopPage() {
             title={t("lockedTitle")}
             body={t("lockedBody")}
             ctaLabel={t("upgrade")}
-            ctaHref="/signup"
+            ctaHref={SHOPIFY_UPGRADE_URL}
           />
         ) : (
           <>

@@ -8,7 +8,7 @@ self.addEventListener("install", (event) => {
         cache.addAll([
           "/",
           "/login",
-          "/pricing",
+          "/signup",
           "/about",
           "/guidelines",
           "/rooms",

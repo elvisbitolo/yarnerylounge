@@ -3,6 +3,7 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { listLiveMemberUids } from "@/lib/server/livekit";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
+import { loungeGate } from "@/lib/server/lounge-gate";
 import Nav from "@/components/Nav";
 import MembersDirectory from "./MembersDirectory";
 import BlindDateCard from "./BlindDateCard";
@@ -32,6 +33,8 @@ export default async function MembersPage() {
   const liveUids = await listLiveMemberUids().catch(() => new Set());
   const caps = await getCapabilities(user.uid);
   const matchmakerEnabled = canUseMatchmaker(caps);
+  const gate = await loungeGate(user.uid, userDoc, { matchmaker: true });
+  if (gate) redirect(gate);
 
   const todayKey = (() => {
     const d = new Date();
