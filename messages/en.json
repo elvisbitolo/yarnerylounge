@@ -725,6 +725,10 @@
     "captionsNotSupported": "Not supported in this browser",
     "noMicrophone": "No microphone found",
     "noCamera": "No camera found",
-    "muteParticipant": "Mute"
+    "muteParticipant": "Mute",
+    "closeChat": "×",
+    "hideChat": "Hide chat",
+    "showChat": "Show chat",
+    "leave": "Leave"
   }
 }

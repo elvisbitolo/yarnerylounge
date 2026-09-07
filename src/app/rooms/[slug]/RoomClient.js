@@ -6,94 +6,28 @@ import { useTranslations } from "next-intl";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
-import { LiveKitRoom, RoomAudioRenderer, useConnectionState, useParticipants } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { JaaSMeeting } from "@jitsi/react-sdk";
+import { LogOut, MessagesSquare } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
 import RoomMusicPicker from "@/components/RoomMusicPicker";
-import RoomDataProvider, { useRoomData } from "./RoomDataProvider";
-import RoomStage from "./RoomStage";
+import RoomDataProvider from "./RoomDataProvider";
 import RoomChat from "./RoomChat";
-import RoomControls from "./RoomControls";
-import ParticipantPanel from "./ParticipantPanel";
-import RoomPreJoin from "./RoomPreJoin";
 import styles from "./room.module.css";
 
-function currentTime() {
-  return Date.now();
-}
-
-function ConnectionStatus() {
-  const t = useTranslations("rooms");
-  const state = useConnectionState();
-  const label =
-    state === "connected"
-      ? ""
-      : state === "connecting" || state === "reconnecting"
-      ? t("reconnecting")
-      : state === "disconnected"
-      ? t("disconnected")
-      : "";
-  if (!label) return null;
-  return (
-    <div className={styles.connectionStatus}>
-      <span className={styles.connectionDot} data-state={state} />
-      {label}
-    </div>
-  );
-}
-
-function LiveViewerCount() {
-  const t = useTranslations("rooms");
-  const participants = useParticipants();
-  return (
-    <span className={styles.liveViewers}>
-      <span className={styles.liveDot} aria-hidden="true" />
-      {t("live")} · {t("watchingCount", { count: participants.length })}
-    </span>
-  );
-}
-
-function RoomPopulation({ onChange }) {
-  const participants = useParticipants();
-  useEffect(() => {
-    onChange(participants.length);
-  }, [participants.length, onChange]);
-  return null;
-}
-
-function SpeakerInviteDialog({ onAccept, onDecline }) {
-  const t = useTranslations("rooms");
-  const { speakerInvite, clearSpeakerInvite } = useRoomData();
-  if (!speakerInvite) return null;
-  return (
-    <div className={styles.inviteBackdrop} onClick={() => { clearSpeakerInvite(); onDecline(); }}>
-      <div className={styles.inviteDialog} onClick={(e) => e.stopPropagation()}>
-        <h4 className={styles.inviteTitle}>{t("speakerInviteTitle")}</h4>
-        <p className={styles.inviteCopy}>
-          {t("speakerInviteCopy", { host: speakerInvite.hostName })}
-        </p>
-        <div className={styles.inviteActions}>
-          <button
-            type="button"
-            className={styles.inviteAccept}
-            onClick={() => { clearSpeakerInvite(); onAccept(); }}
-          >
-            {t("acceptSpeaker")}
-          </button>
-          <button
-            type="button"
-            className={styles.inviteDecline}
-            onClick={() => { clearSpeakerInvite(); onDecline(); }}
-          >
-            {t("decline")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Jitsi toolbar buttons: remove camera/mic so view-only tiers and muted-by-design
+// rooms cannot unmute through the Jitsi UI (server-side gating stays authoritative).
+const VIEWER_TOOLBAR = [
+  "chat",
+  "raisehand",
+  "fullscreen",
+  "filmstrip",
+  "tileview",
+  "settings",
+  "videoquality",
+  "security",
+];
 
 export default function RoomClient({
   roomName,
@@ -108,10 +42,8 @@ export default function RoomClient({
   canWriteChatPlan = false,
   planKey = "flirting",
   alwaysOn,
-  vibe = "",
   vibeMode = "",
   vibeRule = "",
-  autoAudioVideo = false,
   forceMuteOnJoin = false,
   raiseHandToTalk = false,
   disableAudio = false,
@@ -120,36 +52,47 @@ export default function RoomClient({
   musicFileId,
   hostId = "",
   userId = "",
+  userEmail = "",
   userName = "Member",
   userAvatar = "",
 }) {
   const router = useRouter();
   const t = useTranslations("rooms");
+
   const [token, setToken] = useState("");
-  const [serverUrl, setServerUrl] = useState("");
+  const [jitsiRoom, setJitsiRoom] = useState("");
+  const [jitsiAppId, setJitsiAppId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [joined, setJoined] = useState(false);
-  const [joinPrefs, setJoinPrefs] = useState(null);
-  const [isViewer, setIsViewer] = useState(false);
-  const [now, setNow] = useState(() => currentTime());
-  const [statusMsg, setStatusMsg] = useState("");
-  const [showParticipants, setShowParticipants] = useState(false);
-  const [showChat, setShowChat] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
   const [participantCount, setParticipantCount] = useState(0);
+  const [showChat, setShowChat] = useState(true);
 
-  const tokenRef = useRef("");
-  const reconnectTimer = useRef(null);
-  const refreshTimer = useRef(null);
-  const reconnectCountRef = useRef(0);
+  const apiRef = useRef(null);
+  const tileForcedRef = useRef(false);
+  const joinedRef = useRef(false);
 
-  const MAX_RECONNECTS = 5;
+  const isBroadcast = kind === "broadcast";
+  const isStaff = role === "owner" || role === "moderator";
+  const viewerOnly = isBroadcast && !isHost && !isCoHost;
+  const planCanPublish = canPublishPlan || isStaff || isHost || isCoHost;
+  const canWriteChat = canWriteChatPlan || isStaff || isHost || isCoHost;
+  const viewer = !planCanPublish || viewerOnly;
+  const audioLocked = disableAudio || forceMuteOnJoin;
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(currentTime()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const waiting = Boolean(opensAt) && !isHost && now < opensAt;
+  const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
 
+  function formatWait(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad = (n) => String(n).padStart(2, "0");
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+  }
+
+  // Full-screen video room: lock scroll everywhere, on every device.
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
@@ -167,104 +110,34 @@ export default function RoomClient({
     };
   }, []);
 
-  const isBroadcast = kind === "broadcast";
-  const isOwner = role === "owner";
-  const isStaff = role === "owner" || role === "moderator";
-  const isModerator = role === "moderator";
-  const viewerOnly = isBroadcast && !isHost && !isCoHost;
-  const planCanPublish = canPublishPlan || isStaff || isHost || isCoHost;
-  const canWriteChat = canWriteChatPlan || isStaff || isHost || isCoHost;
-  const waiting = Boolean(opensAt) && !isHost && now < opensAt;
-  const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
-
-  function formatWait(totalSeconds) {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    const pad = (n) => String(n).padStart(2, "0");
-    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-  }
-
-  async function fetchToken() {
-    const res = await fetch("/api/livekit/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug }),
-    });
-    if (res.status === 401) {
-      router.push("/login");
-      return null;
-    }
-    if (res.status === 403) {
-      router.push("/rooms");
-      return null;
-    }
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to join room");
-    return data;
-  }
-
-  function scheduleRefresh(expiresInSeconds) {
-    if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    const refreshAt = Math.max(60, (expiresInSeconds || 3600) * 0.75) * 1000;
-    refreshTimer.current = setTimeout(async () => {
-      try {
-        const data = await fetchToken();
-        if (data) {
-          setToken(data.token);
-          tokenRef.current = data.token;
-          scheduleRefresh(expiresInSeconds);
-        }
-      } catch {
-        scheduleRefresh(expiresInSeconds);
-      }
-    }, refreshAt);
-  }
-
   useEffect(() => {
-    return () => {
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  async function handleJoin(prefs) {
+  async function handleJoin() {
     setBusy(true);
     setError("");
     try {
-      const data = await fetchToken();
-      if (!data) return;
-      setToken(data.token);
-      tokenRef.current = data.token;
-      setServerUrl(data.serverUrl);
-      const tokenViewer = data.kind === "broadcast" && data.canPublish === false;
-      const planViewer = data.canPublish === false;
-      setIsViewer(tokenViewer || planViewer);
-      const vibeMutesAudio = disableAudio || forceMuteOnJoin;
-      setJoinPrefs(
-        prefs || {
-          micOn:
-            planCanPublish && !isViewer && !vibeMutesAudio && autoAudioVideo
-              ? true
-              : false,
-          camOn: planCanPublish && !isViewer ? true : false,
-          audioDeviceId: "",
-          videoDeviceId: "",
-        }
-      );
-      setJoined(true);
-      reconnectCountRef.current = 0;
-      scheduleRefresh(alwaysOn ? 86400 : 14400);
-      onAuthStateChanged(auth, (user) => {
-        if (user && roomId) {
-          addDoc(collection(db, "roomEvents"), {
-            userId: user.uid,
-            roomId,
-            roomName,
-            joinedAt: new Date(),
-          }).catch(() => {});
-        }
+      const res = await fetch("/api/jitsi/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
       });
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
+      if (res.status === 403) {
+        router.push("/rooms");
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to join room");
+      setToken(data.token);
+      setJitsiRoom(data.roomName);
+      setJitsiAppId(data.appId || "");
+      setJoined(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -272,58 +145,52 @@ export default function RoomClient({
     }
   }
 
-  function handleDisconnect() {
-    if (!alwaysOn) {
-      router.push("/rooms");
-      return;
-    }
-    if (reconnectCountRef.current >= MAX_RECONNECTS) {
-      setStatusMsg("This room is no longer active.");
-      return;
-    }
-    setStatusMsg("Connection lost. Reconnecting…");
-    const count = reconnectCountRef.current;
-    const delay = Math.min(1000 * 2 ** count, 30000);
-    clearTimeout(reconnectTimer.current);
-    reconnectTimer.current = setTimeout(async () => {
+  useEffect(() => {
+    if (!joined || joinedRef.current) return;
+    joinedRef.current = true;
+    let unsub;
+    unsub = onAuthStateChanged(auth, (user) => {
+      if (!user || !roomId) return;
+      addDoc(collection(db, "roomEvents"), {
+        userId: user.uid,
+        roomId,
+        roomName,
+        joinedAt: new Date(),
+      }).catch(() => {});
+    });
+    return () => unsub?.();
+  }, [joined, roomId, roomName]);
+
+  function handleApiReady(api) {
+    apiRef.current = api;
+    const syncCount = () => {
       try {
-        const data = await fetchToken();
-        if (data) {
-          setToken(data.token);
-          tokenRef.current = data.token;
-          setServerUrl(data.serverUrl);
-          const reconnectViewer = data.kind === "broadcast" && data.canPublish === false;
-          const reconnectPlanViewer = data.canPublish === false;
-          setIsViewer(reconnectViewer || reconnectPlanViewer);
-          reconnectCountRef.current = count + 1;
-          setStatusMsg("");
-          scheduleRefresh(alwaysOn ? 86400 : 14400);
-        }
+        setParticipantCount(api.getParticipantsInfo()?.length || 0);
       } catch {
-        reconnectCountRef.current = count + 1;
-        handleDisconnect();
+        /* not ready yet */
       }
-    }, delay);
+    };
+    api.addEventListener("participantJoined", syncCount);
+    api.addEventListener("participantLeft", syncCount);
+    api.addEventListener("videoConferenceJoined", syncCount);
+    syncCount();
+
+    // Gallery view by default: correct Jitsi once if it lands on stage/film view.
+    api.addEventListener("tileViewChanged", ({ visible }) => {
+      if (!visible && !tileForcedRef.current) {
+        tileForcedRef.current = true;
+        api.executeCommand("toggleTileView");
+      }
+    });
   }
 
-  useEffect(() => {
-    return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
-  }, []);
-
-  async function acceptSpeakerInvite() {
+  function handleLeave() {
     try {
-      const data = await fetchToken();
-      if (data) {
-        setToken(data.token);
-        tokenRef.current = data.token;
-        setServerUrl(data.serverUrl);
-        setIsViewer(data.kind === "broadcast" && data.canPublish === false);
-      }
+      apiRef.current?.executeCommand("hangup");
     } catch {
-      /* token refresh failed — keep current session */
+      /* already gone */
     }
+    router.push("/rooms");
   }
 
   if (waiting) {
@@ -363,47 +230,87 @@ export default function RoomClient({
       <main className={styles.page}>
         <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
         <div className={styles.container}>
-          <RoomPreJoin
-            roomName={roomName}
-            userName={userName}
-            userAvatar={userAvatar}
-            subtitle={
-              !planCanPublish
-                ? "Viewing as a guest — subscriptions unlock your camera & mic."
-                : vibeMode === "silent"
-                ? "Absolute-silence focus room. Audio stays off — cameras on, microphones muted."
-                : vibeMode === "force-mute"
-                ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
-                : vibeMode === "raise-hand"
-                ? "Soft-spoken room. Raise your hand to talk and the host will bring you in."
-                : vibeMode === "auto"
-                ? "The loud, friendly welcome room — camera and mic are on as soon as you pop in."
-                : alwaysOn
-                ? "Always open — pop in anytime. Meet new members and settle into the lounge."
-                : isBroadcast
-                ? "This is a live broadcast. Join to watch the stream."
-                : "Get ready, then join the live room."
-            }
-            joinLabel={
-              busy ? undefined : alwaysOn ? "Pop in" : isBroadcast ? "Join as viewer" : "Join room"
-            }
-            busy={busy}
-            error={error}
-            viewerOnly={viewerOnly || !planCanPublish}
-            micDefaultOn={vibeMode === "auto"}
-            micLockedOff={disableAudio}
-            showRaiseHint={raiseHandToTalk}
-            onJoin={(prefs) => handleJoin(prefs)}
-          />
+          <div className={styles.prejoinWrap}>
+            <BackButton fallback="/rooms" label="Back to rooms" />
+            <div className={styles.prejoin}>
+              <h1 className={styles.title}>{roomName}</h1>
+              <p className={styles.subtitle}>
+                {viewer
+                  ? "Viewing as a guest — subscriptions unlock your camera & mic."
+                  : vibeMode === "silent"
+                  ? "Absolute-silence focus room. Audio stays off — cameras on, microphones muted."
+                  : vibeMode === "force-mute"
+                  ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
+                  : vibeMode === "raise-hand"
+                  ? "Soft-spoken room. Raise your hand to talk and the host will bring you in."
+                  : vibeMode === "auto"
+                  ? "The loud, friendly welcome room — camera and mic are on as soon as you pop in."
+                  : alwaysOn
+                  ? "Always open — pop in anytime. Meet new members and settle into the lounge."
+                  : isBroadcast
+                  ? "This is a live broadcast. Join to watch the stream."
+                  : "Get ready, then join the live room."}
+              </p>
+              {viewer && <p className={styles.watchNote}>{t("watchingOnly")}</p>}
+              {audioLocked && !viewer && (
+                <p className={styles.watchNote}>
+                  🔇 Audio is always off in this room — cameras stay on for company.
+                </p>
+              )}
+              {raiseHandToTalk && !viewer && (
+                <p className={styles.watchNote}>
+                  🙋 Raise your hand to talk — the host will invite you to speak.
+                </p>
+              )}
+              {error && <p className={styles.error}>{error}</p>}
+              <button
+                className={styles.join}
+                onClick={handleJoin}
+                disabled={busy}
+              >
+                {busy ? t("joining") : alwaysOn ? "Pop in" : isBroadcast ? "Join as viewer" : "Join room"}
+              </button>
+              <p className={styles.watchNote}>
+                {viewer
+                  ? "Your browser will not ask for your camera or microphone."
+                  : "Your browser will ask for camera & mic access when you join."}
+              </p>
+            </div>
+          </div>
         </div>
       </main>
     );
   }
 
+  const configOverwrite = {
+    prejoinConfig: { enabled: false },
+    enableClosePage: false,
+    disableInviteFunctions: true,
+    disableProfile: !isStaff,
+    channelLastN: -1,
+    tileView: { enabled: true, maxColumns: 4 },
+    startWithAudioMuted: viewer || audioLocked,
+    startWithVideoMuted: viewer,
+    startAudioMuted: viewer || audioLocked,
+    startVideoMuted: viewer,
+    toolbarButtons:
+      viewer || audioLocked ? VIEWER_TOOLBAR : undefined,
+  };
+
+  const interfaceConfigOverwrite = {
+    SHOW_WATERMARK: false,
+    SHOW_BRAND_WATERMARK: false,
+    SHOW_JITSI_WATERMARK: false,
+    SHOW_CHROME_EXTENSION_BADGE: false,
+    HIDE_INVITE_MORE_HEADER: true,
+    MOBILE_APP_PROMO: false,
+    GENERATE_ROOMNAMES_ON_WITHOUT_JOIN: false,
+  };
+
   return (
     <main className={styles.page}>
       <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} autoplaySound={joined} />
-      <div className={styles.roomWrap} style={{ position: "relative" }}>
+      <div className={styles.roomWrap}>
         <AmbientAudio
           active={alwaysOn}
           roomId={roomId}
@@ -414,129 +321,93 @@ export default function RoomClient({
           pauseWhenBusy={participantCount > 1}
         />
         {alwaysOn && isStaff && <RoomMusicPicker isStaff={isStaff} roomSlug={slug} />}
-        {statusMsg && (
-          <div className={styles.reconnectBanner}>
-            <span>{statusMsg}</span>
-            {statusMsg === "This room is no longer active." && (
-              <button
-                type="button"
-                className={styles.reconnectBack}
-                onClick={() => router.push("/rooms")}
-              >
-                Back to rooms
-              </button>
-            )}
-          </div>
-        )}
-        <LiveKitRoom
-          token={token}
-          serverUrl={serverUrl}
-          connect={true}
-          video={joinPrefs ? joinPrefs.camOn : true}
-          audio={joinPrefs ? joinPrefs.micOn && !disableAudio : true}
-          options={{
-            adaptiveStream: true,
-            dynacast: true,
-            disconnectOnPageLeave: false,
-            expWebsocketTimeout: 15000,
-            ...(joinPrefs && {
-              videoCaptureDefaults: joinPrefs.camOn
-                ? { deviceId: joinPrefs.videoDeviceId || undefined }
-                : undefined,
-              audioCaptureDefaults: joinPrefs.micOn && !disableAudio
-                ? { deviceId: joinPrefs.audioDeviceId || undefined }
-                : undefined,
-            }),
-          }}
-          onDisconnected={handleDisconnect}
-        >
-          <RoomDataProvider
-            roomId={roomId}
-            hostId={hostId}
-            currentUserId={userId}
-            currentUserName={userName}
-            currentUserAvatar={userAvatar}
-            canModerate={isStaff || isHost || isCoHost}
-            isHost={isHost}
-          >
-            <RoomPopulation onChange={setParticipantCount} />
-            <div className={styles.liveRoom}>
-              <header className={styles.roomHeader}>
-                <div className={styles.roomHeaderCopy}>
-                  <h1 className={styles.roomHeaderTitle}>{roomName}</h1>
-                  <p className={styles.roomHeaderDesc}>
-                    {isBroadcast ? "Live broadcast to the community" : "A live gathering with the community"}
-                  </p>
-                </div>
-                <div className={styles.roomHeaderMeta}>
-                  <ConnectionStatus />
-                  <LiveViewerCount />
-                  {(isHost || (isBroadcast ? !isViewer : true)) && (
-                    <span className={styles.recordChip}>
-                      <span className={styles.recordDot} aria-hidden="true" /> REC
-                    </span>
-                  )}
-                </div>
-              </header>
 
-              <div className={styles.mainRow}>
-                <div className={styles.stageCol}>
-                  <RoomStage
-                    hostId={hostId}
-                    currentUserId={userId}
-                    currentUserAvatar={userAvatar}
-                  />
-                  {isViewer && (
-                    <span className={styles.viewerBanner} role="status">
-                      {t("watchingBanner")}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <RoomControls
-                isHost={isHost}
-                canPublish={planCanPublish && !isViewer}
-                disableAudio={disableAudio}
-                vibeRule={vibeRule}
-                currentUserName={userName}
-                chatOpen={showChat}
-                participantsOpen={showParticipants}
-                onOpenParticipants={() => setShowParticipants((v) => !v)}
-                onOpenChat={() => setShowChat((v) => !v)}
-                onLeave={() => router.push("/rooms")}
-              />
-
-              {showChat && (
-                <section className={styles.chatBottom}>
-                  <RoomChat
-                    hostId={hostId}
-                    currentUserId={userId}
-                    currentUserName={userName}
-                    currentUserAvatar={userAvatar}
-                    canWriteChat={canWriteChat}
-                    planKey={planKey}
-                  />
-                </section>
+        <div className={styles.liveRoom}>
+          <header className={styles.roomHeader}>
+            <div className={styles.roomHeaderCopy}>
+              <h1 className={styles.roomHeaderTitle}>{roomName}</h1>
+              <p className={styles.roomHeaderDesc}>
+                {isBroadcast ? "Live broadcast to the community" : "A live gathering with the community"}
+              </p>
+            </div>
+            <div className={styles.roomHeaderMeta}>
+              <span className={styles.liveViewers}>
+                <span className={styles.liveDot} aria-hidden="true" />
+                {t("live")} · {participantCount}
+              </span>
+              {(isHost || (isBroadcast ? !viewer : true)) && (
+                <span className={styles.recordChip}>
+                  <span className={styles.recordDot} aria-hidden="true" /> REC
+                </span>
               )}
             </div>
+          </header>
 
-            {showParticipants && (
-              <ParticipantPanel
-                hostId={hostId}
+          <div className={styles.jitsiStage}>
+            <JaaSMeeting
+              appId={jitsiAppId}
+              roomName={jitsiRoom}
+              jwt={token}
+              userInfo={{ displayName: userName, email: userEmail }}
+              configOverwrite={configOverwrite}
+              interfaceConfigOverwrite={interfaceConfigOverwrite}
+              onApiReady={handleApiReady}
+              getIFrameRef={(parentNode) => {
+                if (!parentNode) return;
+                parentNode.style.width = "100%";
+                parentNode.style.height = "100%";
+                parentNode.style.border = "0";
+                const iframe = parentNode.querySelector("iframe");
+                if (iframe) {
+                  iframe.style.width = "100%";
+                  iframe.style.height = "100%";
+                  iframe.style.border = "0";
+                }
+              }}
+            />
+          </div>
+
+          {showChat && (
+            <div className={styles.chatRail}>
+              <button
+                type="button"
+                className={styles.chatClose}
+                onClick={() => setShowChat(false)}
+                aria-label={t("closeChat")}
+              >
+                ×
+              </button>
+              <RoomDataProvider
                 roomId={roomId}
                 currentUserId={userId}
                 currentUserName={userName}
+                currentUserAvatar={userAvatar}
+                canModerate={isStaff || isHost || isCoHost}
                 isHost={isHost}
-                isCoHost={isCoHost}
-                onClose={() => setShowParticipants(false)}
-              />
-            )}
+              >
+                <RoomChat
+                  hostId={hostId}
+                  currentUserId={userId}
+                  currentUserName={userName}
+                  currentUserAvatar={userAvatar}
+                  canWriteChat={canWriteChat}
+                  planKey={planKey}
+                />
+              </RoomDataProvider>
+            </div>
+          )}
 
-            <SpeakerInviteDialog onAccept={acceptSpeakerInvite} onDecline={() => {}} />
-          </RoomDataProvider>
-          <RoomAudioRenderer />
-        </LiveKitRoom>
+          <div className={styles.roomActionBar}>
+            <button type="button" className={styles.roomActionBtn} onClick={() => setShowChat((v) => !v)}>
+              <MessagesSquare size={18} />
+              <span>{showChat ? t("hideChat") : t("showChat")}</span>
+            </button>
+            <button type="button" className={`${styles.roomActionBtn} ${styles.roomActionLeave}`} onClick={handleLeave}>
+              <LogOut size={18} />
+              <span>{t("leave")}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </main>
   );

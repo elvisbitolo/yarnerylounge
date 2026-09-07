@@ -62,6 +62,7 @@ export default async function RoomPage({ params }) {
         musicFileId={room.musicFileId || ""}
         hostId={room.createdBy || ""}
         userId={user.uid}
+        userEmail={userDoc?.email || user.email || ""}
         userName={userDoc?.name || user.displayName || "Member"}
         userAvatar={userDoc?.avatar || user.photoURL || ""}
       />

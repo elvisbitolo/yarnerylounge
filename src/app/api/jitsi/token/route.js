@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { AccessToken } from "livekit-server-sdk";
 import { getRoomBySlug } from "@/lib/server/rooms";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
 import { getUpcomingRoomStart } from "@/lib/server/events";
@@ -12,6 +11,7 @@ import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getUserDoc } from "@/lib/server/auth";
 import { getCapabilities, canPublishRemote, canHost } from "@/lib/server/capabilities";
+import { signJitsiToken, jitsiRoomName, getJitsiAppId } from "@/lib/server/jitsi";
 
 export async function POST(req) {
   const auth = await requireActiveMember();
@@ -19,9 +19,9 @@ export async function POST(req) {
   if (denied) return denied;
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const limited = rateLimitGuard(`livekit-token:${auth.user.uid}`, { limit: 20 });
+  const limited = rateLimitGuard(`jitsi-token:${auth.user.uid}`, { limit: 20 });
   if (limited) return limited;
-  const limitedIp = rateLimitGuard(`livekit-token-ip:${ip}`, { limit: 100 });
+  const limitedIp = rateLimitGuard(`jitsi-token-ip:${ip}`, { limit: 100 });
   if (limitedIp) return limitedIp;
 
   const { slug } = await req.json();
@@ -70,7 +70,7 @@ export async function POST(req) {
     if (groupDenied) return groupDenied;
   }
 
-  // Moving In (host) can always publish; free/Flirting are view-only (muted).
+  // Free/Flirting are view-only; paid (Hooking Up) and Moving In can publish.
   const caps = await getCapabilities(auth.user.uid);
   const canPublishUser = canPublishRemote(caps) || canHost(caps);
 
@@ -79,42 +79,26 @@ export async function POST(req) {
     canPublish = false;
   }
 
-  const apiKey = process.env.LIVEKIT_API_KEY;
-  const apiSecret = process.env.LIVEKIT_API_SECRET;
-  if (!apiKey || !apiSecret) {
-    return NextResponse.json({ error: "LiveKit not configured" }, { status: 500 });
-  }
-
-  const identity = auth.user.uid;
-  const userDoc = await getUserDoc(identity);
+  const userDoc = await getUserDoc(auth.user.uid);
   const displayName =
     userDoc?.name || auth.user.displayName || auth.user.email?.split("@")[0] || "Member";
   const avatar = userDoc?.photoURL || auth.user.photoURL || "";
 
-  const at = new AccessToken(apiKey, apiSecret, {
-    identity,
-    name: displayName,
-    metadata: JSON.stringify({
-      id: identity,
-      name: displayName,
-      avatar,
-    }),
-    ttl: room.alwaysOn ? "24h" : "4h",
-  });
-  at.addGrant({
-    room: room.slug,
-    roomJoin: true,
-    canPublish,
-    canSubscribe: true,
-    canPublishData: true,
+  const token = await signJitsiToken({
+    identity: auth.user.uid,
+    displayName,
+    email: auth.user.email || userDoc?.email || "",
+    avatar,
+    roomName: room.name,
   });
 
   return NextResponse.json({
-    token: await at.toJwt(),
-    serverUrl: process.env.LIVEKIT_URL,
-    room: room.slug,
-    kind: room.kind || "standard",
+    token,
+    appId: getJitsiAppId(),
+    roomName: jitsiRoomName(room.name),
     canPublish,
+    viewerOnly: canPublish === false,
+    kind: room.kind || "standard",
     alwaysOn: !!room.alwaysOn,
   });
 }

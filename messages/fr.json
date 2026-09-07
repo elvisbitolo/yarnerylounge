@@ -725,6 +725,10 @@
     "noCamera": "Aucune caméra trouvée",
     "upgradeToChat": "Passez à Premium pour discuter avec le groupe !",
     "upgrade": "Passer au niveau supérieur",
-    "muteParticipant": "Couper le micro"
+    "muteParticipant": "Couper le micro",
+    "closeChat": "×",
+    "hideChat": "Masquer le chat",
+    "showChat": "Afficher le chat",
+    "leave": "Quitter"
   }
 }

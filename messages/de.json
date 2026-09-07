@@ -725,6 +725,10 @@
     "noCamera": "Keine Kamera gefunden",
     "upgradeToChat": "Upgraden, um mit der Gruppe zu chatten!",
     "upgrade": "Upgraden",
-    "muteParticipant": "Stummschalten"
+    "muteParticipant": "Stummschalten",
+    "closeChat": "×",
+    "hideChat": "Chat ausblenden",
+    "showChat": "Chat anzeigen",
+    "leave": "Verlassen"
   }
 }

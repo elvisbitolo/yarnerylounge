@@ -100,22 +100,8 @@ export async function createRoom({ name, description, maxParticipants, groupId, 
   return { id: ref.id, slug, name, description };
 }
 
-async function endLiveKitRoom(slug) {
-  const host = process.env.LIVEKIT_URL;
-  const key = process.env.LIVEKIT_API_KEY;
-  const secret = process.env.LIVEKIT_API_SECRET;
-  if (!host || !key || !secret || !slug) return;
-  try {
-    const { RoomServiceClient } = await import("livekit-server-sdk");
-    const url = new URL(host);
-    const client = new RoomServiceClient(`${url.protocol}//${url.host}`, key, secret);
-    const rooms = await client.listRooms();
-    if (rooms.some((r) => r.name === slug)) {
-      await client.deleteRoom(slug);
-    }
-  } catch {
-    // Room teardown is best-effort; the Firestore record is still removed.
-  }
+async function endLiveKitRoom() {
+  // LiveKit was replaced by Jitsi as a Service; nothing to tear down server-side.
 }
 
 export async function deleteRoom(room) {

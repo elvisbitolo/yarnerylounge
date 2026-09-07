@@ -368,6 +368,119 @@
   min-height: 0;
 }
 
+/* ─── Jitsi full-screen stage + overlay chrome ─── */
+
+.jitsiStage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: #000;
+}
+
+.jitsiStage :global(div) {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.jitsiStage iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+  display: block;
+}
+
+.chatRail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 88vw);
+  display: flex;
+  flex-direction: column;
+  z-index: 3;
+  background: #f4e4e8;
+  border-left: 1px solid #e5d9dc;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.chatRail > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.chatClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #e5d9dc;
+  background: #fff;
+  color: #8a7c6f;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.roomActionBar {
+  flex-shrink: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  background: #fffdf9;
+  border-top: 1px solid #eadfd2;
+}
+
+.roomActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #eadfd2;
+  background: #ffffff;
+  color: #5b4a3f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.roomActionBtn:hover {
+  border-color: #f42e79;
+  color: #f42e79;
+}
+
+.roomActionLeave {
+  margin-left: auto;
+  border-color: #f1c5d2;
+  color: #d81f5f;
+}
+
+.roomActionLeave:hover {
+  border-color: #d81f5f;
+  background: #fff0f4;
+}
+
+@media (max-width: 640px) {
+  .chatRail {
+    width: 88vw;
+    max-width: none;
+  }
+
+  .roomActionBtn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .roomActionLeave {
+    margin-left: 0;
+  }
+}
+
 @media (max-width: 640px) {
   .chatBottom {
     height: 280px;
