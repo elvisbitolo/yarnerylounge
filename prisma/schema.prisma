@@ -1,0 +1,1133 @@
+// Prisma schema mirroring the Firestore data model of Secret Yarnery.
+// Each Firestore collection becomes a Postgres table; sub-collections become
+// top-level models with a parent FK. Maps => Json (jsonb), arrays of strings
+// => String[] (text[]), Firestore Timestamps/Date => DateTime.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Identity, members & billing
+// ---------------------------------------------------------------------------
+
+// Firestore: users/{uid} (doc id = Supabase/Firebase auth uid; prepaid
+// placeholders are keyed by email and deleted after real provisioning).
+model User {
+  id                     String    @id
+  name                   String
+  username               String?
+  email                  String?
+  photoURL               String?
+  coverPhotoURL          String?
+  headline               String?
+  location               String?
+  country                String?
+  bio                    String?
+  role                   String? // owner | moderator | host | member
+  roleLabel              String?
+  plan                   String? // flirting | hooking-up | moving-in
+  paymentStatus          String? // paid | unpaid | cancelled | refunded
+  isPrePaid              Boolean?
+  shopifyCustomerId      String?
+  shopifyOrderId         String?
+  expiresAt              DateTime?
+  firstName              String?
+  lastName               String?
+  phone                  String?
+  favoriteColors         String[]
+  crafts                 String[]
+  hobbies                String[]
+  crochetTechniques      String[]
+  skillLevel             String?
+  craftInterests         String[]
+  projectTypes           String[]
+  yarnPreference         String?
+  hookSize               String?
+  communityGoals         String[]
+  onboardingCompleted    Boolean?
+  onboardingCompletedAt  DateTime?
+  yearsExperience        String?
+  favoriteYarnBrand      String?
+  crochetMotivation      String[]
+  learningNext           String?
+  proudestProject        String?
+  bestGiftProject        String?
+  goToYarn               String?
+  favoriteHookSize       String?
+  socialLinks            Json?
+  notifications          String?
+  notificationPreferences Json?
+  foundingMember         Boolean?
+  suspended              Boolean?
+  recognitionCount       Int?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime? @updatedAt
+
+  subscription           Subscription?
+  gamification           Gamification?
+  pushSubscription       PushSubscription?
+  purchases              Purchase[]
+  followsFollowing       Follow[]   @relation("Follower")
+  followsFollowers       Follow[]   @relation("Following")
+  receivedNotifications  Notification[] @relation("ActorNotifications")
+  notifiedOf             Notification[] @relation("NotifiedUser")
+  postComments           PostComment[]
+  pollVotes              PollVote[]
+  posts                  Post[]
+  articles               Article[]
+  articleComments        ArticleComment[]
+  roomMessages           RoomMessage[]
+  roomSignals            RoomSignal[]
+  roomEvents             RoomEvent[]
+  availabilitySlots      Availability[]
+  availabilityRsvps      AvailabilityRsvp[]
+  rsvps                  Rsvp[]
+  conversationsCreated   Conversation[] @relation("ConversationCreator")
+  conversationMessages   ConversationMessage[]
+typing                 Typing[]
+  groupMembers           GroupMember[]
+  topicThreads           TopicThread[]
+  topicReplies           TopicReply[]
+  spaceMembers           SpaceMember[]
+  quizResults            QuizResult[]
+  progress               Progress[]
+  certificates           Certificate[]
+  challengeParticipants  ChallengeParticipant[]
+  recognitionsSent       Recognition[] @relation("RecognitionFrom")
+  recognitionsReceived   Recognition[] @relation("RecognitionTo")
+  stickersSent           Sticker[] @relation("StickerFrom")
+  stickersReceived       Sticker[] @relation("StickerTo")
+  reportsMade            Report[]
+  reportsHandled         Report[] @relation("ReportHandledBy")
+  hostAssignments        HostAssignment[]
+  auditLogs              AuditLog[]
+  groupsCreated          Group[]
+  spacesCreated          Space[]
+  spaceCollectionsCreate SpaceCollection[]
+  roomsCreated           Room[]
+  eventsCreated          Event[]
+  coursesCreated         Course[]
+  challengesCreated      Challenge[]
+  questionsCreated       Question[]
+  pagesCreated           SpacePage[]
+}
+
+// Firestore: subscriptions/{uid} (one active subscription per user).
+model Subscription {
+  id                String    @id
+  userId            String?
+  provider          String?
+  status            String?
+  plan              String?
+  planName          String?
+  tier              String?
+  role              String?
+  shopifyCustomerId String?
+  shopifyOrderId    String?
+  currentPeriodEnd  DateTime?
+  trialEnd          DateTime?
+  canceledAt        DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  user User? @relation(fields: [id], references: [id])
+
+  @@index([userId])
+}
+
+// Firestore: follows/{followerId_followingId}
+model Follow {
+  id          String   @id
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower User @relation("Follower", fields: [followerId], references: [id])
+  following User @relation("Following", fields: [followingId], references: [id])
+
+  @@index([followerId])
+  @@index([followingId])
+  @@unique([followerId, followingId])
+}
+
+// Firestore: notifications/{id}
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  actorId   String?
+  actorName String?
+  targetId  String?   @default("")
+  href      String?   @default("")
+  text      String
+  read      Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user  User  @relation("NotifiedUser", fields: [userId], references: [id])
+  actor User? @relation("ActorNotifications", fields: [actorId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// Firestore: pushSubscriptions/{uid}
+model PushSubscription {
+  id        String    @id
+  userId    String
+  endpoint  String
+  keys      Json
+  updatedAt DateTime  @default(now()) @updatedAt
+
+  user User @relation(fields: [id], references: [id])
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Community feed (posts, comments, polls, articles)
+// ---------------------------------------------------------------------------
+
+// Firestore: posts/{id}
+model Post {
+  id              String    @id @default(cuid())
+  authorId        String
+  authorName      String?
+  authorRole      String?
+  text            String
+  kind            String? // post | poll | question | win
+  imageUrl        String?
+  likes           Json?
+  bookmarks       Json?
+  reactions       Json?
+  pinned          Boolean   @default(false)
+  pinnedAt        DateTime?
+  hashtags        String[]
+  commentCount    Int       @default(0)
+  lastActivityAt  DateTime?
+  createdAt       DateTime  @default(now())
+  spaceId         String?
+  groupId         String?
+  pollOptions     String[]
+  pollCounts      Json?
+  pollTotal       Int?
+  pollDeadline    DateTime?
+  pollStatus      String?
+
+  author   User            @relation(fields: [authorId], references: [id])
+  comments PostComment[]
+  votes    PollVote[]
+  space    Space?          @relation(fields: [spaceId], references: [id])
+  group    Group?          @relation(fields: [groupId], references: [id])
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@index([groupId, createdAt(sort: Desc)])
+  @@index([lastActivityAt(sort: Desc)])
+}
+
+// Firestore: posts/{postId}/comments (subcollection)
+model PostComment {
+  id         String    @id @default(cuid())
+  postId     String
+  authorId   String
+  authorName String?
+  text       String
+  reactions  Json?
+  createdAt  DateTime  @default(now())
+
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([postId, createdAt(sort: Asc)])
+}
+
+// Firestore: pollVotes/{postId_uid}
+model PollVote {
+  id        String   @id
+  postId    String
+  userId    String
+  option    Int
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+// Firestore: articles/{id}
+model Article {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String?
+  coverImage  String?
+  authorId    String
+  authorName  String?
+  hashtags    String[]
+  readTime    Int?
+  likes       Json?
+  createdAt   DateTime  @default(now())
+
+  author   User            @relation(fields: [authorId], references: [id])
+  comments ArticleComment[]
+
+  @@index([authorId, createdAt(sort: Desc)])
+}
+
+// Firestore: articles/{id}/comments (subcollection)
+model ArticleComment {
+  id         String    @id @default(cuid())
+  articleId  String
+  authorId   String
+  authorName String?
+  text       String
+  createdAt  DateTime  @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
+
+  @@index([articleId, createdAt(sort: Asc)])
+}
+
+// Firestore: stickers/{id}
+model Sticker {
+  id        String    @id @default(cuid())
+  fromUid   String
+  fromName  String?
+  toUid     String
+  toName    String?
+  type      String
+  emoji     String
+  createdAt DateTime  @default(now())
+
+  from User @relation("StickerFrom", fields: [fromUid], references: [id])
+  to   User @relation("StickerTo", fields: [toUid], references: [id])
+
+  @@index([toUid, createdAt(sort: Desc)])
+  @@index([fromUid, createdAt(sort: Asc)])
+}
+
+// Firestore: recognitions/{id}
+model Recognition {
+  id        String    @id @default(cuid())
+  fromUid   String
+  fromName  String?
+  toUid     String
+  toName    String?
+  value     String
+  note      String?
+  createdAt DateTime  @default(now())
+
+  from User @relation("RecognitionFrom", fields: [fromUid], references: [id])
+  to   User @relation("RecognitionTo", fields: [toUid], references: [id])
+
+  @@index([toUid, createdAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// Groups, spaces & neighborhoods
+// ---------------------------------------------------------------------------
+
+// Firestore: groups/{id}
+model Group {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  status      String? // active | deleted
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  creator  User        @relation(fields: [createdBy], references: [id])
+  members  GroupMember[]
+  topics   GroupTopic[]
+  threads  TopicThread[]
+  posts    Post[]
+  avatar   String?
+
+  @@index([createdBy])
+}
+
+// Firestore: groupMembers/{groupId_uid}
+model GroupMember {
+  id       String    @id
+  groupId  String
+  userId   String
+  name     String?
+  role     String?
+  joinedAt DateTime  @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([groupId])
+  @@index([userId])
+}
+
+// Firestore: groupTopics/{groupId_topicKey}
+model GroupTopic {
+  id              String    @id
+  groupId         String
+  key             String
+  name            String
+  description     String?
+  emoji           String?
+  order           Int?
+  status          String?   @default("active")
+  createdAt       DateTime  @default(now())
+  lastActivityAt  DateTime?
+
+  group   Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  threads TopicThread[]
+
+  @@unique([groupId, key])
+}
+
+// Firestore: topicThreads/{id}
+model TopicThread {
+  id              String    @id @default(cuid())
+  groupId         String
+  topicKey        String
+  authorId        String
+  authorName      String?
+  title           String
+  body            String
+  pinned          Boolean   @default(false)
+  replyCount      Int       @default(0)
+  createdAt       DateTime  @default(now())
+  lastActivityAt  DateTime?
+
+  group  Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  topic  GroupTopic? @relation(fields: [groupId, topicKey], references: [groupId, key])
+  author User        @relation(fields: [authorId], references: [id])
+  replies TopicReply[]
+
+  @@index([groupId, topicKey, lastActivityAt(sort: Desc)])
+  @@index([authorId])
+}
+
+// Firestore: topicReplies/{id}
+model TopicReply {
+  id         String    @id @default(cuid())
+  threadId   String
+  groupId    String
+  topicKey   String?
+  authorId   String
+  authorName String?
+  text       String
+  createdAt  DateTime  @default(now())
+
+  thread TopicThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author User        @relation(fields: [authorId], references: [id])
+
+  @@index([threadId, createdAt(sort: Asc)])
+  @@index([groupId])
+}
+
+// Firestore: spaces/{id}
+model Space {
+  id                String    @id @default(cuid())
+  name              String
+  slug              String    @unique
+  description       String?
+  features          Json?
+  access            String? // public | private | invite
+  requiredTier      String?
+  purchasePriceCents Int?
+  publicPreview     Boolean?
+  status            String? // active | deleted
+  createdBy         String
+  avatar            String?
+  createdAt         DateTime  @default(now())
+
+  creator    User         @relation(fields: [createdBy], references: [id])
+  members    SpaceMember[]
+  posts      Post[]
+  pages      SpacePage[]
+  rooms      Room[]
+  events     Event[]
+  courses    Course[]
+  questions  Question[]
+  conversations Conversation[]
+  childOf    SpaceCollection[] @relation("SpaceCollectionSpaces")
+
+  @@index([createdBy])
+}
+
+// Firestore: spaceMembers/{spaceId_uid}
+model SpaceMember {
+  id        String    @id
+  spaceId   String
+  userId    String
+  name      String?
+  role      String?   @default("member")
+  joinedAt  DateTime  @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([spaceId])
+  @@index([userId])
+}
+
+// Firestore: collections/{id} (admin-curated bundles of spaces)
+model SpaceCollection {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  spaceIds    String[]
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  creator User    @relation(fields: [createdBy], references: [id])
+  spaces  Space[] @relation("SpaceCollectionSpaces")
+
+  @@index([createdBy])
+}
+
+// ---------------------------------------------------------------------------
+// Live video rooms
+// ---------------------------------------------------------------------------
+
+// Firestore: rooms/{id}
+model Room {
+  id               String      @id @default(cuid())
+  name             String
+  slug             String      @unique
+  description      String      @default("")
+  status           String?     // active | deleted
+  maxParticipants  Int?
+  groupId          String?
+  spaceId          String?
+  kind             String?     // standard | broadcast
+  publicPreview    Boolean?
+  opensAt          DateTime?
+  createdBy        String
+  createdAt        DateTime    @default(now())
+  alwaysOn         Boolean?
+  vibe             String?
+  color            String?
+  vibeMode         String?
+  rule             String?
+  autoAudioVideo   Boolean?
+  forceMuteOnJoin  Boolean?
+  raiseHandToTalk  Boolean?
+  disableAudio     Boolean?
+  musicUrl         String?
+  musicPlaying     Boolean?
+  musicFileId      String?
+  musicName        String?
+  recordingAllowed Boolean?
+  replayVisibility String?
+  updatedAt        DateTime?   @updatedAt
+
+  creator   User          @relation(fields: [createdBy], references: [id])
+  space     Space?        @relation(fields: [spaceId], references: [id])
+  messages  RoomMessage[]
+  signals   RoomSignal[]
+  events    RoomEvent[]
+  eventsScheduled Event[]
+
+  @@index([spaceId])
+  @@index([groupId])
+}
+
+// Firestore: rooms/{roomId}/messages (subcollection)
+model RoomMessage {
+  id          String       @id @default(cuid())
+  roomId      String
+  userId      String
+  userName    String?
+  userAvatar  String?
+  role        String?      // viewer | speaker | moderator | host
+  text        String       @default("")
+  imageData   String?      // base64 data URL (moves to storage)
+  mentions    String[]
+  replyTo     Json?
+  reactions   Json?
+  pinned      Boolean      @default(false)
+  pinnedAt    DateTime?
+  deleted     Boolean      @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@index([userId])
+}
+
+// Firestore: rooms/{roomId}/signals (subcollection)
+model RoomSignal {
+  id           String    @id @default(cuid())
+  roomId       String
+  type         String    // hand | reaction | speakerInvite
+  fromIdentity String
+  target       String?   @default("")
+  value        Boolean?
+  emoji        String?   @default("")
+  hostName     String?   @default("")
+  createdAt    DateTime  @default(now())
+
+  room    Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  emitter User @relation(fields: [fromIdentity], references: [id])
+
+  @@index([roomId, createdAt(sort: Desc)])
+}
+
+// Firestore: roomEvents/{id}
+model RoomEvent {
+  id        String    @id @default(cuid())
+  userId    String
+  roomId    String
+  roomName  String?
+  joinedAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+
+  @@index([userId])
+  @@index([roomId])
+}
+
+// ---------------------------------------------------------------------------
+// Direct/group/space chat
+// ---------------------------------------------------------------------------
+
+// Firestore: conversations/{id}
+model Conversation {
+  id             String     @id @default(cuid())
+  type           String     // dm | group | space
+  participantIds String[]
+  name           String?    @default("")
+  groupId        String?    @default("")
+  spaceId        String?    @default("")
+  createdBy      String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @default(now()) @updatedAt
+  lastMessage    String?    // E2E encrypted
+  lastMessageEnc Boolean?   @default(false)
+  lastMessageAt  DateTime?
+  lastReadAt     Json?
+
+  creator       User                 @relation("ConversationCreator", fields: [createdBy], references: [id])
+  space         Space?               @relation(fields: [spaceId], references: [id])
+  messages      ConversationMessage[]
+  typing        Typing[]
+
+  @@index([createdBy])
+  @@index([spaceId])
+}
+
+// Firestore: conversations/{id}/messages (subcollection)
+model ConversationMessage {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  senderName     String?
+  text           String    // E2E encrypted
+  createdAt      DateTime  @default(now())
+  readBy         Json?
+  parentId       String?
+  replyCount     Int       @default(0)
+  attachment     Json?
+  hasAttachment  Boolean?  @default(false)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt(sort: Asc)])
+  @@index([senderId])
+}
+
+// Firestore: typing/{conversationId_uid}
+model Typing {
+  id             String    @id
+  conversationId String
+  userId         String
+  userName       String?
+  lastTypedAt    DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([conversationId])
+}
+
+// ---------------------------------------------------------------------------
+// Events, calendar & availability
+// ---------------------------------------------------------------------------
+
+// Firestore: events/{id}
+model Event {
+  id                 String     @id @default(cuid())
+  title              String
+  description        String     @default("")
+  startTime          DateTime
+  endTime            DateTime?
+  roomSlug           String?    @default("")
+  capacity           Int?       @default(0)
+  spaceId            String?    @default("")
+  purchasePriceCents Int?       @default(0)
+  publicPreview      Boolean?
+  createdBy          String
+  createdAt          DateTime   @default(now())
+  recurrence         Json?
+  capacityCounts     Json?
+
+  creator User   @relation(fields: [createdBy], references: [id])
+  space   Space? @relation(fields: [spaceId], references: [id])
+  room    Room?  @relation(fields: [roomSlug], references: [slug])
+  rsvps   Rsvp[]
+
+  @@index([startTime])
+  @@index([spaceId])
+}
+
+// Firestore: rsvps/{eventId|occurrenceId_uid}
+model Rsvp {
+  id            String    @id
+  eventId       String
+  occurrenceId  String    @default("")
+  userId        String
+  name          String?
+  createdAt     DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Firestore: availability/{id} (calendar open slots)
+model Availability {
+  id          String    @id @default(cuid())
+  userId      String
+  userName    String?
+  userAvatar  String?   @default("")
+  title       String
+  note        String?   @default("")
+  roomSlug    String?   @default("")
+  color       String?
+  startAt     DateTime
+  endAt       DateTime
+  recurring   String?   // weekly | none
+  rsvpCount   Int?      @default(0)
+  createdAt   DateTime  @default(now())
+
+  user  User                @relation(fields: [userId], references: [id])
+  rsvps AvailabilityRsvp[]
+
+  @@index([userId, startAt])
+  @@index([startAt])
+}
+
+// Firestore: availabilityRsvps/{availabilityId_uid}
+model AvailabilityRsvp {
+  id              String    @id
+  availabilityId  String
+  userId          String
+  name            String?
+  joinedAt        DateTime  @default(now())
+
+  availability Availability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([availabilityId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Courses, lessons, quizzes & certificates
+// ---------------------------------------------------------------------------
+
+// Firestore: courses/{id}
+model Course {
+  id                 String    @id @default(cuid())
+  title              String
+  description        String?
+  status             String?   // draft | published
+  spaceId            String?   @default("")
+  purchasePriceCents Int?
+  publicPreview      Boolean?
+  requiredTier       String?
+  createdBy          String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime? @updatedAt
+
+  creator  User    @relation(fields: [createdBy], references: [id])
+  space    Space?  @relation(fields: [spaceId], references: [id])
+  modules  Module[]
+  lessons  Lesson[] @relation("CourseLessons")
+  quizzes  Quiz[]   @relation("CourseQuizzes")
+  results  QuizResult[]
+  progress Progress[]
+  certificates Certificate[]
+
+  @@index([spaceId])
+}
+
+// Firestore: modules/{id}
+model Module {
+  id        String    @id @default(cuid())
+  courseId  String
+  title     String
+  position  Int?
+  createdAt DateTime  @default(now())
+
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, position])
+}
+
+// Firestore: lessons/{id}
+model Lesson {
+  id         String    @id @default(cuid())
+  courseId   String
+  moduleId   String
+  title      String
+  body       String?
+  kind       String?   // text | video
+  position   Int?
+  videoUrl   String?
+  releaseAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  course  Course  @relation("CourseLessons", fields: [courseId], references: [id], onDelete: Cascade)
+  module  Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  quizzes Quiz[]  @relation("LessonQuizzes")
+  results QuizResult[] @relation("LessonQuizResults")
+
+  @@index([courseId, position])
+  @@index([moduleId, position])
+}
+
+// Firestore: quizzes/{id}
+model Quiz {
+  id           String    @id @default(cuid())
+  lessonId     String
+  moduleId     String
+  courseId     String
+  questions    Json
+  passingScore Int?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime? @updatedAt
+
+  lesson  Lesson      @relation("LessonQuizzes", fields: [lessonId], references: [id], onDelete: Cascade)
+  course  Course      @relation("CourseQuizzes", fields: [courseId], references: [id])
+  results QuizResult[]
+
+  @@index([lessonId])
+}
+
+// Firestore: quizResults/{id}
+model QuizResult {
+  id          String    @id @default(cuid())
+  userId      String
+  userName    String?
+  quizId      String
+  courseId    String
+  lessonId    String
+  score       Int?
+  total       Int?
+  percentage  Float?
+  passed      Boolean?
+  answers     Json?
+  completedAt DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  quiz   Quiz   @relation(fields: [quizId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+  lesson Lesson @relation("LessonQuizResults", fields: [lessonId], references: [id])
+
+  @@index([quizId, userId, completedAt(sort: Desc)])
+  @@index([courseId, userId])
+}
+
+// Firestore: progress/{courseId_uid}
+model Progress {
+  id                String    @id
+  courseId          String
+  userId            String
+  completedLessons  String[]
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([courseId, userId])
+}
+
+// Firestore: certificates/{id}
+model Certificate {
+  id                 String    @id @default(cuid())
+  userId             String
+  userName           String?
+  courseId           String
+  courseTitle        String?
+  completedAt        String?   // ISO date string (kept as string for parity)
+  certificateNumber  String?
+  createdAt          DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@index([userId, courseId])
+}
+
+// ---------------------------------------------------------------------------
+// Challenges & gamification
+// ---------------------------------------------------------------------------
+
+// Firestore: gamification/{uid}
+model Gamification {
+  id            String    @id
+  userId        String
+  points        Int?
+  streak        Int?
+  bestStreak    Int?
+  badges        Json?
+  lastVisitDate String?
+  recentVisits  String[]
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  user User @relation(fields: [id], references: [id])
+
+  @@index([userId])
+}
+
+// Firestore: challenges/{id}
+model Challenge {
+  id               String    @id @default(cuid())
+  title            String
+  description      String?
+  emoji            String?
+  goal             Int?
+  startDate        DateTime?
+  endDate          DateTime?
+  participantCount Int?      @default(0)
+  createdBy        String
+  createdAt        DateTime  @default(now())
+
+  creator      User                  @relation(fields: [createdBy], references: [id])
+  participants ChallengeParticipant[]
+
+  @@index([createdBy])
+}
+
+// Firestore: challengeParticipants/{challengeId_uid}
+model ChallengeParticipant {
+  id          String    @id
+  challengeId String
+  userId      String
+  userName    String?
+  progress    Int?      @default(0)
+  joinedAt    DateTime  @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([challengeId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Questions, community content & moderation
+// ---------------------------------------------------------------------------
+
+// Firestore: questions/{id}
+model Question {
+  id          String    @id @default(cuid())
+  text        String
+  freq        String?   // daily | weekly | monthly
+  hour        Int?
+  minute      Int?
+  weekday     Int?
+  dayOfMonth  Int?
+  spaceId     String?   @default("")
+  spaceSlug   String?
+  spaceName   String?
+  active      Boolean?
+  nextRun     DateTime?
+  lastPostedAt DateTime?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  creator User  @relation(fields: [createdBy], references: [id])
+  space   Space? @relation(fields: [spaceId], references: [id])
+
+  @@index([spaceId])
+}
+
+// Firestore: reports/{id}
+model Report {
+  id            String    @id @default(cuid())
+  type          String    // post | comment | member
+  targetId      String
+  commentPostId String?   @default("")
+  targetPath    String?
+  reporterId    String
+  reporterName  String?
+  reason        String
+  status        String    @default("open") // open | dismissed | resolved
+  handledBy     String?
+  handledAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  reporter User  @relation(fields: [reporterId], references: [id])
+  handler  User?  @relation("ReportHandledBy", fields: [handledBy], references: [id])
+
+  @@index([status, createdAt(sort: Desc)])
+}
+
+// Firestore: musicFiles/{id}
+model MusicFile {
+  id         String    @id @default(cuid())
+  dataUrl    String
+  name       String?
+  mimeType   String?
+  size       Int?
+  uploadedBy String
+  createdAt  DateTime  @default(now())
+
+  @@index([uploadedBy])
+}
+
+// Firestore: hostAssignments/{scopeType_scopeId_userId}
+model HostAssignment {
+  id         String    @id
+  scopeType  String    // room | event | course | group | space
+  scopeId    String
+  userId     String
+  role       String?   // host | co-host
+  grantedBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([scopeType, scopeId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Pages, settings, purchases, automations & audit
+// ---------------------------------------------------------------------------
+
+// Firestore: pages/{id}
+model SpacePage {
+  id         String    @id @default(cuid())
+  title      String
+  slug       String
+  content    String?
+  spaceId    String
+  position   Int?
+  visibility String?   // all | members
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  creator User  @relation(fields: [createdBy], references: [id])
+  space   Space @relation(fields: [spaceId], references: [id])
+
+  @@unique([spaceId, slug])
+}
+
+// Firestore: settings/{community} (single doc)
+model Setting {
+  id               String   @id // "community"
+  welcomeChecklist Json?
+  updatedAt        DateTime? @updatedAt
+  createdAt        DateTime @default(now())
+}
+
+// Firestore: purchases/{uid_targetType_targetId}
+model Purchase {
+  id           String    @id
+  uid          String
+  targetType   String    // course | event | space
+  targetId     String
+  sessionId    String?   @default("")
+  promoCode    String?   @default("")
+  purchasedAt  DateTime  @default(now())
+
+  user User @relation(fields: [uid], references: [id])
+
+  @@index([uid])
+  @@index([targetType, targetId])
+}
+
+// Firestore: automations/{id}
+model Automation {
+  id        String    @id @default(cuid())
+  name      String
+  trigger   String
+  action    String
+  config    Json?
+  active    Boolean?  @default(true)
+  createdBy String
+  createdAt DateTime  @default(now())
+
+  history AutomationHistory[]
+
+  @@index([createdBy])
+}
+
+// Firestore: automationHistory/{id}
+model AutomationHistory {
+  id           String    @id @default(cuid())
+  automationId String
+  trigger      String
+  action       String
+  targetUserId String?
+  success      Boolean?
+  error        String?
+  ranAt        DateTime  @default(now())
+
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@index([automationId, ranAt(sort: Desc)])
+}
+
+// Firestore: auditLogs/{id}
+model AuditLog {
+  id        String    @id @default(cuid())
+  actorId   String
+  actorName String?
+  action    String
+  targetId  String?
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt(sort: Desc)])
+}
+
+// Firestore: announcements/{id}
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String?
+  authorId    String
+  authorName  String?
+  pinned      Boolean?  @default(false)
+  spaceId     String?   @default("")
+  published   Boolean?  @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@index([authorId])
+}
