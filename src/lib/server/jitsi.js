@@ -55,5 +55,8 @@ export async function signJitsiToken({ identity, displayName, email = "", avatar
     },
   };
 
-  return jwt.sign(payload, privateKey, { algorithm: "RS256" });
+  return jwt.sign(payload, privateKey, {
+    algorithm: "RS256",
+    header: { kid: appId },
+  });
 }

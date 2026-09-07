@@ -36,7 +36,7 @@ export default function ReportModal({ type, targetId, commentPostId, onClose }) 
         body: JSON.stringify({ type, targetId, commentPostId, reason: finalReason }),
       });
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Report failed");
       }
       setSent(true);

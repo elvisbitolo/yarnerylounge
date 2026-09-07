@@ -440,7 +440,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: trimmed }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Reply failed");
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Reply failed");
       setText("");
     } catch (err) {
       console.error(err);
@@ -487,6 +487,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
                 commentId={c.id}
                 reactions={c.reactions}
                 uid={uid}
+                disabled={disabled}
               />
             </div>
           ))}
@@ -512,7 +513,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
 
 const EMPTY_POLL = ["", ""];
 
-export default function Feed({ uid, userName, role, groupId, spaceId, initialKind, canWriteChat = true }) {
+export default function Feed({ uid, userName, role, groupId, spaceId, initialKind, canWriteChat = false }) {
   const t = useTranslations("feed");
   const canModerate = role === "owner" || role === "moderator";
   const [posts, setPosts] = useState([]);
@@ -668,7 +669,7 @@ const trimmed = text.trim();
             pollDeadline: kind === "poll" && pollDeadline ? pollDeadline : "",
           }),
         });
-        if (!res.ok) throw new Error((await res.json()).error || "Post failed");
+        if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Post failed");
         setText("");
         setImageUrl("");
         setKind("post");

@@ -45,21 +45,31 @@ export async function getCapabilities(uid) {
   if (isStaff({ role: sub?.role }) || sub?.isStaffAccess) {
     return { ...CAPABILITIES.host };
   }
+
   const tier = sub?.tier || "flirting";
-  if (tier === "moving-in" || sub?.planName === "moving-in" || sub?.role === "host") {
+  const planName = (sub?.planName || sub?.plan || tier).toLowerCase();
+
+  // The Shopify plan is authoritative. Staff-style host access is granted for
+  // the Moving In tier/plan or the host role.
+  const isMovingIn =
+    tier === "moving-in" || planName === "moving-in" || sub?.role === "host";
+  if (isMovingIn) {
     return { ...CAPABILITIES.host };
   }
-  // The Shopify plan is authoritative. Flirting (free $0 taster) and the
-  // free-access fallback are view-only; any real paid plan ranks as paid.
-  const paidPlan = sub?.planName === "hooking-up" || sub?.planName === "moving-in";
-  if (tier === "flirting" || sub?.isFreeAccess || paidPlan === false) {
-    return { ...CAPABILITIES.free };
+
+  // Flirting (free $0 taster) and the free-access fallback are view-only.
+  const isFreeAccess = sub?.isFreeAccess || tier === "flirting";
+  if (isFreeAccess) {
+    // A real paid plan name overrides a stale/missing "flirting" tier so paying
+    // members are never demoted to view-only chat/video.
+    const paidPlanName = planName === "hooking-up" || planName === "moving-in";
+    if (!paidPlanName) return { ...CAPABILITIES.free };
   }
-  if (paidPlan || tier === "hooking-up") {
+
+  // Any real paid plan (or a valid billing period) ranks as paid.
+  if (planName === "hooking-up" || tier === "hooking-up" || periodEndMillis(sub) > 0) {
     return { ...CAPABILITIES.paid };
   }
-  const hasPeriod = periodEndMillis(sub) > 0;
-  if (hasPeriod) return { ...CAPABILITIES.paid };
   return { ...CAPABILITIES.free };
 }
 

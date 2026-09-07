@@ -81,7 +81,9 @@ export default function RoomClient({
   const viewer = !planCanPublish || viewerOnly;
   const audioLocked = disableAudio || forceMuteOnJoin;
 
-  const waiting = Boolean(opensAt) && !isHost && now < opensAt;
+  // Always-on lounges are joinable any time; only scheduled (non-alwaysOn)
+  // rooms gate on the next upcoming start for non-hosts.
+  const waiting = !alwaysOn && Boolean(opensAt) && !isHost && now < opensAt;
   const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
 
   function formatWait(totalSeconds) {

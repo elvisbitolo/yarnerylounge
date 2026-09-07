@@ -42,9 +42,13 @@ export async function POST(req) {
     if (!room.alwaysOn) {
       let opensAt = await getUpcomingRoomStart(room.slug);
       if (!opensAt && room.opensAt) opensAt = room.opensAt.toMillis?.() || 0;
-      if (opensAt && !isHost) {
+      // Only block before the room has actually opened — an already-open room
+      // with a stale `opensAt` timestamp must still be joinable for non-hosts.
+      const opensAtMillis = typeof opensAt === "number" ? opensAt : 0;
+      const now = Date.now();
+      if (opensAtMillis && opensAtMillis > now && !isHost) {
         return NextResponse.json(
-          { error: "This room opens at the scheduled time", opensAt },
+          { error: "This room opens at the scheduled time", opensAt: opensAtMillis },
           { status: 423 }
         );
       }

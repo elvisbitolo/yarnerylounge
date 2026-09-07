@@ -38,8 +38,8 @@ export default async function MembersPage() {
 
   const todayKey = (() => {
     const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().slice(0, 10);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   })();
 
   const members = snap.docs

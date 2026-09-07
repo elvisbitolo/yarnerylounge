@@ -115,7 +115,7 @@ function BubbleContent({ msg, searchQuery, isReply }) {
   return content ? <p className={bubbleTextClass}>{content}</p> : null;
 }
 
-export default function Thread({ conversationId, uid, initialMessages, canWriteChat = true }) {
+export default function Thread({ conversationId, uid, initialMessages, canWriteChat = false }) {
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
