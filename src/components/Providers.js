@@ -2,6 +2,7 @@
 
 import { NextIntlClientProvider } from "next-intl";
 import { useState } from "react";
+import { MembershipProvider } from "@/lib/membership";
 
 function readLocale() {
   if (typeof document === "undefined") return "";
@@ -14,7 +15,7 @@ export default function Providers({ messages, locale: serverLocale, children }) 
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale] || messages.en}>
-      {children}
+      <MembershipProvider>{children}</MembershipProvider>
     </NextIntlClientProvider>
   );
 }

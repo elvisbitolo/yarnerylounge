@@ -8,6 +8,7 @@ import {
   getIdToken,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
+import { forgetCachedMembership } from "@/lib/membership";
 
 async function createSession(idToken, name) {
   const res = await fetch("/api/auth/session", {
@@ -93,6 +94,7 @@ export async function signupWithEmail(name, email, password) {
 }
 
 export async function logout() {
+  if (auth.currentUser) forgetCachedMembership(auth.currentUser.uid);
   await signOut(auth);
   await fetch("/api/auth/logout", { method: "POST" });
 }
@@ -103,6 +105,7 @@ export async function logout() {
 export async function refreshSession() {
   const user = auth.currentUser;
   if (!user) return false;
+  forgetCachedMembership(user.uid);
   const idToken = await getIdToken(user, true);
   await createSession(idToken);
   return true;

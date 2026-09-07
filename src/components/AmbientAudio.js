@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { Volume2, VolumeX } from "lucide-react";
 import { db } from "@/lib/firebase/client";
 
@@ -81,19 +81,25 @@ export default function AmbientAudio({ active, roomId, musicUrl, musicPlaying, m
 
   useEffect(() => {
     if (!roomId || !active) return;
+    let cancelled = false;
     const roomRef = doc(db, "rooms", roomId);
-    const unsub = onSnapshot(roomRef, (snap) => {
-      const data = snap.data();
-      if (!data) return;
-      if (data.musicPlaying && data.musicFileId) {
-        setFireSrc(`/api/rooms/music/stream?id=${data.musicFileId}`);
-      } else if (data.musicPlaying && data.musicUrl) {
-        setFireSrc(data.musicUrl);
-      } else {
-        setFireSrc(null);
-      }
-    }, () => {});
-    return () => unsub();
+    // Room music settings change rarely — one-time read instead of a listener.
+    getDoc(roomRef)
+      .then((snap) => {
+        if (cancelled || !snap.exists()) return;
+        const data = snap.data();
+        if (data.musicPlaying && data.musicFileId) {
+          setFireSrc(`/api/rooms/music/stream?id=${data.musicFileId}`);
+        } else if (data.musicPlaying && data.musicUrl) {
+          setFireSrc(data.musicUrl);
+        } else {
+          setFireSrc(null);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [roomId, active]);
 
   const src = fireSrc ?? baseSrc;

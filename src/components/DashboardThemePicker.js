@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useMembership } from "@/lib/membership";
 
 const PRESETS = [
   { name: "Cream", bg: "#f7f1e9", surface: "#ffffff", border: "#eadfd2", text: "#171a33", muted: "#8a7c6f", accent: "#f42e79" },
@@ -49,11 +50,15 @@ function ColorRow({ label, value, onChange }) {
 
 export default function DashboardThemePicker() {
   const [open, setOpen] = useState(false);
-  const [theme, setTheme] = useState(PRESETS[0]);
-  const [loading, setLoading] = useState(true);
+  const [customTheme, setCustomTheme] = useState(null);
   const [panelPos, setPanelPos] = useState(null);
   const panelRef = useRef(null);
   const lastRect = useRef(null);
+  const { membership, refresh } = useMembership();
+
+  // The effective theme resolves reactively from the shared (cached)
+  // MembershipProvider until the user customizes it — no effects needed.
+  const theme = customTheme || membership?.theme || PRESETS[0];
 
   function clampPanel(rect) {
     const vw = window.innerWidth;
@@ -77,17 +82,6 @@ export default function DashboardThemePicker() {
     setPanelPos(clampPanel(rect));
     setOpen(true);
   }
-
-  useEffect(() => {
-    fetch("/api/dashboard/theme")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.theme) setTheme(data.theme);
-        else setTheme(PRESETS[0]);
-      })
-      .catch(() => setTheme(PRESETS[0]))
-      .finally(() => setLoading(false));
-  }, []);
 
   useEffect(() => {
     if (!theme) return;
@@ -132,13 +126,13 @@ export default function DashboardThemePicker() {
   }, [open]);
 
   function applyPreset(preset) {
-    setTheme({ ...preset });
+    setCustomTheme({ ...preset });
     save({ ...preset });
   }
 
   function updateColor(key, value) {
-    setTheme((prev) => {
-      const next = { ...prev, [key]: value };
+    setCustomTheme((prev) => {
+      const next = { ...(prev || membership?.theme || PRESETS[0]), [key]: value };
       save(next);
       return next;
     });
@@ -149,10 +143,13 @@ export default function DashboardThemePicker() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ theme: t }),
-    }).catch(() => {});
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.ok) refresh();
+      })
+      .catch(() => {});
   }
-
-  if (loading || !theme) return null;
 
   const compact = typeof window !== "undefined" && window.innerWidth < 1024;
   const panelMaxHeight = compact ? "min(52vh, 440px)" : "min(70vh, 560px)";

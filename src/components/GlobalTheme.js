@@ -1,30 +1,37 @@
 "use client";
 
 import { useEffect } from "react";
+import { useMembership } from "@/lib/membership";
+import { DEFAULT_SPEAKEASY_THEME } from "@/lib/speakeasy-theme";
+
+const VAR_MAP = {
+  bg: ["--background", "--dash-bg"],
+  surface: ["--dash-surface"],
+  border: ["--dash-border"],
+  text: ["--foreground", "--dash-text"],
+  muted: ["--dash-muted"],
+  accent: ["--dash-accent"],
+  primary: ["--primary"],
+};
+
+function applyTheme(theme) {
+  if (!theme) return;
+  const r = document.documentElement;
+  for (const [key, vars] of Object.entries(VAR_MAP)) {
+    if (!theme[key]) continue;
+    for (const v of vars) r.style.setProperty(v, theme[key]);
+  }
+}
 
 export default function GlobalTheme() {
+  const { membership } = useMembership();
+
   useEffect(() => {
-    fetch("/api/dashboard/theme")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data?.theme) return;
-        const t = data.theme;
-        const r = document.documentElement;
-        if (t.bg) {
-          r.style.setProperty("--background", t.bg);
-          r.style.setProperty("--dash-bg", t.bg);
-        }
-        if (t.surface) r.style.setProperty("--dash-surface", t.surface);
-        if (t.border) r.style.setProperty("--dash-border", t.border);
-        if (t.text) {
-          r.style.setProperty("--foreground", t.text);
-          r.style.setProperty("--dash-text", t.text);
-        }
-        if (t.muted) r.style.setProperty("--dash-muted", t.muted);
-        if (t.accent) r.style.setProperty("--dash-accent", t.accent);
-      })
-      .catch(() => {});
-  }, []);
+    // Hardcoded speakeasy defaults first so the app never relies on the API;
+    // then the cached member theme (fetched once via MembershipProvider).
+    applyTheme(DEFAULT_SPEAKEASY_THEME);
+    applyTheme(membership?.theme || null);
+  }, [membership?.theme]);
 
   return null;
 }

@@ -10,30 +10,74 @@ export function slugify(name) {
 }
 
 export async function listRooms() {
-  const snap = await adminDb().collection("rooms").orderBy("createdAt", "desc").get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  try {
+    const snap = await adminDb().collection("rooms").orderBy("createdAt", "desc").get();
+    return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  } catch {
+    // Backend/quota unavailable — serve the canonical Speakeasy lounges.
+    return ALWAYS_ON_ROOMS.map(canonicalDefaultRoom);
+  }
 }
 
 export async function listRoomsForGroup(groupId) {
-  const snap = await adminDb()
-    .collection("rooms")
-    .where("groupId", "==", groupId)
-    .get();
-  return snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  try {
+    const snap = await adminDb()
+      .collection("rooms")
+      .where("groupId", "==", groupId)
+      .get();
+    return snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  } catch {
+    return [];
+  }
 }
 
 export async function getRoom(id) {
-  const doc = await adminDb().collection("rooms").doc(id).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  try {
+    const doc = await adminDb().collection("rooms").doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getRoomBySlug(slug) {
-  const snap = await adminDb().collection("rooms").where("slug", "==", slug).limit(1).get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return { id: doc.id, ...doc.data() };
+  try {
+    const snap = await adminDb().collection("rooms").where("slug", "==", slug).limit(1).get();
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    return { id: doc.id, ...doc.data() };
+  } catch {
+    // Fall back to the hardcoded always-open Speakeasy lounges.
+    const spec = ALWAYS_ON_ROOMS.find((r) => r.slug === slug);
+    return spec ? canonicalDefaultRoom(spec) : null;
+  }
+}
+
+// Builds a minimal, fully-hardcoded room from an always-on spec so the lounge
+// keeps opening even when Firestore is down (quota exceeded, 5xx, etc.).
+function canonicalDefaultRoom(spec) {
+  return {
+    id: spec.slug,
+    slug: spec.slug,
+    name: spec.name,
+    description: spec.description,
+    status: "active",
+    kind: "standard",
+    alwaysOn: true,
+    color: spec.color || "",
+    vibe: spec.vibe || "",
+    vibeMode: spec.vibeMode || "",
+    rule: spec.rule || "",
+    musicUrl: "",
+    musicPlaying: false,
+    musicFileId: "",
+    createdBy: "",
+    maxParticipants: 20,
+    opensAt: null,
+    createdAt: new Date(0),
+  };
 }
 
 export async function createRoom({ name, description, maxParticipants, groupId, spaceId, kind, publicPreview, createdBy, opensAt }) {
@@ -144,65 +188,75 @@ export const ALWAYS_ON_ROOMS = [
 ];
 
 export async function seedAlwaysOnRooms() {
-  const created = [];
-  for (const spec of ALWAYS_ON_ROOMS) {
-    const snap = await adminDb()
-      .collection("rooms")
-      .where("slug", "==", spec.slug)
-      .limit(1)
-      .get();
-    if (!snap.empty) {
-      const doc = snap.docs[0];
-      const data = doc.data();
-      const patch = { alwaysOn: true };
-      if (data.name !== spec.name) patch.name = spec.name;
-      if (data.description !== spec.description) patch.description = spec.description;
-      if (data.color !== spec.color) patch.color = spec.color;
-      for (const key of [
-        "vibeMode",
-        "rule",
-        "autoAudioVideo",
-        "forceMuteOnJoin",
-        "raiseHandToTalk",
-        "disableAudio",
-      ]) {
-        if (data[key] !== spec[key]) patch[key] = spec[key];
+  try {
+    const created = [];
+    for (const spec of ALWAYS_ON_ROOMS) {
+      const snap = await adminDb()
+        .collection("rooms")
+        .where("slug", "==", spec.slug)
+        .limit(1)
+        .get();
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        const data = doc.data();
+        const patch = { alwaysOn: true };
+        if (data.name !== spec.name) patch.name = spec.name;
+        if (data.description !== spec.description) patch.description = spec.description;
+        if (data.color !== spec.color) patch.color = spec.color;
+        for (const key of [
+          "vibeMode",
+          "rule",
+          "autoAudioVideo",
+          "forceMuteOnJoin",
+          "raiseHandToTalk",
+          "disableAudio",
+        ]) {
+          if (data[key] !== spec[key]) patch[key] = spec[key];
+        }
+        if (Object.keys(patch).length > 0) {
+          await doc.ref.set(patch, { merge: true });
+        }
+        created.push({ id: doc.id, slug: spec.slug, name: spec.name, alwaysOn: true });
+        continue;
       }
-      if (Object.keys(patch).length > 0) {
-        await doc.ref.set(patch, { merge: true });
-      }
-      created.push({ id: doc.id, slug: spec.slug, name: spec.name, alwaysOn: true });
-      continue;
-    }
 
-    const ref = adminDb().collection("rooms").doc();
-    const room = {
-      name: spec.name,
+      const ref = adminDb().collection("rooms").doc();
+      const room = {
+        name: spec.name,
+        slug: spec.slug,
+        description: spec.description,
+        status: "active",
+        maxParticipants: 200,
+        groupId: "",
+        spaceId: "",
+        kind: "standard",
+        publicPreview: true,
+        opensAt: null,
+        alwaysOn: true,
+        vibe: spec.vibe,
+        color: spec.color,
+        vibeMode: spec.vibeMode,
+        rule: spec.rule,
+        autoAudioVideo: spec.autoAudioVideo,
+        forceMuteOnJoin: spec.forceMuteOnJoin,
+        raiseHandToTalk: spec.raiseHandToTalk,
+        disableAudio: spec.disableAudio,
+        createdBy: "system",
+        createdAt: new Date(),
+      };
+      await ref.set(room);
+      created.push({ id: ref.id, slug: spec.slug, name: spec.name, alwaysOn: true });
+    }
+    return created;
+  } catch {
+    // Seeding is best-effort; the rooms page falls back to hardcoded lounges.
+    return ALWAYS_ON_ROOMS.map((spec) => ({
+      id: spec.slug,
       slug: spec.slug,
-      description: spec.description,
-      status: "active",
-      maxParticipants: 200,
-      groupId: "",
-      spaceId: "",
-      kind: "standard",
-      publicPreview: true,
-      opensAt: null,
+      name: spec.name,
       alwaysOn: true,
-      vibe: spec.vibe,
-      color: spec.color,
-      vibeMode: spec.vibeMode,
-      rule: spec.rule,
-      autoAudioVideo: spec.autoAudioVideo,
-      forceMuteOnJoin: spec.forceMuteOnJoin,
-      raiseHandToTalk: spec.raiseHandToTalk,
-      disableAudio: spec.disableAudio,
-      createdBy: "system",
-      createdAt: new Date(),
-    };
-    await ref.set(room);
-    created.push({ id: ref.id, slug: spec.slug, name: spec.name, alwaysOn: true });
+    }));
   }
-  return created;
 }
 
 export async function seedAlwaysOnRoom() {

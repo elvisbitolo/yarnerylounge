@@ -7,7 +7,7 @@ import {
   query,
   where,
   limit,
-  onSnapshot,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import styles from "./account.module.css";
@@ -29,26 +29,25 @@ export default function WelcomeChecklist({ uid, initialProfile, steps }) {
   const STEPS = steps && steps.length > 0 ? steps : DEFAULT_STEPS;
 
   useEffect(() => {
-    const unsubUser = onSnapshot(doc(db, "users", uid), (snap) => {
-      if (snap.exists()) setProfile(snap.data());
-    });
-    const unsubPosts = onSnapshot(
-      query(collection(db, "posts"), where("authorId", "==", uid), limit(1)),
-      (snap) => setHasPost(!snap.empty)
-    );
-    const unsubRsvps = onSnapshot(
-      query(collection(db, "rsvps"), where("userId", "==", uid), limit(1)),
-      (snap) => setHasRsvp(!snap.empty)
-    );
-    const unsubRooms = onSnapshot(
-      query(collection(db, "roomEvents"), where("userId", "==", uid), limit(1)),
-      (snap) => setHasRoomEvent(!snap.empty)
-    );
+    let cancelled = false;
+    // All four states change rarely (profile edits, one room/post/rsvp) — a
+    // one-time read avoids keeping permanent real-time listeners open.
+    Promise.all([
+      getDoc(doc(db, "users", uid)),
+      getDoc(query(collection(db, "posts"), where("authorId", "==", uid), limit(1))),
+      getDoc(query(collection(db, "rsvps"), where("userId", "==", uid), limit(1))),
+      getDoc(query(collection(db, "roomEvents"), where("userId", "==", uid), limit(1))),
+    ])
+      .then(([userSnap, postsSnap, rsvpsSnap, roomsSnap]) => {
+        if (cancelled) return;
+        if (userSnap.exists()) setProfile(userSnap.data());
+        setHasPost(!postsSnap.empty);
+        setHasRsvp(!rsvpsSnap.empty);
+        setHasRoomEvent(!roomsSnap.empty);
+      })
+      .catch(() => {});
     return () => {
-      unsubUser();
-      unsubPosts();
-      unsubRsvps();
-      unsubRooms();
+      cancelled = true;
     };
   }, [uid]);
 
