@@ -639,6 +639,7 @@
     "watchingCount": "{count} watching",
     "stage": "Stage",
     "waitingForSpeakers": "Waiting for speakers to join…",
+    "waitingForStitchers": "Waiting for crafters to join…",
     "you": "You",
     "host": "Host",
     "muted": "Muted",

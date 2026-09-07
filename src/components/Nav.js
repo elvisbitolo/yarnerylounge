@@ -229,6 +229,7 @@ export default function Nav({ role, children }) {
       .filter((g) => g.items.some((item) => pathname === item.href || pathname.startsWith(item.href + "/")))
       .map((g) => g.id);
     if (matched.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-expand the sidebar group for the current route, only when the route changes
       setOpenGroups((prev) => {
         const next = new Set(prev);
         matched.forEach((id) => next.add(id));

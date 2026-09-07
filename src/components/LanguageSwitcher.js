@@ -24,6 +24,7 @@ export default function LanguageSwitcher() {
   }, []);
 
   function switchLang(code) {
+    // eslint-disable-next-line react-hooks/immutability -- assigning document.cookie is the documented browser API
     document.cookie = `NEXT_LOCALE=${code}; path=/; max-age=31536000`;
     setOpen(false);
     window.location.reload();

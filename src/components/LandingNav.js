@@ -30,6 +30,8 @@ function LangPicker({ onNavigate }) {
   const ref = useRef(null);
   const [locale, setLocale] = useState("en");
 
+  // Read the NEXT_LOCALE cookie into state once on mount.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time cookie read, avoids SSR/hydration mismatch
   useEffect(() => setLocale(getCurrentLocale()), []);
 
   useEffect(() => {

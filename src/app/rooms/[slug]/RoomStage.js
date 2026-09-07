@@ -46,12 +46,10 @@ function OffCamTile({ participant, isMe, currentUserAvatar }) {
 }
 
 function galleryColumns(count) {
-  if (count <= 1) return "1fr";
-  if (count <= 4) return "repeat(2, minmax(0, 1fr))";
-  if (count <= 9) return "repeat(auto-fill, minmax(240px, 1fr))";
-  if (count <= 24) return "repeat(auto-fill, minmax(150px, 1fr))";
-  if (count <= 64) return "repeat(auto-fill, minmax(112px, 1fr))";
-  return "repeat(auto-fill, minmax(88px, 1fr))";
+  // Google Meet style: 1 = full-screen, 2-4 = 2x2, 5+ = 3x3 grid.
+  if (count <= 1) return styles.gridOne;
+  if (count <= 4) return styles.gridTwo;
+  return styles.gridThree;
 }
 
 export default function RoomStage({ hostId, currentUserId, currentUserAvatar = "" }) {
@@ -62,44 +60,94 @@ export default function RoomStage({ hostId, currentUserId, currentUserAvatar = "
 
   const speakerIds = new Set(speakers.map((p) => p.identity));
   const count = participants.length;
-  const compact = count > 24;
-  const gridColumns = galleryColumns(count);
 
   return (
     <div className={styles.stageGallery}>
-      <div className={styles.stageGrid} style={{ gridTemplateColumns: gridColumns }}>
+      <div className={[styles.stageGrid, galleryColumns(count)].join(" ")}>
         {count === 0 && (
-          <div className={styles.stageEmpty}>
+          <div className={styles.stageEmpty} role="status">
             <Music4 size={28} />
-            <p>{t("waitingForSpeakers")}</p>
+            <p>{t("waitingForStitchers")}</p>
           </div>
         )}
-        {participants.map((p) => {
-          const isMe = p.identity === currentUserId;
-          const isActive = speakerIds.has(p.identity);
-          const isHostUser = p.identity === hostId;
-          const handRaised = !!raisedHands[p.identity];
-          const meta = parsePersonMeta(p);
-          const isPub = p.permissions ? p.permissions.canPublish !== false : true;
-          const showVideo = isPub && p.isCameraEnabled !== false;
-          return (
-            <div
-              key={p.identity}
-              className={[
-                styles.tile,
-                compact ? styles.tileCompact : "",
-                isActive ? styles.tileActive : "",
-                isMe ? styles.tileMe : "",
-                !showVideo ? styles.tileOffCam : "",
-                showVideo ? styles.tileCamOn : "",
-              ].filter(Boolean).join(" ")}
-            >
-              {showVideo ? (
-                <VideoTile participant={p} speaking={isActive} />
-              ) : (
-                <OffCamTile participant={p} isMe={isMe} currentUserAvatar={currentUserAvatar} />
-              )}
-              {!compact && (
+        {count === 1 && (
+          <div className={styles.stageSelfOnly} role="status">
+            {(() => {
+              const p = participants[0];
+              const isMe = p.identity === currentUserId;
+              const isActive = speakerIds.has(p.identity);
+              const isHostUser = p.identity === hostId;
+              const meta = parsePersonMeta(p);
+              const isPub = p.permissions ? p.permissions.canPublish !== false : true;
+              const showVideo = isPub && p.isCameraEnabled !== false;
+              return (
+                <div
+                  key={p.identity}
+                  className={[
+                    styles.tile,
+                    isActive ? styles.tileActive : "",
+                    isMe ? styles.tileMe : "",
+                    !showVideo ? styles.tileOffCam : "",
+                    showVideo ? styles.tileCamOn : "",
+                  ].filter(Boolean).join(" ")}
+                >
+                  {showVideo ? (
+                    <VideoTile participant={p} speaking={isActive} />
+                  ) : (
+                    <OffCamTile participant={p} isMe={isMe} currentUserAvatar={currentUserAvatar} />
+                  )}
+                  <div className={styles.tileFooter}>
+                    <span className={styles.tileName}>
+                      {meta.name || p.name || p.identity}
+                      {isMe && <span className={styles.tileYou}>{t("you")}</span>}
+                      {isHostUser && <span className={styles.tileHostBadge}>{t("host")}</span>}
+                    </span>
+                    <span
+                      className={p.isMicrophoneEnabled === false ? `${styles.tileMic} ${styles.tileMicOff}` : styles.tileMic}
+                      title={p.isMicrophoneEnabled === false ? t("muted") : t("micOn")}
+                    >
+                      {p.isMicrophoneEnabled === false ? <MicOff size={14} /> : <Mic size={14} />}
+                    </span>
+                  </div>
+                  {isActive && (
+                    <span className={styles.tileSpeaking} aria-live="polite">
+                      {t("speaking")}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+            <div className={styles.waitingStitchers}>
+              <Music4 size={20} />
+              <p>{t("waitingForStitchers")}</p>
+            </div>
+          </div>
+        )}
+        {count >= 2 &&
+          participants.map((p) => {
+            const isMe = p.identity === currentUserId;
+            const isActive = speakerIds.has(p.identity);
+            const isHostUser = p.identity === hostId;
+            const handRaised = !!raisedHands[p.identity];
+            const meta = parsePersonMeta(p);
+            const isPub = p.permissions ? p.permissions.canPublish !== false : true;
+            const showVideo = isPub && p.isCameraEnabled !== false;
+            return (
+              <div
+                key={p.identity}
+                className={[
+                  styles.tile,
+                  isActive ? styles.tileActive : "",
+                  isMe ? styles.tileMe : "",
+                  !showVideo ? styles.tileOffCam : "",
+                  showVideo ? styles.tileCamOn : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {showVideo ? (
+                  <VideoTile participant={p} speaking={isActive} />
+                ) : (
+                  <OffCamTile participant={p} isMe={isMe} currentUserAvatar={currentUserAvatar} />
+                )}
                 <div className={styles.tileFooter}>
                   <span className={styles.tileName}>
                     {meta.name || p.name || p.identity}
@@ -113,26 +161,25 @@ export default function RoomStage({ hostId, currentUserId, currentUserAvatar = "
                     {p.isMicrophoneEnabled === false ? <MicOff size={14} /> : <Mic size={14} />}
                   </span>
                 </div>
-              )}
-              {handRaised && (
-                <span className={compact ? `${styles.tileHand} ${styles.tileHandCompact}` : styles.tileHand}>
-                  <Hand size={14} />
-                  {!compact && t("raisedHand")}
-                </span>
-              )}
-              {!showVideo && p.isCameraEnabled === false && !compact && (
-                <span className={styles.tileCamOff}>
-                  <VideoOff size={14} /> {t("cameraOff")}
-                </span>
-              )}
-              {isActive && !compact && (
-                <span className={styles.tileSpeaking} aria-live="polite">
-                  {t("speaking")}
-                </span>
-              )}
-            </div>
-          );
-        })}
+                {handRaised && (
+                  <span className={styles.tileHand}>
+                    <Hand size={14} />
+                    {t("raisedHand")}
+                  </span>
+                )}
+                {!showVideo && p.isCameraEnabled === false && (
+                  <span className={styles.tileCamOff}>
+                    <VideoOff size={14} /> {t("cameraOff")}
+                  </span>
+                )}
+                {isActive && (
+                  <span className={styles.tileSpeaking} aria-live="polite">
+                    {t("speaking")}
+                  </span>
+                )}
+              </div>
+            );
+          })}
       </div>
 
       <div className={styles.galleryCount} title={t("peopleInRoom", { count })}>

@@ -472,9 +472,23 @@
 
 .stageGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-  align-items: start;
+  gap: 10px;
+  align-items: stretch;
+  width: 100%;
+}
+
+/* Google Meet style gallery layouts */
+
+.gridOne {
+  grid-template-columns: 1fr;
+}
+
+.gridTwo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gridThree {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .stageEmpty {
@@ -498,32 +512,60 @@
   font-size: 14px;
 }
 
+.stageSelfOnly {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.waitingStitchers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 16px;
+  background: #fbf9fa;
+  border: 1px dashed #f06292;
+  border-radius: 16px;
+  color: #c2185b;
+  text-align: center;
+}
+
+.waitingStitchers p {
+  margin: 0;
+  color: #716a70;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .tile {
   position: relative;
   background: #ffffff;
-  border: 1px solid #e5d9dc;
-  border-radius: 14px;
+  border: 2px solid #e5d9dc;
+  border-radius: 16px; /* rounded-2xl */
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9; /* aspect-video */
   box-shadow: 0 10px 22px -18px rgba(37, 35, 41, 0.5);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tileOffCam {
-  aspect-ratio: 1;
+  aspect-ratio: 16 / 9;
   background: linear-gradient(135deg, #2a2026, #3d2e38);
 }
 
 .tileCamOn {
-  border-color: rgba(34, 197, 94, 0.55);
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25), 0 10px 22px -18px rgba(37, 35, 41, 0.5);
+  border-color: #e5d9dc; /* on-cam: default border, no highlight */
 }
 
 .tileCompact {
-  aspect-ratio: 1;
-  border-radius: 12px;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
 }
 
 .tileCompactLabel {
@@ -580,8 +622,8 @@
 }
 
 .tileActive {
-  border-color: #c2185b;
-  box-shadow: 0 0 0 3px rgba(139, 58, 98, 0.15), 0 18px 30px -20px rgba(139, 58, 98, 0.5);
+  border-color: #e91e63; /* magenta highlight for the active speaker */
+  box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.2), 0 18px 30px -20px rgba(233, 30, 99, 0.4);
 }
 
 .tileMe {
@@ -625,7 +667,7 @@
   pointer-events: none;
   box-shadow: inset 0 0 0 3px #e91e63;
   animation: ringPulse 2s ease-in-out infinite;
-  border-radius: 14px;
+  border-radius: 16px;
 }
 
 .tileFooter {
@@ -2151,8 +2193,8 @@
 /* Responsive */
 
 @media (max-width: 980px) {
-  .stageGrid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 340px));
+  .gridThree {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2160,8 +2202,12 @@
   .liveScroll {
     padding: 14px;
   }
-  .stageGrid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 100%));
+  .gridTwo,
+  .gridThree {
+    grid-template-columns: 1fr; /* single column on mobile: see details clearly */
+  }
+  .stageSelfOnly {
+    grid-template-columns: 1fr;
   }
   .roomHeader {
     padding: 14px 16px;

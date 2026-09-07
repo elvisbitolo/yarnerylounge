@@ -80,6 +80,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch: refresh() only updates state after the async response
     refresh();
   }, [refresh]);
 
