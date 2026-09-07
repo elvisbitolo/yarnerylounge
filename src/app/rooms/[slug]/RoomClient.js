@@ -132,7 +132,7 @@ export default function RoomClient({
         router.push("/rooms");
         return;
       }
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to join room");
       setToken(data.token);
       setJitsiRoom(data.roomName);
