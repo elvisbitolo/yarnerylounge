@@ -14,7 +14,7 @@ export default function Providers({ messages, locale: serverLocale, children }) 
   const [locale, setLocale] = useState(() => readLocale() || serverLocale || "en");
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages[locale] || messages.en}>
+    <NextIntlClientProvider locale={locale} messages={messages[locale] || messages.en} timeZone="UTC">
       <MembershipProvider>{children}</MembershipProvider>
     </NextIntlClientProvider>
   );

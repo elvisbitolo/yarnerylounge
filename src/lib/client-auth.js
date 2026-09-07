@@ -11,37 +11,69 @@ import { auth } from "@/lib/firebase/client";
 import { forgetCachedMembership } from "@/lib/membership";
 
 async function createSession(idToken, name) {
-  const res = await fetch("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(name ? { idToken, name } : { idToken }),
-  });
-  if (res.status === 403) {
+  let lastError = "";
+  // Transient failures (Firestore quota spikes, server 5xx) can clear with a
+  // single retry; auth rejections are final and are not retried.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 800));
+    const res = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(name ? { idToken, name } : { idToken }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { user: null, data };
+    }
     const data = await res.json().catch(() => ({}));
-    if (data.error === "email_not_verified") {
+    lastError = data.error || "";
+
+    if (res.status === 403) {
+      if (data.error === "email_not_verified") {
+        const err = new Error(
+          "Please verify your email first — check your inbox for the confirmation link."
+        );
+        err.code = "email_not_verified";
+        throw err;
+      }
+      if (data.error === "not_prepaid") {
+        const err = new Error(data.message || "This account needs a paid Speakeasy membership.");
+        err.code = "not_prepaid";
+        err.redirect = data.redirect || "";
+        throw err;
+      }
+      throw new Error(data.error || "Could not create session");
+    }
+    if (res.status === 409) {
+      const err = new Error(data.error || "No account found");
+      err.code = data.error === "no_account" ? "no_account" : "session_failed";
+      throw err;
+    }
+    if (res.status === 401) {
+      const err = new Error(data.error || "Session expired. Please sign out and try again.");
+      err.code = "session_failed";
+      throw err;
+    }
+    if (res.status === 429) {
+      const err = new Error(data.error || "Too many attempts. Please try again shortly.");
+      err.code = "rate_limited";
+      throw err;
+    }
+    // 400 / 5xx — retry once, then give the user a clear message.
+    if (attempt === 1) {
       const err = new Error(
-        "Please verify your email first — check your inbox for the confirmation link."
+        data.message ||
+          (data.error === "server_error"
+            ? "Could not create your session. Please try again."
+            : lastError || "Failed to create session. Please try again.")
       );
-      err.code = "email_not_verified";
+      err.code = "session_failed";
       throw err;
     }
-    if (data.error === "not_prepaid") {
-      const err = new Error(data.message || "This account needs a paid Speakeasy membership.");
-      err.code = "not_prepaid";
-      err.redirect = data.redirect || "";
-      throw err;
-    }
-    throw new Error(data.error || "Could not create session");
   }
-  if (res.status === 409) {
-    const data = await res.json().catch(() => ({}));
-    const err = new Error(data.error || "No account found");
-    err.code = data.error === "no_account" ? "no_account" : "session_failed";
-    throw err;
-  }
-  if (!res.ok) throw new Error("Failed to create session");
-  const data = await res.json();
-  return { user: null, data };
+  const err = new Error("Failed to create session. Please try again.");
+  err.code = "session_failed";
+  throw err;
 }
 
 // The signup wall: verifies an email has a paid Shopify-checkout record in

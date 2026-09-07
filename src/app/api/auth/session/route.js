@@ -52,7 +52,15 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing idToken" }, { status: 400 });
     }
 
-    const decoded = await adminAuth().verifyIdToken(idToken);
+    // Only a real token failure is a 401; everything after this is a server
+    // fault (e.g. Firestore quota, email, auth service) and must be reported
+    // as such instead of a misleading "Invalid token".
+    let decoded;
+    try {
+      decoded = await adminAuth().verifyIdToken(idToken);
+    } catch {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
 
     const perAccount = rateLimitGuard(`session-uid:${decoded.uid}`, { limit: 20 });
     if (perAccount) return perAccount;
@@ -209,6 +217,9 @@ if (prepaid) {
     return res;
   } catch (err) {
     logError("auth.session_exchange_failed", { error: err.message });
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    return NextResponse.json(
+      { error: "server_error", message: "Could not create your session. Please try again." },
+      { status: 500 }
+    );
   }
 }
