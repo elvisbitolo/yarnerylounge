@@ -196,7 +196,16 @@ export async function signupWithGoogle() {
 
 export async function completeSupabaseGoogle() {
   const { data } = supabaseBrowser.auth.getSession();
-  const session = data?.session;
+  let session = data?.session;
+  // Supabase parses the OAuth URL fragment asynchronously after the redirect
+  // returns, so getSession() can be empty on first read even though the tokens
+  // are sitting in the URL. Wait for it before declaring the flow failed.
+  if (!session?.access_token) {
+    for (let attempt = 0; attempt < 30 && !session?.access_token; attempt++) {
+      await new Promise((r) => setTimeout(r, 100));
+      session = (await supabaseBrowser.auth.getSession()).data?.session;
+    }
+  }
   if (!session?.access_token) {
     return false;
   }
