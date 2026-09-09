@@ -81,6 +81,7 @@ function canonicalDefaultRoom(spec) {
     musicUrl: "",
     musicPlaying: false,
     musicFileId: "",
+    imageUrl: spec.imageUrl || "",
     createdBy: "",
     maxParticipants: 20,
     opensAt: null,
@@ -148,6 +149,7 @@ export const ALWAYS_ON_ROOMS = [
     forceMuteOnJoin: false,
     raiseHandToTalk: false,
     disableAudio: false,
+    imageUrl: "/images/rooms/happy-hour-hub.jpg",
   },
   {
     slug: "lo-fi-and-loops",
@@ -163,6 +165,7 @@ export const ALWAYS_ON_ROOMS = [
     forceMuteOnJoin: true,
     raiseHandToTalk: false,
     disableAudio: false,
+    imageUrl: "/images/rooms/lofi-and-loops.jpg",
   },
   {
     slug: "velvet-den",
@@ -178,6 +181,7 @@ export const ALWAYS_ON_ROOMS = [
     forceMuteOnJoin: false,
     raiseHandToTalk: true,
     disableAudio: false,
+    imageUrl: "/images/rooms/velvet-den.jpg",
   },
   {
     slug: "silent-studio",
@@ -193,6 +197,7 @@ export const ALWAYS_ON_ROOMS = [
     forceMuteOnJoin: false,
     raiseHandToTalk: false,
     disableAudio: true,
+    imageUrl: "/images/rooms/silent-studio.jpg",
   },
 ];
 
@@ -209,6 +214,7 @@ export async function seedAlwaysOnRooms() {
             if (existing.name !== spec.name) patch.name = spec.name;
             if (existing.description !== spec.description) patch.description = spec.description;
             if (existing.color !== spec.color) patch.color = spec.color;
+            if (existing.imageUrl !== spec.imageUrl) patch.imageUrl = spec.imageUrl;
             for (const key of [
               "vibeMode",
               "rule",
@@ -246,6 +252,7 @@ export async function seedAlwaysOnRooms() {
               forceMuteOnJoin: spec.forceMuteOnJoin,
               raiseHandToTalk: spec.raiseHandToTalk,
               disableAudio: spec.disableAudio,
+              imageUrl: spec.imageUrl,
               createdBy: "system",
             },
           });

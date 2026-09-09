@@ -9,10 +9,24 @@ import {
 } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getScopedHostRights } from "@/lib/server/hosts";
-import { getUserDoc } from "@/lib/server/auth";
+import { getUserDoc, canModerate } from "@/lib/server/auth";
 import { getCapabilities, canPublishRemote, canHost } from "@/lib/server/capabilities";
-import { signJitsiToken, jitsiRoomName, getJitsiAppId } from "@/lib/server/jitsi";
+import {
+  signJitsiToken,
+  jitsiRoomName,
+  getJitsiAppId,
+  isJitsiConfigured,
+  describeJitsiToken,
+} from "@/lib/server/jitsi";
+import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
+
+// Development-only diagnostic sink. Never logs the token itself or the key.
+function logJwtDiagnostics(token) {
+  if (process.env.JAAS_TOKEN_DEBUG === "true") {
+    console.info("[jaas] JWT validation:", describeJitsiToken(token));
+  }
+}
 
 export async function POST(req) {
   try {
@@ -89,13 +103,37 @@ export async function POST(req) {
       userDoc?.name || auth.user.displayName || auth.user.email?.split("@")[0] || "Member";
     const avatar = userDoc?.photoURL || auth.user.photoURL || "";
 
+    if (!isJitsiConfigured()) {
+      logError("jitsi.token.not_configured", {
+        appId: getJitsiAppId() ? "set" : "missing",
+        apiKeyId: process.env.JITSI_API_KEY_ID ? "set" : "missing",
+        privateKey: process.env.JITSI_PRIVATE_KEY ? "set" : "missing",
+      });
+      return NextResponse.json(
+        { error: "Unable to join this room. Please try again.", code: "jaas_not_configured" },
+        { status: 503 }
+      );
+    }
+
+    // Moderator powers (JaaS context.user.moderator + recording feature) go to
+    // staff and to the room's host/co-host only — regular participants get a
+    // plain member token with every feature permission off.
+    const isModerator = canModerate({ role: userDoc?.role }) || isHost || isCoHost;
+
+    const started = Date.now();
     const token = await signJitsiToken({
       identity: auth.user.uid,
       displayName,
       email: auth.user.email || userDoc?.email || "",
       avatar,
       roomName: room.name,
+      moderator: isModerator,
+      recording: isModerator,
     });
+    if (process.env.JAAS_TOKEN_DEBUG === "true") {
+      console.info(`[jaas] token minted in ${Date.now() - started}ms`);
+    }
+    logJwtDiagnostics(token);
 
     const prisma = getPrisma();
     prisma.roomEvent
@@ -114,13 +152,16 @@ export async function POST(req) {
       appId: getJitsiAppId(),
       roomName: jitsiRoomName(room.name),
       canPublish,
+      moderator: isModerator,
       viewerOnly: canPublish === false,
       kind: room.kind || "standard",
       alwaysOn: !!room.alwaysOn,
     });
   } catch (err) {
+    // Never leak internal JaaS/JWT details (kid/iss/keys) to the client.
+    logError("jitsi.token.failed", { error: err?.message });
     return NextResponse.json(
-      { error: err.message || "Failed to generate token" },
+      { error: "Unable to join this room. Please try again.", code: "jaas_join_error" },
       { status: 500 }
     );
   }

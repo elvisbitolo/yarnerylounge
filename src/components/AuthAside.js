@@ -7,14 +7,16 @@ import styles from "../app/auth.module.css";
 export default function AuthAside() {
   return (
     <aside className={styles.aside}>
-      <Image
-        src="/images/alongauthentication.jpeg"
-        alt="Christa's Secret Swipe Speakeasy — stitch together in the 24/7 video lounge"
-        fill
-        priority
-        sizes="(max-width: 768px) 92vw, 460px"
-        className={styles.asideImage}
-      />
+      <div className={styles.imageWrapper}>
+        <Image
+          src="/images/alongauthentication.jpeg"
+          alt="Christa's Secret Swipe Speakeasy — stitch together in the 24/7 video lounge"
+          fill
+          priority
+          sizes="(max-width: 768px) 92vw, 460px"
+          className={styles.asideImage}
+        />
+      </div>
     </aside>
   );
 }

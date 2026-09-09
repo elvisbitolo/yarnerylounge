@@ -2594,3 +2594,170 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Media preflight (prejoin) */
+
+.previewWrap {
+  margin-bottom: 16px;
+}
+
+/* Non-blocking status pill overlaying the Jitsi stage */
+
+.stagePill {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(37, 35, 41, 0.82);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 12px 28px -16px rgba(37, 35, 41, 0.6);
+  white-space: nowrap;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Media status toast (camera / mic) — small, never a modal */
+
+.mediaToast {
+  position: absolute;
+  left: 16px;
+  bottom: 18px;
+  z-index: 21;
+  max-width: min(340px, 82%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(37, 35, 41, 0.86);
+  color: #ffffff;
+  font-size: 12.5px;
+  line-height: 1.4;
+  box-shadow: 0 14px 30px -18px rgba(37, 35, 41, 0.65);
+  backdrop-filter: blur(6px);
+}
+
+.mediaToastMic {
+  bottom: 66px;
+}
+
+.mediaRetry {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mediaRetry:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Fatal in-room error card (auth / connection loss) */
+
+.errorOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(37, 35, 41, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.errorCard {
+  width: min(400px, 100%);
+  background: #ffffff;
+  border: 1px solid #e5d9dc;
+  border-radius: 18px;
+  padding: 26px 24px 20px;
+  text-align: center;
+  box-shadow: 0 30px 70px -30px rgba(37, 35, 41, 0.5);
+}
+
+.errorCardTitle {
+  margin: 0 0 10px;
+  font-size: 19px;
+  font-weight: 800;
+  color: #252329;
+}
+
+.errorCardMsg {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #716a70;
+}
+
+.errorCardActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.errorCardPrimary,
+.errorCardGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.errorCardPrimary {
+  background: #c2185b;
+  color: #ffffff;
+}
+
+.errorCardPrimary:hover {
+  background: #ad1457;
+}
+
+.errorCardGhost {
+  background: #ffffff;
+  border-color: #e5d9dc;
+  color: #252329;
+}
+
+.errorCardGhost:hover {
+  border-color: #f06292;
+  color: #c2185b;
+}

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { JaaSMeeting } from "@jitsi/react-sdk";
-import { LogOut, MessagesSquare } from "lucide-react";
+import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -12,6 +12,14 @@ import RoomMusicPicker from "@/components/RoomMusicPicker";
 import RoomDataProvider from "./RoomDataProvider";
 import RoomChat from "./RoomChat";
 import styles from "./room.module.css";
+import {
+  JITSI_ERROR,
+  normalizeJitsiError,
+  normalizeMediaError,
+  jitsiErrorInfo,
+  validateTokenResponse,
+  logDevTiming,
+} from "@/lib/jitsi-errors";
 
 // Jitsi toolbar buttons: remove camera/mic so view-only tiers and muted-by-design
 // rooms cannot unmute through the Jitsi UI (server-side gating stays authoritative).
@@ -25,6 +33,61 @@ const VIEWER_TOOLBAR = [
   "videoquality",
   "security",
 ];
+
+// Device detection is intentionally capped: modest resolution warms the device
+// quickly and keeps the camera prompt/track fast, which is the root cause of the
+// "Connecting your camera" stall on higher-end cameras.
+const MEDIA_VIDEO_CONSTRAINTS = {
+  height: { ideal: 540, max: 720 },
+  width: { ideal: 960, max: 1280 },
+  facingMode: "user",
+  frameRate: { ideal: 24, max: 30 },
+};
+const MEDIA_AUDIO_CONSTRAINTS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+};
+
+const DETECT_TIMEOUT_MS = 9000;
+const CAMERA_READY_TIMEOUT_MS = 12000;
+const RECONNECT_WATCHDOG_MS = 20000;
+
+const VIDEO_FAILED = new Set([
+  JITSI_ERROR.CAMERA_PERMISSION_ERROR,
+  JITSI_ERROR.CAMERA_UNAVAILABLE,
+  JITSI_ERROR.CAMERA_IN_USE,
+  JITSI_ERROR.CAMERA_TIMEOUT,
+  JITSI_ERROR.CAMERA_UNSUPPORTED,
+  JITSI_ERROR.UNKNOWN_ERROR,
+]);
+
+const MIC_FAILED = new Set([
+  JITSI_ERROR.MIC_PERMISSION_ERROR,
+  JITSI_ERROR.MIC_UNAVAILABLE,
+  JITSI_ERROR.MIC_IN_USE,
+  JITSI_ERROR.UNKNOWN_ERROR,
+]);
+
+function withTimeout(promise, ms, name) {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => {
+      const err = new Error(`${name} timed out`);
+      err.name = "MediaTimeout";
+      reject(err);
+    }, ms);
+    promise.then(
+      (v) => {
+        clearTimeout(id);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(id);
+        reject(e);
+      }
+    );
+  });
+}
 
 export default function RoomClient({
   roomName,
@@ -56,19 +119,48 @@ export default function RoomClient({
   const router = useRouter();
   const t = useTranslations("rooms");
 
+  // ---- Staged lifecycle ----
+  // idle -> authenticating (token) -> connecting (mounting JaaS) -> connected.
+  // Camera/audio initialize independently and never block any stage.
+  const [phase, setPhase] = useState("idle");
   const [token, setToken] = useState("");
   const [jitsiRoom, setJitsiRoom] = useState("");
   const [jitsiAppId, setJitsiAppId] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [joined, setJoined] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
+  const [roomError, setRoomError] = useState(null);
+  const [inlineError, setInlineError] = useState("");
+  const [connStatus, setConnStatus] = useState("connecting"); // connecting | connected | reconnecting | lost
   const [participantCount, setParticipantCount] = useState(0);
   const [showChat, setShowChat] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+  const [mountKey, setMountKey] = useState(0);
+
+  // ---- Media state (camera/mic live their own lifecycle) ----
+  const [videoDesired, setVideoDesired] = useState(true);
+  const [micDesired, setMicDesired] = useState(true);
+  const [videoStatus, setVideoStatus] = useState("idle"); // idle|starting|ready|off|denied|unavailable|inuse|timeout|unsupported|error
+  const [micStatus, setMicStatus] = useState("idle");
+  const [cameraMsg, setCameraMsg] = useState("");
+  const [micMsg, setMicMsg] = useState("");
+  const [previewStream, setPreviewStream] = useState(null);
 
   const apiRef = useRef(null);
   const tileForcedRef = useRef(false);
-  const joinedRef = useRef(false);
+  const previewVideoRef = useRef(null);
+  const activeStreamRef = useRef(null);
+  const mountKeyRef = useRef(0);
+
+  // Mirror refs so timers/event handlers always read fresh values.
+  const phaseRef = useRef("idle");
+  const connStatusRef = useRef("connecting");
+  const videoDesiredRef = useRef(true);
+  const micDesiredRef = useRef(true);
+  const videoStatusRef = useRef("idle");
+  const micStatusRef = useRef("idle");
+  const apiReadyRef = useRef(false);
+
+  const cameraWatchdogRef = useRef(null);
+  const reconnectWatchdogRef = useRef(null);
+  const gotoRoomRef = useRef(null);
 
   const isBroadcast = kind === "broadcast";
   const isStaff = role === "owner" || role === "moderator";
@@ -77,11 +169,20 @@ export default function RoomClient({
   const canWriteChat = canWriteChatPlan || isStaff || isHost || isCoHost;
   const viewer = !planCanPublish || viewerOnly;
   const audioLocked = disableAudio || forceMuteOnJoin;
+  const canRecord = isStaff || isHost || isCoHost;
 
   // Always-on lounges are joinable any time; only scheduled (non-alwaysOn)
   // rooms gate on the next upcoming start for non-hosts.
   const waiting = !alwaysOn && Boolean(opensAt) && !isHost && now < opensAt;
   const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
+
+  // Keep mirrored refs current.
+  phaseRef.current = phase;
+  connStatusRef.current = connStatus;
+  videoDesiredRef.current = videoDesired;
+  micDesiredRef.current = micDesired;
+  videoStatusRef.current = videoStatus;
+  micStatusRef.current = micStatus;
 
   function formatWait(totalSeconds) {
     const h = Math.floor(totalSeconds / 3600);
@@ -114,9 +215,361 @@ export default function RoomClient({
     return () => clearInterval(timer);
   }, []);
 
+  // Assign the preview stream to the <video> element once available.
+  useEffect(() => {
+    const el = previewVideoRef.current;
+    if (!el || !previewStream) return;
+    el.srcObject = previewStream;
+    return () => {
+      if (el.srcObject === previewStream) el.srcObject = null;
+    };
+  }, [previewStream]);
+
+  // Teardown everything on unmount.
+  useEffect(() => {
+    return () => {
+      stopAllMedia();
+      disposeApi();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function stopAllMedia() {
+    const stream = activeStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      activeStreamRef.current = null;
+    }
+    setPreviewStream(null);
+  }
+
+  function clearWatchdogs() {
+    if (cameraWatchdogRef.current) clearTimeout(cameraWatchdogRef.current);
+    if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+    cameraWatchdogRef.current = null;
+    reconnectWatchdogRef.current = null;
+  }
+
+  function disposeApi() {
+    try {
+      apiRef.current?.dispose?.();
+    } catch {
+      /* already gone */
+    }
+    apiRef.current = null;
+    apiReadyRef.current = false;
+    tileForcedRef.current = false;
+  }
+
+  // ---- Device preflight (independent of the JaaS connection) ----
+
+  function friendlyMediaError(code, kind) {
+    if (kind === "camera" && code === JITSI_ERROR.CAMERA_PERMISSION_ERROR) return t("cameraDenied");
+    if (kind === "camera" && code === JITSI_ERROR.CAMERA_UNAVAILABLE) return t("noCamera");
+    if (kind === "camera" && code === JITSI_ERROR.CAMERA_IN_USE) return t("cameraInUse");
+    if (kind === "camera" && code === JITSI_ERROR.CAMERA_TIMEOUT) return t("cameraTimeout");
+    if (kind === "camera" && code === JITSI_ERROR.CAMERA_UNSUPPORTED) return t("cameraUnsupported");
+    if (kind === "mic" && code === JITSI_ERROR.MIC_PERMISSION_ERROR) return t("micDenied");
+    if (kind === "mic" && code === JITSI_ERROR.MIC_UNAVAILABLE) return t("micUnavailable");
+    if (kind === "mic" && code === JITSI_ERROR.MIC_IN_USE) return t("micInUse");
+    return t("cameraGenericFail");
+  }
+
+  async function startDetecting() {
+    if (viewer) return;
+    const wantVideo = videoDesiredRef.current;
+    const wantAudio = micDesiredRef.current && !audioLocked;
+    if (!wantVideo && !wantAudio) return;
+
+    stopAllMedia();
+    setCameraMsg("");
+    setMicMsg("");
+    if (wantVideo) setVideoStatus("starting");
+    if (wantAudio) setMicStatus("starting");
+
+    const t0 = Date.now();
+    try {
+      const stream = await withTimeout(
+        navigator.mediaDevices.getUserMedia({
+          video: wantVideo ? MEDIA_VIDEO_CONSTRAINTS : false,
+          audio: wantAudio ? MEDIA_AUDIO_CONSTRAINTS : false,
+        }),
+        DETECT_TIMEOUT_MS,
+        "Media detection"
+      );
+      if (!activeStreamRef.current) activeStreamRef.current = stream;
+      const hasVideo = stream.getVideoTracks().length > 0;
+      const hasAudio = stream.getAudioTracks().length > 0;
+      if (wantVideo) {
+        if (hasVideo) {
+          setVideoStatus("ready");
+          logDevTiming("camera initialization", t0);
+        } else {
+          setVideoStatus("unavailable");
+        }
+      }
+      if (wantAudio) {
+        setMicStatus(hasAudio ? "ready" : "unavailable");
+      }
+      if (hasVideo) setPreviewStream(stream);
+      autoEnableIfInside();
+    } catch (err) {
+      const timedOut = err?.name === "MediaTimeout";
+      const kindWanted = wantVideo && !wantAudio ? "camera" : wantAudio && !wantVideo ? "mic" : "camera";
+      const n = timedOut
+        ? { code: JITSI_ERROR.CAMERA_TIMEOUT, message: friendlyMediaError(JITSI_ERROR.CAMERA_TIMEOUT, "camera") }
+        : normalizeMediaError(err, kindWanted);
+      if (kindWanted === "camera") {
+        setVideoStatus("timeout");
+        setCameraMsg(n.message);
+      } else {
+        setMicStatus("timeout");
+        setMicMsg(n.message);
+      }
+    }
+  }
+
+  function stopPreviewAndMark() {
+    stopAllMedia();
+    setVideoStatus((s) => (videoDesiredRef.current ? "off" : s));
+    setMicStatus((s) => (micDesiredRef.current ? "off" : s));
+  }
+
+  function toggleCamera() {
+    const next = !videoDesiredRef.current;
+    setVideoDesired(next);
+    if (next) {
+      startDetecting();
+    } else {
+      stopAllMedia();
+      setVideoStatus("off");
+      setCameraMsg("");
+    }
+  }
+
+  function toggleMic() {
+    const next = !micDesiredRef.current;
+    setMicDesired(next);
+    if (next) {
+      startDetecting();
+    } else {
+      stopAllMedia();
+      setMicStatus("off");
+      setMicMsg("");
+    }
+  }
+
+  // Convenience: if already inside the room, push the desired device state into
+  // Jitsi once the local track is ready (without ever blocking the connection).
+  function autoEnableIfInside() {
+    const api = apiRef.current;
+    if (!api) return;
+    const stage = phaseRef.current;
+    if (stage !== "connected") return;
+    try {
+      const readyVideo = videoStatusRef.current === "ready";
+      const readyMic = micStatusRef.current === "ready";
+      if (videoDesiredRef.current && readyVideo) {
+        api.executeCommand("toggleVideo");
+      }
+      if (micDesiredRef.current && !audioLocked && readyMic) {
+        api.executeCommand("toggleAudio");
+      }
+    } catch {
+      /* api not ready yet */
+    }
+  }
+
+  function retryCamera() {
+    setCameraMsg("");
+    setVideoStatus("starting");
+    const api = apiRef.current;
+    if (api) {
+      try {
+        api.executeCommand("toggleVideo");
+      } catch {
+        /* retry via remount if needed */
+      }
+    }
+    armCameraWatchdog();
+  }
+
+  function retryMic() {
+    setMicMsg("");
+    setMicStatus("starting");
+    const api = apiRef.current;
+    if (api) {
+      try {
+        api.executeCommand("toggleAudio");
+      } catch {
+        /* retry via remount if needed */
+      }
+    }
+  }
+
+  // ---- Jitsi event wiring ----
+
+  function armCameraWatchdog() {
+    if (cameraWatchdogRef.current) clearTimeout(cameraWatchdogRef.current);
+    cameraWatchdogRef.current = setTimeout(() => {
+      const m = videoStatusRef.current;
+      if (phaseRef.current !== "connected") return;
+      if (videoDesiredRef.current && m !== "ready" && !VIDEO_FAILED.has(m)) {
+        setVideoStatus("timeout");
+        setCameraMsg(t("cameraTimeout"));
+      }
+    }, CAMERA_READY_TIMEOUT_MS);
+  }
+
+  function armReconnectWatchdog() {
+    if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+    reconnectWatchdogRef.current = setTimeout(() => {
+      if (connStatusRef.current === "reconnecting") {
+        setConnStatus("lost");
+        setRoomError(jitsiErrorInfo(JITSI_ERROR.CONNECTION_LOST));
+        setPhase("error");
+      }
+    }, RECONNECT_WATCHDOG_MS);
+  }
+
+  function handleConnectedMedia() {
+    armCameraWatchdog();
+    autoEnableIfInside();
+  }
+
+  function handleApiReady(api) {
+    if (!api) return;
+    apiRef.current = api;
+    apiReadyRef.current = true;
+    const syncCount = () => {
+      try {
+        setParticipantCount(api.getParticipantsInfo()?.length || 0);
+      } catch {
+        /* not ready yet */
+      }
+    };
+    api.addEventListener("participantJoined", syncCount);
+    api.addEventListener("participantLeft", syncCount);
+
+    api.addEventListener("videoConferenceJoined", () => {
+      syncCount();
+      setPhase("connected");
+      setConnStatus("connected");
+      clearWatchdogs();
+      handleConnectedMedia();
+    });
+
+    api.addEventListener("videoConferenceLeft", () => {
+      clearWatchdogs();
+      setConnStatus("connecting");
+      setPhase("idle");
+      setInlineError("");
+    });
+
+    api.addEventListener("connectionEstablished", () => {
+      setConnStatus("connected");
+      if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+    });
+
+    api.addEventListener("connectionInterrupted", () => {
+      if (phaseRef.current !== "connected") return;
+      setConnStatus("reconnecting");
+      armReconnectWatchdog();
+    });
+
+    api.addEventListener("connectionRestored", () => {
+      setConnStatus("connected");
+      if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+    });
+
+    api.addEventListener("conferenceFailed", (error) => {
+      const n = normalizeJitsiError(error);
+      setRoomError(n);
+      setPhase("error");
+    });
+
+    api.addEventListener("errorOccurred", (error) => {
+      const type = error?.error?.type || error?.type || "";
+      const fatal =
+        typeof type === "string" &&
+        type.toLowerCase().includes("conference") &&
+        (error?.fatal === true || error?.error?.fatal === true);
+      if (fatal) {
+        setRoomError(normalizeJitsiError(error));
+        setPhase("error");
+      } else if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.info("[room] non-fatal iframe event:", type || error?.error?.name || "unknown");
+      }
+    });
+
+    // Local media track feedback: the source of truth for camera/mic status.
+    api.addEventListener("videoAvailable", (available) => {
+      if (available) {
+        setVideoStatus("ready");
+        setCameraMsg("");
+      } else if (videoDesiredRef.current && phaseRef.current === "connected") {
+        setVideoStatus("off");
+      }
+    });
+    api.addEventListener("audioAvailable", (available) => {
+      if (available) setMicStatus("ready");
+    });
+
+    // Gallery view by default: correct Jitsi once if it lands on stage/film view.
+    api.addEventListener("tileViewChanged", ({ visible }) => {
+      if (!visible && !tileForcedRef.current) {
+        tileForcedRef.current = true;
+        api.executeCommand("toggleTileView");
+      }
+    });
+
+    syncCount();
+  }
+
+  function handleLeave() {
+    try {
+      apiRef.current?.executeCommand("hangup");
+    } catch {
+      /* already gone */
+    }
+    clearWatchdogs();
+    stopAllMedia();
+    disposeApi();
+    router.push("/rooms");
+  }
+
+  function dismissError() {
+    clearWatchdogs();
+    disposeApi();
+    stopAllMedia();
+    setRoomError(null);
+    setConnStatus("connecting");
+    setPhase("idle");
+  }
+
+  function reconnectNow() {
+    clearWatchdogs();
+    stopAllMedia();
+    disposeApi();
+    setRoomError(null);
+    setConnStatus("connecting");
+    setPhase("connecting");
+    setMountKey((k) => k + 1);
+  }
+
   async function handleJoin() {
-    setBusy(true);
-    setError("");
+    setBusyGuard();
+    setInlineError("");
+    setRoomError(null);
+    setPhase("authenticating");
+
+    // Camera/mic detection runs in parallel and NEVER gates joining.
+    if (!viewer && (videoDesiredRef.current || (micDesiredRef.current && !audioLocked))) {
+      startDetecting();
+    }
+
+    const t0 = Date.now();
     try {
       const res = await fetch("/api/jitsi/token", {
         method: "POST",
@@ -132,143 +585,57 @@ export default function RoomClient({
         return;
       }
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Failed to join room");
+      if (!res.ok) {
+        const code = data?.code;
+        if (code === "jaas_not_configured") {
+          setInlineError(t("unavailableRoom"));
+        } else {
+          setInlineError(t("joinFailedGeneric"));
+        }
+        setPhase("idle");
+        return;
+      }
+      if (!validateTokenResponse(data)) {
+        setInlineError(t("joinFailedGeneric"));
+        setPhase("idle");
+        return;
+      }
+      logDevTiming("JAAS token request", t0);
       setToken(data.token);
       setJitsiRoom(data.roomName);
       setJitsiAppId(data.appId || "");
-      setJoined(true);
+      mountKeyRef.current += 1;
+      setMountKey(mountKeyRef.current);
+      setConnStatus("connecting");
+      setPhase("connecting");
     } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
+      // eslint-disable-next-line no-console
+      console.error("[room] token request failed", err);
+      setInlineError(t("joinFailedGeneric"));
+      setPhase("idle");
     }
   }
 
-  useEffect(() => {
-    if (!joined || joinedRef.current) return;
-    joinedRef.current = true;
-  }, [joined]);
-
-  function handleApiReady(api) {
-    apiRef.current = api;
-    const syncCount = () => {
-      try {
-        setParticipantCount(api.getParticipantsInfo()?.length || 0);
-      } catch {
-        /* not ready yet */
-      }
-    };
-    api.addEventListener("participantJoined", syncCount);
-    api.addEventListener("participantLeft", syncCount);
-    api.addEventListener("videoConferenceJoined", syncCount);
-    syncCount();
-
-    // Gallery view by default: correct Jitsi once if it lands on stage/film view.
-    api.addEventListener("tileViewChanged", ({ visible }) => {
-      if (!visible && !tileForcedRef.current) {
-        tileForcedRef.current = true;
-        api.executeCommand("toggleTileView");
-      }
-    });
+  function setBusyGuard() {
+    /* join is instantaneous UI-wise; phases drive the button state */
   }
 
-  function handleLeave() {
-    try {
-      apiRef.current?.executeCommand("hangup");
-    } catch {
-      /* already gone */
-    }
-    router.push("/rooms");
-  }
+  // ---- Media status helpers for the in-room overlay ----
 
-  if (waiting) {
-    return (
-      <main className={styles.page}>
-        <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
-        <div className={styles.container}>
-          <div className={styles.prejoinWrap}>
-            <BackButton fallback="/rooms" label="Back to rooms" />
-            <div className={styles.prejoin}>
-              <h1 className={styles.title}>{roomName}</h1>
-              <p className={styles.subtitle}>This room opens at the scheduled time.</p>
-              <p className={styles.countdown} role="timer" aria-label="Time until the room opens">
-                {formatWait(waitSeconds)}
-              </p>
-              <p className={styles.waitHint}>
-                {opensAt
-                  ? new Date(opensAt).toLocaleString([], {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })
-                  : ""}
-              </p>
-              <p className={styles.waitHint}>We&apos;ll let you in automatically when it starts.</p>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (!joined) {
-    return (
-      <main className={styles.page}>
-        <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
-        <div className={styles.container}>
-          <div className={styles.prejoinWrap}>
-            <BackButton fallback="/rooms" label="Back to rooms" />
-            <div className={styles.prejoin}>
-              <h1 className={styles.title}>{roomName}</h1>
-              <p className={styles.subtitle}>
-                {viewer
-                  ? "Viewing as a guest — subscriptions unlock your camera & mic."
-                  : vibeMode === "silent"
-                  ? "Absolute-silence focus room. Audio stays off — cameras on, microphones muted."
-                  : vibeMode === "force-mute"
-                  ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
-                  : vibeMode === "raise-hand"
-                  ? "Soft-spoken room. Raise your hand to talk and the host will bring you in."
-                  : vibeMode === "auto"
-                  ? "The loud, friendly welcome room — camera and mic are on as soon as you pop in."
-                  : alwaysOn
-                  ? "Always open — pop in anytime. Meet new members and settle into the lounge."
-                  : isBroadcast
-                  ? "This is a live broadcast. Join to watch the stream."
-                  : "Get ready, then join the live room."}
-              </p>
-              {viewer && <p className={styles.watchNote}>{t("watchingOnly")}</p>}
-              {audioLocked && !viewer && (
-                <p className={styles.watchNote}>
-                  🔇 Audio is always off in this room — cameras stay on for company.
-                </p>
-              )}
-              {raiseHandToTalk && !viewer && (
-                <p className={styles.watchNote}>
-                  🙋 Raise your hand to talk — the host will invite you to speak.
-                </p>
-              )}
-              {error && <p className={styles.error}>{error}</p>}
-              <button
-                className={styles.join}
-                onClick={handleJoin}
-                disabled={busy}
-              >
-                {busy ? t("joining") : alwaysOn ? "Pop in" : isBroadcast ? "Join as viewer" : "Join room"}
-              </button>
-              <p className={styles.watchNote}>
-                {viewer
-                  ? "Your browser will not ask for your camera or microphone."
-                  : "Your browser will ask for camera & mic access when you join."}
-              </p>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  const videoFailed = VIDEO_FAILED.has(videoStatus);
+  const micFailed = MIC_FAILED.has(micStatus);
+  const videoToast =
+    videoDesired && phase === "connected" && videoStatus === "starting"
+      ? t("startCamera")
+      : videoDesired && phase === "connected" && videoFailed
+      ? cameraMsg || friendlyMediaError(videoStatus, "camera")
+      : "";
+  const micToast =
+    micDesired && !audioLocked && phase === "connected" && micFailed
+      ? micMsg || friendlyMediaError(micStatus, "mic")
+      : "";
+  const showVideoRetry = videoDesired && phase === "connected" && videoFailed;
+  const showMicRetry = micDesired && !audioLocked && phase === "connected" && micFailed;
 
   const configOverwrite = {
     prejoinConfig: { enabled: false },
@@ -277,12 +644,20 @@ export default function RoomClient({
     disableProfile: !isStaff,
     channelLastN: -1,
     tileView: { enabled: true, maxColumns: 4 },
-    startWithAudioMuted: viewer || audioLocked,
-    startWithVideoMuted: viewer,
-    startAudioMuted: viewer || audioLocked,
-    startVideoMuted: viewer,
-    toolbarButtons:
-      viewer || audioLocked ? VIEWER_TOOLBAR : undefined,
+    // Start everything muted so joining never blocks on a slow/unreliable
+    // camera. Desired devices are enabled right after join, independently.
+    startWithAudioMuted: true,
+    startWithVideoMuted: true,
+    startAudioMuted: true,
+    startVideoMuted: true,
+    // Cap resolution: lower encode cost + faster local track ready.
+    constraints: {
+      video: { height: { ideal: 540, max: 720 }, width: { ideal: 960, max: 1280 } },
+      audio: MEDIA_AUDIO_CONSTRAINTS,
+    },
+    disableSimulcast: true,
+    resolution: 720,
+    toolbarButtons: viewer || audioLocked ? VIEWER_TOOLBAR : undefined,
   };
 
   const interfaceConfigOverwrite = {
@@ -295,9 +670,140 @@ export default function RoomClient({
     GENERATE_ROOMNAMES_ON_WITHOUT_JOIN: false,
   };
 
-  return (
+  const waitScreen = (
     <main className={styles.page}>
-      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} autoplaySound={joined} />
+      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
+      <div className={styles.container}>
+        <div className={styles.prejoinWrap}>
+          <BackButton fallback="/rooms" label="Back to rooms" />
+          <div className={styles.prejoin}>
+            <h1 className={styles.title}>{roomName}</h1>
+            <p className={styles.subtitle}>This room opens at the scheduled time.</p>
+            <p className={styles.countdown} role="timer" aria-label="Time until the room opens">
+              {formatWait(waitSeconds)}
+            </p>
+            <p className={styles.waitHint}>
+              {opensAt
+                ? new Date(opensAt).toLocaleString([], {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : ""}
+            </p>
+            <p className={styles.waitHint}>We&apos;ll let you in automatically when it starts.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+
+  const prejoin = (
+    <main className={styles.page}>
+      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
+      <div className={styles.container}>
+        <div className={styles.prejoinWrap}>
+          <BackButton fallback="/rooms" label="Back to rooms" />
+          <div className={styles.prejoin}>
+            <h1 className={styles.title}>{roomName}</h1>
+            <p className={styles.subtitle}>
+              {viewer
+                ? "Viewing as a guest — subscriptions unlock your camera & mic."
+                : vibeMode === "silent"
+                ? "Absolute-silence focus room. Audio stays off — cameras on, microphones muted."
+                : vibeMode === "force-mute"
+                ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
+                : vibeMode === "raise-hand"
+                ? "Soft-spoken room. Raise your hand to talk and the host will bring you in."
+                : vibeMode === "auto"
+                ? "The loud, friendly welcome room — camera and mic are on as soon as you pop in."
+                : alwaysOn
+                ? "Always open — pop in anytime. Meet new members and settle into the lounge."
+                : isBroadcast
+                ? "This is a live broadcast. Join to watch the stream."
+                : "Get ready, then join the live room."}
+            </p>
+
+            {!viewer && (
+              <div className={styles.previewWrap}>
+                <div className={styles.preview}>
+                  {videoDesired && videoStatus === "ready" && previewStream ? (
+                    <video ref={previewVideoRef} className={styles.previewVideo} autoPlay playsInline muted />
+                  ) : (
+                    <div className={styles.previewAvatar}>
+                      {userAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className={styles.previewAvatarImg} src={userAvatar} alt="" />
+                      ) : (
+                        String(userName || "?").charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  )}
+                  {videoDesired && videoFailed && cameraMsg && (
+                    <p className={styles.previewError}>{cameraMsg}</p>
+                  )}
+                </div>
+
+                <div className={styles.prejoinToggles}>
+                  <button
+                    type="button"
+                    className={videoDesired ? styles.prejoinToggleOn : styles.prejoinToggle}
+                    onClick={toggleCamera}
+                    aria-pressed={videoDesired}
+                  >
+                    {videoDesired ? <Camera size={16} /> : <CameraOff size={16} />}
+                    {videoDesired ? t("turnOffCam") : t("turnOnCam")}
+                  </button>
+                  {!audioLocked && (
+                    <button
+                      type="button"
+                      className={micDesired ? styles.prejoinToggleOn : styles.prejoinToggle}
+                      onClick={toggleMic}
+                      aria-pressed={micDesired}
+                    >
+                      {micDesired ? <Mic size={16} /> : <MicOff size={16} />}
+                      {micDesired ? t("muteMic") : t("unmuteMic")}
+                    </button>
+                  )}
+                </div>
+
+                {videoDesired && videoStatus === "starting" && (
+                  <p className={styles.watchNote}>{t("startCamera")}</p>
+                )}
+              </div>
+            )}
+
+            {viewer && <p className={styles.watchNote}>{t("watchingOnly")}</p>}
+            {(audioLocked && !viewer) || (vibeMode === "force-mute" && !viewer) ? (
+              <p className={styles.watchNote}>
+                🔇 Audio is always off in this room — cameras stay on for company.
+              </p>
+            ) : null}
+            {raiseHandToTalk && !viewer && (
+              <p className={styles.watchNote}>
+                🙋 Raise your hand to talk — the host will invite you to speak.
+              </p>
+            )}
+            {inlineError && <p className={styles.error}>{inlineError}</p>}
+            <button className={styles.join} onClick={handleJoin} disabled={phase === "authenticating"}>
+              {phase === "authenticating" ? t("joining") : alwaysOn ? "Pop in" : isBroadcast ? "Join as viewer" : "Join room"}
+            </button>
+            <p className={styles.watchNote}>
+              {viewer
+                ? "Your browser will not ask for your camera or microphone."
+                : "Your browser will ask for camera & mic access when you join."}
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+
+  const connectedRoom = (
+    <main className={styles.page}>
+      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} autoplaySound={phase === "connected"} />
       <div className={styles.roomWrap}>
         <AmbientAudio
           active={alwaysOn}
@@ -322,8 +828,8 @@ export default function RoomClient({
                 <span className={styles.liveDot} aria-hidden="true" />
                 {t("live")} · {participantCount}
               </span>
-              {(isHost || (isBroadcast ? !viewer : true)) && (
-                <span className={styles.recordChip}>
+              {canRecord && (
+                <span className={styles.recordChip} title={t("recordingAvail")}>
                   <span className={styles.recordDot} aria-hidden="true" /> REC
                 </span>
               )}
@@ -332,6 +838,7 @@ export default function RoomClient({
 
           <div className={styles.jitsiStage}>
             <JaaSMeeting
+              key={mountKey}
               appId={jitsiAppId}
               roomName={jitsiRoom}
               jwt={token}
@@ -339,6 +846,7 @@ export default function RoomClient({
               configOverwrite={configOverwrite}
               interfaceConfigOverwrite={interfaceConfigOverwrite}
               onApiReady={handleApiReady}
+              onReadyToClose={dismissError}
               getIFrameRef={(parentNode) => {
                 if (!parentNode) return;
                 parentNode.style.width = "100%";
@@ -352,6 +860,44 @@ export default function RoomClient({
                 }
               }}
             />
+
+            {phase === "connecting" && (
+              <div className={styles.stagePill} aria-live="polite">
+                <span className={styles.spinner} aria-hidden="true" />
+                {t("connectingRoom")}
+              </div>
+            )}
+
+            {connStatus === "reconnecting" && phase === "connected" && (
+              <div className={styles.stagePill} aria-live="polite">
+                <WifiOff size={15} />
+                {t("reconnecting")}
+              </div>
+            )}
+
+            {(videoToast || showVideoRetry) && (
+              <div className={styles.mediaToast} role="status">
+                <span>{videoToast || cameraMsg}</span>
+                {showVideoRetry && (
+                  <button type="button" onClick={retryCamera} className={styles.mediaRetry}>
+                    <RefreshCcw size={13} />
+                    {t("retryCamera")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {(micToast || showMicRetry) && (
+              <div className={`${styles.mediaToast} ${styles.mediaToastMic}`} role="status">
+                <span>{micToast || micMsg}</span>
+                {showMicRetry && (
+                  <button type="button" onClick={retryMic} className={styles.mediaRetry}>
+                    <RefreshCcw size={13} />
+                    {t("retryMic")}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {showChat && (
@@ -413,6 +959,30 @@ export default function RoomClient({
           </div>
         </div>
       </div>
+
+      {phase === "error" && roomError && (
+        <div className={styles.errorOverlay}>
+          <div className={styles.errorCard}>
+            <h2 className={styles.errorCardTitle}>{roomError.title}</h2>
+            <p className={styles.errorCardMsg}>{roomError.message}</p>
+            <div className={styles.errorCardActions}>
+              {roomError.retryable && (
+                <button type="button" className={styles.errorCardPrimary} onClick={reconnectNow}>
+                  <RefreshCcw size={15} />
+                  {t("retry")}
+                </button>
+              )}
+              <button type="button" className={styles.errorCardGhost} onClick={dismissError}>
+                {t("dismiss")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
+
+  if (waiting) return waitScreen;
+  if (phase === "idle" || phase === "authenticating") return prejoin;
+  return connectedRoom;
 }

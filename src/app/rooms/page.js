@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Wine, Headphones, Sofa, Ban } from "lucide-react";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { loungeGate } from "@/lib/server/lounge-gate";
-import { listRooms, seedAlwaysOnRoom } from "@/lib/server/rooms";
+import { listRooms, seedAlwaysOnRoom, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
 import Nav from "@/components/Nav";
 import styles from "./rooms.module.css";
 
@@ -27,6 +27,26 @@ const ROOM_META = {
   "silent-studio": { icon: Ban },
 };
 
+// Fallback constructor for canonical rooms missing from database
+function canonicalDefaultRoomFallback(spec) {
+  return {
+    id: spec.slug,
+    slug: spec.slug,
+    name: spec.name,
+    description: spec.description,
+    status: "active",
+    kind: "standard",
+    alwaysOn: true,
+    color: spec.color || "",
+    vibe: spec.vibe || "",
+    vibeMode: spec.vibeMode || "",
+    rule: spec.rule || "",
+    maxParticipants: 200,
+    createdBy: "system",
+    createdAt: new Date(0),
+  };
+}
+
 export default async function RoomsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -44,8 +64,24 @@ export default async function RoomsPage() {
   const canonicalSlugs = new Set(ROOM_ORDER);
   const bySlug = new Map(activeRooms.map((room) => [room.slug, room]));
   const featuredRooms = ROOM_ORDER
-    .map((slug) => bySlug.get(slug))
-    .filter((room) => room && room.alwaysOn && canonicalSlugs.has(room.slug));
+    .map((slug) => {
+      const room = bySlug.get(slug);
+      if (room) {
+        // Use imageUrl from database if available, otherwise fall back to hardcoded
+        return { ...room, imageUrl: room.imageUrl || ROOM_IMAGES[slug] };
+      }
+      // Fallback: if a canonical room is missing from the database, construct
+      // it from the always-on defaults so it always appears on the page.
+      const spec = ALWAYS_ON_ROOMS.find((r) => r.slug === slug);
+      if (spec) {
+        return {
+          ...canonicalDefaultRoomFallback(spec),
+          imageUrl: spec.imageUrl || ROOM_IMAGES[slug],
+        };
+      }
+      return null;
+    })
+    .filter((room) => room && canonicalSlugs.has(room.slug));
 
   return (
     <Nav role={userDoc?.role}>
@@ -65,7 +101,7 @@ export default async function RoomsPage() {
         ) : (
           <div className={styles.grid}>
             {featuredRooms.map((room) => {
-                            const img = ROOM_IMAGES[room.slug];
+              const img = room.imageUrl;
               const meta = ROOM_META[room.slug] || { icon: null };
               const Icon = meta.icon;
               return (

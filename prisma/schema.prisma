@@ -541,6 +541,7 @@ model Room {
   musicName        String?
   recordingAllowed Boolean?
   replayVisibility String?
+  imageUrl         String?
   updatedAt        DateTime?   @updatedAt
 
   creator   User          @relation(fields: [createdBy], references: [id])

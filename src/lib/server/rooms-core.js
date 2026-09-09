@@ -23,6 +23,7 @@ export function mapRoomRow(row) {
     musicUrl: row.musicUrl || "",
     musicPlaying: !!row.musicPlaying,
     musicFileId: row.musicFileId || "",
+    imageUrl: row.imageUrl || "",
     createdBy: row.createdBy || "",
     createdAt: row.createdAt || null,
   };

@@ -60,17 +60,25 @@
   position: relative;
   background: #19141d;
   overflow: hidden;
+  min-height: 400px; /* Ensures the aside has a minimum height on desktop */
+}
+.imageWrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-/* The image fills the entire column, matching the auth form's exact
-   width and height on every screen size. */
+/* The image fits within the column while remaining fully visible.
+   object-fit: contain keeps the entire image in view without cropping. */
 .asideImage {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  background: #19141d;
 }
 
 .tosField {
