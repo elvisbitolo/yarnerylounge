@@ -90,6 +90,7 @@ const COMMUNITY_ITEMS = [
 
 const CONNECT_ITEMS = [
   { href: "/rooms", key: "rooms" },
+  { href: "/match", key: "match" },
   { href: "/calendar", key: "calendar" },
   { href: "/events", key: "events" },
   { href: "/challenges", key: "crochetAlong" },

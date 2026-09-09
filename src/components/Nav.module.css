@@ -84,8 +84,8 @@
 @media (min-width: 901px) {
   .shell {
     position: relative;
-    min-height: 0;
-    height: calc(100vh - 60px);
+    min-height: calc(100vh - 60px);
+    height: auto;
   }
 }
 
@@ -313,14 +313,6 @@
   transition: background 0.2s ease;
 }
 
-@media (min-width: 901px) {
-  .content {
-    position: relative;
-    min-height: 100%;
-    height: calc(100vh - 60px);
-  }
-}
-
 .liveBanner {
   background: linear-gradient(120deg, #e91e63, #f06292);
 }
@@ -387,6 +379,30 @@
     overflow: hidden;
     transform: none;
     box-shadow: none;
+  }
+
+  .content {
+    position: relative;
+    min-height: calc(100vh - 60px);
+    height: auto;
+  }
+}
+
+/* Use dynamic viewport height where supported so the sidebar tracks the real
+   visible area (mobile address-bar collapse/pull-to-refresh) instead of 100vh. */
+@supports (height: 100dvh) {
+  @media (min-width: 901px) {
+    .shell {
+      min-height: calc(100dvh - 60px);
+    }
+
+    .sidebar {
+      height: calc(100dvh - 60px);
+    }
+
+    .content {
+      min-height: calc(100dvh - 60px);
+    }
   }
 }
 
@@ -758,6 +774,12 @@
   .topbar {
     height: 56px;
     padding: 0 8px;
+  }
+
+  /* Drawer + backdrop sit flush under the 56px topbar on small screens. */
+  .sidebar,
+  .backdrop {
+    top: 56px;
   }
 
   .brand {

@@ -9,5 +9,6 @@ Disallow: /notifications
 Disallow: /chat
 Disallow: /feed
 Disallow: /members
+Disallow: /match
 
 Sitemap: https://yarnerylounge.vercel.app/sitemap.xml
