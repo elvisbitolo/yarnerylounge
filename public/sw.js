@@ -1,4 +1,7 @@
-const VERSION = "v2";
+// Bump VERSION on every release: an unchanged service worker never updates on
+// installed PWAs, so they silently keep serving the previous build's cached
+// shells (stale auth logic -> reload loops on mobile).
+const VERSION = "v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -11,10 +14,6 @@ self.addEventListener("install", (event) => {
           "/signup",
           "/about",
           "/guidelines",
-          "/rooms",
-          "/feed",
-          "/chat",
-          "/dashboard",
           "/icon-192.png",
           "/icon-512.png",
         ])
@@ -37,12 +36,20 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || !request.url.startsWith(self.location.origin)) return;
 
+  // Only a real 200 for the exact URL is worth caching. Following a redirect
+  // to /login or /signup caches that auth shell under the requested URL, which
+  // later gets served offline and looks like the app is stuck reloading.
+  const isCacheable = (response) =>
+    response.ok && new URL(response.url).pathname === new URL(request.url).pathname;
+
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+          if (isCacheable(response)) {
+            const copy = response.clone();
+            caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+          }
           return response;
         })
         .catch(() =>
@@ -55,7 +62,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetching = fetch(request).then((response) => {
-        if (response.ok) {
+        if (isCacheable(response)) {
           const copy = response.clone();
           caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
         }
