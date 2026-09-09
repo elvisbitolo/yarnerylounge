@@ -15,6 +15,15 @@ export default function PushSetup() {
 
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
+      try {
+        // The httpOnly session cookie must be live before subscribing. On the
+        // Google OAuth return page it is still being exchanged, so skip this
+        // run; the full reload into the app re-triggers this listener.
+        const me = await fetch("/api/me", { cache: "no-store" });
+        if (!me.ok) return;
+      } catch {
+        return;
+      }
       if (Notification.permission === "default") {
         const permission = await Notification.requestPermission();
         if (permission !== "granted") return;
