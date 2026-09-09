@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 
 const AUTH_COOKIE = "community-auth";
 
+// Single public origin for the whole app. The session cookie is host-only, so
+// serving the same app from yarnerylounge.vercel.app, per-deploy aliases and the
+// bare domain splits logins into independent walled-off islands. Everything else
+// is canonically 308'd here so cookies, localStorage sessions and OAuth
+// callbacks always live on one host.
+const CANONICAL_HOST = "www.christasspeakeasy.com";
+
 const AUTH_ROUTES = [
   "/rooms",
   "/courses",
@@ -28,7 +35,20 @@ const AUTH_ROUTES = [
 ];
 
 export function proxy(request) {
-  const { pathname } = request.nextUrl;
+  const { hostname, pathname, search } = request.nextUrl;
+
+  const isCanonical =
+    hostname === CANONICAL_HOST || hostname === "localhost" || hostname.endsWith(".local");
+  const isOwnHost =
+    hostname === "yarnerylounge.vercel.app" ||
+    hostname === "christasspeakeasy.com" ||
+    hostname === "christaspeakeasy.com" ||
+    hostname.endsWith("elvisbitolo11-8702s-projects.vercel.app");
+
+  if (!isCanonical && isOwnHost) {
+    return NextResponse.redirect(`https://${CANONICAL_HOST}${pathname}${search}`, { status: 308 });
+  }
+
   const hasSession = request.cookies.get(AUTH_COOKIE)?.value;
 
   const needsAuth = AUTH_ROUTES.some(
@@ -45,28 +65,5 @@ export function proxy(request) {
 }
 
 export const config = {
-  matcher: [
-    "/rooms/:path*",
-    "/courses/:path*",
-    "/groups/:path*",
-    "/notifications/:path*",
-    "/account/:path*",
-    "/admin/:path*",
-    "/members/:path*",
-    "/community/:path*",
-    "/neighbourhoods/:path*",
-    "/feed/:path*",
-    "/events/:path*",
-    "/chat/:path*",
-    "/host/:path*",
-    "/leaderboard/:path*",
-    "/challenges/:path*",
-    "/spaces/:path*",
-    "/discovery/:path*",
-    "/dashboard/:path*",
-    "/articles/:path*",
-    "/gallery/:path*",
-    "/search/:path*",
-    "/perks/:path*",
-  ],
+  matcher: ["/(.*)"],
 };
