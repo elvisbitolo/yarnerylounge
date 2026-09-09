@@ -103,6 +103,12 @@ export default function SignupPage() {
         if (!cancelled && ok) {
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
           window.location.assign("/dashboard");
+        } else if (!cancelled) {
+          // OAuth finished on a different origin and 308'd us here without a
+          // recoverable session (stale host flow). Release the stuck param so
+          // the form is usable again.
+          window.history.replaceState({}, "", "/signup");
+          setError(t("googleFailed"));
         }
       } catch (err) {
         if (!cancelled) {

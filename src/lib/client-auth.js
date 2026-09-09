@@ -1,6 +1,13 @@
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { forgetCachedMembership } from "@/lib/membership";
 
+// Canonical origin for all auth redirect targets. Must be the single public
+// host (www.christasspeakeasy.com) — NOT window.location.origin — so an OAuth
+// flow started on any stale vercel alias still returns to the origin where the
+// Supabase session actually lives.
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+
 async function createSession({ supabaseToken, supabaseRefreshToken, name } = {}) {
   const body = {};
   if (supabaseToken) body.supabaseToken = supabaseToken;
@@ -121,7 +128,7 @@ export async function loginWithGoogle() {
     options: {
       scopes: "profile email openid",
       prompt: "select_account",
-      redirectTo: `${window.location.origin}/login?provider=google`,
+      redirectTo: `${APP_URL}/login?provider=google`,
     },
   });
   return { user: null };
@@ -133,7 +140,7 @@ export async function loginWithSupabaseGoogle() {
     options: {
       scopes: "profile email openid",
       prompt: "select_account",
-      redirectTo: `${window.location.origin}/login?provider=google`,
+      redirectTo: `${APP_URL}/login?provider=google`,
     },
   });
   if (error) throw supabaseError(error);
@@ -145,7 +152,7 @@ export async function signupWithSupabaseEmail(name, email, password) {
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/login`,
+      emailRedirectTo: `${APP_URL}/login`,
       data: { name },
     },
   });
@@ -181,7 +188,7 @@ export async function signupWithGoogle() {
     options: {
       scopes: "profile email openid",
       prompt: "select_account",
-      redirectTo: `${window.location.origin}/signup?provider=google`,
+      redirectTo: `${APP_URL}/signup?provider=google`,
     },
   });
   return { user: null };
@@ -204,7 +211,7 @@ export async function sendPasswordReset(email) {
   const clean = String(email || "").trim();
   if (!clean) throw new Error("Enter your email address");
   const { error } = await supabaseBrowser.auth.resetPasswordForEmail(clean, {
-    redirectTo: `${window.location.origin}/login`,
+    redirectTo: `${APP_URL}/login`,
   });
   if (error) throw supabaseError(error);
 }
@@ -213,7 +220,7 @@ export async function resendSignupVerification(email) {
   const { error } = await supabaseBrowser.auth.resend({
     type: "signup",
     email,
-    options: { emailRedirectTo: `${window.location.origin}/login` },
+    options: { emailRedirectTo: `${APP_URL}/login` },
   });
   if (error) throw supabaseError(error);
   return true;
