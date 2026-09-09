@@ -53,6 +53,12 @@ const DETECT_TIMEOUT_MS = 9000;
 const CAMERA_READY_TIMEOUT_MS = 12000;
 const RECONNECT_WATCHDOG_MS = 20000;
 
+// The JaaS web client boots + signals asynchronously inside its iframe; keep the
+// wait visible and recoverable instead of a silent black screen that hangs.
+const CONNECT_STALL_MS = 20000;
+const CONNECT_TIMEOUT_MS = 60000;
+const TOKEN_TTL_MS = 45000;
+
 const VIDEO_FAILED = new Set([
   JITSI_ERROR.CAMERA_PERMISSION_ERROR,
   JITSI_ERROR.CAMERA_UNAVAILABLE,
@@ -133,6 +139,8 @@ export default function RoomClient({
   const [showChat, setShowChat] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [mountKey, setMountKey] = useState(0);
+  const [connectAt, setConnectAt] = useState(0);
+  const [connStalled, setConnStalled] = useState(false);
 
   // ---- Media state (camera/mic live their own lifecycle) ----
   const [videoDesired, setVideoDesired] = useState(true);
@@ -160,6 +168,9 @@ export default function RoomClient({
 
   const cameraWatchdogRef = useRef(null);
   const reconnectWatchdogRef = useRef(null);
+  const connectWatchdogRef = useRef(null);
+  const connectAtRef = useRef(0);
+  const tokenRef = useRef(null);
   const gotoRoomRef = useRef(null);
 
   const isBroadcast = kind === "broadcast";
@@ -175,6 +186,8 @@ export default function RoomClient({
   // rooms gate on the next upcoming start for non-hosts.
   const waiting = !alwaysOn && Boolean(opensAt) && !isHost && now < opensAt;
   const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
+  const connectSeconds =
+    phase === "connecting" && connectAt ? Math.max(0, Math.floor((now - connectAt) / 1000)) : 0;
 
   // Keep mirrored refs current.
   phaseRef.current = phase;
@@ -234,6 +247,54 @@ export default function RoomClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Warm the JaaS token while the user still sits on the prejoin screen, so
+  // clicking Pop in mounts the meeting immediately instead of waiting on the
+  // token round-trip. Failures are silent — handleJoin fetches fresh if needed.
+  useEffect(() => {
+    let active = true;
+    fetch("/api/jitsi/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug }),
+    })
+      .then((r) => (r.ok ? r.json().catch(() => null) : null))
+      .then((data) => {
+        if (active && data && validateTokenResponse(data)) {
+          tokenRef.current = { at: Date.now(), ...data };
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function armConnectWatchdog() {
+    if (connectWatchdogRef.current) clearTimeout(connectWatchdogRef.current);
+    connectWatchdogRef.current = setTimeout(() => {
+      connectWatchdogRef.current = null;
+      if (phaseRef.current !== "connecting" || connStatusRef.current === "connected") return;
+      setConnStalled(true);
+      connectWatchdogRef.current = setTimeout(() => {
+        connectWatchdogRef.current = null;
+        if (phaseRef.current !== "connecting") return;
+        setRoomError(jitsiErrorInfo(JITSI_ERROR.CONFERENCE_CONNECTION_ERROR));
+        setPhase("error");
+      }, CONNECT_TIMEOUT_MS - CONNECT_STALL_MS);
+    }, CONNECT_STALL_MS);
+  }
+
+  function startConnecting() {
+    const at = Date.now();
+    connectAtRef.current = at;
+    setConnectAt(at);
+    setConnStalled(false);
+    setConnStatus("connecting");
+    setPhase("connecting");
+    armConnectWatchdog();
+  }
+
   function stopAllMedia() {
     const stream = activeStreamRef.current;
     if (stream) {
@@ -246,8 +307,10 @@ export default function RoomClient({
   function clearWatchdogs() {
     if (cameraWatchdogRef.current) clearTimeout(cameraWatchdogRef.current);
     if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+    if (connectWatchdogRef.current) clearTimeout(connectWatchdogRef.current);
     cameraWatchdogRef.current = null;
     reconnectWatchdogRef.current = null;
+    connectWatchdogRef.current = null;
   }
 
   function disposeApi() {
@@ -453,6 +516,12 @@ export default function RoomClient({
 
     api.addEventListener("videoConferenceJoined", () => {
       syncCount();
+      if (connectAtRef.current) {
+        logDevTiming("JAAS joined room", connectAtRef.current);
+        connectAtRef.current = 0;
+      }
+      setConnectAt(0);
+      setConnStalled(false);
       setPhase("connected");
       setConnStatus("connected");
       clearWatchdogs();
@@ -461,6 +530,9 @@ export default function RoomClient({
 
     api.addEventListener("videoConferenceLeft", () => {
       clearWatchdogs();
+      connectAtRef.current = 0;
+      setConnectAt(0);
+      setConnStalled(false);
       setConnStatus("connecting");
       setPhase("idle");
       setInlineError("");
@@ -536,6 +608,9 @@ export default function RoomClient({
     clearWatchdogs();
     stopAllMedia();
     disposeApi();
+    connectAtRef.current = 0;
+    setConnectAt(0);
+    setConnStalled(false);
     router.push("/rooms");
   }
 
@@ -543,6 +618,9 @@ export default function RoomClient({
     clearWatchdogs();
     disposeApi();
     stopAllMedia();
+    connectAtRef.current = 0;
+    setConnectAt(0);
+    setConnStalled(false);
     setRoomError(null);
     setConnStatus("connecting");
     setPhase("idle");
@@ -553,9 +631,9 @@ export default function RoomClient({
     stopAllMedia();
     disposeApi();
     setRoomError(null);
-    setConnStatus("connecting");
-    setPhase("connecting");
+    setInlineError("");
     setMountKey((k) => k + 1);
+    startConnecting();
   }
 
   async function handleJoin() {
@@ -570,50 +648,60 @@ export default function RoomClient({
     }
 
     const t0 = Date.now();
-    try {
-      const res = await fetch("/api/jitsi/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
-      });
-      if (res.status === 401) {
-        router.push("/login");
-        return;
-      }
-      if (res.status === 403) {
-        router.push("/rooms");
-        return;
-      }
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const code = data?.code;
-        if (code === "jaas_not_configured") {
-          setInlineError(t("unavailableRoom"));
-        } else {
-          setInlineError(t("joinFailedGeneric"));
+    let tokenData;
+
+    const cached = tokenRef.current;
+    if (cached && Date.now() - cached.at <= TOKEN_TTL_MS) {
+      tokenData = cached;
+    } else {
+      try {
+        const res = await fetch("/api/jitsi/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug }),
+        });
+        if (res.status === 401) {
+          router.push("/login");
+          return;
         }
-        setPhase("idle");
-        return;
-      }
-      if (!validateTokenResponse(data)) {
+        if (res.status === 403) {
+          router.push("/rooms");
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const code = data?.code;
+          if (code === "jaas_not_configured") {
+            setInlineError(t("unavailableRoom"));
+          } else {
+            setInlineError(t("joinFailedGeneric"));
+          }
+          setPhase("idle");
+          return;
+        }
+        if (!validateTokenResponse(data)) {
+          setInlineError(t("joinFailedGeneric"));
+          setPhase("idle");
+          return;
+        }
+        tokenData = { at: Date.now(), ...data };
+        tokenRef.current = tokenData;
+        logDevTiming("JAAS token request", t0);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[room] token request failed", err);
         setInlineError(t("joinFailedGeneric"));
         setPhase("idle");
         return;
       }
-      logDevTiming("JAAS token request", t0);
-      setToken(data.token);
-      setJitsiRoom(data.roomName);
-      setJitsiAppId(data.appId || "");
-      mountKeyRef.current += 1;
-      setMountKey(mountKeyRef.current);
-      setConnStatus("connecting");
-      setPhase("connecting");
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[room] token request failed", err);
-      setInlineError(t("joinFailedGeneric"));
-      setPhase("idle");
     }
+
+    setToken(tokenData.token);
+    setJitsiRoom(tokenData.roomName);
+    setJitsiAppId(tokenData.appId || "");
+    mountKeyRef.current += 1;
+    setMountKey(mountKeyRef.current);
+    startConnecting();
   }
 
   function setBusyGuard() {
@@ -836,7 +924,13 @@ export default function RoomClient({
             </div>
           </header>
 
-          <div className={styles.jitsiStage}>
+          <div
+            className={
+              phase === "connecting"
+                ? `${styles.jitsiStage} ${styles.jitsiStageWait}`
+                : `${styles.jitsiStage} ${styles.jitsiStageReady}`
+            }
+          >
             <JaaSMeeting
               key={mountKey}
               appId={jitsiAppId}
@@ -862,9 +956,28 @@ export default function RoomClient({
             />
 
             {phase === "connecting" && (
-              <div className={styles.stagePill} aria-live="polite">
-                <span className={styles.spinner} aria-hidden="true" />
-                {t("connectingRoom")}
+              <div
+                className={connStalled ? `${styles.stageJoin} ${styles.stageJoinStalled}` : styles.stageJoin}
+                aria-live="polite"
+              >
+                <div className={styles.stageJoinCard}>
+                  <span className={styles.stageJoinSpinner} aria-hidden="true" />
+                  <p className={styles.stageJoinTitle}>{t("connectingRoom")}</p>
+                  <p className={styles.stageJoinRoom}>{roomName}</p>
+                  <p className={styles.stageJoinHint}>
+                    {connStalled
+                      ? t("connectingStalled")
+                      : connectSeconds > 2
+                        ? t("connectingElapsed", { seconds: String(connectSeconds) })
+                        : t("connectingShortWait")}
+                  </p>
+                  {connStalled && (
+                    <button type="button" className={styles.stageJoinRetry} onClick={reconnectNow}>
+                      <RefreshCcw size={14} />
+                      {t("retry")}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

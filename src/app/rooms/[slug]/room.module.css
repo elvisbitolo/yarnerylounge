@@ -374,7 +374,7 @@
   flex: 1;
   min-height: 0;
   position: relative;
-  background: #000;
+  background: radial-gradient(130% 130% at 50% 8%, #fff8f4 0%, #fbeaf0 48%, #f3dfea 100%);
 }
 
 .jitsiStage :global(div) {
@@ -387,6 +387,15 @@
   height: 100% !important;
   border: 0;
   display: block;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.7s ease 0.15s, visibility 0s linear 0.85s;
+}
+
+.jitsiStageReady iframe {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.7s ease 0.15s, visibility 0s;
 }
 
 .chatSheet {
@@ -2637,6 +2646,95 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Branded connecting stage — replaces the opaque JaaS boot splash entirely */
+
+.stageJoin {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  animation: stageJoinFadeIn 0.28s ease 0.4s forwards;
+}
+
+@keyframes stageJoinFadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.stageJoinCard {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: min(360px, 84vw);
+  padding: 26px 34px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 24px 60px -22px rgba(96, 24, 46, 0.5);
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.stageJoinStalled .stageJoinCard {
+  border-color: rgba(233, 30, 99, 0.3);
+}
+
+.stageJoinSpinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid rgba(233, 30, 99, 0.22);
+  border-top-color: #e91e63;
+  animation: spin 0.9s linear infinite;
+}
+
+.stageJoinTitle {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2b2326;
+}
+
+.stageJoinRoom {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b2285a;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stageJoinHint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #6f5f66;
+}
+
+.stageJoinRetry {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e91e63, #c2185b);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 /* Media status toast (camera / mic) — small, never a modal */
