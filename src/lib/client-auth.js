@@ -89,7 +89,7 @@ export async function checkPaidSignup(email) {
 }
 
 export async function loginWithSupabaseEmail(email, password) {
-  const { error } = await supabaseBrowser.auth.signInWithPassword({
+  const { data, error } = await supabaseBrowser.auth.signInWithPassword({
     email,
     password,
   });
@@ -104,6 +104,13 @@ export async function loginWithSupabaseEmail(email, password) {
       throw new Error("Please verify your email first — check your inbox for the confirmation link.");
     }
     throw new Error(error.message || "Could not sign in. Please try again.");
+  }
+  const session = data?.session;
+  if (session?.access_token) {
+    await createSession({
+      supabaseToken: session.access_token,
+      supabaseRefreshToken: session.refresh_token || undefined,
+    });
   }
   return { user: null };
 }
@@ -133,8 +140,8 @@ export async function loginWithSupabaseGoogle() {
   return { user: null };
 }
 
-export async function signupWithSupabaseEmail(email, password, name) {
-  const { error } = await supabaseBrowser.auth.signUp({
+export async function signupWithSupabaseEmail(name, email, password) {
+  const { data, error } = await supabaseBrowser.auth.signUp({
     email,
     password,
     options: {
@@ -143,12 +150,19 @@ export async function signupWithSupabaseEmail(email, password, name) {
     },
   });
   if (error) throw supabaseError(error);
-  return { user: null };
+  const session = data?.session;
+  if (session?.access_token) {
+    await createSession({
+      supabaseToken: session.access_token,
+      supabaseRefreshToken: session.refresh_token || undefined,
+    });
+  }
+  return { user: null, confirm: !session?.access_token };
 }
 
-export async function signupWithEmail(email, password, name) {
+export async function signupWithEmail(name, email, password) {
   await checkPaidSignup(email);
-  await signupWithSupabaseEmail(email, password, name);
+  await signupWithSupabaseEmail(name, email, password);
   const { data } = supabaseBrowser.auth.getSession();
   const supabaseToken = data?.session?.access_token;
   if (supabaseToken) {
