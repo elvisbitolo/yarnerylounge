@@ -1,21 +1,22 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
+import { getPrisma } from "@/lib/db/prisma";
 
 export async function GET() {
   const auth = await requireUser();
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const snap = await adminDb()
-    .collection("posts")
-    .orderBy("createdAt", "desc")
-    .limit(500)
-    .get();
+  const prisma = getPrisma();
+  const rows = await prisma.post.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: { hashtags: true },
+  });
 
   const tagCounts = {};
-  snap.docs.forEach((doc) => {
-    const tags = doc.data().hashtags || [];
+  rows.forEach((post) => {
+    const tags = post.hashtags || [];
     tags.forEach((tag) => {
       tagCounts[tag] = (tagCounts[tag] || 0) + 1;
     });

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/server/log";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { createNotification } from "@/lib/server/notifications";
 import { sendEmail } from "@/lib/server/email";
@@ -9,7 +8,7 @@ import { awardPoints, POINTS } from "@/lib/server/gamification";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { applyRsvpCounts } from "@/lib/server/events-core";
 import { runAutomations } from "@/lib/server/automations";
-import { httpStatusFor } from "@/lib/server/http-errors";
+import { getPrisma } from "@/lib/db/prisma";
 
 export async function POST(req) {
   const user = await getCurrentUser();
@@ -29,41 +28,34 @@ export async function POST(req) {
     return NextResponse.json({ error: "Event required" }, { status: 400 });
   }
 
-  const eventRef = adminDb().collection("events").doc(eventId);
   const userDoc = await getUserDoc(user.uid);
   const memberName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
 
-  if (userDoc?.role !== "owner") {
-    const eventSnap = await eventRef.get();
-    const eventData = eventSnap.data();
-    if (!eventData) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-  }
-
   const rsvpKey = occurrenceId || eventId;
-  const ref = adminDb().collection("rsvps").doc(`${rsvpKey}_${user.uid}`);
+  const rsvpId = `${rsvpKey}_${user.uid}`;
   const countKey = occurrenceId || "_";
 
-  let joined;
+  let joined = null;
+  let event = null;
   try {
-    joined = await adminDb().runTransaction(async (tx) => {
-      const eventSnap = await tx.get(eventRef);
-      if (!eventSnap.exists) {
-        throw Object.assign(new Error("Event not found"), { code: 404 });
-      }
-      const event = eventSnap.data();
+    const prisma = getPrisma();
+    event = await prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
 
-      const existing = await tx.get(ref);
-      if (existing.exists) {
-        const { counts } = applyRsvpCounts(event.capacityCounts, countKey, event.capacity, false);
-        if (JSON.stringify(counts) !== JSON.stringify(event.capacityCounts || {})) {
-          tx.update(eventRef, { capacityCounts: counts });
-        }
-        tx.delete(ref);
-        return false;
+    const existing = await prisma.rsvp.findUnique({ where: { id: rsvpId } });
+    if (existing) {
+      const { counts } = applyRsvpCounts(event.capacityCounts, countKey, event.capacity, false);
+      if (JSON.stringify(counts) !== JSON.stringify(event.capacityCounts || {})) {
+        await prisma.event.update({
+          where: { id: eventId },
+          data: { capacityCounts: counts },
+        });
       }
-
+      await prisma.rsvp.delete({ where: { id: rsvpId } });
+      joined = false;
+    } else {
       const capacity = Number(event.capacity) || 0;
       const { full, counts } = applyRsvpCounts(
         event.capacityCounts,
@@ -72,38 +64,34 @@ export async function POST(req) {
         true
       );
       if (full) {
-        throw Object.assign(new Error("This event is full"), { code: 409 });
+        return NextResponse.json({ error: "This event is full" }, { status: 409 });
       }
 
-      tx.create(ref, {
-        eventId,
-        occurrenceId,
-        userId: user.uid,
-        name: memberName,
-        createdAt: new Date(),
+      await prisma.rsvp.create({
+        data: {
+          id: rsvpId,
+          eventId,
+          occurrenceId,
+          userId: user.uid,
+          name: memberName,
+        },
       });
       if (capacity > 0) {
-        tx.update(eventRef, { capacityCounts: counts });
+        await prisma.event.update({
+          where: { id: eventId },
+          data: { capacityCounts: counts },
+        });
       }
-      return true;
-    });
-  } catch (err) {
-    const status = httpStatusFor(err);
-    if (status === 409) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
+      joined = true;
     }
-    return NextResponse.json(
-      { error: err.message || "RSVP failed" },
-      { status }
-    );
+  } catch (err) {
+    logError("rsvp.prisma_txn_failed", { error: err.message });
+    return NextResponse.json({ error: "RSVP failed" }, { status: 500 });
   }
 
   if (!joined) {
     return NextResponse.json({ joined: false });
   }
-
-  const eventSnap = await eventRef.get();
-  const event = eventSnap.data();
 
   await awardPoints(user.uid, POINTS.RSVP, memberName).catch((err) => {
     logError("gamification.rsvp_failed", { uid: user.uid, eventId, error: err.message });
@@ -131,9 +119,9 @@ export async function POST(req) {
       text: `RSVP'd to "${event.title}"`,
     });
 
-    const creatorDoc = await adminDb().collection("users").doc(event.createdBy).get();
-    if (creatorDoc.exists) {
-      const creator = creatorDoc.data();
+    const creatorDoc = await getUserDoc(event.createdBy);
+    if (creatorDoc) {
+      const creator = creatorDoc;
       if (creator.email && creator.notifications !== "off") {
         await sendEmail({
           to: creator.email,

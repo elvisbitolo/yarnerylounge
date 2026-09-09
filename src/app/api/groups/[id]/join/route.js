@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { syncGroupChatParticipants } from "@/lib/server/chat";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function POST(req, { params }) {
   const { id: groupId } = await params;
@@ -15,42 +16,53 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
   }
 
-  const groupSnap = await adminDb().collection("groups").doc(groupId).get();
-  if (!groupSnap.exists || groupSnap.data().status !== "active") {
+  const prisma = getPrisma();
+  let groupOk = false;
+  try {
+    const row = await prisma.group.findUnique({
+      where: { id: groupId },
+      select: { status: true },
+    });
+    groupOk = !!(row && row.status === "active");
+  } catch (err) {
+    logError("group.join.prisma_group_read_failed", { error: err.message });
+  }
+  if (!groupOk) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 
   const userDoc = await getUserDoc(user.uid);
-  const ref = adminDb().collection("groupMembers").doc(`${groupId}_${user.uid}`);
-  const memberSnap = await ref.get();
-  const joined = memberSnap.exists;
+  const memberId = `${groupId}_${user.uid}`;
+  const name = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
 
-  if (joined) {
-    await ref.delete();
-    const memberSnap = await adminDb()
-      .collection("groupMembers")
-      .where("groupId", "==", groupId)
-      .get();
-    await syncGroupChatParticipants(
-      groupId,
-      memberSnap.docs.map((d) => d.data().userId)
-    );
-  } else {
-    await ref.set({
-      groupId,
-      userId: user.uid,
-      name: userDoc?.name || user.name || user.email?.split("@")[0] || "Member",
-      role: "member",
-      joinedAt: new Date(),
+  try {
+    const existing = await prisma.groupMember.findUnique({ where: { id: memberId } });
+    const joined = !!existing;
+
+    if (joined) {
+      await prisma.groupMember.deleteMany({ where: { id: memberId } });
+    } else {
+      await prisma.groupMember.create({
+        data: {
+          id: memberId,
+          groupId,
+          userId: user.uid,
+          name,
+          role: "member",
+        },
+      });
+    }
+    const rows = await prisma.groupMember.findMany({
+      where: { groupId },
+      select: { userId: true },
     });
-    const memberSnap = await adminDb()
-      .collection("groupMembers")
-      .where("groupId", "==", groupId)
-      .get();
     await syncGroupChatParticipants(
       groupId,
-      memberSnap.docs.map((d) => d.data().userId)
+      rows.map((r) => r.userId)
     );
+    return NextResponse.json({ joined: !joined });
+  } catch (err) {
+    logError("group.join.prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not update membership" }, { status: 500 });
   }
-  return NextResponse.json({ joined: !joined });
 }

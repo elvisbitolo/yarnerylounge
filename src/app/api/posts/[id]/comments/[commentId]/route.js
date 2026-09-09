@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function DELETE(req, { params }) {
   const { id: postId, commentId } = await params;
@@ -12,34 +13,26 @@ export async function DELETE(req, { params }) {
   const limited = rateLimitGuard(`comment-delete:${user.uid}`, { limit: 60 });
   if (limited) return limited;
 
-  const commentRef = adminDb()
-    .collection("posts")
-    .doc(postId)
-    .collection("comments")
-    .doc(commentId);
-  const snap = await commentRef.get();
-  if (!snap.exists) {
-    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
-  }
-  const comment = snap.data();
-
   const userDoc = await getUserDoc(user.uid);
-  const canModerate = userDoc?.role === "owner" || userDoc?.role === "moderator";
-  if (comment.authorId !== user.uid && !canModerate) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  try {
+    const prisma = getPrisma();
+    const comment = await prisma.postComment.findUnique({ where: { id: commentId } });
+    if (!comment) {
+      return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    }
+    const canModerate = userDoc?.role === "owner" || userDoc?.role === "moderator";
+    if (comment.authorId !== user.uid && !canModerate) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    await prisma.postComment.delete({ where: { id: commentId } });
+    await prisma.post.updateMany({
+      where: { id: postId },
+      data: { commentCount: { increment: -1 } },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    logError("posts.comments.delete.prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
   }
-
-  await commentRef.delete();
-
-  const postSnap = await adminDb().collection("posts").doc(postId).get();
-  if (postSnap.exists) {
-    const nextCount = Math.max(0, (postSnap.data().commentCount || 0) - 1);
-    await adminDb()
-      .collection("posts")
-      .doc(postId)
-      .update({ commentCount: nextCount })
-      .catch(() => {});
-  }
-
-  return NextResponse.json({ ok: true });
 }

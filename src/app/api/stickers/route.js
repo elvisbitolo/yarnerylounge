@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getUserDoc } from "@/lib/server/auth";
 import { logAudit } from "@/lib/server/audit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 const STICKER_TYPES = {
   trophy: { emoji: "🏆", label: "Trophy" },
@@ -27,25 +28,18 @@ export async function GET(req) {
     return NextResponse.json({ error: "toUid required" }, { status: 400 });
   }
 
-  const snap = await adminDb()
-    .collection("stickers")
-    .where("toUid", "==", toUid)
-    .orderBy("createdAt", "desc")
-    .limit(100)
-    .get();
-
-  const stickers = snap.docs.map((doc) => {
-    const d = doc.data();
-    return {
-      id: doc.id,
-      ...d,
-      createdAt: d.createdAt?.toMillis
-        ? d.createdAt.toMillis()
-        : d.createdAt
-          ? new Date(d.createdAt).getTime()
-          : 0,
-    };
+  const prisma = getPrisma();
+  const rows = await prisma.sticker.findMany({
+    where: { toUid },
+    orderBy: { createdAt: "desc" },
+    take: 100,
   });
+
+  const stickers = rows.map((s) => ({
+    id: s.id,
+    ...s,
+    createdAt: s.createdAt ? new Date(s.createdAt).getTime() : 0,
+  }));
 
   const summary = {};
   stickers.forEach((s) => {
@@ -72,14 +66,14 @@ export async function POST(req) {
     return NextResponse.json({ error: "You can't send stickers to yourself" }, { status: 400 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todaySnap = await adminDb()
-    .collection("stickers")
-    .where("fromUid", "==", auth.user.uid)
-    .where("createdAt", ">=", today)
-    .get();
+  const prisma = getPrisma();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const sentToday = await prisma.sticker.count({
+    where: { fromUid: auth.user.uid, createdAt: { gte: startOfToday } },
+  });
 
-  if (todaySnap.size >= MAX_STICKERS_PER_DAY) {
+  if (sentToday >= MAX_STICKERS_PER_DAY) {
     return NextResponse.json(
       { error: `You can only send ${MAX_STICKERS_PER_DAY} stickers per day` },
       { status: 429 }
@@ -93,23 +87,30 @@ export async function POST(req) {
 
   const senderName = auth.userDoc?.name || auth.user.email || "Someone";
 
-  const ref = await adminDb().collection("stickers").add({
-    fromUid: auth.user.uid,
-    fromName: senderName,
-    toUid,
-    toName: recipient.name || "Member",
-    type,
-    emoji: STICKER_TYPES[type].emoji,
-    createdAt: new Date(),
-  });
+  try {
+    const created = await prisma.sticker.create({
+      data: {
+        fromUid: auth.user.uid,
+        fromName: senderName,
+        toUid,
+        toName: recipient.name || "Member",
+        type,
+        emoji: STICKER_TYPES[type].emoji,
+        createdAt: new Date(),
+      },
+    });
 
-  await logAudit({
-    actorId: auth.user.uid,
-    actorName: senderName,
-    action: "sticker.sent",
-    targetId: toUid,
-    metadata: { type, stickerId: ref.id },
-  });
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: senderName,
+      action: "sticker.sent",
+      targetId: toUid,
+      metadata: { type, stickerId: created.id },
+    });
 
-  return NextResponse.json({ ok: true, id: ref.id });
+    return NextResponse.json({ ok: true, id: created.id });
+  } catch (err) {
+    logError("stickers.create_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not send sticker" }, { status: 500 });
+  }
 }

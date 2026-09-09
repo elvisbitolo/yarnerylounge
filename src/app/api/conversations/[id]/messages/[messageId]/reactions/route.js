@@ -3,8 +3,8 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getConversation } from "@/lib/server/chat";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉", "👏", "💯", "🧶", "⭐"];
 
@@ -32,25 +32,42 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Invalid emoji" }, { status: 400 });
   }
 
-  const msgRef = adminDb()
-    .collection("conversations")
-    .doc(conversationId)
-    .collection("messages")
-    .doc(messageId);
-
-  const msgSnap = await msgRef.get();
-  if (!msgSnap.exists) {
+  let message = null;
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.conversationMessage.findUnique({
+      where: { id: messageId },
+      select: { conversationId: true, reactions: true },
+    });
+    if (!row || row.conversationId !== conversationId) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+    message = row;
+  } catch (err) {
+    logError("conversation.reaction.prisma_read_failed", { error: err.message });
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
-  const reactions = msgSnap.data().reactions || {};
+  const reactions = message.reactions || {};
   const alreadyReacted = reactions[emoji]?.[user.uid];
 
-  await msgRef.update({
-    [`reactions.${emoji}.${user.uid}`]: alreadyReacted ? FieldValue.delete() : true,
-  });
-
-  const updatedSnap = await msgRef.get();
-  const updatedReactions = updatedSnap.data().reactions || {};
-  return NextResponse.json({ reactions: updatedReactions });
+  try {
+    const prisma = getPrisma();
+    const next = { ...reactions };
+    const bucket = { ...(next[emoji] || {}) };
+    if (alreadyReacted) {
+      delete bucket[user.uid];
+    } else {
+      bucket[user.uid] = true;
+    }
+    next[emoji] = bucket;
+    await prisma.conversationMessage.update({
+      where: { id: messageId },
+      data: { reactions: next },
+    });
+    return NextResponse.json({ reactions: next });
+  } catch (err) {
+    logError("conversation.reaction.update_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to update reaction" }, { status: 500 });
+  }
 }

@@ -1,4 +1,5 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { getAccessSub } from "@/lib/server/subscription";
 
 export const TIER_RANK = {
@@ -78,30 +79,28 @@ export async function listMembersOnlySessions(uid, limit = 5) {
   if (!perkTierAtLeast(perkTier, "plus")) return [];
 
   const now = new Date();
-  const snap = await adminDb()
-    .collection("events")
-    .where("startTime", ">=", now)
-    .orderBy("startTime", "asc")
-    .limit(50)
-    .get();
+  let events;
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return [];
+    events = await prisma.event.findMany({
+      where: { startTime: { gte: now }, membersOnly: true },
+      orderBy: { startTime: "asc" },
+      take: 50,
+    });
+  } catch (err) {
+    logError("perks.prisma_members_only_failed", { error: err.message });
+    return [];
+  }
 
-  const sessions = snap.docs
-    .map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        title: data.title || "Members-only session",
-        startTime:
-          data.startTime?.toMillis?.() || new Date(data.startTime || 0).getTime(),
-        description: data.description || "",
-        href: `/events/${doc.id}`,
-        membersOnly: data.membersOnly === true,
-      };
-    })
-    .filter((s) => s.membersOnly)
-    .slice(0, limit);
-
-  return sessions;
+  return events.slice(0, limit).map((row) => ({
+    id: row.id,
+    title: row.title || "Members-only session",
+    startTime: new Date(row.startTime).getTime(),
+    description: row.description || "",
+    href: `/events/${row.id}`,
+    membersOnly: true,
+  }));
 }
 
 function esc(s) {

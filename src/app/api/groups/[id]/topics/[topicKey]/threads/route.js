@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { isGroupMember } from "@/lib/server/groups";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { listTopicThreads, createTopicThread } from "@/lib/server/group-topics";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +41,17 @@ export async function POST(req, { params }) {
       { status: 403 }
     );
   }
-  const groupSnap = await adminDb().collection("groups").doc(groupId).get();
-  if (!groupSnap.exists || groupSnap.data().status !== "active") {
+  let groupActive = false;
+  try {
+    const group = await getPrisma().group.findUnique({
+      where: { id: groupId },
+      select: { status: true },
+    });
+    groupActive = !!(group && group.status === "active");
+  } catch (err) {
+    logError("topics.threads.group_read_failed", { error: err.message, groupId });
+  }
+  if (!groupActive) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 

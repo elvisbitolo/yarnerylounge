@@ -2,38 +2,45 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/client";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import styles from "./Nav.module.css";
 
 export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    let unsubSnap = null;
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubSnap) {
-        unsubSnap();
-        unsubSnap = null;
+    let timer = null;
+    let active = false;
+    const stop = () => {
+      active = false;
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
       }
+    };
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      stop();
       if (!user) {
         setUnread(0);
         return;
       }
-      const q = query(
-        collection(db, "notifications"),
-        where("userId", "==", user.uid)
-      );
-      unsubSnap = onSnapshot(
-        q,
-        (snap) => setUnread(snap.docs.filter((d) => !d.data().read).length),
-        () => {}
-      );
+      active = true;
+      const load = async () => {
+        try {
+          const res = await fetch("/api/notifications");
+          if (!res.ok) return;
+          const data = await res.json();
+          if (active) setUnread(Number(data.unread) || 0);
+        } catch {
+          /* keep polling */
+        }
+      };
+      load();
+      timer = setInterval(load, 30000);
     });
     return () => {
+      stop();
       unsubAuth();
-      if (unsubSnap) unsubSnap();
     };
   }, []);
 

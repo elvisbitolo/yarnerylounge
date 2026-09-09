@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getCapabilities, canJoinNeighborhoods } from "@/lib/server/capabilities";
 import {
@@ -11,6 +10,21 @@ import {
 } from "@/lib/server/spaces";
 import { syncSpaceChatParticipants } from "@/lib/server/chat";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
+
+async function spaceMemberIds(spaceId) {
+  try {
+    const rows = await getPrisma().spaceMember.findMany({
+      where: { spaceId },
+      select: { userId: true },
+    });
+    return rows.map((r) => r.userId);
+  } catch (err) {
+    logError("space.join.members_read_failed", { error: err.message, spaceId });
+    return [];
+  }
+}
 
 export async function POST(req, { params }) {
   const { id: spaceId } = await params;
@@ -47,14 +61,7 @@ export async function POST(req, { params }) {
   if (joined) {
     await removeSpaceMember(spaceId, user.uid);
     if (!isOwner) {
-      const membersSnap = await adminDb()
-        .collection("spaceMembers")
-        .where("spaceId", "==", spaceId)
-        .get();
-      await syncSpaceChatParticipants(
-        spaceId,
-        membersSnap.docs.map((d) => d.data().userId)
-      );
+      await syncSpaceChatParticipants(spaceId, await spaceMemberIds(spaceId));
     }
     return NextResponse.json({ joined: false });
   }
@@ -66,14 +73,7 @@ export async function POST(req, { params }) {
   }
 
   await addSpaceMember(spaceId, user.uid, userDoc?.name || user.name || user.email?.split("@")[0] || "Member");
-  const membersSnap = await adminDb()
-    .collection("spaceMembers")
-    .where("spaceId", "==", spaceId)
-    .get();
-  await syncSpaceChatParticipants(
-    spaceId,
-    membersSnap.docs.map((d) => d.data().userId)
-  );
+  await syncSpaceChatParticipants(spaceId, await spaceMemberIds(spaceId));
 
   return NextResponse.json({ joined: true });
 }

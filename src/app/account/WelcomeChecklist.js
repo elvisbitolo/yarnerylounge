@@ -1,15 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  collection,
-  doc,
-  query,
-  where,
-  limit,
-  getDoc,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import styles from "./account.module.css";
 
 const DEFAULT_STEPS = [
@@ -19,7 +10,7 @@ const DEFAULT_STEPS = [
   { key: "rsvp", label: "RSVP to an event", href: "/events", cta: "See events" },
 ];
 
-export default function WelcomeChecklist({ uid, initialProfile, steps }) {
+export default function WelcomeChecklist({ initialProfile, steps }) {
   const [profile, setProfile] = useState(initialProfile || {});
   const [hasRoomEvent, setHasRoomEvent] = useState(false);
   const [hasPost, setHasPost] = useState(false);
@@ -32,24 +23,23 @@ export default function WelcomeChecklist({ uid, initialProfile, steps }) {
     let cancelled = false;
     // All four states change rarely (profile edits, one room/post/rsvp) — a
     // one-time read avoids keeping permanent real-time listeners open.
-    Promise.all([
-      getDoc(doc(db, "users", uid)),
-      getDoc(query(collection(db, "posts"), where("authorId", "==", uid), limit(1))),
-      getDoc(query(collection(db, "rsvps"), where("userId", "==", uid), limit(1))),
-      getDoc(query(collection(db, "roomEvents"), where("userId", "==", uid), limit(1))),
-    ])
-      .then(([userSnap, postsSnap, rsvpsSnap, roomsSnap]) => {
-        if (cancelled) return;
-        if (userSnap.exists()) setProfile(userSnap.data());
-        setHasPost(!postsSnap.empty);
-        setHasRsvp(!rsvpsSnap.empty);
-        setHasRoomEvent(!roomsSnap.empty);
+    fetch("/api/checklist")
+      .then((res) => (res.ok ? res.json() : { check: null }))
+      .then((data) => {
+        if (cancelled || !data?.check) return;
+        const { profile: nextProfile, post, rsvp, room } = data.check;
+        if (nextProfile && typeof nextProfile === "object") {
+          setProfile((prev) => ({ ...prev, ...nextProfile }));
+        }
+        setHasPost(!!post);
+        setHasRsvp(!!rsvp);
+        setHasRoomEvent(!!room);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [uid]);
+  }, []);
 
   const profileDone = !!(profile.bio || profile.headline || profile.location);
   const doneMap = { profile: profileDone, room: hasRoomEvent, post: hasPost, rsvp: hasRsvp };

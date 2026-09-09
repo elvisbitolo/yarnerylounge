@@ -1,20 +1,68 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { addInterval, expandEvent, expandEvents } from "@/lib/server/events-core";
 
 export { expandEvent, expandEvents, addInterval };
 
+function toDate(v) {
+  if (v == null) return null;
+  if (typeof v.toMillis === "function") return new Date(v.toMillis());
+  if (v instanceof Date) return v;
+  if (typeof v === "number") return new Date(v);
+  return new Date(v);
+}
+
+function mapEventRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || "",
+    startTime: toDate(row.startTime),
+    endTime: toDate(row.endTime),
+    roomSlug: row.roomSlug || "",
+    capacity: row.capacity || 0,
+    spaceId: row.spaceId || "",
+    purchasePriceCents: row.purchasePriceCents || 0,
+    publicPreview: !!row.publicPreview,
+    createdBy: row.createdBy,
+    createdAt: toDate(row.createdAt),
+    recurrence: row.recurrence && typeof row.recurrence === "object" ? row.recurrence : null,
+    capacityCounts:
+      row.capacityCounts && typeof row.capacityCounts === "object" ? row.capacityCounts : {},
+  };
+}
+
 export async function listEvents() {
-  const snap = await adminDb().collection("events").orderBy("startTime", "asc").limit(200).get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.event.findMany({
+        orderBy: { startTime: "asc" },
+        take: 200,
+      });
+      return rows.map(mapEventRow);
+    } catch (err) {
+      logError("events.prisma_list_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function getEvent(id) {
-  const doc = await adminDb().collection("events").doc(id).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.event.findUnique({ where: { id } });
+      return row ? mapEventRow(row) : null;
+    } catch (err) {
+      logError("events.prisma_get_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function createEvent({ title, description, startTime, endTime, roomSlug, capacity, recurrence, spaceId, purchasePriceCents, publicPreview, createdBy }) {
-  const ref = adminDb().collection("events").doc();
   const data = {
     title,
     description: description || "",
@@ -35,29 +83,58 @@ export async function createEvent({ title, description, startTime, endTime, room
       count: Math.min(Number(recurrence.count) || 2, 52),
     };
   }
-  await ref.set(data);
-  return { id: ref.id, title, startTime };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const created = await prisma.event.create({ data });
+      return { id: created.id, title, startTime };
+    } catch (err) {
+      logError("events.prisma_create_failed", { error: err.message });
+    }
+  }
+  return { id: "", title, startTime };
 }
 
 export async function listRsvps(eventId) {
-  const snap = await adminDb().collection("rsvps").where("eventId", "==", eventId).get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.rsvp.findMany({ where: { eventId } });
+      return rows.map((row) => ({
+        id: row.id,
+        eventId: row.eventId,
+        occurrenceId: row.occurrenceId || "",
+        userId: row.userId,
+        name: row.name || "",
+        createdAt: toDate(row.createdAt),
+      }));
+    } catch (err) {
+      logError("events.prisma_rsvps_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function getUpcomingRoomStart(slug, now = Date.now()) {
   if (!slug) return null;
-  const snap = await adminDb()
-    .collection("events")
-    .where("roomSlug", "==", slug)
-    .get();
+  let events = [];
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.event.findMany({ where: { roomSlug: slug } });
+      events = rows.map(mapEventRow);
+    } catch (err) {
+      logError("events.prisma_upcoming_failed", { error: err.message });
+    }
+  }
   let earliest = null;
-  snap.docs.forEach((doc) => {
-    for (const occurrence of expandEvent({ id: doc.id, ...doc.data() })) {
+  for (const event of events) {
+    for (const occurrence of expandEvent(event)) {
       const start = new Date(occurrence.startTime).getTime();
       if (start > now && (earliest === null || start < earliest)) {
         earliest = start;
       }
     }
-  });
+  }
   return earliest;
 }

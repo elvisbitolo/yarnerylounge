@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { adminDb } from "@/lib/firebase/admin";
 import { logError } from "@/lib/server/log";
+import { getPrisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,25 @@ export async function POST(req) {
   };
 
   try {
-    await adminDb().collection("users").doc(auth.user.uid).set(profile, { merge: true });
+    const prisma = getPrisma();
+    const existing = await prisma.user.findUnique({
+      where: { id: auth.user.uid },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.user.update({
+        where: { id: auth.user.uid },
+        data: { ...profile, updatedAt: new Date() },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          id: auth.user.uid,
+          name: auth.user.name || auth.user.email || "",
+          ...profile,
+        },
+      });
+    }
   } catch (err) {
     logError("onboarding.save_failed", { error: err.message, uid: auth.user.uid });
     return NextResponse.json({ error: "Could not save your profile" }, { status: 500 });
@@ -60,16 +78,33 @@ export async function GET(req) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const doc = await adminDb().collection("users").doc(auth.user.uid).get();
-  const data = doc.exists ? doc.data() : {};
+  const prisma = getPrisma();
+  let data = null;
+  try {
+    data = await prisma.user.findUnique({
+      where: { id: auth.user.uid },
+      select: {
+        onboardingCompleted: true,
+        skillLevel: true,
+        craftInterests: true,
+        projectTypes: true,
+        yarnPreference: true,
+        hookSize: true,
+        communityGoals: true,
+      },
+    });
+  } catch (err) {
+    logError("onboarding.prisma_read_failed", { error: err.message });
+  }
+  const row = data || {};
 
   return NextResponse.json({
-    completed: !!data.onboardingCompleted,
-    skillLevel: data.skillLevel || "",
-    craftInterests: data.craftInterests || [],
-    projectTypes: data.projectTypes || [],
-    yarnPreference: data.yarnPreference || "",
-    hookSize: data.hookSize || "",
-    communityGoals: data.communityGoals || [],
+    completed: !!row.onboardingCompleted,
+    skillLevel: row.skillLevel || "",
+    craftInterests: row.craftInterests || [],
+    projectTypes: row.projectTypes || [],
+    yarnPreference: row.yarnPreference || "",
+    hookSize: row.hookSize || "",
+    communityGoals: row.communityGoals || [],
   });
 }

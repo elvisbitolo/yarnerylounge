@@ -3,6 +3,7 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { recordDailyVisit } from "@/lib/server/gamification";
 import { loungeGate } from "@/lib/server/lounge-gate";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
+import { ensureWelcomeVaultPost } from "@/lib/server/welcome-vault";
 import Nav from "@/components/Nav";
 import Feed from "./Feed";
 import styles from "./feed.module.css";
@@ -21,6 +22,10 @@ export default async function FeedPage({ searchParams }) {
   if (gate) redirect(gate);
 
   const caps = await getCapabilities(user.uid);
+
+  // Seed the pinned, read-only House Rules announcement once per feed visit
+  // (idempotent — no-op after the first creation).
+  ensureWelcomeVaultPost().catch(() => {});
 
   recordDailyVisit(user.uid, userDoc?.name || user.name || "Member").catch(() => {});
 

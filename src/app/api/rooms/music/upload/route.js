@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -49,21 +50,22 @@ export async function POST(req) {
   }
   const dataUrl = `data:${mime};base64,${base64}`;
 
-  let docRef;
   try {
-    docRef = await adminDb().collection("musicFiles").add({
-      dataUrl,
-      name: file.name,
-      mimeType: mime,
-      size: file.size,
-      uploadedBy: auth.user.uid,
-      createdAt: new Date(),
+    const prisma = getPrisma();
+    const created = await prisma.musicFile.create({
+      data: {
+        dataUrl,
+        name: file.name,
+        mimeType: mime,
+        size: file.size,
+        uploadedBy: auth.user.uid,
+      },
     });
+    return NextResponse.json({ id: created.id, dataUrl });
   } catch (err) {
+    logError("room.music_upload_failed", { error: err.message });
     return NextResponse.json({ error: "Could not save audio" }, { status: 500 });
   }
-
-  return NextResponse.json({ id: docRef.id, dataUrl });
 }
 
 function looksLikeAudio(mime, hexSig) {

@@ -1,32 +1,86 @@
 import { cookies } from "next/headers";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
+import { mapUserRow } from "@/lib/server/user-core";
+import {
+  isSupabaseAccessJwt,
+  parseSessionCookie,
+  supabaseProjectRef,
+  mapSupabaseUser,
+} from "@/lib/server/auth-core";
 
 export const AUTH_COOKIE = "community-auth";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
+
+// Verifies a Supabase Auth access token with the project's admin client and
+// maps it to the identity shape getCurrentUser() returns ({ uid, email, ... }).
+// Returns null when the token is missing, invalid, or credentials are absent.
+export async function verifySupabaseToken(token) {
+  if (!token) return null;
+  try {
+    const { default: supabaseAdmin } = await import("@/lib/supabase/service");
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data?.user) return null;
+    return mapSupabaseUser(data.user);
+  } catch (err) {
+    logError("auth.supabase_verify_failed", { error: err.message });
+    return null;
+  }
+}
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(AUTH_COOKIE)?.value;
   if (!sessionCookie) return null;
 
-  let user;
-  try {
-    user = await adminAuth().verifySessionCookie(sessionCookie, true);
-  } catch {
-    return null;
+  // Supabase session cookie (JSON {v, a, r}) — verify the access JWT against
+  // the Supabase project. Fails closed: a Supabase-shaped token that does not
+  // verify is never passed down.
+  const supabaseSession = parseSessionCookie(sessionCookie);
+  const projectRef = supabaseProjectRef();
+  if (supabaseSession?.access) {
+    if (!isSupabaseAccessJwt(supabaseSession.access, projectRef)) return null;
+    const identity = await verifySupabaseToken(supabaseSession.access);
+    if (!identity) return null;
+    const userDoc = await getUserDoc(identity.uid);
+    if (userDoc?.suspended) return null;
+    return identity;
   }
 
-  const doc = await adminDb().collection("users").doc(user.uid).get();
-  if (doc.exists && doc.data().suspended) {
-    return null;
-  }
-
-  return user;
+  // Unknown cookie shape — not a Supabase session.
+  return null;
 }
 
+// Read the users table (Postgres). Returns the doc shape
+// ({ id, ...fields }) so every consumer is untouched.
 export async function getUserDoc(uid) {
-  const doc = await adminDb().collection("users").doc(uid).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return null;
+    const row = await prisma.user.findUnique({ where: { id: uid } });
+    return row ? mapUserRow(row) : null;
+  } catch (err) {
+    logError("auth.prisma_user_read_failed", { error: err.message });
+    return null;
+  }
+}
+
+// Prisma-first user lookup by email (used by the signup wall + session
+// exchange). Returns the doc shape or null.
+export async function getUserByEmail(email) {
+  if (!email) return null;
+  const clean = email.toLowerCase().trim();
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return null;
+    const row = await prisma.user.findFirst({
+      where: { email: { equals: clean, mode: "insensitive" } },
+    });
+    return row ? mapUserRow(row) : null;
+  } catch (err) {
+    logError("auth.prisma_user_by_email_failed", { error: err.message });
+    return null;
+  }
 }
 
 export function canModerate(userDoc) {

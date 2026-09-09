@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { listCourses } from "@/lib/server/courses";
 import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
 import { canModerate } from "@/lib/server/auth";
@@ -8,6 +7,8 @@ import { logAudit } from "@/lib/server/audit";
 import { getSpace } from "@/lib/server/spaces";
 import { serialize } from "@/lib/server/serialize";
 import { clean } from "@/lib/server/validate";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET() {
   const auth = await requireUser();
@@ -62,24 +63,32 @@ export async function POST(req) {
     }
   }
 
-  const ref = await adminDb().collection("courses").add({
-    title: courseTitle,
-    description: courseDesc,
-    status,
-    spaceId: spaceId || "",
-    purchasePriceCents: price,
-    publicPreview: !!publicPreview,
-    createdBy: auth.user.uid,
-    createdAt: new Date(),
-  });
+  const prisma = getPrisma();
+  try {
+    const created = await prisma.course.create({
+      data: {
+        title: courseTitle,
+        description: courseDesc,
+        status,
+        spaceId: spaceId || "",
+        purchasePriceCents: price,
+        publicPreview: !!publicPreview,
+        createdBy: auth.user.uid,
+        createdAt: new Date(),
+      },
+    });
 
-  await logAudit({
-    actorId: auth.user.uid,
-    actorName: auth.userDoc?.name || auth.user.email || "",
-    action: "course.created",
-    targetId: ref.id,
-    metadata: { title: courseTitle, status, spaceId, purchasePriceCents: price },
-  });
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: auth.userDoc?.name || auth.user.email || "",
+      action: "course.created",
+      targetId: created.id,
+      metadata: { title: courseTitle, status, spaceId, purchasePriceCents: price },
+    });
 
-  return NextResponse.json({ id: ref.id });
+    return NextResponse.json({ id: created.id });
+  } catch (err) {
+    logError("courses.create_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not create course" }, { status: 500 });
+  }
 }

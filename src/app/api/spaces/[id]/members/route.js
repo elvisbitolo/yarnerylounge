@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireOwner, guardJson } from "@/lib/server/authorize";
 import { getSpace, addSpaceMember, getSpaceMembers } from "@/lib/server/spaces";
 import { syncSpaceChatParticipants } from "@/lib/server/chat";
 import { logAudit } from "@/lib/server/audit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function POST(req, { params }) {
   const { id: spaceId } = await params;
@@ -21,21 +22,35 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Space not found" }, { status: 404 });
   }
 
-  const userSnap = await adminDb().collection("users").doc(userId).get();
-  if (!userSnap.exists) {
-    return NextResponse.json({ error: "Member not found" }, { status: 404 });
+  const prisma = getPrisma();
+  let userName = "Member";
+  try {
+    const row = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    if (row) {
+      userName = row.name || "Member";
+    } else {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+  } catch (err) {
+    logError("space.members.prisma_user_read_failed", { error: err.message });
   }
-  const user = userSnap.data();
 
-  const added = await addSpaceMember(spaceId, userId, user.name || "Member");
-  const membersSnap = await adminDb()
-    .collection("spaceMembers")
-    .where("spaceId", "==", spaceId)
-    .get();
-  await syncSpaceChatParticipants(
-    spaceId,
-    membersSnap.docs.map((d) => d.data().userId)
-  );
+  const added = await addSpaceMember(spaceId, userId, userName);
+
+  let memberIds = [];
+  try {
+    const rows = await prisma.spaceMember.findMany({
+      where: { spaceId },
+      select: { userId: true },
+    });
+    memberIds = rows.map((r) => r.userId);
+  } catch (err) {
+    logError("space.members.prisma_list_failed", { error: err.message });
+  }
+  await syncSpaceChatParticipants(spaceId, memberIds);
 
   await logAudit({
     actorId: auth.user.uid,
@@ -65,24 +80,29 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ error: "Space not found" }, { status: 404 });
   }
 
-  await adminDb().collection("spaceMembers").doc(`${spaceId}_${userId}`).delete();
-
-  const membersSnap = await adminDb()
-    .collection("spaceMembers")
-    .where("spaceId", "==", spaceId)
-    .get();
-  await syncSpaceChatParticipants(
-    spaceId,
-    membersSnap.docs.map((d) => d.data().userId)
-  );
-
-  await logAudit({
-    actorId: auth.user.uid,
-    actorName: auth.userDoc?.name || auth.user.email || "",
-    action: "space.member.removed",
-    targetId: spaceId,
-    metadata: { space: space.name, userId },
-  });
-
-  return NextResponse.json({ removed: true });
+  const prisma = getPrisma();
+  try {
+    await prisma.spaceMember.deleteMany({
+      where: { id: `${spaceId}_${userId}` },
+    });
+    const rows = await prisma.spaceMember.findMany({
+      where: { spaceId },
+      select: { userId: true },
+    });
+    await syncSpaceChatParticipants(
+      spaceId,
+      rows.map((r) => r.userId)
+    );
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: auth.userDoc?.name || auth.user.email || "",
+      action: "space.member.removed",
+      targetId: spaceId,
+      metadata: { space: space.name, userId },
+    });
+    return NextResponse.json({ removed: true });
+  } catch (err) {
+    logError("space.members.prisma_remove_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not remove member" }, { status: 500 });
+  }
 }

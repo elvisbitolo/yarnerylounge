@@ -1,14 +1,25 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
-import { postAccessCheck, nextLikeState } from "@/lib/server/posts-core";
+import { postAccessCheck, nextLikeState, mapPostRow } from "@/lib/server/posts-core";
 
-export { postAccessCheck, nextLikeState };
+export { postAccessCheck, nextLikeState, mapPostRow };
 
 export async function canAccessPost(postId, uid, userDoc) {
-  const snap = await adminDb().collection("posts").doc(postId).get();
-  if (!snap.exists) return { ok: false, status: 404, error: "Post not found" };
-  const post = snap.data();
+  let post = null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.post.findUnique({ where: { id: postId } });
+      if (row) post = mapPostRow(row);
+    } catch (err) {
+      logError("posts.prisma_get_failed", { error: err.message });
+    }
+  }
+  if (!post) {
+    return { ok: false, status: 404, error: "Post not found" };
+  }
 
   if (userDoc?.role === "owner" || post.authorId === uid) {
     return { ok: true, post };
@@ -30,11 +41,19 @@ export async function canAccessPost(postId, uid, userDoc) {
   }
 
   if (post.groupId) {
-    const memberSnap = await adminDb()
-      .collection("groupMembers")
-      .doc(`${post.groupId}_${uid}`)
-      .get();
-    if (!memberSnap.exists) {
+    let isMember = false;
+    const prisma2 = getPrisma();
+    if (prisma2) {
+      try {
+        const row = await prisma2.groupMember.findUnique({
+          where: { id: `${post.groupId}_${uid}` },
+        });
+        isMember = !!row;
+      } catch (err) {
+        logError("posts.prisma_group_member_failed", { error: err.message });
+      }
+    }
+    if (!isMember) {
       return { ok: false, status: 403, error: "Forbidden" };
     }
   }

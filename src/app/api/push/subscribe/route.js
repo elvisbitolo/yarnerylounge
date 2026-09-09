@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { logError } from "@/lib/server/log";
+import { getPrisma } from "@/lib/db/prisma";
 
 export async function POST(req) {
   const user = await getCurrentUser();
@@ -15,17 +15,21 @@ export async function POST(req) {
   }
 
   try {
-    await adminDb()
-      .collection("pushSubscriptions")
-      .doc(user.uid)
-      .set({
+    await getPrisma().pushSubscription.upsert({
+      where: { id: user.uid },
+      create: {
+        id: user.uid,
         userId: user.uid,
         endpoint: subscription.endpoint,
         keys: subscription.keys || {},
-        updatedAt: new Date(),
-      });
+      },
+      update: {
+        endpoint: subscription.endpoint,
+        keys: subscription.keys || {},
+      },
+    });
   } catch (err) {
-    logError("push.subscribe_failed", { error: err.message, uid: user.uid });
+    logError("push.subscribe_prisma_failed", { error: err.message, uid: user.uid });
     return NextResponse.json({ error: "Could not save subscription" }, { status: 500 });
   }
 

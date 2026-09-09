@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
 import { canAccessPost } from "@/lib/server/posts";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import {
   isValidReactionEmoji,
   normalizedReactionEmoji,
@@ -37,43 +37,55 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Invalid emoji" }, { status: 400 });
   }
 
-  const commentRef = adminDb()
-    .collection("posts")
-    .doc(id)
-    .collection("comments")
-    .doc(commentId);
-  const commentSnap = await commentRef.get();
-  if (!commentSnap.exists) {
-    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.postComment.findUnique({ where: { id: commentId } });
+    if (!row) {
+      return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    }
+    const comment = row;
+    const already = Boolean(comment.reactions?.[emoji]?.[user.uid]);
+    const nextReactions = {
+      ...(comment.reactions || {}),
+      [emoji]: { ...(comment.reactions?.[emoji] || {}) },
+    };
+    if (already) {
+      delete nextReactions[emoji][user.uid];
+      if (Object.keys(nextReactions[emoji]).length === 0) {
+        delete nextReactions[emoji];
+      }
+    } else {
+      nextReactions[emoji][user.uid] = true;
+    }
+    await prisma.postComment.update({
+      where: { id: commentId },
+      data: { reactions: nextReactions },
+    });
+
+    if (!already && comment.authorId && comment.authorId !== user.uid) {
+      const actorName =
+        userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
+      const { createNotification } = await import("@/lib/server/notifications");
+      await createNotification({
+        userId: comment.authorId,
+        type: "like",
+        actorId: user.uid,
+        actorName,
+        targetId: id,
+        href: `/feed`,
+        text: `Reacted ${emoji} to your comment`,
+      }).catch(() => {});
+    }
+
+    const updatedReactions = nextReactions;
+    return NextResponse.json({
+      reactions: summarizeReactions(updatedReactions),
+      reacted: already
+        ? false
+        : Boolean(updatedReactions?.[emoji]?.[user.uid]),
+    });
+  } catch (err) {
+    logError("posts.comments.reactions.prisma_write_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to update reaction" }, { status: 500 });
   }
-  const comment = commentSnap.data();
-
-  const already = Boolean(comment.reactions?.[emoji]?.[user.uid]);
-  await commentRef.update({
-    [`reactions.${emoji}.${user.uid}`]: already ? FieldValue.delete() : true,
-  });
-
-  if (!already && comment.authorId && comment.authorId !== user.uid) {
-    const actorName =
-      userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
-    const { createNotification } = await import("@/lib/server/notifications");
-    await createNotification({
-      userId: comment.authorId,
-      type: "like",
-      actorId: user.uid,
-      actorName,
-      targetId: id,
-      href: `/feed`,
-      text: `Reacted ${emoji} to your comment`,
-    }).catch(() => {});
-  }
-
-  const updatedSnap = await commentRef.get();
-  const updatedReactions = updatedSnap.data().reactions || {};
-  return NextResponse.json({
-    reactions: summarizeReactions(updatedReactions),
-    reacted: already
-      ? false
-      : Boolean(updatedReactions?.[emoji]?.[user.uid]),
-  });
 }

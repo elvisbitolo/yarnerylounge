@@ -1,53 +1,20 @@
-import { useTranslations } from "next-intl";
 import Image from "next/image";
 import styles from "../app/auth.module.css";
 
-// Replaces the photo column on auth pages with the professional Membership &
-// Checkout FAQ panel. Uses native <details> so no JS state is needed.
-const FAQ_KEYS = [
-  { q: "faqWhyQ", a: "faqWhyA" },
-  { q: "faqSwitchQ", a: "faqSwitchA" },
-  { q: "faqPromoQ", a: "faqPromoA" },
-  { q: "faqMovingQ", a: "faqMovingA" },
-];
-
+// Full-bleed backdrop for the auth pages: the image occupies the entire
+// aside column on desktop and collapses to a hero banner above the form
+// on small screens (see the media queries in auth.module.css).
 export default function AuthAside() {
-  const t = useTranslations("auth");
-
   return (
     <aside className={styles.aside}>
-      <div className={styles.asideBrand}>
-        <Image
-          src="/brand/secretyarnery-logo.webp"
-          alt=""
-          width={90}
-          height={28}
-          className={styles.brandLogo}
-        />
-        <span className={styles.asideBrandWord}>Secret Yarnery</span>
-      </div>
-
-      <h2 className={styles.asideTitle}>{t("asideTitle")}</h2>
-      <p className={styles.asideSub}>{t("asideSub")}</p>
-
-      <div className={styles.faqList}>
-        {FAQ_KEYS.map((item) => (
-          <details key={item.q} className={styles.faqItem}>
-            <summary className={styles.faqQ}>{t(item.q)}</summary>
-            <p className={styles.faqA}>{t(item.a)}</p>
-          </details>
-        ))}
-      </div>
-
-      <p className={styles.asideToS}>
-        {t.rich("tosCheckbox", {
-          terms: (chunks) => (
-            <a className={styles.asideLink} href="/terms">
-              {chunks}
-            </a>
-          ),
-        })}
-      </p>
+      <Image
+        src="/images/alongauthentication.jpeg"
+        alt="Christa's Secret Swipe Speakeasy — stitch together in the 24/7 video lounge"
+        fill
+        priority
+        sizes="(max-width: 768px) 92vw, 460px"
+        className={styles.asideImage}
+      />
     </aside>
   );
 }

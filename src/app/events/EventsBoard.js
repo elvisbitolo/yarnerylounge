@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import styles from "./events.module.css";
 
 function getNow() {

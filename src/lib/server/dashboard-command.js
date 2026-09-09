@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import { canModerate } from "@/lib/server/auth";
 import { getSettings } from "@/lib/server/settings";
 import { listRooms } from "@/lib/server/rooms";
@@ -10,30 +10,15 @@ import { listNotifications } from "@/lib/server/notifications";
 import { getLeaderboard, getGamification } from "@/lib/server/gamification";
 import { getUserMemberships } from "@/lib/server/dashboard";
 import { getPerkTier } from "@/lib/server/perks";
-import { listLiveParticipants } from "@/lib/server/livekit";
+import { logError } from "@/lib/server/log";
 import {
   toMillis,
   startOfDay,
   visitKey,
-  monthlyRateCents,
   summarizeSubscriptions,
   summarizePurchases,
   rankTopPosts,
 } from "@/lib/server/analytics-core";
-
-async function count(collectionName, constraint = null) {
-  try {
-    let query = adminDb().collection(collectionName);
-    if (constraint) query = query.where(...constraint);
-    const snap = await query.count().get();
-    return snap.data().count;
-  } catch {
-    let query = adminDb().collection(collectionName);
-    if (constraint) query = query.where(...constraint);
-    const snap = await query.limit(1000).get();
-    return snap.size;
-  }
-}
 
 function canReadPostServer(post, uid, role, memberships) {
   if (role === "owner" || post.authorId === uid) return true;
@@ -42,10 +27,10 @@ function canReadPostServer(post, uid, role, memberships) {
   return true;
 }
 
-function serializeUser(doc) {
-  const data = doc.data();
+function serializeUserRow(row) {
+  const data = row || {};
   return {
-    id: doc.id,
+    id: data.id || "",
     name: data.name || "Member",
     email: data.email || "",
     role: data.role || "member",
@@ -56,78 +41,102 @@ function serializeUser(doc) {
   };
 }
 
-export async function getDashboardStats(uid, userDoc) {
-  const isStaff = canModerate(userDoc);
-
-  const now = Date.now();
-  const since30 = startOfDay(30);
-  const [membersTotal, newMembers30, activeRooms, active7] = await Promise.all([
-    count("users"),
-    count("users", ["createdAt", ">=", new Date(since30)]),
-    adminDb().collection("rooms").where("status", "==", "active").get(),
-    count("gamification", ["lastVisitDate", ">=", visitKey(7)]),
-  ]);
-
-  let liveViewers = 0;
-  const activeRoomList = activeRooms.docs.map((d) => ({ id: d.id, ...d.data() }));
-  if (activeRoomList.length > 0) {
-    const counts = await Promise.all(
-      activeRoomList.slice(0, 10).map(async (room) => {
-        try {
-          return (await listLiveParticipants(room.slug)).length;
-        } catch {
-          return 0;
-        }
-      })
-    );
-    liveViewers = counts.reduce((sum, n) => sum + n, 0);
-  }
-
-  let revenue = null;
-  if (isStaff) {
+async function listActiveRooms() {
+  const prisma = getPrisma();
+  if (prisma) {
     try {
-      const [subsSnap, purchasesSnap] = await Promise.all([
-        adminDb().collection("subscriptions").get(),
-        adminDb()
-          .collection("purchases")
-          .where("purchasedAt", ">=", new Date(since30))
-          .get(),
-      ]);
-      let priceMap = {};
-      const subs = subsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const subsSummary = summarizeSubscriptions(subs, priceMap, now);
+      return await prisma.room.findMany({ where: { status: "active" } });
+    } catch (err) {
+      logError("dashboard-command.prisma_rooms_failed", { error: err.message });
+    }
+  }
+  return [];
+}
 
+async function computeLiveViewers(activeRoomList) {
+  return 0;
+}
+
+function loadPurchasePrice(data) {
+  const loader =
+    data.targetType === "course"
+      ? getCourse
+      : data.targetType === "event"
+        ? getEvent
+        : getSpace;
+  return async () => {
+    let priceCents = null;
+    try {
+      const item = await loader(data.targetId);
+      priceCents = Number(item?.purchasePriceCents) || 0;
+    } catch {
+      priceCents = null;
+    }
+    return priceCents;
+  };
+}
+
+async function computeRevenue(now, since30) {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const [subs, purchases] = await Promise.all([
+        prisma.subscription.findMany(),
+        prisma.purchase.findMany({ where: { purchasedAt: { gte: new Date(since30) } } }),
+      ]);
+      const priceMap = {};
+      const subsSummary = summarizeSubscriptions(subs, priceMap, now);
       const purchasesWithPrice = await Promise.all(
-        purchasesSnap.docs.map(async (doc) => {
-          const data = doc.data();
-          const loader =
-            data.targetType === "course"
-              ? getCourse
-              : data.targetType === "event"
-                ? getEvent
-                : getSpace;
-          let priceCents = null;
-          try {
-            const item = await loader(data.targetId);
-            priceCents = Number(item?.purchasePriceCents) || 0;
-          } catch {
-            priceCents = null;
-          }
-          return { targetType: data.targetType, targetId: data.targetId, priceCents };
-        })
+        purchases.map(async (p) => ({
+          targetType: p.targetType,
+          targetId: p.targetId,
+          priceCents: await loadPurchasePrice(p)(),
+        }))
       );
       const purchasesSummary = summarizePurchases(purchasesWithPrice);
-      revenue = {
+      return {
         activeSubs: subsSummary.active,
         estMonthlyCents: subsSummary.estimatedMonthlyCents,
         revenue30Cents: purchasesSummary.revenueCents,
         purchases30: purchasesSummary.total,
       };
-    } catch {
-      revenue = null;
+    } catch (err) {
+      logError("dashboard-command.prisma_revenue_failed", { error: err.message });
+    }
+  }
+  return null;
+}
+
+export async function getDashboardStats(uid, userDoc) {
+  const isStaff = canModerate(userDoc);
+
+  const now = Date.now();
+  const since30 = startOfDay(30);
+
+  const prisma = getPrisma();
+  let membersTotal = 0;
+  let newMembers30 = 0;
+  let activeRoomList = [];
+  let active7 = 0;
+  if (prisma) {
+    try {
+      const [membersTotalRes, newMembers30Res, activeRoomsRes, active7Res] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { createdAt: { gte: new Date(since30) } } }),
+        prisma.room.findMany({ where: { status: "active" } }),
+        prisma.gamification.count({ where: { lastVisitDate: { gte: visitKey(7) } } }),
+      ]);
+      membersTotal = membersTotalRes;
+      newMembers30 = newMembers30Res;
+      activeRoomList = activeRoomsRes;
+      active7 = active7Res;
+    } catch (err) {
+      logError("dashboard-command.prisma_stats_failed", { error: err.message, uid });
     }
   }
 
+  const liveViewers = await computeLiveViewers(activeRoomList);
+  const revenue = isStaff ? await computeRevenue(now, since30) : null;
   const contributing = await countUsersContributing(since30);
 
   return {
@@ -139,13 +148,19 @@ export async function getDashboardStats(uid, userDoc) {
 }
 
 async function countUsersContributing(since) {
-  const snap = await adminDb()
-    .collection("posts")
-    .where("createdAt", ">=", new Date(since))
-    .limit(1000)
-    .get();
-  const authors = new Set(snap.docs.map((d) => d.data().authorId).filter(Boolean));
-  return authors.size;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.post.findMany({
+        where: { createdAt: { gte: new Date(since) } },
+        take: 1000,
+      });
+      return new Set(rows.map((p) => p.authorId).filter(Boolean)).size;
+    } catch (err) {
+      logError("dashboard-command.prisma_contributors_failed", { error: err.message });
+    }
+  }
+  return 0;
 }
 
 export async function getAudienceSeries(days) {
@@ -163,37 +178,37 @@ export async function getAudienceSeries(days) {
     return i >= 0 && i < days ? i : -1;
   };
 
-  const [usersSnap, postsSnap, commentsSnap, membersBefore] = await Promise.all([
-    adminDb()
-      .collection("users")
-      .where("createdAt", ">=", new Date(start))
-      .limit(3000)
-      .get(),
-    adminDb()
-      .collection("posts")
-      .where("createdAt", ">=", new Date(start))
-      .limit(4000)
-      .get(),
-    adminDb()
-      .collectionGroup("comments")
-      .where("createdAt", ">=", new Date(start))
-      .limit(5000)
-      .get(),
-    count("users", ["createdAt", "<", new Date(start)]),
-  ]);
-
-  usersSnap.docs.forEach((doc) => {
-    const i = indexFor(toMillis(doc.data().createdAt));
-    if (i >= 0) buckets[i].membersNew += 1;
-  });
-  postsSnap.docs.forEach((doc) => {
-    const i = indexFor(toMillis(doc.data().createdAt));
-    if (i >= 0) buckets[i].activity += 1;
-  });
-  commentsSnap.docs.forEach((doc) => {
-    const i = indexFor(toMillis(doc.data().createdAt));
-    if (i >= 0) buckets[i].activity += 1;
-  });
+  const startDate = new Date(start);
+  const prisma = getPrisma();
+  let membersBefore = 0;
+  const accumulate = (users, posts, comments) => {
+    users.forEach((doc) => {
+      const i = indexFor(toMillis(doc.createdAt));
+      if (i >= 0) buckets[i].membersNew += 1;
+    });
+    posts.forEach((doc) => {
+      const i = indexFor(toMillis(doc.createdAt));
+      if (i >= 0) buckets[i].activity += 1;
+    });
+    comments.forEach((doc) => {
+      const i = indexFor(toMillis(doc.createdAt));
+      if (i >= 0) buckets[i].activity += 1;
+    });
+  };
+  if (prisma) {
+    try {
+      const [users, posts, comments, countBefore] = await Promise.all([
+        prisma.user.findMany({ where: { createdAt: { gte: startDate } }, take: 3000 }),
+        prisma.post.findMany({ where: { createdAt: { gte: startDate } }, take: 4000 }),
+        prisma.postComment.findMany({ where: { createdAt: { gte: startDate } }, take: 5000 }),
+        prisma.user.count({ where: { createdAt: { lt: startDate } } }),
+      ]);
+      membersBefore = countBefore;
+      accumulate(users, posts, comments);
+    } catch (err) {
+      logError("dashboard-command.prisma_series_failed", { error: err.message });
+    }
+  }
 
   let running = membersBefore;
   const series = buckets.map((b) => {
@@ -204,36 +219,20 @@ export async function getAudienceSeries(days) {
   return { series, days, startTotal: membersBefore };
 }
 
-export async function getDashboardActivity(uid, role, memberships, limit = 8) {
-  const [postsSnap, usersSnap, rsvpsSnap] = await Promise.all([
-    adminDb().collection("posts").orderBy("createdAt", "desc").limit(30).get(),
-    adminDb().collection("users").orderBy("createdAt", "desc").limit(10).get(),
-    adminDb().collection("rsvps").orderBy("createdAt", "desc").limit(10).get(),
-  ]);
-
+async function buildActivityItems(posts, users, rsvps, slugResolver, uid, role, memberships, limit) {
   const items = [];
   const visiblePosts = [];
   const spaceIds = new Set();
   const groupIds = new Set();
 
-  for (const doc of postsSnap.docs) {
-    const post = { id: doc.id, ...doc.data() };
+  for (const post of posts) {
     if (!canReadPostServer(post, uid, role, memberships)) continue;
     visiblePosts.push(post);
     if (post.spaceId) spaceIds.add(post.spaceId);
     if (post.groupId) groupIds.add(post.groupId);
   }
 
-  const [spaceSnaps, groupSnaps] = await Promise.all([
-    spaceIds.size
-      ? Promise.all([...spaceIds].map((id) => adminDb().collection("spaces").doc(id).get()))
-      : Promise.resolve([]),
-    groupIds.size
-      ? Promise.all([...groupIds].map((id) => adminDb().collection("groups").doc(id).get()))
-      : Promise.resolve([]),
-  ]);
-  const spaceSlugs = new Map(spaceSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().slug || ""]));
-  const groupSlugs = new Map(groupSnaps.filter((g) => g.exists).map((g) => [g.id, g.data().slug || ""]));
+  const { spaceSlugs, groupSlugs } = await slugResolver(spaceIds, groupIds);
 
   for (const post of visiblePosts) {
     items.push({
@@ -251,11 +250,10 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
     });
   }
 
-  for (const doc of usersSnap.docs) {
-    const user = doc.data();
+  for (const user of users) {
     if (!user.createdAt) continue;
     items.push({
-      id: `user-${doc.id}`,
+      id: `user-${user.id}`,
       kind: "signup",
       actor: user.name || "New member",
       text: "joined the community",
@@ -264,11 +262,10 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
     });
   }
 
-  for (const doc of rsvpsSnap.docs) {
-    const rsvp = doc.data();
+  for (const rsvp of rsvps) {
     if (!rsvp.createdAt) continue;
     items.push({
-      id: `rsvp-${doc.id}`,
+      id: `rsvp-${rsvp.id}`,
       kind: "rsvp",
       actor: rsvp.name || "A member",
       text: "RSVP'd to an event",
@@ -280,6 +277,45 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
   return items
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, limit);
+}
+
+export async function getDashboardActivity(uid, role, memberships, limit = 8) {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const [posts, users, rsvps] = await Promise.all([
+        prisma.post.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
+        prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
+        prisma.rsvp.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
+      ]);
+      return buildActivityItems(
+        posts,
+        users,
+        rsvps,
+        async (spaceIds, groupIds) => {
+          const [spaces, groups] = await Promise.all([
+            spaceIds.size
+              ? prisma.space.findMany({ where: { id: { in: [...spaceIds] } } })
+              : Promise.resolve([]),
+            groupIds.size
+              ? prisma.group.findMany({ where: { id: { in: [...groupIds] } } })
+              : Promise.resolve([]),
+          ]);
+          return {
+            spaceSlugs: new Map(spaces.map((s) => [s.id, s.slug || ""])),
+            groupSlugs: new Map(groups.map((g) => [g.id, g.slug || ""])),
+          };
+        },
+        uid,
+        role,
+        memberships,
+        limit
+      );
+    } catch (err) {
+      logError("dashboard-command.prisma_activity_failed", { error: err.message, uid });
+    }
+  }
+  return [];
 }
 
 export async function getDashboardUpcomingRooms(limit = 4) {
@@ -349,17 +385,12 @@ export async function getDashboardNotifications(uid, limit = 6) {
   }));
 }
 
-export async function getDashboardContent() {
-  const [postsSnap, commentsSnap] = await Promise.all([
-    adminDb().collection("posts").orderBy("createdAt", "desc").limit(120).get(),
-    adminDb().collectionGroup("comments").limit(3000).get(),
-  ]);
-
-  const posts = postsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+function buildDashboardContent(posts, comments) {
   const commentCountByPost = {};
-  commentsSnap.docs.forEach((doc) => {
-    const postId = doc.ref.path.split("/")[1];
-    commentCountByPost[postId] = (commentCountByPost[postId] || 0) + 1;
+  comments.forEach((comment) => {
+    if (comment.postId) {
+      commentCountByPost[comment.postId] = (commentCountByPost[comment.postId] || 0) + 1;
+    }
   });
 
   const top = rankTopPosts(
@@ -380,15 +411,40 @@ export async function getDashboardContent() {
   };
 }
 
+export async function getDashboardContent() {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const [posts, comments] = await Promise.all([
+        prisma.post.findMany({ orderBy: { createdAt: "desc" }, take: 120 }),
+        prisma.postComment.findMany({ take: 3000 }),
+      ]);
+      return buildDashboardContent(posts, comments);
+    } catch (err) {
+      logError("dashboard-command.prisma_content_failed", { error: err.message });
+    }
+  }
+  return { metric: "engagement", items: [] };
+}
+
 export async function getDashboardNeedsAttention(userDoc) {
   const isStaff = canModerate(userDoc);
   const items = [];
 
   if (isStaff) {
-    const [openReports, overdueQuestions] = await Promise.all([
-      count("reports", ["status", "==", "open"]),
-      count("questions", ["nextRun", "<=", new Date()]),
-    ]);
+    let openReports = 0;
+    let overdueQuestions = 0;
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        [openReports, overdueQuestions] = await Promise.all([
+          prisma.report.count({ where: { status: "open" } }),
+          prisma.question.count({ where: { nextRun: { lte: new Date() } } }),
+        ]);
+      } catch (err) {
+        logError("dashboard-command.prisma_needs_failed", { error: err.message });
+      }
+    }
     if (openReports > 0) {
       items.push({
         id: "reports",
@@ -411,19 +467,35 @@ export async function getDashboardNeedsAttention(userDoc) {
 }
 
 export async function getDashboardOnboarding(uid) {
-  const [settings, userDoc, hasPost, hasRsvp, hasRoomEvent] = await Promise.all([
-    getSettings(),
-    adminDb().collection("users").doc(uid).get(),
-    adminDb().collection("posts").where("authorId", "==", uid).limit(1).get(),
-    adminDb().collection("rsvps").where("userId", "==", uid).limit(1).get(),
-    adminDb().collection("roomEvents").where("userId", "==", uid).limit(1).get(),
-  ]);
+  const [settings] = await Promise.all([getSettings()]);
 
-  const user = serializeUser(userDoc);
+  const prisma = getPrisma();
+  let userRow = null;
+  let hasPost = false;
+  let hasRsvp = false;
+  let hasRoomEvent = false;
+  if (prisma) {
+    try {
+      const [u, post, rsvp, roomEvent] = await Promise.all([
+        prisma.user.findUnique({ where: { id: uid } }),
+        prisma.post.findFirst({ where: { authorId: uid } }),
+        prisma.rsvp.findFirst({ where: { userId: uid } }),
+        prisma.roomEvent.findFirst({ where: { userId: uid } }),
+      ]);
+      userRow = u;
+      hasPost = !!post;
+      hasRsvp = !!rsvp;
+      hasRoomEvent = !!roomEvent;
+    } catch (err) {
+      logError("dashboard-command.prisma_onboarding_failed", { error: err.message, uid });
+    }
+  }
+
+  const user = serializeUserRow(userRow);
   const steps = settings.welcomeChecklist || [];
 
   const profileDone = !!(user.bio || user.headline || user.location);
-  const doneMap = { profile: profileDone, post: !hasPost.empty, rsvp: !hasRsvp.empty, room: !hasRoomEvent.empty };
+  const doneMap = { profile: profileDone, post: !!hasPost, rsvp: !!hasRsvp, room: !!hasRoomEvent };
 
   const doneCount = steps.filter((step) => doneMap[step.key]).length;
 

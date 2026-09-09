@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { getScopedHostRights } from "@/lib/server/hosts";
 
 function deny(status, error) {
@@ -36,12 +37,22 @@ export async function authorize(options = {}) {
   }
 
   if (groupId) {
-    const memberSnap = await adminDb()
-      .collection("groupMembers")
-      .doc(`${groupId}_${user.uid}`)
-      .get();
-    if (userDoc?.role !== "owner" && !memberSnap.exists) {
-      return deny(403, "Join the group first");
+    let isMember = false;
+    if (userDoc?.role !== "owner") {
+      const prisma = getPrisma();
+      if (prisma) {
+        try {
+          const row = await prisma.groupMember.findUnique({
+            where: { id: `${groupId}_${user.uid}` },
+          });
+          isMember = !!row;
+        } catch (err) {
+          logError("authorize.prisma_group_member_failed", { error: err.message });
+        }
+      }
+      if (!isMember) {
+        return deny(403, "Join the group first");
+      }
     }
   }
 

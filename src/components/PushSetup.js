@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 
 export default function PushSetup() {
   useEffect(() => {

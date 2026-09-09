@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
 import { getCurrentUser } from "@/lib/server/auth";
 import { logError } from "@/lib/server/log";
+import { getPrisma } from "@/lib/db/prisma";
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
@@ -21,8 +20,19 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
-  const doc = await adminDb().collection("users").doc(user.uid).get();
-  const cardThemes = doc.data()?.cardThemes || {};
+
+  let cardThemes = {};
+  try {
+    const row = await getPrisma().user.findUnique({
+      where: { id: user.uid },
+      select: { extra: true },
+    });
+    if (row && row.extra?.cardThemes) {
+      cardThemes = row.extra.cardThemes;
+    }
+  } catch (err) {
+    logError("card-theme.prisma_read_failed", { error: err.message });
+  }
   return NextResponse.json({ themes: cardThemes });
 }
 
@@ -38,13 +48,24 @@ export async function POST(req) {
   }
 
   const cleaned = sanitizeTheme(theme);
-  const ref = adminDb().collection("users").doc(user.uid);
   try {
+    const prisma = getPrisma();
+    const existing = await prisma.user.findUnique({
+      where: { id: user.uid },
+      select: { extra: true },
+    });
+    const extra = { ...(existing?.extra || {}) };
+    const cardThemes = { ...(extra.cardThemes || {}) };
     if (cleaned) {
-      await ref.set({ cardThemes: { [cardId]: cleaned } }, { merge: true });
+      cardThemes[cardId] = cleaned;
     } else {
-      await ref.set({ cardThemes: { [cardId]: FieldValue.delete() } }, { merge: true });
+      delete cardThemes[cardId];
     }
+    extra.cardThemes = cardThemes;
+    await prisma.user.update({
+      where: { id: user.uid },
+      data: { extra, updatedAt: new Date() },
+    });
   } catch (err) {
     logError("card-theme.save_failed", { error: err.message, uid: user.uid });
     return NextResponse.json({ error: "Could not save theme" }, { status: 500 });

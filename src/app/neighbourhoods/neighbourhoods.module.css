@@ -1,0 +1,223 @@
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 20px 88px;
+}
+
+.hero {
+  padding: 8px 0 10px;
+}
+
+.title {
+  font-size: clamp(28px, 4.4vw, 42px);
+  font-weight: 800;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, var(--accent, #d4af37), var(--primary, #e91e63));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.subtitle {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--dash-muted, #a3a3a3);
+  max-width: 680px;
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  margin-top: 28px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 18px 18px;
+  border-radius: 20px;
+  background: var(--surface, #121212);
+  border: 1px solid var(--border, #262626);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cardEmoji {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--hoodColor) 22%, var(--surface, #121212));
+  border: 1px solid color-mix(in srgb, var(--hoodColor) 70%, transparent);
+}
+
+.cardHeading {
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 750;
+  color: var(--foreground, #f5f4f2);
+  margin: 0;
+}
+
+.cardTagline {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--dash-muted, #a3a3a3);
+  margin: 2px 0 0;
+}
+
+.cardDesc {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--dash-muted, #a3a3a3);
+  margin: 0;
+}
+
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--dash-muted, #a3a3a3);
+  margin: 0;
+}
+
+.memberCount {
+  font-weight: 700;
+  color: var(--hoodColor, #e91e63);
+}
+
+.memberNames {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hangoutChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--dash-muted, #a3a3a3);
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--hoodColor) 55%, transparent);
+  background: color-mix(in srgb, var(--hoodColor) 8%, transparent);
+  border-radius: 999px;
+  padding: 5px 11px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.hangoutChip:hover {
+  border-color: var(--hoodColor);
+  color: var(--hoodColor);
+}
+
+.hangoutDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hoodColor, #e91e63);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hoodColor) 30%, transparent);
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.enter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: 11px;
+  background: var(--hoodColor, #e91e63);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  transition: filter 0.15s ease;
+}
+
+.enter:hover {
+  filter: brightness(1.1);
+}
+
+.joinedChip {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--hoodColor, #e91e63);
+}
+
+.empty {
+  margin-top: 28px;
+  color: var(--dash-muted, #a3a3a3);
+  text-align: center;
+}
+
+.notes {
+  margin-top: 30px;
+  padding: 20px 20px;
+  border-radius: 18px;
+  background: var(--surface, #121212);
+  border: 1px solid var(--border, #262626);
+}
+
+.notesTitle {
+  font-size: 17px;
+  font-weight: 750;
+  color: var(--foreground, #f5f4f2);
+  margin: 0 0 10px;
+}
+
+.notesList {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.notesList li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--dash-muted, #a3a3a3);
+}
+
+.notesList strong {
+  color: var(--foreground, #f5f4f2);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 17px 15px 16px;
+  }
+
+  .cardActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

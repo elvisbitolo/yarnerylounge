@@ -1,41 +1,11 @@
 import { NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { AUTH_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/server/auth";
+import { serializeSupabaseCookie } from "@/lib/server/auth-core";
+import { assertSameOrigin } from "@/lib/server/same-origin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
-
-// Blocks cookie-CSRF-style cross-origin session requests. Requests without an
-// Origin header (curl, servers) are allowed; browsers are expected to send one.
-// The Origin must match the Host the request was addressed to, which is what a
-// real browser sends for same-site requests and what malicious cross-site
-// forms/fetches cannot forge.
-function assertSameOrigin(req) {
-  const origin = req.headers.get("origin");
-  if (!origin) return null;
-  const host = req.headers.get("host");
-  if (!host) return null;
-  try {
-    const parsed = new URL(origin);
-    if (parsed.host === host && (parsed.protocol === "https:" || parsed.protocol === "http:")) {
-      return null;
-    }
-  } catch {
-    // invalid origin — fall through and block
-  }
-  return NextResponse.json({ error: "Cross-origin request blocked" }, { status: 403 });
-}
-
-// Returns true when an email already maps to an owner/moderator profile (used
-// to let staff through the signup wall when they are not ordering on Shopify).
-async function staffByEmail(users, email) {
-  if (!email) return false;
-  const snap = await users
-    .where("email", "==", email)
-    .where("role", "in", ["owner", "moderator"])
-    .limit(1)
-    .get();
-  return !snap.empty;
-}
+import { verifySupabaseToken } from "@/lib/server/auth";
+import { getPrisma } from "@/lib/db/prisma";
 
 export async function POST(req) {
   const crossOrigin = assertSameOrigin(req);
@@ -47,128 +17,99 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { idToken, name } = body;
-    if (!idToken) {
-      return NextResponse.json({ error: "Missing idToken" }, { status: 400 });
+    const { supabaseToken, supabaseRefreshToken, name } = body;
+    if (!supabaseToken) {
+      return NextResponse.json({ error: "Missing credential" }, { status: 400 });
     }
 
-    // Only a real token failure is a 401; everything after this is a server
-    // fault (e.g. Firestore quota, email, auth service) and must be reported
-    // as such instead of a misleading "Invalid token".
-    let decoded;
-    try {
-      decoded = await adminAuth().verifyIdToken(idToken);
-    } catch {
+    const identity = await verifySupabaseToken(supabaseToken);
+    if (!identity) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const perAccount = rateLimitGuard(`session-uid:${decoded.uid}`, { limit: 20 });
+    const perAccount = rateLimitGuard(`session-uid:${identity.uid}`, { limit: 20 });
     if (perAccount) return perAccount;
 
-    if (decoded.email && !decoded.email_verified) {
+    if (identity.email && !identity.email_verified) {
       return NextResponse.json(
         { error: "email_not_verified" },
         { status: 403 }
       );
     }
 
-    const users = adminDb().collection("users");
-    const userRef = users.doc(decoded.uid);
-    const snap = await userRef.get();
+    const prisma = getPrisma();
+    const existingUser = await prisma.user.findUnique({
+      where: { id: identity.uid },
+    });
     let isNewUser = false;
-    if (!snap.exists) {
-      const prepaidEmail = (decoded.email || "").toLowerCase().trim();
+    if (!existingUser) {
+      const prepaidEmail = (identity.email || "").toLowerCase().trim();
 
-      // Find a valid email-keyed prepaid record (created by the Shopify
-      // webhook for a paid checkout that has not signed up yet).
       let prepaid = null;
       if (prepaidEmail) {
-        const found = await users
-          .where("email", "==", prepaidEmail)
-          .where("isPrePaid", "==", true)
-          .limit(1)
-          .get();
-        if (!found.empty) {
-          const doc = found.docs[0];
-          const data = doc.data();
-          if (!data.expiresAt || new Date(data.expiresAt) > new Date()) {
-            prepaid = data;
-          } else {
-            // Expired pre-paid record — discard and keep free account.
-            await users.doc(doc.id).delete().catch(() => {});
-          }
-        }
+        const found = await prisma.user.findFirst({
+          where: { email: prepaidEmail, isPrePaid: true },
+          select: { id: true },
+        });
+        prepaid = found;
       }
 
-      // Hard signup wall: registration is only allowed for paid Speakeasy
-      // checkouts (email-keyed prepaid record) or staff accounts. Anyone else
-      // is sent back to the speakeasy page. This is the server-side guard so a
-      // client that bypasses the pre-check still cannot create a session.
-      const isStaffSignup =
-        prepaid?.role === "owner" ||
-        prepaid?.role === "moderator" ||
-        (await staffByEmail(users, prepaidEmail));
-      if (!prepaid && !isStaffSignup) {
-        if (!name) {
-          return NextResponse.json(
-            { error: "no_account" },
-            { status: 409 }
-          );
-        }
+      const { isOpenAccess, OPEN_ACCESS_PLAN } = await import("@/lib/server/access-policy");
+      const openAccess = isOpenAccess();
+
+      if (!prepaid && !openAccess) {
         return NextResponse.json(
-          {
-            error: "not_prepaid",
-            message: "This account needs a paid Speakeasy membership before joining.",
-            redirect: process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy",
-          },
+          { error: "not_prepaid", message: "This email is not registered as a member." },
           { status: 403 }
         );
       }
 
-      isNewUser = true;
-      const memberName = name || decoded.name || decoded.email?.split("@")[0] || "Member";
+      const memberName = name || identity.name || prepaidEmail.split("@")[0] || "Member";
 
-      await userRef.set({
-        name: memberName,
-        email: decoded.email || "",
-        photoURL: decoded.picture || "",
-        role: prepaid?.role || "member",
-        plan: prepaid?.plan || "flirting",
-        paymentStatus: prepaid?.paymentStatus || "unpaid",
-        isPrePaid: false,
-        shopifyCustomerId: prepaid?.shopifyCustomerId || "",
-        shopifyOrderId: prepaid?.shopifyOrderId || "",
-        expiresAt: prepaid?.expiresAt || "",
-        createdAt: new Date(),
+      await prisma.user.create({
+        data: {
+          id: identity.uid,
+          name: memberName,
+          email: identity.email || null,
+          photoURL: identity.photoURL || null,
+          role: "member",
+          createdAt: new Date(),
+        },
+        select: { id: true },
+      }).catch((err) => {
+        if (err.code !== "P2002") throw err;
       });
 
-if (prepaid) {
-        await adminDb()
-          .collection("subscriptions")
-          .doc(decoded.uid)
-          .set({
-            provider: "shopify",
+      if (openAccess) {
+        await prisma.subscription.upsert({
+          where: { id: identity.uid },
+          create: {
+            id: identity.uid,
+            userId: identity.uid,
+            provider: "open-access",
             status: "active",
-            plan: prepaid.plan,
-            planName: prepaid.plan,
-            tier: prepaid.plan,
-            role: prepaid.role,
-            shopifyCustomerId: prepaid.shopifyCustomerId || "",
-            shopifyOrderId: prepaid.shopifyOrderId || "",
-            currentPeriodEnd: prepaid.expiresAt
-              ? new Date(prepaid.expiresAt)
-              : null,
+            plan: OPEN_ACCESS_PLAN,
+            planName: OPEN_ACCESS_PLAN,
+            tier: OPEN_ACCESS_PLAN,
+            role: "member",
             updatedAt: new Date(),
-          });
-        // Remove the pre-paid placeholder doc so future webhooks resolve to the
-        // real profile by uid, not the email-keyed record.
-        await users.doc(prepaidEmail).delete().catch(() => {});
+          },
+          update: {
+            provider: "open-access",
+            status: "active",
+            plan: OPEN_ACCESS_PLAN,
+            planName: OPEN_ACCESS_PLAN,
+            tier: OPEN_ACCESS_PLAN,
+            role: "member",
+            updatedAt: new Date(),
+          },
+        });
       }
 
-      if (decoded.email) {
+      if (identity.email) {
         const { sendEmail } = await import("@/lib/server/email");
         await sendEmail({
-          to: decoded.email,
+          to: identity.email,
           subject: "Welcome to Secret Yarnery",
           text:
             `Hi ${memberName},\n\n` +
@@ -181,39 +122,41 @@ if (prepaid) {
             `To start exploring: ${process.env.NEXT_PUBLIC_APP_URL || ""}/explore\n\n` +
             `We're glad you're here.\n\n— The Secret Yarnery Team`,
         }).catch((err) => {
-          logError("email.welcome_failed", { uid: decoded.uid, error: err.message });
+          logError("email.welcome_failed", { uid: identity.uid, error: err.message });
         });
       }
 
       const { runAutomations } = await import("@/lib/server/automations");
       runAutomations("new_member", {
         memberName,
-        memberEmail: decoded.email || "",
-        memberUid: decoded.uid,
-        subjectUid: decoded.uid,
+        memberEmail: identity.email || "",
+        memberUid: identity.uid,
+        subjectUid: identity.uid,
         subjectName: memberName,
       }).catch((err) => {
-        logError("automation.new_member_failed", { uid: decoded.uid, error: err.message });
+        logError("automation.new_member_failed", { uid: identity.uid, error: err.message });
       });
     } else {
-      const existing = snap.data();
-      if (decoded.picture && !existing.photoURL) {
-        await userRef.update({ photoURL: decoded.picture }).catch(() => {});
+      if (identity.photoURL && !existingUser.photoURL) {
+        await prisma.user.update({ where: { id: identity.uid }, data: { photoURL: identity.photoURL } }).catch(() => {});
       }
     }
 
-    const sessionCookie = await adminAuth().createSessionCookie(idToken, {
-      expiresIn: SESSION_MAX_AGE_SECONDS * 1000,
-    });
-
-    const res = NextResponse.json({ ok: true, uid: decoded.uid, isNewUser });
-    res.cookies.set(AUTH_COOKIE, sessionCookie, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_MAX_AGE_SECONDS,
-    });
+    const res = NextResponse.json({ ok: true, uid: identity.uid, isNewUser });
+    res.cookies.set(
+      AUTH_COOKIE,
+      serializeSupabaseCookie({
+        access: supabaseToken,
+        refresh: supabaseRefreshToken || null,
+      }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: SESSION_MAX_AGE_SECONDS,
+      }
+    );
     return res;
   } catch (err) {
     logError("auth.session_exchange_failed", { error: err.message });

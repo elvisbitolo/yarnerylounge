@@ -1,50 +1,92 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const ROOM_SIGNAL_TYPES = ["hand", "reaction", "speakerInvite"];
 
-function signalsRef(roomId) {
-  return adminDb().collection("rooms").doc(roomId).collection("signals");
+function toMillisValue(v) {
+  if (v == null) return null;
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === "number") return v;
+  return new Date(v).getTime();
 }
 
-function decodeSignal(doc) {
-  const data = doc.data();
+function encodeSignal(row) {
   return {
-    id: doc.id,
-    type: data.type || "",
-    fromIdentity: data.fromIdentity || "",
-    target: data.target || "",
-    value: data.value,
-    emoji: data.emoji || "",
-    hostName: data.hostName || "",
-    createdAt: data.createdAt ? data.createdAt.toMillis() : Date.now(),
+    id: row.id,
+    type: row.type || "",
+    fromIdentity: row.fromIdentity,
+    target: row.target || "",
+    value: row.value ?? null,
+    emoji: row.emoji || "",
+    hostName: row.hostName || "",
+    createdAt: toMillisValue(row.createdAt) || Date.now(),
   };
 }
 
 export async function getRoomForSignals(roomId) {
-  const doc = await adminDb().collection("rooms").doc(roomId).get();
-  if (!doc.exists) return null;
-  const data = doc.data();
-  if (data.status !== "active") return null;
-  return { id: doc.id, ...data };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.room.findUnique({ where: { id: roomId } });
+      if (row && (row.status || "active") === "active") {
+        return {
+          id: row.id,
+          slug: row.slug,
+          name: row.name,
+          description: row.description || "",
+          status: row.status || "active",
+          groupId: row.groupId || "",
+          spaceId: row.spaceId || "",
+        };
+      }
+      if (row) return null;
+    } catch (err) {
+      logError("room-signals.prisma_room_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function addRoomSignal(roomId, fromIdentity, payload) {
-  const doc = await signalsRef(roomId).add({
-    ...payload,
-    fromIdentity,
-    createdAt: new Date(),
-  });
-  return doc.id;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const created = await prisma.roomSignal.create({
+        data: {
+          roomId,
+          type: payload.type || "",
+          fromIdentity,
+          target: payload.target || "",
+          value: payload.value ?? null,
+          emoji: payload.emoji || "",
+          hostName: payload.hostName || "",
+          createdAt: new Date(),
+        },
+      });
+      return created.id;
+    } catch (err) {
+      logError("room-signals.prisma_create_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function listRoomSignals(roomId, { after, limit = 100 } = {}) {
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
   const afterTs = Number.isFinite(after) ? after : 0;
-  let q = signalsRef(roomId)
-    .where("createdAt", ">", new Date(afterTs))
-    .orderBy("createdAt", "asc")
-    .limit(safeLimit);
-  const snap = await q.get();
-  const signals = snap.docs.map(decodeSignal);
-  return { signals, hasMore: snap.docs.length >= safeLimit };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.roomSignal.findMany({
+        where: { roomId, createdAt: { gt: new Date(afterTs) } },
+        orderBy: { createdAt: "asc" },
+        take: safeLimit,
+      });
+      const signals = rows.map(encodeSignal);
+      return { signals, hasMore: rows.length >= safeLimit };
+    } catch (err) {
+      logError("room-signals.prisma_list_failed", { error: err.message });
+    }
+  }
+  return { signals: [], hasMore: false };
 }

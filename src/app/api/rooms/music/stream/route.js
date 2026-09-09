@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser } from "@/lib/server/authorize";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -27,11 +28,21 @@ export async function GET(req) {
   const id = searchParams.get("id");
   if (!id) return new NextResponse("Missing id", { status: 400 });
 
-  const doc = await adminDb().collection("musicFiles").doc(id).get();
-  if (!doc.exists) return new NextResponse("Not found", { status: 404 });
+  let dataUrl = null;
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.musicFile.findUnique({
+      where: { id },
+      select: { dataUrl: true },
+    });
+    if (!row) return new NextResponse("Not found", { status: 404 });
+    dataUrl = row.dataUrl;
+  } catch (err) {
+    logError("music-stream.prisma_read_failed", { error: err.message });
+    return new NextResponse("Not found", { status: 404 });
+  }
 
-  const data = doc.data();
-  const match = data.dataUrl?.match(/^data:([^;]+);base64,(.+)$/);
+  const match = dataUrl?.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return new NextResponse("Invalid data", { status: 400 });
 
   const contentType = match[1].toLowerCase();

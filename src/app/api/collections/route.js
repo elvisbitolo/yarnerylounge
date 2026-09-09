@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getCollectionsWithSpaces } from "@/lib/server/collections";
 

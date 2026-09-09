@@ -76,8 +76,16 @@ function getAdministrationLinks(role) {
 
 const OVERVIEW_ITEMS = [
   { href: "/dashboard", key: "dashboard" },
+  { href: "/community", key: "community" },
   { href: "/feed", key: "feed" },
   { href: "/dashboard/membership", key: "membership" },
+];
+
+const COMMUNITY_ITEMS = [
+  { href: "/members", key: "members" },
+  { href: "/neighbourhoods", key: "neighbourhoods" },
+  { href: "/gallery", key: "gallery" },
+  { href: "/leaderboard", key: "leaderboard" },
 ];
 
 const CONNECT_ITEMS = [
@@ -85,7 +93,6 @@ const CONNECT_ITEMS = [
   { href: "/calendar", key: "calendar" },
   { href: "/events", key: "events" },
   { href: "/challenges", key: "crochetAlong" },
-  { href: "/members", key: "members" },
 ];
 
 const LEARN_ITEMS = [
@@ -116,10 +123,10 @@ function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) 
 function BottomNav({ t }) {
   const pathname = usePathname();
   const items = [
-    { href: "/dashboard", label: t("dashboard"), icon: "home", show: true },
-    { href: "/feed", label: t("feed"), icon: "feed", show: true },
+    { href: "/dashboard", label: t("home"), icon: "home", show: true },
+    { href: "/community", label: t("community"), icon: "community", show: true },
     { href: "/rooms", label: t("rooms"), icon: "rooms", show: true },
-    { href: "/members", label: t("members"), icon: "members", show: true },
+    { href: "/neighbourhoods", label: t("neighbourhoods"), icon: "neighbourhoods", show: true },
   ];
   const visible = items.filter((i) => i.show);
   if (pathname?.startsWith("/rooms/")) return null;
@@ -155,6 +162,24 @@ const icons = {
       <rect x="14" y="4" width="7" height="6" rx="1" />
       <rect x="3" y="14" width="7" height="6" rx="1" />
       <rect x="14" y="14" width="7" height="6" rx="1" />
+    </svg>
+  ),
+  community: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="10" r="6" />
+      <circle cx="7.5" cy="6.5" r="1.6" />
+      <circle cx="16.5" cy="6.5" r="1.6" />
+      <path d="M10.4 10.5c1.1.2 3.1.6 3.1.6-1.8 1.2-1.1 2.5z" />
+      <path d="M13.6 10.5c1.1.2 3.1.6 3.1.6-1.8 1.2-1.1 2.5z" />
+    </svg>
+  ),
+  neighbourhoods: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 20l4-3M14 20l-2-4M4 15l2-6M10 13l3-5" />
+      <path d="M6 20c2 0 4-1.5 4.5-.5z" />
+      <path d="M14 20c2 0 4-1.5 4.5-.5z" />
+      <circle cx="9" cy="10" r="1.4" />
+      <circle cx="14" cy="9" r="1.4" />
     </svg>
   ),
   feed: (
@@ -370,6 +395,7 @@ export default function Nav({ role, children }) {
           <div className={styles.sidebarInner} data-tour="tour-sidebar">
             <nav className={styles.sidebarNav}>
               <SidebarGroup id="overview" label={t("overview")} items={OVERVIEW_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <SidebarGroup id="community" label={t("communitySection")} items={COMMUNITY_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <SidebarGroup id="connect" label={t("connect")} items={CONNECT_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <SidebarGroup id="learn" label={t("learn")} items={LEARN_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
 

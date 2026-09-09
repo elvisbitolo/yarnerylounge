@@ -1,9 +1,35 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { normalizeProfile } from "@/lib/server/profile";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getGamification } from "@/lib/server/gamification";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
+
+const PROFILE_COLUMNS = new Set([
+  "name",
+  "username",
+  "headline",
+  "location",
+  "country",
+  "bio",
+  "favoriteColors",
+  "goToYarn",
+  "favoriteHookSize",
+  "crafts",
+  "hobbies",
+  "yearsExperience",
+  "favoriteYarnBrand",
+  "crochetTechniques",
+  "crochetMotivation",
+  "learningNext",
+  "proudestProject",
+  "bestGiftProject",
+  "photoURL",
+  "coverPhotoURL",
+  "notifications",
+  "socialLinks",
+]);
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -11,7 +37,7 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const userDoc = await getUserDoc(user.uid);
-  const gamification = await getGamification(user.uid, userDoc?.name || "Member");
+  const gamification = await getGamification(user.uid);
 
   const expiresAt = userDoc?.expiresAt
     ? (userDoc.expiresAt.toMillis
@@ -56,6 +82,16 @@ export async function GET() {
   });
 }
 
+function splitProfilePatch(patch) {
+  const columns = {};
+  const extra = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (PROFILE_COLUMNS.has(key)) columns[key] = value;
+    else extra[key] = value;
+  }
+  return { columns, extra };
+}
+
 export async function PATCH(req) {
   const user = await getCurrentUser();
   if (!user) {
@@ -76,12 +112,18 @@ export async function PATCH(req) {
   }
 
   if ("username" in patch && patch.username) {
-    const taken = await adminDb()
-      .collection("users")
-      .where("username", "==", patch.username)
-      .limit(2)
-      .get();
-    if (!taken.empty && taken.docs.some((d) => d.id !== user.uid)) {
+    let usernameTaken = false;
+    try {
+      const taken = await getPrisma().user.findMany({
+        where: { username: patch.username },
+        select: { id: true },
+        take: 2,
+      });
+      usernameTaken = taken.some((u) => u.id !== user.uid);
+    } catch (err) {
+      logError("profile.username_check_failed", { error: err.message });
+    }
+    if (usernameTaken) {
       return NextResponse.json(
         { error: "That username is already taken", errors: { username: "That username is already taken" } },
         { status: 400 }
@@ -89,21 +131,51 @@ export async function PATCH(req) {
     }
   }
 
-  const ref = adminDb().collection("users").doc(user.uid);
-  const doc = await ref.get();
-  if (doc.exists) {
-    await ref.update(patch);
-  } else {
-    await ref.set({ ...patch, role: "member", createdAt: new Date() });
-  }
-
-  if (patch.name) {
-    try {
-      await adminAuth().updateUser(user.uid, { displayName: patch.name });
-    } catch {
-      // The profile is saved regardless; the Auth display name sync is best-effort.
+  const prisma = getPrisma();
+  const { columns, extra } = splitProfilePatch(patch);
+  try {
+    const existing = await prisma.user.findUnique({
+      where: { id: user.uid },
+      select: { id: true, extra: true },
+    });
+    if (existing) {
+      await prisma.user.update({
+        where: { id: user.uid },
+        data: {
+          ...columns,
+          ...(Object.keys(extra).length > 0 && {
+            extra: { ...(existing.extra || {}), ...extra },
+          }),
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          id: user.uid,
+          name: patch.name || user.displayName || "",
+          createdAt: new Date(),
+          ...columns,
+          ...(Object.keys(extra).length > 0 && { extra }),
+          role: "member",
+        },
+      });
     }
-  }
 
-  return NextResponse.json({ ok: true, ...patch });
+    if (patch.name) {
+      try {
+        const { default: supabaseAdmin } = await import("@/lib/supabase/service");
+        await supabaseAdmin.auth.admin.updateUserById(user.uid, {
+          user_metadata: { name: patch.name },
+        });
+      } catch {
+        // The profile is saved regardless; the Auth display name sync is best-effort.
+      }
+    }
+
+    return NextResponse.json({ ok: true, ...patch });
+  } catch (err) {
+    logError("profile.update_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not update profile" }, { status: 500 });
+  }
 }

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { canModerate } from "@/lib/server/auth";
 import { getLeaderboard } from "@/lib/server/gamification";
 import { rankTopPosts, toMillis } from "@/lib/server/analytics-core";
 import { listEvents } from "@/lib/server/events";
 import { listSpaces } from "@/lib/server/spaces";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 function postCard(post) {
   return {
@@ -25,35 +26,64 @@ export async function GET() {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const [postsSnap, events, spaces, topMembers] = await Promise.all([
-    adminDb().collection("posts").orderBy("createdAt", "desc").limit(60).get(),
-    listEvents(),
-    listSpaces(),
-    getLeaderboard(6),
-  ]);
+  let postRows;
+  let spaceRows;
+  let groupRows;
+  let spaceCountRows;
+  let events;
+  let spaces;
+  let topMembers;
+  try {
+    const [posts, evts, spcs, members] = await Promise.all([
+      getPrisma().post.findMany({ orderBy: { createdAt: "desc" }, take: 60 }),
+      listEvents(),
+      listSpaces(),
+      getLeaderboard(6),
+    ]);
+    postRows = posts;
+    events = evts;
+    spaces = spcs;
+    topMembers = members;
 
-  const commentCountByPost = {};
-  const postIds = postsSnap.docs.map((d) => d.id);
-  if (postIds.length > 0) {
-    const commentsSnap = await adminDb().collectionGroup("comments").limit(500).get();
-    commentsSnap.docs.forEach((doc) => {
-      const postId = doc.ref.path.split("/")[1];
-      if (postIds.includes(postId)) {
-        commentCountByPost[postId] = (commentCountByPost[postId] || 0) + 1;
-      }
-    });
+    const memberQueries = await Promise.all([
+      getPrisma().spaceMember.findMany({
+        where: { userId: auth.user.uid },
+        take: 500,
+        select: { spaceId: true },
+      }),
+      getPrisma().groupMember.findMany({
+        where: { userId: auth.user.uid },
+        take: 500,
+        select: { groupId: true },
+      }),
+    ]);
+    spaceRows = memberQueries[0];
+    groupRows = memberQueries[1];
+  } catch (err) {
+    logError("discovery.prisma_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not load discovery" }, { status: 500 });
   }
 
-  const role = auth.userDoc?.role || "member";
-  const isStaff = canModerate(auth.userDoc);
+  const posts = postRows.map((p) => ({
+    id: p.id,
+    text: p.text,
+    authorId: p.authorId,
+    authorName: p.authorName,
+    commentCount: p.commentCount,
+    createdAt: p.createdAt,
+    kind: p.kind,
+    likes: p.likes,
+    pinned: p.pinned,
+    pinnedAt: p.pinnedAt,
+    spaceId: p.spaceId,
+    groupId: p.groupId,
+    hashtags: p.hashtags,
+  }));
 
-  const [spaceSnap, groupSnap] = await Promise.all([
-    adminDb().collection("spaceMembers").where("userId", "==", auth.user.uid).limit(500).get(),
-    adminDb().collection("groupMembers").where("userId", "==", auth.user.uid).limit(500).get(),
-  ]);
+  const isStaff = canModerate(auth.userDoc);
   const memberships = {
-    spaceIds: new Set(spaceSnap.docs.map((d) => d.data().spaceId)),
-    groupIds: new Set(groupSnap.docs.map((d) => d.data().groupId)),
+    spaceIds: new Set(spaceRows.map((r) => r.spaceId)),
+    groupIds: new Set(groupRows.map((r) => r.groupId)),
   };
 
   const canReadPost = (post) => {
@@ -67,18 +97,15 @@ export async function GET() {
     (space) => isStaff || space.publicPreview || space.access !== "invite"
   );
 
-  const posts = postsSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data(), commentCount: commentCountByPost[doc.id] || 0 }))
-    .filter((post) => post.status !== "deleted")
-    .filter(canReadPost);
+  const filteredPosts = posts.filter(canReadPost);
 
-  const featured = posts
+  const featured = filteredPosts
     .filter((post) => post.pinned)
     .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
     .slice(0, 6)
     .map(postCard);
 
-  const topPosts = rankTopPosts(posts).slice(0, 6).map(postCard);
+  const topPosts = rankTopPosts(filteredPosts).slice(0, 6).map(postCard);
 
   const now = Date.now();
   const upcomingEvents = events
@@ -102,24 +129,28 @@ export async function GET() {
     .sort((a, b) => a.startTime - b.startTime)
     .slice(0, 6);
 
-  const spaceMemberCounts = await Promise.all(
-    visibleSpaces.map(async (space) => {
-      const snap = await adminDb()
-        .collection("spaceMembers")
-        .where("spaceId", "==", space.id)
-        .limit(1)
-        .get();
-      return {
-        id: space.id,
-        name: space.name,
-        slug: space.slug,
-        description: (space.description || "").slice(0, 120),
-        memberCount: snap.size,
-        purchasePriceCents: space.purchasePriceCents || 0,
-      };
-    })
-  );
-  const topSpaces = spaceMemberCounts
+  try {
+    spaceCountRows = await getPrisma().spaceMember.findMany({
+      where: { spaceId: { in: visibleSpaces.map((s) => s.id) } },
+      select: { spaceId: true },
+    });
+  } catch (err) {
+    logError("discovery.prisma_member_count_failed", { error: err.message });
+    spaceCountRows = [];
+  }
+  const memberCountBySpace = {};
+  for (const r of spaceCountRows) {
+    memberCountBySpace[r.spaceId] = (memberCountBySpace[r.spaceId] || 0) + 1;
+  }
+  const topSpaces = visibleSpaces
+    .map((space) => ({
+      id: space.id,
+      name: space.name,
+      slug: space.slug,
+      description: (space.description || "").slice(0, 120),
+      memberCount: memberCountBySpace[space.id] || 0,
+      purchasePriceCents: space.purchasePriceCents || 0,
+    }))
     .sort((a, b) => b.memberCount - a.memberCount)
     .slice(0, 6);
 

@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
-import { listLiveMemberUids } from "@/lib/server/livekit";
+import { getPrisma } from "@/lib/db/prisma";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { loungeGate } from "@/lib/server/lounge-gate";
+import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import Nav from "@/components/Nav";
 import MembersDirectory from "./MembersDirectory";
 import BlindDateCard from "./BlindDateCard";
@@ -18,19 +18,22 @@ export default async function MembersPage() {
 
   const userDoc = await getUserDoc(user.uid);
 
-  const snap = await adminDb().collection("users").orderBy("name", "asc").get();
+  const prisma = getPrisma();
 
-  const gamiSnap = await adminDb().collection("gamification").get();
+  const [userRows, gamiRows] = await Promise.all([
+    prisma.user.findMany({ orderBy: { name: "asc" } }),
+    prisma.gamification.findMany(),
+  ]);
+
   const gami = new Map();
-  gamiSnap.docs.forEach((doc) => {
-    const data = doc.data();
-    gami.set(doc.id, {
-      points: data.points || 0,
-      lastVisitDate: data.lastVisitDate || "",
+  for (const g of gamiRows) {
+    gami.set(g.id, {
+      points: g.points || 0,
+      lastVisitDate: g.lastVisitDate || "",
     });
-  });
+  }
 
-  const liveUids = await listLiveMemberUids().catch(() => new Set());
+  const liveUids = new Set();
   const caps = await getCapabilities(user.uid);
   const matchmakerEnabled = canUseMatchmaker(caps);
   const gate = await loungeGate(user.uid, userDoc, { matchmaker: true });
@@ -42,42 +45,63 @@ export default async function MembersPage() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   })();
 
-  const members = snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
+  const members = userRows
     .filter((m) => m.name)
-    .map((m) => ({
-      id: m.id,
-      name: m.name,
-      username: m.username || "",
-      headline: m.headline || "",
-      location: m.location || "",
-      country: m.country || "",
-      bio: m.bio || "",
-      photoURL: m.photoURL || "",
-      favoriteColors: Array.isArray(m.favoriteColors) ? m.favoriteColors : [],
-      crafts: Array.isArray(m.crafts) ? m.crafts : [],
-      hobbies: Array.isArray(m.hobbies) ? m.hobbies : [],
-      crochetTechniques: Array.isArray(m.crochetTechniques) ? m.crochetTechniques : [],
-      goToYarn: m.goToYarn || "",
-      favoriteHookSize: m.favoriteHookSize || "",
-      role: m.role || "member",
-      roleLabel: m.roleLabel || "",
-      plan: m.plan || "flirting",
-      expiresAt: m.expiresAt?.toMillis
-        ? m.expiresAt.toMillis()
-        : m.expiresAt
-          ? new Date(m.expiresAt).getTime()
-          : 0,
-      foundingMember: !!m.foundingMember,
-      live: liveUids.has(m.id),
-      points: gami.get(m.id)?.points || 0,
-      lastVisitDate: gami.get(m.id)?.lastVisitDate || "",
-      createdAt: m.createdAt?.toMillis
-        ? m.createdAt.toMillis()
-        : m.createdAt
-          ? new Date(m.createdAt).getTime()
-          : 0,
-    }));
+    .map((m) => {
+      const extra = m.extra && typeof m.extra === "object" ? m.extra : {};
+      return {
+        id: m.id,
+        name: m.name,
+        username: m.username || "",
+        headline: m.headline || "",
+        location: m.location || "",
+        country: m.country || "",
+        bio: m.bio || "",
+        photoURL: m.photoURL || "",
+        favoriteColors: Array.isArray(m.favoriteColors) ? m.favoriteColors : [],
+        crafts: Array.isArray(m.crafts) ? m.crafts : [],
+        hobbies: Array.isArray(m.hobbies) ? m.hobbies : [],
+        crochetTechniques: Array.isArray(m.crochetTechniques) ? m.crochetTechniques : [],
+        skillLevel: extra.skillLevel || m.skillLevel || "",
+        yarnPreference: extra.yarnPreference || m.yarnPreference || "",
+        hookSize: extra.hookSize || m.hookSize || "",
+        yearsExperience: extra.yearsExperience || m.yearsExperience || "",
+        craftInterests: Array.isArray(extra.craftInterests)
+          ? extra.craftInterests
+          : Array.isArray(m.craftInterests)
+            ? m.craftInterests
+            : [],
+        projectTypes: Array.isArray(extra.projectTypes)
+          ? extra.projectTypes
+          : Array.isArray(m.projectTypes)
+            ? m.projectTypes
+            : [],
+        communityGoals: Array.isArray(extra.communityGoals)
+          ? extra.communityGoals
+          : Array.isArray(m.communityGoals)
+            ? m.communityGoals
+            : [],
+        goToYarn: m.goToYarn || "",
+        favoriteHookSize: m.favoriteHookSize || "",
+        quiz: QUIZ_QUESTIONS.reduce((acc, q) => {
+          acc[q.field] = Array.isArray(extra[q.field])
+            ? extra[q.field]
+            : q.multiple && Array.isArray(m[q.field])
+              ? m[q.field]
+              : String(extra[q.field] ?? m[q.field] ?? "").trim();
+          return acc;
+        }, {}),
+        role: m.role || "member",
+        roleLabel: m.roleLabel || "",
+        plan: m.plan || "flirting",
+        expiresAt: m.expiresAt ? m.expiresAt.getTime() : 0,
+        foundingMember: !!m.foundingMember,
+        live: liveUids.has(m.id),
+        points: gami.get(m.id)?.points || 0,
+        lastVisitDate: gami.get(m.id)?.lastVisitDate || "",
+        createdAt: m.createdAt ? m.createdAt.getTime() : 0,
+      };
+    });
 
   return (
       <Nav role={userDoc?.role}>
@@ -93,10 +117,24 @@ export default async function MembersPage() {
             location: userDoc?.location || "",
             goToYarn: userDoc?.goToYarn || "",
             favoriteHookSize: userDoc?.favoriteHookSize || "",
+            skillLevel: userDoc?.extra?.skillLevel || userDoc?.skillLevel || "",
+            yarnPreference: userDoc?.extra?.yarnPreference || userDoc?.yarnPreference || "",
+            hookSize: userDoc?.extra?.hookSize || userDoc?.hookSize || "",
             favoriteColors: Array.isArray(userDoc?.favoriteColors) ? userDoc.favoriteColors : [],
             crafts: Array.isArray(userDoc?.crafts) ? userDoc.crafts : [],
             hobbies: Array.isArray(userDoc?.hobbies) ? userDoc.hobbies : [],
             crochetTechniques: Array.isArray(userDoc?.crochetTechniques) ? userDoc.crochetTechniques : [],
+            quiz: {
+              ...(userDoc?.quiz || {}),
+              ...Object.fromEntries(
+                QUIZ_QUESTIONS.map((q) => [
+                  q.field,
+                  Array.isArray(userDoc?.extra?.[q.field])
+                    ? userDoc.extra[q.field]
+                    : String(userDoc?.extra?.[q.field] ?? userDoc?.[q.field] ?? "").trim(),
+                ])
+              ),
+            },
           }}
           role={userDoc?.role}
           todayKey={todayKey}

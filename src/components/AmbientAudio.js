@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { doc, getDoc } from "firebase/firestore";
 import { Volume2, VolumeX } from "lucide-react";
-import { db } from "@/lib/firebase/client";
 
 function generateAmbientWav() {
   const sampleRate = 22050;
@@ -60,7 +58,7 @@ function generateAmbientWav() {
   return "data:audio/wav;base64," + btoa(binary);
 }
 
-export default function AmbientAudio({ active, roomId, musicUrl, musicPlaying, musicFileId, hasVideoBackdrop, pauseWhenBusy = false }) {
+export default function AmbientAudio({ active, musicUrl, musicPlaying, musicFileId, hasVideoBackdrop, pauseWhenBusy = false }) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
   const prevSrcRef = useRef("");
@@ -77,32 +75,7 @@ export default function AmbientAudio({ active, roomId, musicUrl, musicPlaying, m
     return ambientWav;
   }, [active, musicPlaying, musicFileId, musicUrl, hasVideoBackdrop, ambientWav]);
 
-  const [fireSrc, setFireSrc] = useState(null);
-
-  useEffect(() => {
-    if (!roomId || !active) return;
-    let cancelled = false;
-    const roomRef = doc(db, "rooms", roomId);
-    // Room music settings change rarely — one-time read instead of a listener.
-    getDoc(roomRef)
-      .then((snap) => {
-        if (cancelled || !snap.exists()) return;
-        const data = snap.data();
-        if (data.musicPlaying && data.musicFileId) {
-          setFireSrc(`/api/rooms/music/stream?id=${data.musicFileId}`);
-        } else if (data.musicPlaying && data.musicUrl) {
-          setFireSrc(data.musicUrl);
-        } else {
-          setFireSrc(null);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [roomId, active]);
-
-  const src = fireSrc ?? baseSrc;
+  const src = baseSrc;
 
   useEffect(() => {
     const audio = audioRef.current;

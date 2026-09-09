@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { listRooms, createRoom } from "@/lib/server/rooms";
+import { listRooms } from "@/lib/server/rooms";
 import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { logAudit } from "@/lib/server/audit";
@@ -8,6 +7,9 @@ import { getSpace, getSpaceMembers } from "@/lib/server/spaces";
 import { createNotification } from "@/lib/server/notifications";
 import { getUserDoc } from "@/lib/server/auth";
 import { serialize } from "@/lib/server/serialize";
+import { slugify } from "@/lib/server/rooms";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET() {
   const auth = await requireUser();
@@ -52,10 +54,19 @@ export async function POST(req) {
       { status: 403 }
     );
   }
+  const prisma = getPrisma();
   if (groupId) {
-    const groupSnap = await adminDb().collection("groups").doc(groupId).get();
-    if (!groupSnap.exists || groupSnap.data().status !== "active") {
-      return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    try {
+      const row = await prisma.group.findUnique({
+        where: { id: groupId },
+        select: { status: true },
+      });
+      if (!row || row.status !== "active") {
+        return NextResponse.json({ error: "Group not found" }, { status: 404 });
+      }
+    } catch (err) {
+      logError("room.prisma_group_read_failed", { error: err.message });
+      return NextResponse.json({ error: "Failed to validate group" }, { status: 500 });
     }
   }
   if (spaceId) {
@@ -70,19 +81,29 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid schedule" }, { status: 400 });
   }
 
-  const room = await createRoom({
-    name,
-    description,
-    maxParticipants: Number(maxParticipants) || 20,
-    groupId,
-    spaceId,
-    kind,
-    publicPreview,
-    opensAt: parsedOpensAt,
-    recordingAllowed: !!recordingAllowed,
-    replayVisibility: replayVisibility === "owner" ? "owner" : "members",
-    createdBy: auth.user.uid,
-  });
+  let room = null;
+  try {
+    const slug = `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`;
+    const created = await prisma.room.create({
+      data: {
+        name,
+        slug,
+        description: description || "",
+        status: "active",
+        maxParticipants: Number(maxParticipants) || 20,
+        groupId: groupId || "",
+        spaceId: spaceId || "",
+        kind: kind === "broadcast" ? "broadcast" : "standard",
+        publicPreview: !!publicPreview,
+        opensAt: parsedOpensAt || null,
+        createdBy: auth.user.uid,
+      },
+    });
+    room = { id: created.id, slug, name, description, kind };
+  } catch (err) {
+    logError("room.create_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to create room" }, { status: 500 });
+  }
 
   await logAudit({
     actorId: auth.user.uid,
@@ -104,29 +125,34 @@ export async function POST(req) {
 }
 
 async function notifyRoomGoLive({ room, actorId, actorName }) {
-  const ref = adminDb().collection("rooms").doc(room.id);
-  const doc = await ref.get();
-  if (!doc.exists || doc.data()?.goLiveNotified) return;
-
   let members = [];
-  if (room.spaceId) {
-    const spaceMembers = await getSpaceMembers(room.spaceId);
-    members = spaceMembers
-      .map((m) => m.userId)
-      .filter((uid) => uid && uid !== actorId);
-  } else if (room.groupId) {
-    const snap = await adminDb()
-      .collection("groupMembers")
-      .where("groupId", "==", room.groupId)
-      .get();
-    members = snap.docs
-      .map((d) => d.data()?.userId)
-      .filter((uid) => uid && uid !== actorId);
-  } else {
-    const snap = await adminDb().collection("users").select("uid").limit(1000).get();
-    members = snap.docs
-      .map((d) => d.data()?.uid)
-      .filter((uid) => uid && uid !== actorId);
+  try {
+    const prisma = getPrisma();
+    if (room.spaceId) {
+      const spaceMembers = await getSpaceMembers(room.spaceId);
+      members = spaceMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid && uid !== actorId);
+    } else if (room.groupId) {
+      const rows = await prisma.groupMember.findMany({
+        where: { groupId: room.groupId },
+        select: { userId: true },
+      });
+      members = rows
+        .map((d) => d.userId)
+        .filter((uid) => uid && uid !== actorId);
+    } else {
+      const rows = await prisma.user.findMany({
+        select: { id: true },
+        take: 1000,
+      });
+      members = rows
+        .map((d) => d.id)
+        .filter((uid) => uid && uid !== actorId);
+    }
+  } catch (err) {
+    logError("room.golive_members_failed", { error: err.message });
+    return;
   }
 
   for (const uid of members) {
@@ -142,6 +168,4 @@ async function notifyRoomGoLive({ room, actorId, actorName }) {
       text: `${actorName} just went live in "${room.name}". Join now.`,
     });
   }
-
-  await ref.set({ goLiveNotified: true }, { merge: true });
 }

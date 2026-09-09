@@ -1,4 +1,5 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { listRooms } from "@/lib/server/rooms";
 import { listEvents, expandEvents } from "@/lib/server/events";
 import { getCourse, getCourseFull, getProgress } from "@/lib/server/courses";
@@ -18,14 +19,21 @@ function isUpcoming(event, now = Date.now()) {
 }
 
 export async function getUserMemberships(uid) {
-  const [spaceSnap, groupSnap] = await Promise.all([
-    adminDb().collection("spaceMembers").where("userId", "==", uid).limit(500).get(),
-    adminDb().collection("groupMembers").where("userId", "==", uid).limit(500).get(),
-  ]);
-  return {
-    spaceIds: new Set(spaceSnap.docs.map((d) => d.data().spaceId)),
-    groupIds: new Set(groupSnap.docs.map((d) => d.data().groupId)),
-  };
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return { spaceIds: new Set(), groupIds: new Set() };
+    const [spaceRows, groupRows] = await Promise.all([
+      prisma.spaceMember.findMany({ where: { userId: uid }, select: { spaceId: true } }),
+      prisma.groupMember.findMany({ where: { userId: uid }, select: { groupId: true } }),
+    ]);
+    return {
+      spaceIds: new Set(spaceRows.map((r) => r.spaceId)),
+      groupIds: new Set(groupRows.map((r) => r.groupId)),
+    };
+  } catch (err) {
+    logError("dashboard.prisma_memberships_failed", { error: err.message });
+    return { spaceIds: new Set(), groupIds: new Set() };
+  }
 }
 
 function canReadPostServer(post, uid, role, memberships) {
@@ -36,32 +44,78 @@ function canReadPostServer(post, uid, role, memberships) {
 }
 
 export async function getCommunityActivity(uid, role, memberships, limit = 5) {
-  const snap = await adminDb()
-    .collection("posts")
-    .orderBy("createdAt", "desc")
-    .limit(20)
-    .get();
+  let rows;
+  try {
+    const prisma = getPrisma();
+    if (!prisma) rows = [];
+    else {
+      rows = await prisma.post.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      });
+    }
+  } catch (err) {
+    logError("dashboard.prisma_activity_failed", { error: err.message });
+    rows = [];
+  }
+
+  const firestorePosts = rows.map((r) => ({
+    id: r.id,
+    authorId: r.authorId,
+    authorName: r.authorName || "Member",
+    text: r.text || "",
+    kind: r.kind || "post",
+    spaceId: r.spaceId || "",
+    groupId: r.groupId || "",
+    createdAt: toMillis(r.createdAt),
+  }));
+
   const posts = [];
   const spaceIds = new Set();
   const groupIds = new Set();
   const visible = [];
-  for (const doc of snap.docs) {
-    const post = { id: doc.id, ...doc.data() };
+  for (const post of firestorePosts) {
     if (!canReadPostServer(post, uid, role, memberships)) continue;
     visible.push(post);
     if (post.spaceId) spaceIds.add(post.spaceId);
     if (post.groupId) groupIds.add(post.groupId);
   }
-  const [spaceSnaps, groupSnaps] = await Promise.all([
-    spaceIds.size
-      ? Promise.all([...spaceIds].map((id) => adminDb().collection("spaces").doc(id).get()))
-      : Promise.resolve([]),
-    groupIds.size
-      ? Promise.all([...groupIds].map((id) => adminDb().collection("groups").doc(id).get()))
-      : Promise.resolve([]),
+
+  const [spaceSlugs, groupSlugs] = await Promise.all([
+    (async () => {
+      const map = new Map();
+      if (!spaceIds.size) return map;
+      try {
+        const prisma = getPrisma();
+        if (!prisma) return map;
+        const rows = await prisma.space.findMany({
+          where: { id: { in: [...spaceIds] } },
+          select: { id: true, slug: true },
+        });
+        for (const r of rows) map.set(r.id, r.slug || "");
+      } catch (err) {
+        logError("dashboard.prisma_space_slugs_failed", { error: err.message });
+      }
+      return map;
+    })(),
+    (async () => {
+      const map = new Map();
+      if (!groupIds.size) return map;
+      try {
+        const prisma = getPrisma();
+        if (!prisma) return map;
+        const rows = await prisma.group.findMany({
+          where: { id: { in: [...groupIds] } },
+          select: { id: true, slug: true },
+        });
+        for (const r of rows) map.set(r.id, r.slug || "");
+      } catch (err) {
+        logError("dashboard.prisma_group_slugs_failed", { error: err.message });
+      }
+      return map;
+    })(),
   ]);
-  const spaceSlugs = new Map(spaceSnaps.filter((s) => s.exists).map((s) => [s.id, s.data().slug || ""]));
-  const groupSlugs = new Map(groupSnaps.filter((g) => g.exists).map((g) => [g.id, g.data().slug || ""]));
+
   for (const post of visible) {
     posts.push({
       id: post.id,
@@ -82,14 +136,28 @@ export async function getCommunityActivity(uid, role, memberships, limit = 5) {
 }
 
 export async function getContinueLearning(uid, tier, limit = 3) {
-  const progressSnap = await adminDb()
-    .collection("progress")
-    .where("userId", "==", uid)
-    .limit(50)
-    .get();
+  let progressRows;
+  try {
+    const prisma = getPrisma();
+    if (!prisma) progressRows = [];
+    else {
+      const rows = await prisma.progress.findMany({
+        where: { userId: uid },
+        take: 50,
+      });
+      progressRows = rows.map((r) => ({
+        courseId: r.courseId,
+        completedLessons: r.completedLessons || [],
+        updatedAt: toMillis(r.updatedAt),
+      }));
+    }
+  } catch (err) {
+    logError("dashboard.prisma_progress_failed", { error: err.message });
+    progressRows = [];
+  }
+
   const rows = [];
-  for (const doc of progressSnap.docs) {
-    const progress = doc.data();
+  for (const progress of progressRows) {
     const course = await getCourse(progress.courseId);
     if (!course || course.status !== "published") continue;
     const full = await getCourseFull(course.id);
@@ -97,14 +165,14 @@ export async function getContinueLearning(uid, tier, limit = 3) {
     for (const mod of full.modules) {
       total += (full.lessons[mod.id] || []).length;
     }
-    const done = (progress.completedLessons || []).length;
+    const done = progress.completedLessons.length;
     rows.push({
       id: course.id,
       title: course.title,
       done,
       total,
       pct: total ? Math.round((done / total) * 100) : 0,
-      updatedAt: toMillis(progress.updatedAt),
+      updatedAt: progress.updatedAt,
     });
   }
   return rows

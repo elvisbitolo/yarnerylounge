@@ -61,6 +61,7 @@ model User {
   goToYarn               String?
   favoriteHookSize       String?
   socialLinks            Json?
+  extra                  Json? // Fallback for profile fields without a dedicated column
   notifications          String?
   notificationPreferences Json?
   foundingMember         Boolean?
@@ -130,8 +131,14 @@ model Subscription {
   role              String?
   shopifyCustomerId String?
   shopifyOrderId    String?
-  currentPeriodEnd  DateTime?
-  trialEnd          DateTime?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  priceId                String?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  trialStart             DateTime?
+  trialEnd               DateTime?
+  cancelAtPeriodEnd      Boolean?
   canceledAt        DateTime?
   updatedAt         DateTime  @updatedAt
 
@@ -343,6 +350,15 @@ model Group {
   status      String? // active | deleted
   createdBy   String
   createdAt   DateTime  @default(now())
+
+  // Speakeasy neighbourhood presentation (seeded by community-groups.js)
+  sidebarDescription String?
+  hangoutTag         String?
+  hangoutRoomSlug    String?
+  color              String?
+  emoji              String?
+  welcomePostId      String?
+  welcomePostText    String?
 
   creator  User        @relation(fields: [createdBy], references: [id])
   members  GroupMember[]
@@ -608,7 +624,7 @@ model Conversation {
   participantIds String[]
   name           String?    @default("")
   groupId        String?    @default("")
-  spaceId        String?    @default("")
+  spaceId        String?
   createdBy      String
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @default(now()) @updatedAt
@@ -616,6 +632,7 @@ model Conversation {
   lastMessageEnc Boolean?   @default(false)
   lastMessageAt  DateTime?
   lastReadAt     Json?
+  regionKey      String?    @default("")
 
   creator       User                 @relation("ConversationCreator", fields: [createdBy], references: [id])
   space         Space?               @relation(fields: [spaceId], references: [id])
@@ -672,15 +689,16 @@ model Event {
   description        String     @default("")
   startTime          DateTime
   endTime            DateTime?
-  roomSlug           String?    @default("")
+  roomSlug           String?
   capacity           Int?       @default(0)
-  spaceId            String?    @default("")
+  spaceId            String?
   purchasePriceCents Int?       @default(0)
   publicPreview      Boolean?
   createdBy          String
   createdAt          DateTime   @default(now())
   recurrence         Json?
   capacityCounts     Json?
+  membersOnly        Boolean   @default(false)
 
   creator User   @relation(fields: [createdBy], references: [id])
   space   Space? @relation(fields: [spaceId], references: [id])
@@ -755,7 +773,7 @@ model Course {
   title              String
   description        String?
   status             String?   // draft | published
-  spaceId            String?   @default("")
+  spaceId            String?
   purchasePriceCents Int?
   publicPreview      Boolean?
   requiredTier       String?
@@ -956,7 +974,7 @@ model Question {
   minute      Int?
   weekday     Int?
   dayOfMonth  Int?
-  spaceId     String?   @default("")
+  spaceId     String?
   spaceSlug   String?
   spaceName   String?
   active      Boolean?
@@ -1013,6 +1031,7 @@ model HostAssignment {
   userId     String
   role       String?   // host | co-host
   grantedBy  String
+  canRecord  Boolean?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now()) @updatedAt
 
@@ -1130,4 +1149,35 @@ model Announcement {
 
   @@index([spaceId, createdAt(sort: Desc)])
   @@index([authorId])
+}
+
+// Firestore: blindDates/{id} (daily member pairing with sampled profile)
+model BlindDate {
+  id         String    @id
+  uid        String?
+  date       String?
+  memberId   String?
+  memberName String?
+  photoURL   String?
+  headline   String?
+  country    String?
+  hobbies    String[]
+  crafts     String[]
+  score      Int?
+  createdAt  String? // Firestore stores a string, kept as string for parity
+
+  @@index([uid])
+  @@index([memberId])
+}
+
+// Firestore: stripeEvents/{id}
+model StripeEvent {
+  id          String    @id
+  type        String?
+  status      String?
+  error       String?
+  receivedAt  DateTime?
+  processedAt DateTime?
+
+  @@index([type])
 }

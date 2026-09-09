@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { getLesson } from "@/lib/server/courses";
 import { canManageScope } from "@/lib/server/hosts";
 import { createQuiz } from "@/lib/server/quizzes";

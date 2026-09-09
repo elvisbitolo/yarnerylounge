@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { mapUserRow } from "@/lib/server/user-core";
 import { getRecognitionCount, listRecognitions } from "@/lib/server/recognition";
 import { RECOGNITION_VALUES, recognitionCountLabel } from "@/lib/server/recognition-core";
 import { BADGES } from "@/lib/server/gamification";
@@ -93,14 +94,15 @@ export default async function MemberProfilePage({ params }) {
   const viewerDoc = await getUserDoc(viewer.uid);
   const isSelf = viewer.uid === id;
 
-  const userRef = adminDb().collection("users").doc(id);
-  const [memberDoc, postsSnap, recognitionCount, recognitions, stickersSnap, followData, gamiSnap] = await Promise.all([
-    userRef.get(),
-    adminDb().collection("posts").where("authorId", "==", id).get(),
+  const prisma = getPrisma();
+
+  const [memberRow, postRows, recognitionCount, recognitions, stickerRows, gamiRow, followData] = await Promise.all([
+    prisma.user.findUnique({ where: { id } }),
+    prisma.post.findMany({ where: { authorId: id } }),
     getRecognitionCount(id),
     listRecognitions(id, 10),
-    adminDb().collection("stickers").where("toUid", "==", id).get(),
-    adminDb().collection("gamification").doc(id).get(),
+    prisma.sticker.findMany({ where: { toUid: id } }),
+    prisma.gamification.findUnique({ where: { id } }),
     (async () => {
       if (isSelf) return { following: false, followerCount: 0, followingCount: 0 };
       const { isFollowing, getFollowerCount, getFollowingCount } = await import("@/lib/server/follows");
@@ -114,12 +116,11 @@ export default async function MemberProfilePage({ params }) {
   ]);
 
   const stickerSummary = {};
-  stickersSnap.docs.forEach((doc) => {
-    const d = doc.data();
-    stickerSummary[d.type] = (stickerSummary[d.type] || 0) + 1;
-  });
+  for (const row of stickerRows || []) {
+    stickerSummary[row.type] = (stickerSummary[row.type] || 0) + 1;
+  }
 
-  if (!memberDoc.exists) {
+  if (!memberRow) {
     return (
         <Nav role={viewerDoc?.role}>
         <div className={styles.container}>
@@ -131,8 +132,8 @@ export default async function MemberProfilePage({ params }) {
     );
   }
 
-  const member = memberDoc.data();
-  const gami = gamiSnap.exists ? gamiSnap.data() : {};
+  const member = mapUserRow(memberRow);
+  const gami = gamiRow || {};
   const memberPoints = gami.points || 0;
   const memberStreak = gami.streak || 0;
   const memberJoined = formatJoined(member.createdAt);
@@ -146,11 +147,11 @@ export default async function MemberProfilePage({ params }) {
     }))
     .sort((a, b) => new Date(b.earnedAt || 0) - new Date(a.earnedAt || 0));
   const memberSimilarities = isSelf ? [] : commonalities(viewerDoc, member);
-  const posts = postsSnap.docs
-    .map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: toSerializable(doc.data().createdAt),
+  const posts = (postRows || [])
+    .map((row) => ({
+      id: row.id,
+      ...row,
+      createdAt: toSerializable(row.createdAt),
     }))
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 20);

@@ -1,5 +1,5 @@
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import {
   RECOGNITION_POINTS,
   validateRecognition,
@@ -11,7 +11,6 @@ export { RECOGNITION_POINTS };
 
 function toMillis(value) {
   if (!value) return 0;
-  if (typeof value.toMillis === "function") return value.toMillis();
   if (value instanceof Date) return value.getTime();
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -24,28 +23,41 @@ export async function createRecognition({ fromUid, fromName, toUid, value, note 
     throw Object.assign(new Error(check.reason), { code: 400 });
   }
 
-  const toUserRef = adminDb().collection("users").doc(toUid);
-  const toUserSnap = await toUserRef.get();
-  if (!toUserSnap.exists) {
-    throw Object.assign(new Error("Member not found"), { code: 404 });
+  const prisma = getPrisma();
+  if (!prisma) {
+    throw Object.assign(new Error("Database unavailable"), { code: 503 });
   }
-  const toName = toUserSnap.data().name || "Member";
 
-  await adminDb().runTransaction(async (tx) => {
-    const ref = adminDb().collection("recognitions").doc();
-    tx.set(ref, {
-      fromUid,
-      fromName: fromName || "Member",
-      toUid,
-      toName,
-      value,
-      note: cleanNote,
-      createdAt: new Date(),
-    });
-    tx.update(toUserRef, {
-      recognitionCount: FieldValue.increment(1),
-    });
-  });
+  let toName = "";
+  try {
+    const toUser = await prisma.user.findUnique({ where: { id: toUid } });
+    if (!toUser) {
+      throw Object.assign(new Error("Member not found"), { code: 404 });
+    }
+    toName = toUser.name || "Member";
+
+    await prisma.$transaction([
+      prisma.recognition.create({
+        data: {
+          fromUid,
+          fromName: fromName || "Member",
+          toUid,
+          toName,
+          value,
+          note: cleanNote,
+          createdAt: new Date(),
+        },
+      }),
+      prisma.user.update({
+        where: { id: toUid },
+        data: { recognitionCount: { increment: 1 } },
+      }),
+    ]);
+  } catch (err) {
+    if (err.code === 404) throw err;
+    logError("recognition.prisma_create_failed", { error: err.message });
+    throw Object.assign(new Error("Failed to create recognition"), { code: 500 });
+  }
 
   await awardPoints(toUid, RECOGNITION_POINTS, toName);
   await createNotification({
@@ -62,50 +74,68 @@ export async function createRecognition({ fromUid, fromName, toUid, value, note 
 }
 
 export async function listRecognitions(uid, limit = 20) {
-  const snap = await adminDb()
-    .collection("recognitions")
-    .where("toUid", "==", uid)
-    .get();
-  return snap.docs
-    .map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        fromUid: data.fromUid,
-        fromName: data.fromName,
-        value: data.value,
-        note: data.note || "",
-        createdAt: toMillis(data.createdAt),
-      };
-    })
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, limit);
+  const safeLimit = Math.max(Number(limit) || 20, 1);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.recognition.findMany({
+        where: { toUid: uid },
+        orderBy: { createdAt: "desc" },
+        take: safeLimit,
+      });
+      if (rows.length) {
+        return rows.map((row) => ({
+          id: row.id,
+          fromUid: row.fromUid,
+          fromName: row.fromName,
+          value: row.value,
+          note: row.note || "",
+          createdAt: toMillis(row.createdAt),
+        }));
+      }
+    } catch (err) {
+      logError("recognition.prisma_list_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function getRecognitionCount(uid) {
-  const doc = await adminDb().collection("users").doc(uid).get();
-  return doc.exists ? Number(doc.data().recognitionCount) || 0 : 0;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.user.findUnique({
+        where: { id: uid },
+        select: { recognitionCount: true },
+      });
+      if (row) return Number(row.recognitionCount) || 0;
+    } catch (err) {
+      logError("recognition.prisma_count_failed", { error: err.message });
+    }
+  }
+  return 0;
 }
 
 export async function getRecognitionLeaderboard(limit = 20) {
-  const snap = await adminDb()
-    .collection("users")
-    .orderBy("recognitionCount", "desc")
-    .limit(limit)
-    .get();
-  let rank = 0;
-  const rows = [];
-  snap.docs.forEach((doc) => {
-    const data = doc.data();
-    const count = Number(data.recognitionCount) || 0;
-    if (count <= 0) return;
-    rank += 1;
-    rows.push({
-      userId: doc.id,
-      name: data.name || "Member",
-      count,
-      rank,
-    });
-  });
-  return rows;
+  const safeLimit = Math.max(Number(limit) || 20, 1);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.user.findMany({
+        where: { recognitionCount: { gt: 0 }, suspended: { not: true } },
+        orderBy: { recognitionCount: "desc" },
+        take: safeLimit,
+        select: { id: true, name: true, recognitionCount: true },
+      });
+      return rows.map((row, i) => ({
+        userId: row.id,
+        name: row.name || "Member",
+        count: Number(row.recognitionCount) || 0,
+        rank: i + 1,
+      }));
+    } catch (err) {
+      logError("recognition.prisma_leaderboard_failed", { error: err.message });
+    }
+  }
+  return [];
 }

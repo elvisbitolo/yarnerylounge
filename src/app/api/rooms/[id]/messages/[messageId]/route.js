@@ -8,7 +8,8 @@ import {
   getRoomForChat,
   softDeleteRoomMessage,
 } from "@/lib/server/room-messages";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function POST(req, { params }) {
   const { id: roomId, messageId } = await params;
@@ -28,14 +29,24 @@ export async function POST(req, { params }) {
   const staff = userDoc?.role === "owner" || userDoc?.role === "moderator";
   const rights = await getScopedHostRights(auth.user.uid, "room", roomId);
 
-  const ref = adminDb().collection("rooms").doc(roomId).collection("messages").doc(messageId);
-  const snap = await ref.get();
-  if (!snap.exists) {
+  let message = null;
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.roomMessage.findUnique({
+      where: { id: messageId, roomId },
+      select: { userId: true },
+    });
+    if (!row) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+    message = row;
+  } catch (err) {
+    logError("room-message.prisma_read_failed", { error: err.message });
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
   const canModerate = staff || rights.isHost || rights.isCoHost;
-  if (!canModerate && snap.data().userId !== auth.user.uid) {
+  if (!canModerate && message.userId !== auth.user.uid) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

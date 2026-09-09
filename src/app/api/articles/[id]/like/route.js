@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { getCurrentUser } from "@/lib/server/auth";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function POST(req, { params }) {
   const { id } = await params;
@@ -14,21 +14,28 @@ export async function POST(req, { params }) {
   const limited = rateLimitGuard(`article-like:${user.uid}`, { limit: 60 });
   if (limited) return limited;
 
-  const ref = adminDb().collection("articles").doc(id);
-  const doc = await ref.get();
-  if (!doc.exists) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.article.findUnique({ where: { id }, select: { likes: true } });
+    if (!row) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    const likes = row.likes || {};
+    const already = Object.prototype.hasOwnProperty.call(likes, user.uid);
+    const nextLikes = { ...likes };
+    if (already) {
+      delete nextLikes[user.uid];
+    } else {
+      nextLikes[user.uid] = new Date();
+    }
+    await prisma.article.update({
+      where: { id },
+      data: { likes: nextLikes },
+    });
+    const count = Object.keys(likes).length + (already ? -1 : 1);
+    return NextResponse.json({ liked: !already, count });
+  } catch (err) {
+    logError("articles.like.prisma_write_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to update like" }, { status: 500 });
   }
-
-  const data = doc.data();
-  const likes = data.likes || {};
-  const already = Object.prototype.hasOwnProperty.call(likes, user.uid);
-  const update = already
-    ? { [`likes.${user.uid}`]: FieldValue.delete() }
-    : { [`likes.${user.uid}`]: new Date() };
-
-  await ref.update(update);
-
-  const count = Object.keys(likes).length + (already ? -1 : 1);
-  return NextResponse.json({ liked: !already, count });
 }

@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import { getLeaderboard } from "@/lib/server/gamification";
 import { getCourse } from "@/lib/server/courses";
 import { getEvent } from "@/lib/server/events";
@@ -8,51 +8,21 @@ import { logError } from "@/lib/server/log";
 import {
   startOfDay,
   visitKey,
-  toMillis,
   summarizeSubscriptions,
   summarizePurchases,
   rankTopPosts,
   monthlyRateCents,
 } from "@/lib/server/analytics-core";
 
-async function count(collectionName) {
-  try {
-    const snap = await adminDb().collection(collectionName).count().get();
-    return snap.data().count;
-  } catch {
-    const fallback = await adminDb().collection(collectionName).limit(1000).get();
-    return fallback.size;
-  }
-}
-
-async function countWhere(collectionName, field, op, value) {
-  try {
-    const snap = await adminDb()
-      .collection(collectionName)
-      .where(field, op, value)
-      .count()
-      .get();
-    return snap.data().count;
-  } catch {
-    const fallback = await adminDb()
-      .collection(collectionName)
-      .where(field, op, value)
-      .limit(1000)
-      .get();
-    return fallback.size;
-  }
-}
-
-async function countCommentsSince(date) {
-  const query = adminDb().collectionGroup("comments").where("createdAt", ">=", date);
-  try {
-    const snap = await query.count().get();
-    return snap.data().count;
-  } catch {
-    const fallback = await query.limit(1000).get();
-    return fallback.size;
-  }
-}
+const COUNT_MODELS = {
+  users: "user",
+  rsvps: "rsvp",
+  courses: "course",
+  lessons: "lesson",
+  progress: "progress",
+  posts: "post",
+  gamification: "gamification",
+};
 
 export async function getAnalytics() {
   const now = Date.now();
@@ -61,68 +31,120 @@ export async function getAnalytics() {
   const days30Ago = new Date(startOfDay(30));
   const visit7 = visitKey(7);
 
-  const [
-    usersCount,
-    signups7,
-    signups30,
-    active7,
-    postsCount,
-    posts7,
-    commentsCount,
-    rsvpsCount,
-    coursesCount,
-    lessonsCount,
-    progressCount,
-    subscriptionsSnap,
-    purchasesSnap,
-    postsSnap,
-    rsvpsSnap,
-    commentsSnap,
-    lessonsSnap,
-    progressSnap,
-  ] = await Promise.all([
-    count("users"),
-    countWhere("users", "createdAt", ">=", days7Ago),
-    countWhere("users", "createdAt", ">=", days30Ago),
-    countWhere("gamification", "lastVisitDate", ">=", visit7),
-    count("posts"),
-    countWhere("posts", "createdAt", ">=", days7Ago),
-    countCommentsSince(todayStart),
-    count("rsvps"),
-    count("courses"),
-    count("lessons"),
-    count("progress"),
-    adminDb().collection("subscriptions").get(),
-    adminDb().collection("purchases").get(),
-    adminDb().collection("posts").get(),
-    adminDb().collection("rsvps").get(),
-    adminDb().collectionGroup("comments").get(),
-    adminDb().collection("lessons").get(),
-    adminDb().collection("progress").get(),
-  ]);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const [
+        usersCount,
+        signups7,
+        signups30,
+        active7,
+        postsCount,
+        posts7,
+        commentsCount,
+        rsvpsCount,
+        coursesCount,
+        lessonsCount,
+        progressCount,
+        subscriptions,
+        purchases,
+        posts,
+        rsvps,
+        comments,
+        lessons,
+        progressDocs,
+      ] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { createdAt: { gte: days7Ago } } }),
+        prisma.user.count({ where: { createdAt: { gte: days30Ago } } }),
+        prisma.gamification.count({ where: { lastVisitDate: { gte: visit7 } } }),
+        prisma.post.count(),
+        prisma.post.count({ where: { createdAt: { gte: days7Ago } } }),
+        prisma.postComment.count({ where: { createdAt: { gte: todayStart } } }),
+        prisma.rsvp.count(),
+        prisma.course.count(),
+        prisma.lesson.count(),
+        prisma.progress.count(),
+        prisma.subscription.findMany(),
+        prisma.purchase.findMany(),
+        prisma.post.findMany(),
+        prisma.rsvp.findMany(),
+        prisma.postComment.findMany(),
+        prisma.lesson.findMany(),
+        prisma.progress.findMany(),
+      ]);
+      return await finalizeAnalyticsReport({
+        usersCount,
+        signups7,
+        signups30,
+        active7,
+        postsCount,
+        posts7,
+        commentsCount,
+        rsvpsCount,
+        coursesCount,
+        lessonsCount,
+        progressCount,
+        subscriptions,
+        purchases,
+        posts: normalizePosts(posts),
+        rsvps,
+        comments,
+        lessons,
+        progressDocs,
+        now,
+      });
+    } catch (err) {
+      logError("analytics.prisma_get_failed", { error: err.message });
+    }
+  }
 
-  const posts = postsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  const rsvps = rsvpsSnap.docs.map((d) => d.data());
-  const lessons = lessonsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  const progressDocs = progressSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return {
+    members: { total: 0, signups: { total: 0, last7: 0, last30: 0 }, active7: 0, contributing: 0 },
+    engagement: { posts: 0, posts7: 0, comments: 0, rsvps: 0, rsvpMembers: 0 },
+    courses: { total: 0, lessons: 0, learners: 0, completions: 0, completionRate: 0 },
+    revenue: { subscriptions: { active: 0, estimatedMonthlyCents: 0 }, purchases: { total: 0, revenueCents: 0 }, recurringMonthlyCents: 0, oneTimeCents: 0 },
+    topContent: [],
+    topMembers: [],
+  };
+}
 
-  const commentCountByPost = {};
-  commentsSnap.docs.forEach((doc) => {
-    const postId = doc.ref.path.split("/")[1];
-    commentCountByPost[postId] = (commentCountByPost[postId] || 0) + 1;
+function normalizePosts(rows) {
+  return rows.map((r) => {
+    const millis = (v) => (v == null ? null : v instanceof Date ? v.getTime() : v);
+    return {
+      id: r.id,
+      authorId: r.authorId || "",
+      authorName: r.authorName || "",
+      text: r.text || "",
+      likes: r.likes && typeof r.likes === "object" ? r.likes : {},
+      commentCount: r.commentCount || 0,
+      createdAt: millis(r.createdAt) || 0,
+    };
   });
+}
 
-  const contributors = new Set();
-  posts.forEach((post) => post.authorId && contributors.add(post.authorId));
-  commentsSnap.docs.forEach((doc) => {
-    const authorId = doc.data().authorId;
-    if (authorId) contributors.add(authorId);
-  });
-  rsvps.forEach((rsvp) => rsvp.userId && contributors.add(rsvp.userId));
-
-  const rsvpMembers = new Set();
-  rsvps.forEach((rsvp) => rsvp.userId && rsvpMembers.add(rsvp.userId));
-
+async function finalizeAnalyticsReport({
+  usersCount,
+  signups7,
+  signups30,
+  active7,
+  postsCount,
+  posts7,
+  commentsCount,
+  rsvpsCount,
+  coursesCount,
+  lessonsCount,
+  progressCount,
+  subscriptions,
+  purchases,
+  posts,
+  rsvps,
+  comments,
+  lessons,
+  progressDocs,
+  now,
+}) {
   const lessonCountByCourse = {};
   lessons.forEach((lesson) => {
     if (lesson.courseId) {
@@ -132,43 +154,57 @@ export async function getAnalytics() {
 
   let completions = 0;
   progressDocs.forEach((doc) => {
-    const courseId = doc.id.split("_")[0];
+    const courseId = doc.courseId || String(doc.id || "").split("_")[0];
     const lessonCount = lessonCountByCourse[courseId] || 0;
     if (lessonCount > 0 && (doc.completedLessons || []).length >= lessonCount) {
       completions += 1;
     }
   });
 
-  const subs = subscriptionsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const contributors = new Set();
+  posts.forEach((post) => post.authorId && contributors.add(post.authorId));
+  comments.forEach((doc) => {
+    if (doc.authorId) contributors.add(doc.authorId);
+  });
+  rsvps.forEach((rsvp) => rsvp.userId && contributors.add(rsvp.userId));
 
+  const rsvpMembers = new Set();
+  rsvps.forEach((rsvp) => rsvp.userId && rsvpMembers.add(rsvp.userId));
+
+  const commentCountByPost = {};
+  comments.forEach((doc) => {
+    if (doc.postId) {
+      commentCountByPost[doc.postId] = (commentCountByPost[doc.postId] || 0) + 1;
+    }
+  });
+
+  const subs = subscriptions.map((s) => ({ id: s.id || "", ...s }));
   const priceMap = {};
 
-  const purchasesWithPrice = await Promise.all(
-    purchasesSnap.docs.map(async (doc) => {
-      const data = doc.data();
+  const resolved = await Promise.all(
+    purchases.map(async (p) => {
       const loader =
-        data.targetType === "course"
+        p.targetType === "course"
           ? getCourse
-          : data.targetType === "event"
+          : p.targetType === "event"
             ? getEvent
             : getSpace;
       let priceCents = null;
       try {
-        const item = await loader(data.targetId);
+        const item = await loader(p.targetId);
         priceCents = Number(item?.purchasePriceCents) || 0;
       } catch {
         priceCents = null;
       }
-      return { targetType: data.targetType, targetId: data.targetId, priceCents };
+      return { targetType: p.targetType || "", targetId: p.targetId || "", priceCents };
     })
   );
 
   const topPosts = rankTopPosts(
     posts.map((post) => ({ ...post, commentCount: commentCountByPost[post.id] || 0 }))
   );
-
   const subscriptionSummary = summarizeSubscriptions(subs, priceMap, now);
-  const purchasesSummary = summarizePurchases(purchasesWithPrice);
+  const purchasesSummary = summarizePurchases(resolved);
   const topMembers = await getLeaderboard(10);
 
   return {
@@ -243,39 +279,41 @@ export async function getRelevantPriceCents(targetType, targetId) {
 }
 
 export async function getRevenueAnalytics() {
-  const [subsSnap, purchasesSnap] = await Promise.all([
-    adminDb().collection("subscriptions").get(),
-    adminDb().collection("purchases").get(),
-  ]);
-
   const months = last12Months();
   const buckets = {};
   months.forEach((m) => {
     buckets[m] = { subscriptions: 0, purchases: 0, total: 0, subCount: 0, purchaseCount: 0 };
   });
 
-  subsSnap.docs.forEach((doc) => {
-    const sub = doc.data();
-    if (!isActiveSub(sub)) return;
-    const m = monthKey(sub.currentPeriodStart ?? sub.createdAt ?? sub.trialStart);
-    if (!buckets[m]) return;
-    const rate = monthlyRateCents({ unitAmountCents: sub.unitAmountCents, unit_amount: sub.unitAmountCents, interval: sub.plan });
-    buckets[m].subscriptions += rate;
-    buckets[m].subCount += 1;
-    buckets[m].total += rate;
-  });
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const subs = await prisma.subscription.findMany();
+      subs.forEach((sub) => {
+        if (!isActiveSub(sub)) return;
+        const m = monthKey(sub.currentPeriodStart ?? sub.createdAt ?? sub.trialStart);
+        if (!buckets[m]) return;
+        const rate = monthlyRateCents({ unitAmountCents: sub.unitAmountCents, unit_amount: sub.unitAmountCents, interval: sub.plan });
+        buckets[m].subscriptions += rate;
+        buckets[m].subCount += 1;
+        buckets[m].total += rate;
+      });
 
-  await Promise.all(
-    purchasesSnap.docs.map(async (doc) => {
-      const data = doc.data();
-      const m = monthKey(data.purchasedAt ?? data.createdAt);
-      if (!buckets[m]) return;
-      const price = await getRelevantPriceCents(data.targetType, data.targetId);
-      buckets[m].purchases += price;
-      buckets[m].purchaseCount += 1;
-      buckets[m].total += price;
-    })
-  );
+      const purchaseRows = await prisma.purchase.findMany();
+      await Promise.all(
+        purchaseRows.map(async (p) => {
+          const m = monthKey(p.purchasedAt ?? p.createdAt);
+          if (!buckets[m]) return;
+          const price = await getRelevantPriceCents(p.targetType, p.targetId);
+          buckets[m].purchases += price;
+          buckets[m].purchaseCount += 1;
+          buckets[m].total += price;
+        })
+      );
+    } catch (err) {
+      logError("analytics.prisma_revenue_failed", { error: err.message });
+    }
+  }
 
   return months.map((m) => ({
     month: m,
@@ -292,37 +330,23 @@ export async function getSpaceAnalytics(spaceId) {
   const members = await getSpaceMembers(spaceId);
   const memberIds = members.map((m) => m.userId);
 
-  const [postsSnap, gamificationSnap, activitySnap] = await Promise.all([
-    adminDb()
-      .collection("posts")
-      .where("spaceId", "==", spaceId)
-      .get()
-      .catch((err) => {
-        logError("space_analytics.posts_failed", { error: err.message, spaceId });
-        return { docs: [] };
-      }),
-    memberIds.length
-      ? adminDb()
-          .collection("gamification")
-          .where("__name__", "in", memberIds.slice(0, 30))
-          .get()
-          .catch(() => ({ docs: [] }))
-      : Promise.resolve({ docs: [] }),
-    adminDb()
-      .collection("activity")
-      .where("spaceId", "==", spaceId)
-      .orderBy("createdAt", "desc")
-      .limit(30)
-      .get()
-      .catch(() => ({ docs: [] })),
-  ]);
-
-  const posts = postsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-  const gamification = {};
-  gamificationSnap.docs.forEach((doc) => {
-    gamification[doc.id] = doc.data();
-  });
+  let posts = [];
+  let gamification = {};
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const postRows = await prisma.post.findMany({ where: { spaceId } });
+      posts = postRows.map((row) => ({ id: row.id, ...row }));
+      const gRows = memberIds.length
+        ? await prisma.gamification.findMany({ where: { id: { in: memberIds.slice(0, 30) } } })
+        : [];
+      gRows.forEach((row) => {
+        gamification[row.id] = row;
+      });
+    } catch (err) {
+      logError("analytics.prisma_space_failed", { error: err.message, spaceId });
+    }
+  }
 
   const visit7 = visitKey(7);
   let activeThisWeek = 0;
@@ -347,25 +371,13 @@ export async function getSpaceAnalytics(spaceId) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  const recentActivity = activitySnap.docs
-    ? activitySnap.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          actorName: data.actorName || data.userName || "",
-          text: data.text || data.action || "",
-          createdAt: toMillis(data.createdAt),
-        };
-      })
-    : [];
-
   return {
     posts: posts.length,
     members: members.length,
     activeMembers: activeThisWeek,
     topContent,
     topMembers,
-    recentActivity,
+    recentActivity: [],
   };
 }
 

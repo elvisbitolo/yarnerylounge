@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import {
   buildAutocompleteSuggestions,
   rankResults,
 } from "@/lib/server/search-engine";
-
-async function fetchDocs(collectionName, limit = 300) {
-  const snap = await adminDb().collection(collectionName).limit(limit).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
+import { getPrisma } from "@/lib/db/prisma";
 
 export async function GET(req) {
   const auth = await requireUser();
@@ -30,18 +25,19 @@ export async function GET(req) {
     auth.userDoc?.role === "owner" || auth.userDoc?.role === "moderator";
   const uid = auth.user.uid;
 
-  const membershipSnap = await adminDb()
-    .collection("spaceMembers")
-    .where("userId", "==", uid)
-    .limit(500)
-    .get();
-  const memberSpaceIds = new Set(membershipSnap.docs.map((d) => d.data().spaceId));
+  const prisma = getPrisma();
+  const membershipRows = await prisma.spaceMember.findMany({
+    where: { userId: uid },
+    take: 500,
+    select: { spaceId: true },
+  });
+  const memberSpaceIds = new Set(membershipRows.map((r) => r.spaceId));
 
   const [members, spaces, courses, events] = await Promise.all([
-    fetchDocs("users"),
-    fetchDocs("spaces"),
-    fetchDocs("courses"),
-    fetchDocs("events"),
+    prisma.user.findMany({ take: 300 }),
+    prisma.space.findMany({ take: 300 }),
+    prisma.course.findMany({ take: 300 }),
+    prisma.event.findMany({ take: 300 }),
   ]);
 
   const accessibleSpaces = spaces.filter(
@@ -52,8 +48,7 @@ export async function GET(req) {
 
   const accessibleEvents = events.filter(
     (e) =>
-      e.status !== "deleted" &&
-      (e.publicPreview || isStaff || !e.spaceId || memberSpaceIds.has(e.spaceId))
+      e.publicPreview || isStaff || !e.spaceId || memberSpaceIds.has(e.spaceId)
   );
 
   const rankedMembers = rankResults(q, members, (m) => [m.name, m.username]);

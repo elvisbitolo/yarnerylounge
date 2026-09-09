@@ -48,5 +48,26 @@ export function buildSubscriptionDoc({ variant, expiresAt, customerId, orderId }
   return doc;
 }
 
+// Grants (or refreshes) paid access only for genuinely paid orders.
+// Shopify fires orders/create for every new order — including free $0
+// checkouts and abandoned checkouts — so we must check financial_status.
+// orders/paid fires when payment clears, but financial_status can still
+// be "pending" or "voided" in edge cases, so we guard those too.
+export function shouldGrantMembership({ topic, data }) {
+  // orders/paid fires when Shopify marks the order as paid, but we still
+  // confirm the financial_status is an acceptably settled state.
+  if (topic === "orders/paid") {
+    const status = data?.financial_status || "";
+    return status === "paid" || status === "partially_refunded" || status === "";
+  }
+
+  // orders/create only counts if the order is already marked paid.
+  if (topic === "orders/create") {
+    return data?.financial_status === "paid";
+  }
+
+  return false;
+}
+
 export const SHOPIFY_UPGRADE_URL =
   process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";

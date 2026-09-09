@@ -96,6 +96,23 @@ function ActionIcon({ icon }) {
           <path d="M6 9V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3M15 15l1.5 4-3-2-3 2 1.5-4a3.5 3.5 0 1 1 3-3.5M9.5 15a6 6 0 1 1 9 .5" />
         </svg>
       );
+    case "neighbourhoods":
+      return (
+        <svg {...common}>
+          <path d="M6 20c2 0 4-1.5 4.5-.5z" />
+          <path d="M14 20c2 0 4-1.5 4.5-.5z" />
+          <path d="M6 20l4-3M14 20l-2-4M4 15l2-6M10 13l3-5" />
+        </svg>
+      );
+    case "members":
+      return (
+        <svg {...common}>
+          <circle cx="9" cy="8" r="3.5" />
+          <path d="M2.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5" />
+          <circle cx="17" cy="9" r="2.5" />
+          <path d="M17.5 15c2.4.3 4 1.7 4.5 4" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>
@@ -108,11 +125,10 @@ function ActionIcon({ icon }) {
 export function QuickActions() {
   const t = useTranslations("dashboard");
   const actions = [
-    { key: "createPost", href: "/feed", icon: "post" },
-    { key: "goLive", href: "/rooms", icon: "goLive" },
-    { key: "addProject", href: "/gallery", icon: "addProject" },
-    { key: "askQuestion", href: "/feed?kind=question", icon: "askQuestion" },
-    { key: "shareWin", href: "/feed?kind=win", icon: "shareWin" },
+    { key: "post", href: "/feed", icon: "post" },
+    { key: "joinARoom", href: "/rooms", icon: "goLive" },
+    { key: "neighbourhoods", href: "/neighbourhoods", icon: "neighbourhoods" },
+    { key: "members", href: "/members", icon: "members" },
   ];
   return (
     <Card title={t("quickActions")} theme="sky">
@@ -146,19 +162,17 @@ export function CommunityHub() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
   const links = [
-    { href: "/members", key: "members", icon: "○" },
-    { href: "/groups", key: "groups", icon: "◎" },
-    { href: "/spaces", key: "spaces", icon: "▣" },
-    { href: "/gallery", key: "gallery", icon: "▦" },
-    { href: "/discovery", key: "discover", icon: "⌕" },
-    { href: "/leaderboard", key: "leaderboard", icon: "★" },
+    { href: "/members", key: "members", icon: "members" },
+    { href: "/neighbourhoods", key: "neighbourhoods", icon: "neighbourhoods" },
+    { href: "/gallery", key: "gallery", icon: "gallery" },
+    { href: "/leaderboard", key: "leaderboard", icon: "leaderboard" },
   ];
   return (
-    <Card title={t("communityHub")} linkLabel={t("exploreCommunity")} linkHref="/members" theme="violet">
+    <Card title={t("communityHub")} linkLabel={t("exploreCommunity")} linkHref="/community" theme="violet">
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(6, 1fr)",
+          gridTemplateColumns: "repeat(4, 1fr)",
           gap: 10,
         }}
         className={styles.communityHubGrid}
@@ -170,7 +184,9 @@ export function CommunityHub() {
             href={link.href}
             style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 6, padding: 14 }}
           >
-            <span style={{ fontSize: 18, color: "var(--dash-accent, #f42e79)" }}>{link.icon}</span>
+            <span className={styles.quickActionIcon} style={{ color: "var(--dash-accent, #f42e79)" }}>
+              <ActionIcon icon={link.icon} />
+            </span>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#0a0e2a" }}>{tNav(link.key)}</span>
           </Link>
         ))}

@@ -1,4 +1,5 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { canModerate } from "@/lib/server/auth";
 import { getRoom, getRoomBySlug } from "@/lib/server/rooms";
 import { getEvent } from "@/lib/server/events";
@@ -52,23 +53,35 @@ export async function resolveScopeData(scopeType, scopeId) {
 }
 
 export async function listHostAssignments({ scopeType, scopeId, userId } = {}) {
-  let query;
-  if (scopeType && scopeId) {
-    query = adminDb()
-      .collection("hostAssignments")
-      .where("scopeType", "==", scopeType)
-      .where("scopeId", "==", scopeId)
-      .limit(200);
-  } else if (userId) {
-    query = adminDb()
-      .collection("hostAssignments")
-      .where("userId", "==", userId)
-      .limit(200);
-  } else {
-    query = adminDb().collection("hostAssignments").limit(200);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const where = {};
+      if (scopeType && scopeId) {
+        where.scopeType = scopeType;
+        where.scopeId = scopeId;
+      } else if (userId) {
+        where.userId = userId;
+      }
+      const rows = await prisma.hostAssignment.findMany({
+        where,
+        take: 200,
+      });
+      if (rows.length) {
+        return rows.map((r) => ({
+          id: r.id,
+          scopeType: r.scopeType,
+          scopeId: r.scopeId,
+          userId: r.userId,
+          role: r.role || "",
+          grantedBy: r.grantedBy,
+        }));
+      }
+    } catch (err) {
+      logError("hosts.prisma_list_assignments_failed", { error: err.message });
+    }
   }
-  const snap = await query.get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return [];
 }
 
 export async function setHostAssignment({ scopeType, scopeId, userId, role, grantedBy }) {
@@ -77,31 +90,52 @@ export async function setHostAssignment({ scopeType, scopeId, userId, role, gran
     return { ok: false, error: "Invalid host assignment" };
   }
   const id = hostAssignmentKey({ scopeType, scopeId, userId });
-  const data = {
-    scopeType,
-    scopeId,
-    userId,
-    role: normalizedRole,
-    grantedBy,
-    updatedAt: new Date(),
-  };
-  const ref = adminDb().collection("hostAssignments").doc(id);
-  const snap = await ref.get();
-  if (snap.exists) {
-    await ref.update(data);
-  } else {
-    await ref.set({ ...data, createdAt: new Date() });
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const existing = await prisma.hostAssignment.findUnique({ where: { id } });
+      if (existing) {
+        await prisma.hostAssignment.update({
+          where: { id },
+          data: {
+            role: normalizedRole,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        await prisma.hostAssignment.create({
+          data: {
+            id,
+            scopeType,
+            scopeId,
+            userId,
+            role: normalizedRole,
+            grantedBy,
+          },
+        });
+      }
+      return { ok: true, id };
+    } catch (err) {
+      logError("hosts.prisma_set_assignment_failed", { error: err.message });
+    }
   }
-  return { ok: true, id };
+  return { ok: false, error: "Database unavailable" };
 }
 
 export async function removeHostAssignment(scopeType, scopeId, userId) {
   const id = hostAssignmentKey({ scopeType, scopeId, userId });
-  const ref = adminDb().collection("hostAssignments").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: "Assignment not found" };
-  await ref.delete();
-  return { ok: true, id };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const existing = await prisma.hostAssignment.findUnique({ where: { id } });
+      if (!existing) return { ok: false, error: "Assignment not found" };
+      await prisma.hostAssignment.delete({ where: { id } });
+      return { ok: true, id };
+    } catch (err) {
+      logError("hosts.prisma_remove_assignment_failed", { error: err.message });
+    }
+  }
+  return { ok: false, error: "Database unavailable" };
 }
 
 export async function getUserHostRights(uid) {
@@ -125,12 +159,21 @@ export async function getScopedHostRights(uid, scopeType, scopeId) {
   if (!uid || !scopeType || !scopeId) {
     return { isStaff: false, isHost: false, isCoHost: false, roles: [] };
   }
-  const [userDoc, rights, scopeData] = await Promise.all([
-    adminDb().collection("users").doc(uid).get(),
+  let role = null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const userRow = await prisma.user.findUnique({ where: { id: uid }, select: { role: true } });
+      if (userRow) role = userRow.role;
+    } catch (err) {
+      logError("hosts.prisma_get_user_role_failed", { error: err.message });
+    }
+  }
+  const [rights, scopeData] = await Promise.all([
     getUserHostRights(uid),
     resolveScopeData(scopeType, scopeId),
   ]);
-  const isStaff = canModerate({ role: userDoc.data()?.role });
+  const isStaff = canModerate({ role });
   return {
     isStaff,
     ...evaluateScopeRights(rights, scopeType, scopeId, scopeData, isStaff),

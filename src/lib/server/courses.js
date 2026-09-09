@@ -1,33 +1,117 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { meetsTier } from "@/lib/server/plans";
+
+function toMillisValue(v) {
+  if (v == null) return null;
+  if (typeof v.toMillis === "function") return v.toMillis();
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === "number") return v;
+  return new Date(v).getTime();
+}
 
 export function canAccessCourse(course, tier) {
   return meetsTier(tier, course?.requiredTier);
 }
 
+function mapCourseRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || "",
+    status: row.status || "draft",
+    spaceId: row.spaceId || "",
+    purchasePriceCents: row.purchasePriceCents || 0,
+    publicPreview: !!row.publicPreview,
+    requiredTier: row.requiredTier || "",
+    createdBy: row.createdBy,
+    createdAt: toMillisValue(row.createdAt) || null,
+    updatedAt: toMillisValue(row.updatedAt) || null,
+  };
+}
+
+function mapModuleRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    courseId: row.courseId,
+    title: row.title,
+    position: row.position || 0,
+    createdAt: toMillisValue(row.createdAt) || null,
+  };
+}
+
+function mapLessonRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    courseId: row.courseId,
+    moduleId: row.moduleId,
+    title: row.title,
+    body: row.body || "",
+    kind: row.kind || "text",
+    position: row.position || 0,
+    videoUrl: row.videoUrl || "",
+    releaseAt: toMillisValue(row.releaseAt) || null,
+    createdAt: toMillisValue(row.createdAt) || null,
+  };
+}
+
 export async function listCourses(includeDrafts = false) {
-  const snap = await adminDb().collection("courses").orderBy("createdAt", "desc").get();
-  const docs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  return includeDrafts ? docs : docs.filter((course) => course.status === "published");
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.course.findMany({ orderBy: { createdAt: "desc" } });
+      const docs = rows.map(mapCourseRow);
+      return includeDrafts ? docs : docs.filter((course) => course.status === "published");
+    } catch (err) {
+      logError("courses.prisma_list_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function getCourse(id) {
-  const doc = await adminDb().collection("courses").doc(id).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.course.findUnique({ where: { id } });
+      return row ? mapCourseRow(row) : null;
+    } catch (err) {
+      logError("courses.prisma_get_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function getModules(courseId) {
-  const snap = await adminDb().collection("modules").where("courseId", "==", courseId).get();
-  return snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.module.findMany({ where: { courseId } });
+      return rows.map(mapModuleRow).sort((a, b) => a.position - b.position);
+    } catch (err) {
+      logError("courses.prisma_modules_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function getLessons(moduleId) {
-  const snap = await adminDb().collection("lessons").where("moduleId", "==", moduleId).get();
-  return snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.lesson.findMany({
+        where: { moduleId },
+        orderBy: { position: "asc" },
+      });
+      return rows.map(mapLessonRow);
+    } catch (err) {
+      logError("courses.prisma_lessons_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function getCourseFull(id) {
@@ -42,25 +126,46 @@ export async function getCourseFull(id) {
 }
 
 export async function getLesson(id) {
-  const doc = await adminDb().collection("lessons").doc(id).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.lesson.findUnique({ where: { id } });
+      return row ? mapLessonRow(row) : null;
+    } catch (err) {
+      logError("courses.prisma_lesson_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function lessonBelongsToCourse(lesson, courseId) {
   if (lesson?.courseId === courseId) return true;
   if (!lesson?.courseId && lesson?.moduleId) {
-    const modSnap = await adminDb().collection("modules").doc(lesson.moduleId).get();
-    return modSnap.exists && modSnap.data().courseId === courseId;
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        const mod = await prisma.module.findUnique({ where: { id: lesson.moduleId } });
+        if (mod) return mod.courseId === courseId;
+      } catch (err) {
+        logError("courses.prisma_lesson_belongs_failed", { error: err.message });
+      }
+    }
   }
   return false;
 }
 
 export async function getProgress(courseId, uid) {
-  const doc = await adminDb()
-    .collection("progress")
-    .doc(`${courseId}_${uid}`)
-    .get();
-  return doc.exists ? doc.data() : { completedLessons: [] };
+  const id = `${courseId}_${uid}`;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.progress.findUnique({ where: { id } });
+      if (row) return { completedLessons: row.completedLessons || [] };
+    } catch (err) {
+      logError("courses.prisma_progress_failed", { error: err.message });
+    }
+  }
+  return { completedLessons: [] };
 }
 
 export async function getNextLessonId(courseId, lesson) {

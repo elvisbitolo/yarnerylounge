@@ -3,8 +3,8 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getConversation } from "@/lib/server/chat";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 const TYPING_WINDOW_MS = 5000;
 
@@ -23,21 +23,24 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  const cutoff = new Date(Date.now() - TYPING_WINDOW_MS);
-  const snap = await adminDb()
-    .collection("typing")
-    .where("conversationId", "==", conversationId)
-    .where("lastTypedAt", ">=", cutoff)
-    .get();
+  try {
+    const cutoff = new Date(Date.now() - TYPING_WINDOW_MS);
+    const prisma = getPrisma();
+    const rows = await prisma.typing.findMany({
+      where: { conversationId, lastTypedAt: { gte: cutoff } },
+    });
 
-  const names = [];
-  for (const doc of snap.docs) {
-    const d = doc.data();
-    if (d.userId !== user.uid) {
-      names.push(d.userName || "Someone");
+    const names = [];
+    for (const row of rows) {
+      if (row.userId !== user.uid) {
+        names.push(row.userName || "Someone");
+      }
     }
+    return NextResponse.json({ typing: names });
+  } catch (err) {
+    logError("typing.prisma_list_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to load typing" }, { status: 500 });
   }
-  return NextResponse.json({ typing: names });
 }
 
 export async function POST(req, { params }) {
@@ -61,15 +64,25 @@ export async function POST(req, { params }) {
   const docId = `${conversationId}_${user.uid}`;
   const userDoc = await getUserDoc(user.uid);
   const userName = userDoc?.name || user.name || user.email?.split("@")[0] || "Someone";
-  await adminDb().collection("typing").doc(docId).set(
-    {
-      conversationId,
-      userId: user.uid,
-      userName,
-      lastTypedAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  return NextResponse.json({ ok: true });
+  try {
+    const prisma = getPrisma();
+    await prisma.typing.upsert({
+      where: { id: docId },
+      create: {
+        id: docId,
+        conversationId,
+        userId: user.uid,
+        userName,
+        lastTypedAt: new Date(),
+      },
+      update: {
+        userName,
+        lastTypedAt: new Date(),
+      },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    logError("typing.upsert_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to update typing" }, { status: 500 });
+  }
 }

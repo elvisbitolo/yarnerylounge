@@ -4,7 +4,7 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listConversations, getOrCreateDm, getOrCreateGroupChat, getOrCreateSpaceChat } from "@/lib/server/chat";
 import { isGroupMember } from "@/lib/server/groups";
 import { isSpaceMember } from "@/lib/server/spaces";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import Nav from "@/components/Nav";
 import styles from "./chat.module.css";
 
@@ -54,16 +54,17 @@ export default async function ChatPage({ searchParams }) {
 
   const userCountry = userDoc?.country || "";
 
-  const mapMembers = (snap) =>
-    snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((m) => m.name && m.id !== user.uid);
+  const prisma = getPrisma();
 
   let nearby = [];
-  if (userCountry) {
-    nearby = mapMembers(
-      await adminDb().collection("users").where("country", "==", userCountry).limit(30).get()
-    );
+  if (userCountry && prisma) {
+    const nearbyRows = await prisma.user.findMany({
+      where: { country: userCountry },
+      take: 30,
+    });
+    nearby = nearbyRows
+      .map((d) => ({ id: d.id, name: d.name || "", country: d.country || "" }))
+      .filter((m) => m.name && m.id !== user.uid);
   }
   nearby = nearby.slice(0, 12);
 

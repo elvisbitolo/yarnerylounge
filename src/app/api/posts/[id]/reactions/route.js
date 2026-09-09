@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
 import { canAccessPost } from "@/lib/server/posts";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import {
   isValidReactionEmoji,
   normalizedReactionEmoji,
@@ -31,7 +31,6 @@ export async function POST(req, { params }) {
   const limited = rateLimitGuard(`post-reaction:${user.uid}`, { limit: 60 });
   if (limited) return limited;
   const data = access.post;
-  const ref = adminDb().collection("posts").doc(id);
 
   const body = await req.json().catch(() => ({}));
   const emoji = normalizedReactionEmoji(body?.emoji);
@@ -40,31 +39,50 @@ export async function POST(req, { params }) {
   }
 
   const already = Boolean(data.reactions?.[emoji]?.[user.uid]);
-  await ref.update({
-    [`reactions.${emoji}.${user.uid}`]: already ? FieldValue.delete() : true,
-  });
 
-  if (!already && data.authorId && data.authorId !== user.uid) {
-    const actorName =
-      userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
-    const { createNotification } = await import("@/lib/server/notifications");
-    await createNotification({
-      userId: data.authorId,
-      type: "like",
-      actorId: user.uid,
-      actorName,
-      targetId: id,
-      href: `/feed`,
-      text: `Reacted ${emoji} to your post`,
-    }).catch(() => {});
+  try {
+    const prisma = getPrisma();
+    const nextReactions = {
+      ...(data.reactions || {}),
+      [emoji]: { ...(data.reactions?.[emoji] || {}) },
+    };
+    if (already) {
+      delete nextReactions[emoji][user.uid];
+      if (Object.keys(nextReactions[emoji]).length === 0) {
+        delete nextReactions[emoji];
+      }
+    } else {
+      nextReactions[emoji][user.uid] = true;
+    }
+    await prisma.post.update({
+      where: { id },
+      data: { reactions: nextReactions },
+    });
+
+    if (!already && data.authorId && data.authorId !== user.uid) {
+      const actorName =
+        userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
+      const { createNotification } = await import("@/lib/server/notifications");
+      await createNotification({
+        userId: data.authorId,
+        type: "like",
+        actorId: user.uid,
+        actorName,
+        targetId: id,
+        href: `/feed`,
+        text: `Reacted ${emoji} to your post`,
+      }).catch(() => {});
+    }
+
+    const updatedReactions = nextReactions;
+    return NextResponse.json({
+      reactions: summarizeReactions(updatedReactions),
+      reacted: already
+        ? false
+        : Boolean(updatedReactions?.[emoji]?.[user.uid]),
+    });
+  } catch (err) {
+    logError("posts.reactions.prisma_write_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to update reaction" }, { status: 500 });
   }
-
-  const updatedSnap = await ref.get();
-  const updatedReactions = updatedSnap.data().reactions || {};
-  return NextResponse.json({
-    reactions: summarizeReactions(updatedReactions),
-    reacted: already
-      ? false
-      : Boolean(updatedReactions?.[emoji]?.[user.uid]),
-  });
 }

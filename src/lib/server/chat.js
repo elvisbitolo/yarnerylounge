@@ -1,201 +1,208 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { encryptText, decryptText } from "@/lib/server/crypto";
+
+function toMillisValue(v) {
+  if (v == null) return null;
+  if (typeof v.toMillis === "function") return v.toMillis();
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === "number") return v;
+  return new Date(v).getTime();
+}
+
+function mapConversationRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    type: row.type,
+    participantIds: row.participantIds || [],
+    name: row.name || "",
+    groupId: row.groupId || "",
+    spaceId: row.spaceId || "",
+    createdBy: row.createdBy,
+    createdAt: toMillisValue(row.createdAt) || null,
+    updatedAt: toMillisValue(row.updatedAt) || null,
+    lastMessage: row.lastMessageEnc ? decryptText(row.lastMessage) : row.lastMessage || "",
+    lastMessageEnc: !!row.lastMessageEnc,
+    lastMessageAt: toMillisValue(row.lastMessageAt) || null,
+    lastReadAt: row.lastReadAt || null,
+  };
+}
 
 export async function getOrCreateDm(uid, otherId) {
   if (!otherId) return null;
   const ids = [uid, otherId].sort();
-  const snap = await adminDb()
-    .collection("conversations")
-    .where("type", "==", "dm")
-    .where("participantIds", "==", ids)
-    .limit(1)
-    .get();
-  if (!snap.empty) {
-    return { id: snap.docs[0].id, ...snap.docs[0].data() };
+
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.conversation.findFirst({
+        where: { type: "dm", participantIds: { equals: ids } },
+      });
+      if (row) return mapConversationRow(row);
+      const created = await prisma.conversation.create({
+        data: {
+          type: "dm",
+          participantIds: ids,
+          name: "",
+          groupId: "",
+          createdBy: uid,
+          lastMessage: "",
+          lastMessageAt: null,
+        },
+      });
+      return { id: created.id, type: "dm", participantIds: ids };
+    } catch (err) {
+      logError("chat.prisma_dm_find_failed", { error: err.message });
+    }
   }
-  const ref = await adminDb().collection("conversations").add({
-    type: "dm",
-    participantIds: ids,
-    name: "",
-    groupId: "",
-    createdBy: uid,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    lastMessage: "",
-    lastMessageAt: null,
-  });
-  return { id: ref.id, type: "dm", participantIds: ids };
+  return null;
 }
 
 export async function getOrCreateGroupChat(uid, groupId) {
   if (!groupId) return null;
-  const snap = await adminDb()
-    .collection("conversations")
-    .where("type", "==", "group")
-    .where("groupId", "==", groupId)
-    .limit(1)
-    .get();
-  if (!snap.empty) {
-    const doc = snap.docs[0];
-    const data = doc.data();
-    if (!data.participantIds.includes(uid)) {
-      await doc.ref.update({
-        participantIds: [...new Set([...data.participantIds, uid])],
-        updatedAt: new Date(),
+
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.conversation.findFirst({
+        where: { type: "group", groupId },
       });
-      return { id: doc.id, ...data, participantIds: [...data.participantIds, uid] };
+      if (row) {
+        const pids = row.participantIds || [];
+        if (!pids.includes(uid)) {
+          const next = [...new Set([...pids, uid])];
+          await prisma.conversation.update({
+            where: { id: row.id },
+            data: { participantIds: next, updatedAt: new Date() },
+          });
+          return { ...mapConversationRow(row), participantIds: next };
+        }
+        return mapConversationRow(row);
+      }
+      const groupRow = await prisma.group.findUnique({
+        where: { id: groupId },
+        select: { name: true },
+      });
+      if (!groupRow) return null;
+      const groupMembers = await prisma.groupMember.findMany({
+        where: { groupId },
+        select: { userId: true },
+      });
+      const participantIds = [...new Set([uid, ...groupMembers.map((m) => m.userId)])];
+      const created = await prisma.conversation.create({
+        data: {
+          type: "group",
+          participantIds,
+          name: groupRow.name,
+          groupId,
+          createdBy: uid,
+          lastMessage: "",
+          lastMessageAt: null,
+        },
+      });
+      return { id: created.id, type: "group", name: groupRow.name, groupId };
+    } catch (err) {
+      logError("chat.prisma_group_chat_failed", { error: err.message });
     }
-    return { id: doc.id, ...data };
   }
-  const groupSnap = await adminDb().collection("groups").doc(groupId).get();
-  if (!groupSnap.exists) return null;
-  const group = groupSnap.data();
-  const membersSnap = await adminDb()
-    .collection("groupMembers")
-    .where("groupId", "==", groupId)
-    .get();
-  const participantIds = [uid, ...membersSnap.docs.map((d) => d.data().userId)];
-  const ref = await adminDb().collection("conversations").add({
-    type: "group",
-    participantIds: [...new Set(participantIds)],
-    name: group.name,
-    groupId,
-    createdBy: uid,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    lastMessage: "",
-    lastMessageAt: null,
-  });
-  return { id: ref.id, type: "group", name: group.name, groupId };
+  return null;
 }
 
 export async function syncGroupChatParticipants(groupId, participantIds) {
-  const snap = await adminDb()
-    .collection("conversations")
-    .where("type", "==", "group")
-    .where("groupId", "==", groupId)
-    .limit(1)
-    .get();
-  if (snap.empty) return;
-  const doc = snap.docs[0];
-  const data = doc.data();
-  const next = [...new Set(participantIds)];
-  if (JSON.stringify(data.participantIds) !== JSON.stringify(next)) {
-    await doc.ref.update({ participantIds: next, updatedAt: new Date() });
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.conversation.findFirst({
+        where: { type: "group", groupId },
+      });
+      if (row) {
+        const next = [...new Set(participantIds)];
+        if (JSON.stringify(row.participantIds) !== JSON.stringify(next)) {
+          await prisma.conversation.update({
+            where: { id: row.id },
+            data: { participantIds: next, updatedAt: new Date() },
+          });
+        }
+        return;
+      }
+    } catch (err) {
+      logError("chat.prisma_sync_group_failed", { error: err.message });
+    }
   }
 }
 
 export async function getOrCreateSpaceChat(uid, spaceId) {
   if (!spaceId) return null;
-  const snap = await adminDb()
-    .collection("conversations")
-    .where("type", "==", "space")
-    .where("spaceId", "==", spaceId)
-    .limit(1)
-    .get();
-  if (!snap.empty) {
-    const doc = snap.docs[0];
-    const data = doc.data();
-    if (!data.participantIds.includes(uid)) {
-      await doc.ref.update({
-        participantIds: [...new Set([...data.participantIds, uid])],
-        updatedAt: new Date(),
+
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.conversation.findFirst({
+        where: { type: "space", spaceId },
       });
-      return { id: doc.id, ...data, participantIds: [...data.participantIds, uid] };
+      if (row) {
+        const pids = row.participantIds || [];
+        if (!pids.includes(uid)) {
+          const next = [...new Set([...pids, uid])];
+          await prisma.conversation.update({
+            where: { id: row.id },
+            data: { participantIds: next, updatedAt: new Date() },
+          });
+          return { ...mapConversationRow(row), participantIds: next };
+        }
+        return mapConversationRow(row);
+      }
+      const spaceRow = await prisma.space.findUnique({
+        where: { id: spaceId },
+        select: { name: true },
+      });
+      if (!spaceRow) return null;
+      const spaceMembers = await prisma.spaceMember.findMany({
+        where: { spaceId },
+        select: { userId: true },
+      });
+      const participantIds = [...new Set([uid, ...spaceMembers.map((m) => m.userId)])];
+      const created = await prisma.conversation.create({
+        data: {
+          type: "space",
+          participantIds,
+          name: spaceRow.name,
+          spaceId,
+          createdBy: uid,
+          lastMessage: "",
+          lastMessageAt: null,
+        },
+      });
+      return { id: created.id, type: "space", name: spaceRow.name, spaceId };
+    } catch (err) {
+      logError("chat.prisma_space_chat_failed", { error: err.message });
     }
-    return { id: doc.id, ...data };
   }
-  const spaceSnap = await adminDb().collection("spaces").doc(spaceId).get();
-  if (!spaceSnap.exists) return null;
-  const space = spaceSnap.data();
-  const membersSnap = await adminDb()
-    .collection("spaceMembers")
-    .where("spaceId", "==", spaceId)
-    .get();
-  const participantIds = [uid, ...membersSnap.docs.map((d) => d.data().userId)];
-  const ref = await adminDb().collection("conversations").add({
-    type: "space",
-    participantIds: [...new Set(participantIds)],
-    name: space.name,
-    spaceId,
-    createdBy: uid,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    lastMessage: "",
-    lastMessageAt: null,
-  });
-  return { id: ref.id, type: "space", name: space.name, spaceId };
+  return null;
 }
 
 export async function syncSpaceChatParticipants(spaceId, participantIds) {
-  const snap = await adminDb()
-    .collection("conversations")
-    .where("type", "==", "space")
-    .where("spaceId", "==", spaceId)
-    .limit(1)
-    .get();
-  if (snap.empty) return;
-  const doc = snap.docs[0];
-  const data = doc.data();
-  const next = [...new Set(participantIds)];
-  if (JSON.stringify(data.participantIds) !== JSON.stringify(next)) {
-    await doc.ref.update({ participantIds: next, updatedAt: new Date() });
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.conversation.findFirst({
+        where: { type: "space", spaceId },
+      });
+      if (row) {
+        const next = [...new Set(participantIds)];
+        if (JSON.stringify(row.participantIds) !== JSON.stringify(next)) {
+          await prisma.conversation.update({
+            where: { id: row.id },
+            data: { participantIds: next, updatedAt: new Date() },
+          });
+        }
+        return;
+      }
+    } catch (err) {
+      logError("chat.prisma_sync_space_failed", { error: err.message });
+    }
   }
-}
-
-export async function listConversations(uid) {
-  const snap = await adminDb()
-    .collection("conversations")
-    .where("participantIds", "array-contains", uid)
-    .get();
-  const ids = uniqueIds(
-    snap.docs.flatMap((d) => (d.data().participantIds || []).filter((id) => id !== uid))
-  );
-  const names = await loadNames(ids);
-  return snap.docs
-    .map((doc) => {
-      const data = doc.data();
-      const title = data.type === "dm"
-        ? data.participantIds.filter((id) => id !== uid)[0] || "Chat"
-        : data.name || "Group chat";
-      return {
-        id: doc.id,
-        type: data.type,
-        title: names[title] || title,
-        groupId: data.groupId || "",
-        lastMessage: data.lastMessageEnc ? decryptText(data.lastMessage) : data.lastMessage || "",
-        lastMessageAt: data.lastMessageAt
-          ? data.lastMessageAt.toMillis
-            ? data.lastMessageAt.toMillis()
-            : new Date(data.lastMessageAt).getTime()
-          : 0,
-        updatedAt: data.updatedAt
-          ? data.updatedAt.toMillis
-            ? data.updatedAt.toMillis()
-            : new Date(data.updatedAt).getTime()
-          : 0,
-      };
-    })
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-}
-
-export async function getConversation(id, uid) {
-  const doc = await adminDb().collection("conversations").doc(id).get();
-  if (!doc.exists) return null;
-  const data = doc.data();
-  if (!data.participantIds.includes(uid)) return null;
-  const ids = uniqueIds((data.participantIds || []).filter((id) => id !== uid));
-  const names = await loadNames(ids);
-  return {
-    id: doc.id,
-    ...data,
-    lastMessage: data.lastMessageEnc ? decryptText(data.lastMessage) : data.lastMessage || "",
-    participantIds: data.participantIds,
-    title: data.type === "dm"
-      ? names[data.participantIds.filter((v) => v !== uid)[0]] || "Chat"
-      : data.name || "Group chat",
-    createdAt: data.createdAt?.toMillis?.() || new Date(data.createdAt || 0).getTime(),
-  };
 }
 
 function uniqueIds(ids) {
@@ -205,136 +212,253 @@ function uniqueIds(ids) {
 async function loadNames(ids) {
   const names = {};
   if (ids.length === 0) return names;
-  const db = adminDb();
-  const refs = ids.map((id) => db.collection("users").doc(id));
-  const snaps = await db.getAll(...refs);
-  snaps.forEach((snap, i) => {
-    if (snap.exists) names[ids[i]] = snap.data().name || "Member";
-  });
+
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.user.findMany({ where: { id: { in: ids } } });
+      for (const row of rows) {
+        names[row.id] = row.name || "Member";
+      }
+      return names;
+    } catch (err) {
+      logError("chat.prisma_load_names_failed", { error: err.message });
+    }
+  }
   return names;
 }
 
+export async function listConversations(uid) {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.conversation.findMany({
+        where: { participantIds: { has: uid } },
+      });
+      if (rows.length) {
+        const ids = uniqueIds(
+          rows.flatMap((r) => (r.participantIds || []).filter((id) => id !== uid))
+        );
+        const names = await loadNames(ids);
+        return rows
+          .map((row) => {
+            const data = mapConversationRow(row);
+            const title =
+              data.type === "dm"
+                ? (data.participantIds.filter((id) => id !== uid)[0] || "Chat")
+                : data.name || "Group chat";
+            return {
+              id: data.id,
+              type: data.type,
+              title: names[title] || title,
+              groupId: data.groupId || "",
+              lastMessage: data.lastMessageEnc ? decryptText(data.lastMessage) : data.lastMessage || "",
+              lastMessageAt: data.lastMessageAt || 0,
+              updatedAt: toMillisValue(row.updatedAt) || 0,
+            };
+          })
+          .sort((a, b) => b.updatedAt - a.updatedAt);
+      }
+    } catch (err) {
+      logError("chat.prisma_list_convos_failed", { error: err.message });
+    }
+  }
+  return [];
+}
+
+export async function getConversation(id, uid) {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.conversation.findUnique({ where: { id } });
+      if (row) {
+        const pids = row.participantIds || [];
+        if (!pids.includes(uid)) return null;
+        const ids = uniqueIds(pids.filter((vid) => vid !== uid));
+        const names = await loadNames(ids);
+        return {
+          ...mapConversationRow(row),
+          participantIds: pids,
+          title:
+            row.type === "dm"
+              ? names[pids.filter((v) => v !== uid)[0]] || "Chat"
+              : row.name || "Group chat",
+          createdAt: toMillisValue(row.createdAt),
+        };
+      }
+    } catch (err) {
+      logError("chat.prisma_get_conv_failed", { error: err.message });
+    }
+  }
+  return null;
+}
+
 export async function listMessages(conversationId, limitCount = 200) {
-  const snap = await adminDb()
-    .collection("conversations")
-    .doc(conversationId)
-    .collection("messages")
-    .orderBy("createdAt", "desc")
-    .limit(limitCount)
-    .get();
-  return snap.docs
-    .map((doc) => {
-      const data = doc.data();
-      const readBy = {};
-      for (const [uid, ts] of Object.entries(data.readBy || {})) {
-        readBy[uid] = ts?.toMillis?.() ?? (Number(ts) || 0);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.conversationMessage.findMany({
+        where: { conversationId },
+        orderBy: { createdAt: "desc" },
+        take: limitCount,
+      });
+      if (rows.length) {
+        return rows
+          .map((row) => {
+            const rawReadBy = row.readBy && typeof row.readBy === "object" ? row.readBy : {};
+            const readBy = {};
+            for (const [k, v] of Object.entries(rawReadBy)) {
+              readBy[k] = toMillisValue(v) ?? (Number(v) || 0);
+            }
+            const msg = {
+              id: row.id,
+              conversationId: row.conversationId,
+              senderId: row.senderId,
+              senderName: row.senderName || "",
+              text: decryptText(row.text),
+              createdAt: toMillisValue(row.createdAt) || 0,
+              readBy,
+              parentId: row.parentId || null,
+              replyCount: row.replyCount || 0,
+              hasAttachment: !!row.hasAttachment,
+            };
+            if (row.attachment && typeof row.attachment === "object") {
+              msg.attachment = {
+                ...row.attachment,
+                dataUrl: typeof row.attachment.dataUrl === "string" ? decryptText(row.attachment.dataUrl) : row.attachment.dataUrl,
+              };
+            }
+            return msg;
+          })
+          .reverse();
       }
-      const msg = {
-        id: doc.id,
-        ...data,
-        readBy,
-        createdAt: data.createdAt?.toMillis
-          ? data.createdAt.toMillis()
-          : new Date(data.createdAt || 0).getTime(),
-      };
-      msg.text = decryptText(msg.text);
-      if (msg.attachment && typeof msg.attachment.dataUrl === "string") {
-        msg.attachment = { ...msg.attachment, dataUrl: decryptText(msg.attachment.dataUrl) };
-      }
-      return msg;
-    })
-    .reverse();
+    } catch (err) {
+      logError("chat.prisma_list_msgs_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function addMessage(conversationId, sender, text, attachment = null, parentId = null) {
-  const convRef = adminDb().collection("conversations").doc(conversationId);
-  const convDoc = await convRef.get();
-  if (!convDoc.exists) return null;
-  const conv = convDoc.data();
-  if (!conv.participantIds.includes(sender.uid)) return null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+      if (!conv) return null;
+      const pids = conv.participantIds || [];
+      if (!pids.includes(sender.uid)) return null;
 
-  const message = {
-    conversationId,
-    senderId: sender.uid,
-    senderName: sender.name,
-    text: encryptText(text),
-    createdAt: new Date(),
-    readBy: {},
-    parentId: parentId || null,
-    replyCount: 0,
-  };
-  if (attachment) {
-    message.attachment = {
-      name: String(attachment.name || "").slice(0, 120),
-      mime: String(attachment.mime || "").slice(0, 100),
-      kind: attachment.kind === "image" ? "image" : "file",
-      size: Number.isFinite(attachment.size) && attachment.size > 0
-        ? Math.round(attachment.size)
-        : 0,
-      dataUrl: encryptText(attachment.dataUrl),
-    };
-    message.hasAttachment = true;
+      const now = new Date();
+      const msgData = {
+        conversationId,
+        senderId: sender.uid,
+        senderName: sender.name || "",
+        text: encryptText(text),
+        createdAt: now,
+        readBy: {},
+        parentId: parentId || null,
+        replyCount: 0,
+        hasAttachment: false,
+      };
+      if (attachment) {
+        msgData.attachment = {
+          name: String(attachment.name || "").slice(0, 120),
+          mime: String(attachment.mime || "").slice(0, 100),
+          kind: attachment.kind === "image" ? "image" : "file",
+          size: Number.isFinite(attachment.size) && attachment.size > 0 ? Math.round(attachment.size) : 0,
+          dataUrl: encryptText(attachment.dataUrl),
+        };
+        msgData.hasAttachment = true;
+      }
+      const created = await prisma.conversationMessage.create({ data: msgData });
+
+      const preview =
+        text ||
+        (attachment?.kind === "image"
+          ? "Photo"
+          : attachment?.name
+            ? `${attachment.name}`
+            : "");
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          lastMessage: encryptText(preview),
+          lastMessageEnc: true,
+          lastMessageAt: now,
+          updatedAt: now,
+        },
+      });
+      return created.id;
+    } catch (err) {
+      logError("chat.prisma_add_msg_failed", { error: err.message });
+    }
   }
-  const ref = await convRef.collection("messages").add(message);
-
-  const preview =
-    text ||
-    (attachment?.kind === "image"
-      ? "📷 Photo"
-      : attachment?.name
-        ? `📎 ${attachment.name}`
-        : "");
-  await convRef.update({
-    lastMessage: encryptText(preview),
-    lastMessageEnc: true,
-    lastMessageAt: new Date(),
-    updatedAt: new Date(),
-  });
-  return ref.id;
+  return null;
 }
 
 export async function markConversationRead(conversationId, uid) {
-  const convRef = adminDb().collection("conversations").doc(conversationId);
-  const convDoc = await convRef.get();
-  if (!convDoc.exists) return false;
-  const conv = convDoc.data();
-  if (!conv.participantIds.includes(uid)) return false;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+      if (!conv) return false;
+      const pids = conv.participantIds || [];
+      if (!pids.includes(uid)) return false;
 
-  // Record a conversation-level read marker (unbounded, O(1)) so unreadCount
-  // never depends on scanning/limiting individual messages.
-  const now = new Date();
-  await convRef.update({ [`lastReadAt.${uid}`]: now });
+      const now = new Date();
+      const currentReadAt = conv.lastReadAt && typeof conv.lastReadAt === "object" ? conv.lastReadAt : {};
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: { lastReadAt: { ...currentReadAt, [uid]: now } },
+      });
 
-  // Keep per-message read receipts accurate for the just-opened window only,
-  // so the "✓✓ Read" indicator works without writing to every message ever sent.
-  const snap = await convRef
-    .collection("messages")
-    .where("senderId", "!=", uid)
-    .orderBy("createdAt", "desc")
-    .limit(200)
-    .get();
-  const writes = [];
-  for (const msg of snap.docs) {
-    const data = msg.data();
-    if (!(data.readBy || {})[uid]) {
-      writes.push(
-        msg.ref.update({ [`readBy.${uid}`]: now })
-      );
+      const msgs = await prisma.conversationMessage.findMany({
+        where: { conversationId, senderId: { not: uid } },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+      const updates = [];
+      for (const msg of msgs) {
+        const rawReadBy = msg.readBy && typeof msg.readBy === "object" ? msg.readBy : {};
+        if (!rawReadBy[uid]) {
+          updates.push(
+            prisma.conversationMessage.update({
+              where: { id: msg.id },
+              data: { readBy: { ...rawReadBy, [uid]: now } },
+            })
+          );
+        }
+      }
+      if (updates.length) await Promise.all(updates);
+      return true;
+    } catch (err) {
+      logError("chat.prisma_mark_read_failed", { error: err.message });
     }
   }
-  if (writes.length) await Promise.all(writes);
-  return true;
+  return false;
 }
 
 export async function unreadCount(uid) {
   const convs = await listConversations(uid);
   let count = 0;
-  for (const conv of convs) {
-    const doc = await adminDb().collection("conversations").doc(conv.id).get();
-    const data = doc.data();
-    const lastRead = toMillis(data.lastReadAt?.[uid]);
-    const lastMsgAt = toMillis(data.lastMessageAt);
-    if (lastMsgAt > lastRead) count++;
+
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      for (const conv of convs) {
+        const row = await prisma.conversation.findUnique({
+          where: { id: conv.id },
+          select: { lastMessageAt: true, lastReadAt: true },
+        });
+        if (!row) continue;
+        const lastRead = toMillisValue(row.lastReadAt?.[uid]);
+        const lastMsgAt = toMillisValue(row.lastMessageAt);
+        if (lastMsgAt > lastRead) count++;
+      }
+      return count;
+    } catch (err) {
+      logError("chat.prisma_unread_count_failed", { error: err.message });
+    }
   }
   return count;
 }

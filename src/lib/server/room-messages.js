@@ -1,37 +1,50 @@
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const ROOM_MESSAGE_MAX = 2000;
 export const ROOM_QUICK_EMOJIS = [
-  "👍",
-  "❤️",
-  "😂",
-  "😮",
-  "🙏",
-  "🔥",
-  "🎉",
-  "👏",
-  "💯",
-  "🧶",
-  "⭐",
+  "\u{1F44D}",
+  "\u2764\uFE0F",
+  "\u{1F602}",
+  "\u{1F62E}",
+  "\u{1F64F}",
+  "\u{1F525}",
+  "\u{1F389}",
+  "\u{1F44F}",
+  "\u{1F4AF}",
+  "\u{1F9F6}",
+  "\u2B50",
 ];
 
 function toMillis(value) {
   if (!value) return 0;
-  if (value.toMillis) return value.toMillis();
+  if (value instanceof Date) return value.getTime();
   return new Date(value).getTime();
 }
 
-function messagesRef(roomId) {
-  return adminDb().collection("rooms").doc(roomId).collection("messages");
+function removeUndefined(obj) {
+  if (obj == null || typeof obj !== "object") return obj;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
 }
 
 export async function getRoomForChat(roomId) {
-  const doc = await adminDb().collection("rooms").doc(roomId).get();
-  if (!doc.exists) return null;
-  const data = doc.data();
-  if (data.status !== "active") return null;
-  return { id: doc.id, ...data };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.room.findUnique({ where: { id: roomId } });
+      if (row && (row.status || "active") === "active") {
+        return { id: row.id, ...row };
+      }
+      if (row) return null;
+    } catch (err) {
+      logError("room-messages.prisma_room_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 function decodeMessage(raw) {
@@ -69,31 +82,46 @@ function decodeMessage(raw) {
 
 export async function listRoomMessages(roomId, { before, after, limit = 50 } = {}) {
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
-  if (after) {
-    const afterTs = Number.isFinite(after) ? after : toMillis(after);
-    if (!afterTs) return { messages: [], hasMore: false };
-    const q = messagesRef(roomId)
-      .orderBy("createdAt", "asc")
-      .startAfter(new Date(afterTs))
-      .limit(safeLimit);
-    const snap = await q.get();
-    const list = snap.docs.map(decodeMessage).sort((a, b) => a.createdAt - b.createdAt);
-    return { messages: list, hasMore: snap.docs.length >= safeLimit };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      if (after) {
+        const afterTs = Number.isFinite(after) ? after : toMillis(after);
+        if (!afterTs) return { messages: [], hasMore: false };
+        const rows = await prisma.roomMessage.findMany({
+          where: { roomId, createdAt: { gte: new Date(afterTs) } },
+          orderBy: { createdAt: "asc" },
+          take: safeLimit,
+        });
+        if (rows.length) {
+          const list = rows.map(decodeMessage).sort((a, b) => a.createdAt - b.createdAt);
+          return { messages: list, hasMore: rows.length >= safeLimit };
+        }
+      } else {
+        const where = { roomId };
+        if (before) {
+          const beforeTs = Number.isFinite(before) ? before : toMillis(before);
+          if (beforeTs) where.createdAt = { lt: new Date(beforeTs) };
+        }
+        const rows = await prisma.roomMessage.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: safeLimit + 1,
+        });
+        if (rows.length) {
+          const hasMore = rows.length > safeLimit;
+          const list = rows
+            .slice(0, safeLimit)
+            .map(decodeMessage)
+            .sort((a, b) => a.createdAt - b.createdAt);
+          return { messages: list, hasMore };
+        }
+      }
+    } catch (err) {
+      logError("room-messages.prisma_list_failed", { error: err.message });
+    }
   }
-  let q = messagesRef(roomId).orderBy("createdAt", "desc");
-  if (before) {
-    const beforeTs = Number.isFinite(before) ? before : toMillis(before);
-    q = q.endBefore(new Date(beforeTs));
-  }
-  q = q.limit(safeLimit + 1);
-  const snap = await q.get();
-  const docs = snap.docs;
-  const hasMore = docs.length > safeLimit;
-  const list = docs
-    .slice(0, safeLimit)
-    .map(decodeMessage)
-    .sort((a, b) => a.createdAt - b.createdAt);
-  return { messages: list, hasMore };
+  return { messages: [], hasMore: false };
 }
 
 export async function addRoomMessage(roomId, sender, { text, mentions = [], replyTo = null, imageData = "" }) {
@@ -102,7 +130,10 @@ export async function addRoomMessage(roomId, sender, { text, mentions = [], repl
   const clean = String(text || "").trim();
   const cleanImage = String(imageData || "").trim();
   if ((!clean && !cleanImage) || clean.length > ROOM_MESSAGE_MAX) return null;
-  const ref = await messagesRef(roomId).add({
+  const uniqueMentions = Array.isArray(mentions)
+    ? [...new Set(mentions.filter((m) => typeof m === "string" && m))]
+    : [];
+  const payload = {
     roomId,
     userId: sender.uid,
     userName: sender.name,
@@ -110,68 +141,115 @@ export async function addRoomMessage(roomId, sender, { text, mentions = [], repl
     role: sender.role || "viewer",
     text: clean,
     imageData: cleanImage || "",
-    mentions: Array.isArray(mentions)
-      ? [...new Set(mentions.filter((m) => typeof m === "string" && m))]
-      : [],
+    mentions: uniqueMentions,
     replyTo: replyTo ? { id: replyTo.id || "", text: replyTo.text || "", from: replyTo.from || "" } : null,
     reactions: {},
     createdAt: new Date(),
-  });
-  return ref.id;
+  };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const created = await prisma.roomMessage.create({ data: payload });
+      return created.id;
+    } catch (err) {
+      logError("room-messages.prisma_create_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function toggleRoomReaction(roomId, messageId, uid, emoji) {
   if (!ROOM_QUICK_EMOJIS.includes(emoji)) {
     return { error: "Invalid emoji" };
   }
-  const ref = messagesRef(roomId).doc(messageId);
-  const snap = await ref.get();
-  if (!snap.exists) return { error: "Message not found" };
-  const reactions = snap.data().reactions || {};
-  const alreadyReacted = reactions[emoji]?.[uid];
-  await ref.update({
-    [`reactions.${emoji}.${uid}`]: alreadyReacted ? FieldValue.delete() : true,
-  });
-  const after = await ref.get();
-  const decoded = {};
-  for (const [e, byUids] of Object.entries(after.data().reactions || {})) {
-    decoded[e] = Object.keys(byUids || {});
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.roomMessage.findUnique({ where: { id: messageId } });
+      if (!row) return { error: "Message not found" };
+      const reactions = row.reactions && typeof row.reactions === "object" ? { ...row.reactions } : {};
+      const emojiReactions = reactions[emoji] && typeof reactions[emoji] === "object" ? { ...reactions[emoji] } : {};
+      const alreadyReacted = !!emojiReactions[uid];
+      if (alreadyReacted) {
+        delete emojiReactions[uid];
+      } else {
+        emojiReactions[uid] = true;
+      }
+      if (Object.keys(emojiReactions).length > 0) {
+        reactions[emoji] = emojiReactions;
+      } else {
+        delete reactions[emoji];
+      }
+      await prisma.roomMessage.update({
+        where: { id: messageId },
+        data: { reactions: removeUndefined(reactions) },
+      });
+      const decoded = {};
+      for (const [e, byUids] of Object.entries(reactions)) {
+        decoded[e] = Object.keys(byUids || {});
+      }
+      return { reactions: decoded };
+    } catch (err) {
+      logError("room-messages.prisma_reaction_failed", { error: err.message });
+    }
   }
-  return { reactions: decoded };
+  return { error: "Database unavailable" };
 }
 
 export async function toggleRoomPin(roomId, messageId) {
-  const ref = messagesRef(roomId).doc(messageId);
-  const snap = await ref.get();
-  if (!snap.exists) return { error: "Message not found" };
-  const isPinned = !!snap.data().pinned;
-  await ref.update(
-    isPinned
-      ? { pinned: FieldValue.delete(), pinnedAt: FieldValue.delete() }
-      : { pinned: true, pinnedAt: new Date() }
-  );
-  return { pinned: !isPinned };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.roomMessage.findUnique({ where: { id: messageId } });
+      if (!row) return { error: "Message not found" };
+      const isPinned = !!row.pinned;
+      await prisma.roomMessage.update({
+        where: { id: messageId },
+        data: isPinned
+          ? { pinned: false, pinnedAt: null }
+          : { pinned: true, pinnedAt: new Date() },
+      });
+      return { pinned: !isPinned };
+    } catch (err) {
+      logError("room-messages.prisma_pin_failed", { error: err.message });
+    }
+  }
+  return { error: "Database unavailable" };
 }
 
 export async function softDeleteRoomMessage(roomId, messageId) {
-  const ref = messagesRef(roomId).doc(messageId);
-  const snap = await ref.get();
-  if (!snap.exists) return { error: "Message not found" };
-  if (snap.data().deleted) return { deleted: true };
-  await ref.update({
-    deleted: true,
-    deletedAt: new Date(),
-    text: "",
-  });
-  return { deleted: true };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.roomMessage.findUnique({ where: { id: messageId } });
+      if (!row) return { error: "Message not found" };
+      if (row.deleted) return { deleted: true };
+      await prisma.roomMessage.update({
+        where: { id: messageId },
+        data: { deleted: true, deletedAt: new Date(), text: "" },
+      });
+      return { deleted: true };
+    } catch (err) {
+      logError("room-messages.prisma_delete_failed", { error: err.message });
+    }
+  }
+  return { error: "Database unavailable" };
 }
 
 export async function listPinnedRoomMessages(roomId, limit = 10) {
   const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 20);
-  const snap = await messagesRef(roomId)
-    .where("pinned", "==", true)
-    .orderBy("pinnedAt", "desc")
-    .limit(safeLimit)
-    .get();
-  return snap.docs.map(decodeMessage);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.roomMessage.findMany({
+        where: { roomId, pinned: true },
+        orderBy: { pinnedAt: "desc" },
+        take: safeLimit,
+      });
+      return rows.map(decodeMessage);
+    } catch (err) {
+      logError("room-messages.prisma_pinned_failed", { error: err.message });
+    }
+  }
+  return [];
 }

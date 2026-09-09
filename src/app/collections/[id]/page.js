@@ -3,7 +3,7 @@ import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import { getSpace } from "@/lib/server/spaces";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "../collections.module.css";
@@ -18,8 +18,11 @@ export default async function CollectionDetailPage({ params }) {
   if (!user) redirect("/login");
   const userDoc = user ? await getUserDoc(user.uid) : null;
 
-  const colDoc = await adminDb().collection("collections").doc(id).get();
-  if (!colDoc.exists) {
+  const prisma = getPrisma();
+  const colRow = prisma
+    ? await prisma.spaceCollection.findUnique({ where: { id } })
+    : null;
+  if (!colRow) {
     return (
       <Nav role={userDoc?.role}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "48px 24px" }}>
@@ -30,21 +33,25 @@ export default async function CollectionDetailPage({ params }) {
     );
   }
 
-  const collection = { id: colDoc.id, ...colDoc.data() };
+  const collection = {
+    id: colRow.id,
+    name: colRow.name || "",
+    description: colRow.description || "",
+    spaceIds: Array.isArray(colRow.spaceIds) ? colRow.spaceIds : [],
+  };
   const spaces = [];
   for (const spaceId of collection.spaceIds || []) {
     const space = await getSpace(spaceId);
     if (space && space.status !== "deleted") {
-      const memberSnap = await adminDb()
-        .collection("spaceMembers")
-        .where("spaceId", "==", spaceId)
-        .get();
+      const memberCount = prisma
+        ? await prisma.spaceMember.count({ where: { spaceId } })
+        : 0;
       spaces.push({
         id: space.id,
         name: space.name,
         description: space.description || "",
         features: space.features || {},
-        memberCount: memberSnap.size,
+        memberCount,
       });
     }
   }

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { sendEmail } from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notifications";
 import { logError } from "@/lib/server/log";
+import { getPrisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,25 +17,37 @@ export async function GET(req) {
   const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://yarnerylounge.vercel.app";
 
-  const snap = await adminDb()
-    .collection("events")
-    .where("startTime", ">=", now)
-    .where("startTime", "<=", windowEnd)
-    .get();
+  const prisma = getPrisma();
+  const events = await prisma.event.findMany({
+    where: { startTime: { gte: now, lte: windowEnd } },
+    select: { id: true, title: true, startTime: true, roomSlug: true },
+  });
 
   let sent = 0;
-  for (const doc of snap.docs) {
-    const event = doc.data();
-    const start = new Date(event.startTime.toMillis ? event.startTime.toMillis() : event.startTime);
+  for (const event of events) {
+    const start = event.startTime instanceof Date ? event.startTime : new Date(event.startTime);
     const hoursUntil = (start.getTime() - now.getTime()) / (60 * 60 * 1000);
     const joinHref = event.roomSlug ? `/rooms/${event.roomSlug}` : `/events`;
 
-    const rsvpSnap = await adminDb().collection("rsvps").where("eventId", "==", doc.id).get();
-    for (const rsvpDoc of rsvpSnap.docs) {
-      const rsvp = rsvpDoc.data();
-      if (rsvp.reminded === true) continue;
-      const userSnap = await adminDb().collection("users").doc(rsvp.userId).get();
-      const email = userSnap.exists ? userSnap.data().email : "";
+    const rsvps = await prisma.rsvp.findMany({
+      where: { eventId: event.id },
+      select: { userId: true },
+    });
+    for (const rsvp of rsvps) {
+      const alreadyReminded = await prisma.notification.findFirst({
+        where: {
+          userId: rsvp.userId,
+          type: "event_reminder",
+          targetId: event.id,
+        },
+      });
+      if (alreadyReminded) continue;
+
+      const userRow = await prisma.user.findUnique({
+        where: { id: rsvp.userId },
+        select: { email: true },
+      });
+      const email = userRow?.email || "";
       try {
         if (email) {
           await sendEmail({
@@ -52,13 +64,13 @@ export async function GET(req) {
           type: "event_reminder",
           actorId: "",
           actorName: "Secret Yarnery",
+          targetId: event.id,
           text: `"${event.title}" starts soon — don't miss it.`,
           href: joinHref,
         });
-        await rsvpDoc.ref.update({ reminded: true });
         sent++;
       } catch (err) {
-        logError("email.event_reminder_failed", { eventId: doc.id, userId: rsvp.userId, error: err.message });
+        logError("email.event_reminder_failed", { eventId: event.id, userId: rsvp.userId, error: err.message });
       }
     }
   }

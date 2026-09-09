@@ -3,9 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, addDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/client";
 import { JaaSMeeting } from "@jitsi/react-sdk";
 import { LogOut, MessagesSquare } from "lucide-react";
 import BackButton from "@/components/BackButton";
@@ -150,18 +147,7 @@ export default function RoomClient({
   useEffect(() => {
     if (!joined || joinedRef.current) return;
     joinedRef.current = true;
-    let unsub;
-    unsub = onAuthStateChanged(auth, (user) => {
-      if (!user || !roomId) return;
-      addDoc(collection(db, "roomEvents"), {
-        userId: user.uid,
-        roomId,
-        roomName,
-        joinedAt: new Date(),
-      }).catch(() => {});
-    });
-    return () => unsub?.();
-  }, [joined, roomId, roomName]);
+  }, [joined]);
 
   function handleApiReady(api) {
     apiRef.current = api;
@@ -315,7 +301,6 @@ export default function RoomClient({
       <div className={styles.roomWrap}>
         <AmbientAudio
           active={alwaysOn}
-          roomId={roomId}
           musicUrl={musicUrl}
           musicPlaying={musicPlaying}
           musicFileId={musicFileId}
@@ -370,40 +355,57 @@ export default function RoomClient({
           </div>
 
           {showChat && (
-            <div className={styles.chatRail}>
-              <button
-                type="button"
-                className={styles.chatClose}
-                onClick={() => setShowChat(false)}
-                aria-label={t("closeChat")}
-              >
-                ×
-              </button>
-              <RoomDataProvider
-                roomId={roomId}
-                currentUserId={userId}
-                currentUserName={userName}
-                currentUserAvatar={userAvatar}
-                canModerate={isStaff || isHost || isCoHost}
-                isHost={isHost}
-              >
-                <RoomChat
-                  hostId={hostId}
+            <div className={styles.chatSheet}>
+              <div className={styles.chatSheetHeader}>
+                <span className={styles.chatSheetTitle}>
+                  <MessagesSquare size={15} />
+                  Room chat
+                </span>
+                <button
+                  type="button"
+                  className={styles.chatSheetClose}
+                  onClick={() => setShowChat(false)}
+                  aria-label={t("closeChat")}
+                >
+                  ×
+                </button>
+              </div>
+              <div className={styles.chatSheetBody}>
+                <RoomDataProvider
+                  roomId={roomId}
                   currentUserId={userId}
                   currentUserName={userName}
                   currentUserAvatar={userAvatar}
-                  canWriteChat={canWriteChat}
-                  planKey={planKey}
-                />
-              </RoomDataProvider>
+                  canModerate={isStaff || isHost || isCoHost}
+                  isHost={isHost}
+                >
+                  <RoomChat
+                    hostId={hostId}
+                    currentUserId={userId}
+                    currentUserName={userName}
+                    currentUserAvatar={userAvatar}
+                    canWriteChat={canWriteChat}
+                    planKey={planKey}
+                  />
+                </RoomDataProvider>
+              </div>
             </div>
           )}
 
-          <div className={styles.roomActionBar}>
-            <button type="button" className={styles.roomActionBtn} onClick={() => setShowChat((v) => !v)}>
-              <MessagesSquare size={18} />
-              <span>{showChat ? t("hideChat") : t("showChat")}</span>
+          {!showChat && (
+            <button
+              type="button"
+              className={styles.chatFab}
+              onClick={() => setShowChat(true)}
+              aria-label={t("showChat")}
+              title={t("showChat")}
+            >
+              <MessagesSquare size={19} />
+              <span>Chat</span>
             </button>
+          )}
+
+          <div className={styles.roomActionBar}>
             <button type="button" className={`${styles.roomActionBtn} ${styles.roomActionLeave}`} onClick={handleLeave}>
               <LogOut size={18} />
               <span>{t("leave")}</span>

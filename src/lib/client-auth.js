@@ -1,25 +1,18 @@
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  updateProfile,
-  signOut,
-  getIdToken,
-} from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 import { forgetCachedMembership } from "@/lib/membership";
 
-async function createSession(idToken, name) {
+async function createSession({ supabaseToken, supabaseRefreshToken, name } = {}) {
+  const body = {};
+  if (supabaseToken) body.supabaseToken = supabaseToken;
+  if (supabaseRefreshToken) body.supabaseRefreshToken = supabaseRefreshToken;
+  if (name) body.name = name;
   let lastError = "";
-  // Transient failures (Firestore quota spikes, server 5xx) can clear with a
-  // single retry; auth rejections are final and are not retried.
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 800));
     const res = await fetch("/api/auth/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(name ? { idToken, name } : { idToken }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       const data = await res.json();
@@ -59,7 +52,6 @@ async function createSession(idToken, name) {
       err.code = "rate_limited";
       throw err;
     }
-    // 400 / 5xx — retry once, then give the user a clear message.
     if (attempt === 1) {
       const err = new Error(
         data.message ||
@@ -76,9 +68,6 @@ async function createSession(idToken, name) {
   throw err;
 }
 
-// The signup wall: verifies an email has a paid Shopify-checkout record in
-// Firestore BEFORE a Firebase Auth account is created. Returns
-// { ok: true } or throws a typed error with `.redirect` to the speakeasy page.
 export async function checkPaidSignup(email) {
   const res = await fetch("/api/auth/precheck", {
     method: "POST",
@@ -87,58 +76,165 @@ export async function checkPaidSignup(email) {
   });
   if (res.ok) {
     const data = await res.json();
-    return { ok: true, ...data };
+    if (data.allowed) return { ok: true, plan: data.plan, openAccess: !!data.openAccess };
   }
   const data = await res.json().catch(() => ({}));
-  const err = new Error(data.message || "This account needs a paid Speakeasy membership.");
-  err.code = data.error || "not_prepaid";
-  err.redirect = data.redirect || "";
-  throw err;
+  if (data.redirect) {
+    const err = new Error(data.message || "Membership required");
+    err.code = "not_prepaid";
+    err.redirect = data.redirect;
+    throw err;
+  }
+  throw new Error(data.message || "Could not check membership");
+}
+
+export async function loginWithSupabaseEmail(email, password) {
+  const { error } = await supabaseBrowser.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) {
+    if (error.code === "invalid_credentials") {
+      throw new Error("That email and password combination does not match our records.");
+    }
+    if (error.code === "user_not_found") {
+      throw new Error("That email and password combination does not match our records.");
+    }
+    if (error.code === "email_not_confirmed") {
+      throw new Error("Please verify your email first — check your inbox for the confirmation link.");
+    }
+    throw new Error(error.message || "Could not sign in. Please try again.");
+  }
+  return { user: null };
 }
 
 export async function loginWithGoogle() {
-  const cred = await signInWithPopup(auth, new GoogleAuthProvider());
-  const idToken = await getIdToken(cred.user);
-  const { data } = await createSession(idToken);
-  return { user: cred.user, data };
+  await supabaseBrowser.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      scopes: "profile email openid",
+      prompt: "select_account",
+      redirectTo: `${window.location.origin}/login?provider=google`,
+    },
+  });
+  return { user: null };
+}
+
+export async function loginWithSupabaseGoogle() {
+  const { error } = await supabaseBrowser.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      scopes: "profile email openid",
+      prompt: "select_account",
+      redirectTo: `${window.location.origin}/login?provider=google`,
+    },
+  });
+  if (error) throw supabaseError(error);
+  return { user: null };
+}
+
+export async function signupWithSupabaseEmail(email, password, name) {
+  const { error } = await supabaseBrowser.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/login`,
+      data: { name },
+    },
+  });
+  if (error) throw supabaseError(error);
+  return { user: null };
+}
+
+export async function signupWithEmail(email, password, name) {
+  await checkPaidSignup(email);
+  await signupWithSupabaseEmail(email, password, name);
+  const { data } = supabaseBrowser.auth.getSession();
+  const supabaseToken = data?.session?.access_token;
+  if (supabaseToken) {
+    try {
+      await createSession({ supabaseToken, name });
+    } catch {
+      // Best-effort.
+    }
+  }
+  return { user: null };
 }
 
 export async function signupWithGoogle() {
-  const cred = await signInWithPopup(auth, new GoogleAuthProvider());
-  const idToken = await getIdToken(cred.user);
-  const { data } = await createSession(idToken, cred.user.displayName || "");
-  return { user: cred.user, data };
+  await supabaseBrowser.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      scopes: "profile email openid",
+      prompt: "select_account",
+      redirectTo: `${window.location.origin}/signup?provider=google`,
+    },
+  });
+  return { user: null };
 }
 
-export async function loginWithEmail(email, password) {
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  const idToken = await getIdToken(cred.user);
-  await createSession(idToken);
-  return { user: cred.user };
+export async function completeSupabaseGoogle() {
+  const { data } = supabaseBrowser.auth.getSession();
+  const session = data?.session;
+  if (!session?.access_token) {
+    return false;
+  }
+  await createSession({
+    supabaseToken: session.access_token,
+    supabaseRefreshToken: session.refresh_token || undefined,
+  });
+  return true;
 }
 
-export async function signupWithEmail(name, email, password) {
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(cred.user, { displayName: name });
-  const idToken = await getIdToken(cred.user);
-  await createSession(idToken, name);
-  return { user: cred.user };
+export async function sendPasswordReset(email) {
+  const clean = String(email || "").trim();
+  if (!clean) throw new Error("Enter your email address");
+  const { error } = await supabaseBrowser.auth.resetPasswordForEmail(clean, {
+    redirectTo: `${window.location.origin}/login`,
+  });
+  if (error) throw supabaseError(error);
+}
+
+export async function resendSignupVerification(email) {
+  const { error } = await supabaseBrowser.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: `${window.location.origin}/login` },
+  });
+  if (error) throw supabaseError(error);
+  return true;
+}
+
+export async function refreshSupabaseSession() {
+  const res = await fetch("/api/auth/refresh", { method: "POST" });
+  return res.ok;
 }
 
 export async function logout() {
-  if (auth.currentUser) forgetCachedMembership(auth.currentUser.uid);
-  await signOut(auth);
+  forgetCachedMembership(supabaseBrowser.auth.getUser()?.user?.id);
+  try {
+    await supabaseBrowser.auth.signOut();
+  } catch {
+    // best-effort
+  }
   await fetch("/api/auth/logout", { method: "POST" });
 }
 
-// Re-fetches the signed-in user's Firestore doc by refreshing the session,
-// so a just-completed Shopify purchase shows the new plan/badge immediately.
-// Returns true when refreshed, false when there is no signed-in user.
 export async function refreshSession() {
-  const user = auth.currentUser;
+  const { data } = await supabaseBrowser.auth.getSession();
+  if (data?.session?.access_token) {
+    return refreshSupabaseSession();
+  }
+  const user = supabaseBrowser.auth.getUser()?.user;
   if (!user) return false;
-  forgetCachedMembership(user.uid);
-  const idToken = await getIdToken(user, true);
-  await createSession(idToken);
-  return true;
+  forgetCachedMembership(user.id);
+  return false;
+}
+
+function supabaseError(error) {
+  const msg = typeof error === "string" ? error : error?.message || "Authentication failed";
+  const err = new Error(msg);
+  err.code = error?.code || "auth_error";
+  if (error?.status) err.status = error.status;
+  return err;
 }

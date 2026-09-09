@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import {
   listSpaces,
   isSpaceMember,
@@ -9,6 +8,8 @@ import {
 import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { clean } from "@/lib/server/validate";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req) {
   const isAdmin = new URL(req.url).searchParams.get("admin") === "1";
@@ -18,13 +19,16 @@ export async function GET(req) {
 
   const spaces = await listSpaces();
   const withMembership = [];
+  const prisma = getPrisma();
   for (const space of spaces) {
     const membership = await isSpaceMember(space.id, auth.user.uid);
     if (space.access === "invite" && !membership && !isAdmin) continue;
-    const membersSnap = await adminDb()
-      .collection("spaceMembers")
-      .where("spaceId", "==", space.id)
-      .get();
+    let memberCount = 0;
+    try {
+      memberCount = await prisma.spaceMember.count({ where: { spaceId: space.id } });
+    } catch (err) {
+      logError("spaces.member_count_failed", { error: err.message, spaceId: space.id });
+    }
     withMembership.push({
       id: space.id,
       name: space.name,
@@ -35,7 +39,7 @@ export async function GET(req) {
       purchasePriceCents: space.purchasePriceCents || 0,
       features: space.features || {},
       publicPreview: !!space.publicPreview,
-      memberCount: membersSnap.size,
+      memberCount,
       joined: !!membership,
     });
   }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 function similarityScore(a, b) {
   let score = 0;
@@ -65,16 +66,53 @@ export async function GET(req) {
   const baseUid = forUid || auth.user.uid;
   const exclude = forUid || auth.user.uid;
 
-  const me = await adminDb().collection("users").doc(baseUid).get();
-  if (!me.exists) {
+  const prisma = getPrisma();
+
+  const similaritySelect = {
+    country: true,
+    goToYarn: true,
+    favoriteHookSize: true,
+    favoriteColors: true,
+    headline: true,
+    bio: true,
+  };
+  let myData;
+  try {
+    const row = await prisma.user.findUnique({
+      where: { id: baseUid },
+      select: similaritySelect,
+    });
+    if (!row) {
+      return NextResponse.json({ members: [] });
+    }
+    myData = row;
+  } catch (err) {
+    logError("similar.prisma_me_read_failed", { error: err.message });
     return NextResponse.json({ members: [] });
   }
-  const myData = me.data();
 
-  const snap = await adminDb().collection("users").limit(500).get();
-  const candidates = snap.docs
-    .filter((doc) => doc.id !== exclude)
-    .map((doc) => ({ id: doc.id, ...doc.data() }));
+  const userSelect = {
+    name: true,
+    headline: true,
+    country: true,
+    photoURL: true,
+    favoriteColors: true,
+    goToYarn: true,
+    favoriteHookSize: true,
+    bio: true,
+  };
+  let candidates;
+  try {
+    const rows = await prisma.user.findMany({
+      take: 500,
+      where: { id: { not: exclude } },
+      select: userSelect,
+    });
+    candidates = rows.map((r) => ({ id: r.id, ...r }));
+  } catch (err) {
+    logError("similar.prisma_read_failed", { error: err.message });
+    candidates = [];
+  }
 
   const scored = candidates
     .map((c) => ({ ...c, score: similarityScore(myData, c) }))

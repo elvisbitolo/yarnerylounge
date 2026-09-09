@@ -222,6 +222,13 @@
   vertical-align: middle;
 }
 
+.readOnlyNote {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #8a8a9a;
+}
+
 .pinBtn {
   margin-left: auto;
   padding: 6px 12px;

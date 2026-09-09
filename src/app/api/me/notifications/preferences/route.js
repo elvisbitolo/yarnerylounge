@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { logError } from "@/lib/server/log";
+import { getPrisma } from "@/lib/db/prisma";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -9,15 +9,25 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const doc = await adminDb().collection("users").doc(user.uid).get();
-  const data = doc.exists ? doc.data() : {};
-  const prefs = data.notificationPreferences || {
+  const prisma = getPrisma();
+  let prefs = {
     chat: true,
     feed: true,
     events: true,
     mentions: true,
     automations: true,
   };
+  try {
+    const row = await prisma.user.findUnique({
+      where: { id: user.uid },
+      select: { notificationPreferences: true },
+    });
+    if (row && row.notificationPreferences) {
+      prefs = row.notificationPreferences;
+    }
+  } catch (err) {
+    logError("notifications.prisma_prefs_read_failed", { error: err.message });
+  }
 
   return NextResponse.json(prefs);
 }
@@ -38,8 +48,18 @@ export async function PUT(req) {
   };
 
   try {
-    await adminDb().collection("users").doc(user.uid).update({
-      notificationPreferences: prefs,
+    await getPrisma().user.upsert({
+      where: { id: user.uid },
+      create: {
+        id: user.uid,
+        name: user.displayName || "",
+        notificationPreferences: prefs,
+        updatedAt: new Date(),
+      },
+      update: {
+        notificationPreferences: prefs,
+        updatedAt: new Date(),
+      },
     });
   } catch (err) {
     logError("prefs.update_failed", { error: err.message, uid: user.uid });

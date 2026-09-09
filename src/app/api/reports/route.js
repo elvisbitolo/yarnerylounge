@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
-import { adminDb } from "@/lib/firebase/admin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function POST(req) {
   const user = await getCurrentUser();
@@ -37,17 +38,25 @@ export async function POST(req) {
       : type === "comment"
         ? `posts/${commentPostId}/comments/${targetId}`
         : "";
-  const ref = await adminDb().collection("reports").add({
-    type,
-    targetId,
-    commentPostId: type === "comment" ? commentPostId : "",
-    targetPath,
-    reporterId: user.uid,
-    reporterName: userDoc?.name || user.name || user.email?.split("@")[0] || "Member",
-    reason: reason.trim(),
-    status: "open",
-    createdAt: new Date(),
-  });
 
-  return NextResponse.json({ id: ref.id });
+  const prisma = getPrisma();
+  try {
+    const created = await prisma.report.create({
+      data: {
+        type,
+        targetId,
+        commentPostId: type === "comment" ? commentPostId : "",
+        targetPath,
+        reporterId: user.uid,
+        reporterName: userDoc?.name || user.name || user.email?.split("@")[0] || "Member",
+        reason: reason.trim(),
+        status: "open",
+        createdAt: new Date(),
+      },
+    });
+    return NextResponse.json({ id: created.id });
+  } catch (err) {
+    logError("reports.create_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not submit report" }, { status: 500 });
+  }
 }

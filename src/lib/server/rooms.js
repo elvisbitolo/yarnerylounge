@@ -1,5 +1,6 @@
-import { adminDb } from "@/lib/firebase/admin";
-import { deleteDocs } from "@/lib/server/delete";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
+import { mapRoomRow } from "./rooms-core.js";
 
 export function slugify(name) {
   return name
@@ -10,53 +11,60 @@ export function slugify(name) {
 }
 
 export async function listRooms() {
-  try {
-    const snap = await adminDb().collection("rooms").orderBy("createdAt", "desc").get();
-    return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  } catch {
-    // Backend/quota unavailable — serve the canonical Speakeasy lounges.
-    return ALWAYS_ON_ROOMS.map(canonicalDefaultRoom);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.room.findMany({ orderBy: { createdAt: "desc" } });
+      return rows.map(mapRoomRow);
+    } catch (err) {
+      logError("rooms.prisma_list_failed", { error: err.message });
+    }
   }
+  return ALWAYS_ON_ROOMS.map(canonicalDefaultRoom);
 }
 
 export async function listRoomsForGroup(groupId) {
-  try {
-    const snap = await adminDb()
-      .collection("rooms")
-      .where("groupId", "==", groupId)
-      .get();
-    return snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-  } catch {
-    return [];
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.room.findMany({ where: { groupId } });
+      return rows
+        .map(mapRoomRow)
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    } catch (err) {
+      logError("rooms.prisma_list_group_failed", { error: err.message });
+    }
   }
+  return [];
 }
 
 export async function getRoom(id) {
-  try {
-    const doc = await adminDb().collection("rooms").doc(id).get();
-    return doc.exists ? { id: doc.id, ...doc.data() } : null;
-  } catch {
-    return null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.room.findUnique({ where: { id } });
+      return row ? mapRoomRow(row) : null;
+    } catch (err) {
+      logError("rooms.prisma_get_failed", { error: err.message });
+    }
   }
+  return null;
 }
 
 export async function getRoomBySlug(slug) {
-  try {
-    const snap = await adminDb().collection("rooms").where("slug", "==", slug).limit(1).get();
-    if (snap.empty) return null;
-    const doc = snap.docs[0];
-    return { id: doc.id, ...doc.data() };
-  } catch {
-    // Fall back to the hardcoded always-open Speakeasy lounges.
-    const spec = ALWAYS_ON_ROOMS.find((r) => r.slug === slug);
-    return spec ? canonicalDefaultRoom(spec) : null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.room.findUnique({ where: { slug } });
+      return row ? mapRoomRow(row) : null;
+    } catch (err) {
+      logError("rooms.prisma_getBySlug_failed", { error: err.message });
+    }
   }
+  const spec = ALWAYS_ON_ROOMS.find((r) => r.slug === slug);
+  return spec ? canonicalDefaultRoom(spec) : null;
 }
 
-// Builds a minimal, fully-hardcoded room from an always-on spec so the lounge
-// keeps opening even when Firestore is down (quota exceeded, 5xx, etc.).
 function canonicalDefaultRoom(spec) {
   return {
     id: spec.slug,
@@ -82,47 +90,59 @@ function canonicalDefaultRoom(spec) {
 
 export async function createRoom({ name, description, maxParticipants, groupId, spaceId, kind, publicPreview, createdBy, opensAt }) {
   const slug = `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`;
-  const ref = adminDb().collection("rooms").doc();
-  await ref.set({
-    name,
-    slug,
-    description: description || "",
-    status: "active",
-    maxParticipants,
-    groupId: groupId || "",
-    spaceId: spaceId || "",
-    kind: kind === "broadcast" ? "broadcast" : "standard",
-    publicPreview: !!publicPreview,
-    opensAt: opensAt || null,
-    createdBy,
-    createdAt: new Date(),
-  });
-  return { id: ref.id, slug, name, description };
-}
-
-async function endLiveKitRoom() {
-  // LiveKit was replaced by Jitsi as a Service; nothing to tear down server-side.
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const created = await prisma.room.create({
+        data: {
+          name,
+          slug,
+          description: description || "",
+          status: "active",
+          maxParticipants: maxParticipants || 20,
+          groupId: groupId || null,
+          spaceId: spaceId || null,
+          kind: kind === "broadcast" ? "broadcast" : "standard",
+          publicPreview: !!publicPreview,
+          opensAt: opensAt ? new Date(opensAt) : null,
+          createdBy,
+        },
+      });
+      return { id: created.id, slug, name, description };
+    } catch (err) {
+      logError("rooms.prisma_create_failed", { error: err.message });
+    }
+  }
+  return { id: "", slug, name, description };
 }
 
 export async function deleteRoom(room) {
-  await endLiveKitRoom(room.slug);
-  const eventsSnap = await adminDb()
-    .collection("roomEvents")
-    .where("roomId", "==", room.id)
-    .get();
-  await deleteDocs(eventsSnap.docs);
-  await adminDb().collection("rooms").doc(room.id).delete();
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.roomEvent.deleteMany({ where: { roomId: room.id } });
+        await tx.roomSignal.deleteMany({ where: { roomId: room.id } });
+        await tx.roomMessage.deleteMany({ where: { roomId: room.id } });
+        await tx.room.deleteMany({ where: { id: room.id } });
+      });
+      return;
+    } catch (err) {
+      logError("rooms.prisma_delete_failed", { error: err.message });
+    }
+  }
 }
 
 export const ALWAYS_ON_ROOMS = [
   {
     slug: "happy-hour-hub",
     name: "Happy Hour Hub",
-    description: "The official welcome mat — high-energy, loud, and chatty. The #1 spot for new members to introduce themselves, make friends, and show off yarn hauls.",
+    description:
+      "High-energy, loud, and chatty. Our official welcome mat! Hop in, flip your camera on, show off your latest yarn haul, and make fast friends. Upbeat, vocal-free background grooves stream here 24/7.",
     musicName: "Upbeat lounge grooves",
     vibe: "social",
     color: "#e91e63",
-    rule: "Turn your camera and mic ON. This is the loud, friendly welcome room — show your face and say hi!",
+    rule: "Cameras and mics on. Kick back, sip something nice, and enjoy the company.",
     vibeMode: "auto",
     autoAudioVideo: true,
     forceMuteOnJoin: false,
@@ -132,11 +152,12 @@ export const ALWAYS_ON_ROOMS = [
   {
     slug: "lo-fi-and-loops",
     name: "Lo-Fi & Loops",
-    description: "Solo-focused flow for introverts. Members log in to craft side-by-side; microphones stay muted by default, text chat for quick hellos.",
+    description:
+      "Focused creative flow. Perfect for introverted crafting. Microphones stay muted by default while smooth, relaxing lo-fi hip-hop tracks stream continuously to keep you in your zone.",
     musicName: "Cozy lo-fi hip-hop beats",
     vibe: "focus",
     color: "#2dd4bf",
-    rule: "Mics start muted. This is a flow room — join, craft, and listen to the beats. Text chat stays quiet.",
+    rule: "Mics start muted. Craft, focus, and listen to the beats. Text chat stays quiet.",
     vibeMode: "force-mute",
     autoAudioVideo: false,
     forceMuteOnJoin: true,
@@ -144,9 +165,10 @@ export const ALWAYS_ON_ROOMS = [
     disableAudio: false,
   },
   {
-    slug: "velvet-accent-den",
-    name: "The Velvet Accent Den",
-    description: "Calm, intimate, and supportive — like a coffee-shop corner. Mics welcome but voices stay soft for pattern help and gentle storytelling.",
+    slug: "velvet-den",
+    name: "The Velvet Den",
+    description:
+      "Calm, cozy comfort. This is your designated Pattern Help Hub—hold your work up to the camera and troubleshoot tricky rows together. We are streaming relaxing ambient drone, cinematic piano, and soft environmental soundscapes here 24/7.",
     musicName: "Ambient drones & cinematic piano",
     vibe: "calm",
     color: "#701a75",
@@ -160,7 +182,8 @@ export const ALWAYS_ON_ROOMS = [
   {
     slug: "silent-studio",
     name: "The Silent Studio",
-    description: "Zero-distraction accountability zone. Cameras on for company, but absolute silence — bring your own focus soundtrack.",
+    description:
+      "Pure visual accountability. Absolutely no music or chatter allowed. Log in, keep your mic muted, and enjoy parallel crafting while listening to your own TV show or audiobook.",
     musicName: "",
     vibe: "silent",
     color: "#334155",
@@ -174,68 +197,67 @@ export const ALWAYS_ON_ROOMS = [
 ];
 
 export async function seedAlwaysOnRooms() {
+  const prisma = getPrisma();
   try {
     const created = [];
     for (const spec of ALWAYS_ON_ROOMS) {
-      const snap = await adminDb()
-        .collection("rooms")
-        .where("slug", "==", spec.slug)
-        .limit(1)
-        .get();
-      if (!snap.empty) {
-        const doc = snap.docs[0];
-        const data = doc.data();
-        const patch = { alwaysOn: true };
-        if (data.name !== spec.name) patch.name = spec.name;
-        if (data.description !== spec.description) patch.description = spec.description;
-        if (data.color !== spec.color) patch.color = spec.color;
-        for (const key of [
-          "vibeMode",
-          "rule",
-          "autoAudioVideo",
-          "forceMuteOnJoin",
-          "raiseHandToTalk",
-          "disableAudio",
-        ]) {
-          if (data[key] !== spec[key]) patch[key] = spec[key];
+      if (prisma) {
+        try {
+          const existing = await prisma.room.findFirst({ where: { slug: spec.slug } });
+          if (existing) {
+            const patch = { alwaysOn: true };
+            if (existing.name !== spec.name) patch.name = spec.name;
+            if (existing.description !== spec.description) patch.description = spec.description;
+            if (existing.color !== spec.color) patch.color = spec.color;
+            for (const key of [
+              "vibeMode",
+              "rule",
+              "autoAudioVideo",
+              "forceMuteOnJoin",
+              "raiseHandToTalk",
+              "disableAudio",
+            ]) {
+              if (existing[key] !== spec[key]) patch[key] = spec[key];
+            }
+            if (Object.keys(patch).length > 1) {
+              await prisma.room.update({ where: { id: existing.id }, data: patch });
+            }
+            created.push({ id: existing.id, slug: spec.slug, name: spec.name, alwaysOn: true });
+            continue;
+          }
+          const room = await prisma.room.create({
+            data: {
+              name: spec.name,
+              slug: spec.slug,
+              description: spec.description,
+              status: "active",
+              maxParticipants: 200,
+              groupId: "",
+              spaceId: "",
+              kind: "standard",
+              publicPreview: true,
+              opensAt: null,
+              alwaysOn: true,
+              vibe: spec.vibe,
+              color: spec.color,
+              vibeMode: spec.vibeMode,
+              rule: spec.rule,
+              autoAudioVideo: spec.autoAudioVideo,
+              forceMuteOnJoin: spec.forceMuteOnJoin,
+              raiseHandToTalk: spec.raiseHandToTalk,
+              disableAudio: spec.disableAudio,
+              createdBy: "system",
+            },
+          });
+          created.push({ id: room.id, slug: spec.slug, name: spec.name, alwaysOn: true });
+          continue;
+        } catch (err) {
+          logError("rooms.prisma_seed_failed", { error: err.message, slug: spec.slug });
         }
-        if (Object.keys(patch).length > 0) {
-          await doc.ref.set(patch, { merge: true });
-        }
-        created.push({ id: doc.id, slug: spec.slug, name: spec.name, alwaysOn: true });
-        continue;
       }
-
-      const ref = adminDb().collection("rooms").doc();
-      const room = {
-        name: spec.name,
-        slug: spec.slug,
-        description: spec.description,
-        status: "active",
-        maxParticipants: 200,
-        groupId: "",
-        spaceId: "",
-        kind: "standard",
-        publicPreview: true,
-        opensAt: null,
-        alwaysOn: true,
-        vibe: spec.vibe,
-        color: spec.color,
-        vibeMode: spec.vibeMode,
-        rule: spec.rule,
-        autoAudioVideo: spec.autoAudioVideo,
-        forceMuteOnJoin: spec.forceMuteOnJoin,
-        raiseHandToTalk: spec.raiseHandToTalk,
-        disableAudio: spec.disableAudio,
-        createdBy: "system",
-        createdAt: new Date(),
-      };
-      await ref.set(room);
-      created.push({ id: ref.id, slug: spec.slug, name: spec.name, alwaysOn: true });
     }
     return created;
   } catch {
-    // Seeding is best-effort; the rooms page falls back to hardcoded lounges.
     return ALWAYS_ON_ROOMS.map((spec) => ({
       id: spec.slug,
       slug: spec.slug,

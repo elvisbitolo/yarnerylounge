@@ -20,7 +20,7 @@
 .title {
   font-size: 32px;
   font-weight: 800;
-  color: #17171c;
+  color: #ffffff;
   margin: 0;
 }
 
@@ -46,7 +46,7 @@
 
 .subtitle {
   font-size: 16px;
-  color: #6b6b7b;
+  color: #c9c9d4;
   margin: 8px 0 32px;
 }
 
@@ -62,8 +62,8 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
 }
 
 .alwaysOnGrid {
@@ -82,7 +82,6 @@
   background: #ffffff;
   border: 1px solid #e6e6ef;
   border-radius: 14px;
-  padding: 24px;
   text-decoration: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
@@ -93,11 +92,67 @@
   transform: translateY(-2px);
 }
 
+.cardImageWrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #1a1a1f;
+}
+
+.cardImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.cardEmoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--primary);
+  background: rgba(167, 139, 250, 0.12);
+  border-radius: 10px;
+}
+
 .cardTitle {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
   color: #17171c;
-  margin: 0 0 8px;
+  margin: 0;
+}
+
+.cardEnter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #17171c;
+  margin: 0;
+}
+
+.cardEnter svg {
+  color: var(--primary);
+  transition: transform 0.15s ease;
+}
+
+.card:hover .cardEnter svg {
+  transform: translateX(3px);
 }
 
 .broadcastBadge {
@@ -223,8 +278,11 @@
 .alwaysOnCard {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--roomColor, #a78bfa) 15%, #ffffff), rgba(255, 255, 255, 0.85));
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
   border: 1px solid color-mix(in srgb, var(--roomColor, #a78bfa) 30%, #e6e6ef);
+  border-top: 3px solid var(--roomColor, #a78bfa);
 }
 
 @media (max-width: 480px) {
@@ -234,15 +292,13 @@
 }
 
 .alwaysOnBadge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(167, 139, 250, 0.2);
+  background: rgba(167, 139, 250, 0.18);
   font-size: 11px;
   font-weight: 700;
   color: var(--secondary-light);
@@ -255,10 +311,6 @@
   border-radius: 50%;
   background: #4ade80;
   animation: livePulse 1.4s ease-in-out infinite;
-}
-
-.alwaysOnTitle {
-  padding-right: 100px;
 }
 
 @keyframes livePulse {

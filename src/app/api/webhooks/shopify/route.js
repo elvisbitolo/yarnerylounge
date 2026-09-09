@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { adminDb } from "@/lib/firebase/admin";
 import {
   mapShopifyLineItems,
   computeExpiresAt,
-  buildSubscriptionDoc,
+  shouldGrantMembership,
 } from "@/lib/server/shopify";
 import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
+import { getPrisma } from "@/lib/db/prisma";
 
 function verifyHmac(rawBody, header) {
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
@@ -30,52 +30,71 @@ function verifyHmac(rawBody, header) {
   }
 }
 
-async function findUserByEmail(users, email) {
-  const snap = await users.where("email", "==", email).limit(1).get();
-  return snap.empty ? null : snap.docs[0];
-}
-
 // Grants (or refreshes) paid access. Registered members get an in-place
 // upgrade; unregistered buyers get a pre-paid record merged at signup.
 async function grantAccess({ data, email, order }) {
-  const users = adminDb().collection("users");
+  const prisma = getPrisma();
   const variant = mapShopifyLineItems(order.line_items || []);
   const expiresAt = computeExpiresAt(variant)?.toISOString() || "";
   const customerId = order.customer?.id?.toString() || "";
   const orderId = order.id?.toString() || "";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
-  const existing = await findUserByEmail(users, email);
+  const existing = await prisma.user.findFirst({ where: { email } });
   if (existing) {
     const uid = existing.id;
-    await existing.ref.update({
-      plan: variant.plan,
-      role: variant.role,
-      paymentStatus: "paid",
-      isPrePaid: false,
-      shopifyCustomerId: customerId,
-      shopifyOrderId: orderId,
-      expiresAt,
-      updatedAt: new Date(),
+    await prisma.user.update({
+      where: { id: uid },
+      data: {
+        plan: variant.plan,
+        role: variant.role,
+        paymentStatus: "paid",
+        isPrePaid: false,
+        shopifyCustomerId: customerId,
+        shopifyOrderId: orderId,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        updatedAt: new Date(),
+      },
+    }).catch((err) => {
+      logError("shopify.grant_user_prisma_failed", { error: err.message, uid });
     });
-    await adminDb()
-      .collection("subscriptions")
-      .doc(uid)
-      .set(
-        buildSubscriptionDoc({
-          variant,
-          expiresAt: expiresAt ? new Date(expiresAt) : null,
-          customerId,
-          orderId,
-        }),
-        { merge: true }
-      );
+
+    const subData = {
+      id: uid,
+      userId: uid,
+      provider: "shopify",
+      status: "active",
+      plan: variant.annual ? "annual" : "monthly",
+      tier: variant.tier,
+      planName: variant.plan,
+      role: variant.role,
+      shopifyCustomerId: customerId || "",
+      shopifyOrderId: orderId || "",
+    };
+    if (expiresAt) subData.currentPeriodEnd = new Date(expiresAt);
+    await prisma.subscription.upsert({
+      where: { id: uid },
+      create: subData,
+      update: {
+        provider: subData.provider,
+        status: subData.status,
+        plan: subData.plan,
+        tier: subData.tier,
+        planName: subData.planName,
+        role: subData.role,
+        shopifyCustomerId: subData.shopifyCustomerId,
+        shopifyOrderId: subData.shopifyOrderId,
+        ...(subData.currentPeriodEnd ? { currentPeriodEnd: subData.currentPeriodEnd } : {}),
+      },
+    }).catch((err) => {
+      logError("shopify.grant_sub_prisma_failed", { error: err.message, uid });
+    });
 
     await sendEmail({
       to: email,
       subject: "Your Speakeasy Membership is Active!",
       html:
-        `<p>Hi ${existing.data()?.name || email},</p>` +
+        `<p>Hi ${existing.name || email},</p>` +
         `<p>Your payment for the <strong>${variant.label}</strong> plan was successful. Your membership is now active.</p>` +
         `<p>Enter the lounge to start matching, hopping into video rooms, and crafting together: ` +
         `<a href="${appUrl}/login">Enter the Lounge</a></p>` +
@@ -89,16 +108,32 @@ async function grantAccess({ data, email, order }) {
       await createWelcomeMessage({ uid, plan: variant.plan, role: variant.role });
     }
   } else {
-    await users.doc(email).set({
-      email,
-      plan: variant.plan,
-      role: variant.role,
-      paymentStatus: "paid",
-      isPrePaid: true,
-      shopifyCustomerId: customerId,
-      shopifyOrderId: orderId,
-      expiresAt,
-      createdAt: new Date(),
+    await prisma.user.upsert({
+      where: { id: email },
+      create: {
+        id: email,
+        name: "",
+        email,
+        plan: variant.plan,
+        role: variant.role,
+        paymentStatus: "paid",
+        isPrePaid: true,
+        shopifyCustomerId: customerId,
+        shopifyOrderId: orderId,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        createdAt: new Date(),
+      },
+      update: {
+        plan: variant.plan,
+        role: variant.role,
+        paymentStatus: "paid",
+        isPrePaid: true,
+        shopifyCustomerId: customerId,
+        shopifyOrderId: orderId,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      },
+    }).catch((err) => {
+      logError("shopify.prepaid_user_prisma_failed", { error: err.message, email });
     });
 
     await sendEmail({
@@ -118,46 +153,57 @@ async function grantAccess({ data, email, order }) {
 
 // Revokes paid access immediately (orders/cancelled, refunds/create).
 async function revokeAccess({ email, paymentStatus }) {
-  const users = adminDb().collection("users");
-  const existing = await findUserByEmail(users, email);
+  const prisma = getPrisma();
+  const existing = await prisma.user.findFirst({ where: { email } });
   if (!existing) return;
   const uid = existing.id;
-  const patch = {
-    plan: "flirting",
-    role: "member",
-    paymentStatus,
-    isPrePaid: false,
-    expiresAt: new Date().toISOString(),
-    updatedAt: new Date(),
-  };
-  if (existing.id === existing.data()?.email || existing.data()?.isPrePaid) {
+
+  if (existing.id === existing.email || existing.isPrePaid) {
     // Pre-paid placeholder record — no real account yet.
-    await existing.ref.delete().catch(() => existing.ref.update(patch));
+    try {
+      await prisma.user.delete({ where: { id: uid } });
+    } catch (err) {
+      logError("shopify.revoke_prepaid_del_prisma_failed", { error: err.message, uid });
+    }
     return;
   }
-  await existing.ref.update(patch);
-  await adminDb()
-    .collection("subscriptions")
-    .doc(uid)
-    .set(
-      {
-        status: "canceled",
-        plan: "monthly",
-        planName: "flirting",
-        tier: "flirting",
-        role: "member",
-        currentPeriodEnd: new Date(),
-        canceledAt: new Date(),
-        updatedAt: new Date(),
-      },
-      { merge: true }
-    );
+
+  await prisma.user.update({
+    where: { id: uid },
+    data: {
+      plan: "flirting",
+      role: "member",
+      paymentStatus,
+      isPrePaid: false,
+      expiresAt: new Date(),
+      updatedAt: new Date(),
+    },
+  }).catch((err) => {
+    logError("shopify.revoke_user_prisma_failed", { error: err.message, uid });
+  });
+
+  const canceledSub = {
+    status: "canceled",
+    plan: "monthly",
+    planName: "flirting",
+    tier: "flirting",
+    role: "member",
+    currentPeriodEnd: new Date(),
+    canceledAt: new Date(),
+  };
+  await prisma.subscription.upsert({
+    where: { id: uid },
+    create: { id: uid, userId: uid, ...canceledSub },
+    update: canceledSub,
+  }).catch((err) => {
+    logError("shopify.revoke_sub_prisma_failed", { error: err.message, uid });
+  });
 }
 
 async function updateCustomerProfile({ email, data }) {
-  const users = adminDb().collection("users");
-  const existing = await findUserByEmail(users, email);
-  if (!existing || existing.data()?.isPrePaid) return;
+  const prisma = getPrisma();
+  const existing = await prisma.user.findFirst({ where: { email } });
+  if (!existing || existing.isPrePaid) return;
   const patch = { updatedAt: new Date() };
   if (data.first_name) patch.firstName = data.first_name;
   if (data.last_name) patch.lastName = data.last_name;
@@ -165,7 +211,9 @@ async function updateCustomerProfile({ email, data }) {
     patch.name = `${data.first_name || ""} ${data.last_name || ""}`.trim();
   }
   if (data.phone) patch.phone = data.phone;
-  await existing.ref.update(patch);
+  await prisma.user.update({ where: { id: existing.id }, data: patch }).catch((err) => {
+    logError("shopify.customer_profile_prisma_failed", { error: err.message, uid: existing.id });
+  });
 }
 
 export async function POST(req) {
@@ -188,6 +236,16 @@ export async function POST(req) {
     switch (topic) {
       case "orders/paid":
       case "orders/create":
+        // Never grant on an unpaid order — orders/create fires for every new
+        // order, including abandoned checkouts and free $0 orders.
+        if (!shouldGrantMembership({ topic, data })) {
+          logError("shopify.order_not_paid", {
+            topic,
+            orderId: data?.id?.toString?.() || "",
+            financialStatus: data?.financial_status || "",
+          });
+          break;
+        }
         await grantAccess({ data, email, order: data });
         break;
       case "orders/cancelled":

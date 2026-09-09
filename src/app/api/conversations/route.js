@@ -9,7 +9,8 @@ import {
 } from "@/lib/server/chat";
 import { isGroupMember } from "@/lib/server/groups";
 import { isSpaceMember } from "@/lib/server/spaces";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 
 export async function GET(req) {
@@ -42,8 +43,16 @@ export async function POST(req) {
     }
     const limited = rateLimitGuard(`dm:${user.uid}`, { limit: 20 });
     if (limited) return limited;
-    const otherSnap = await adminDb().collection("users").doc(otherId).get();
-    if (!otherSnap.exists) {
+    let recipientExists = false;
+    try {
+      const prisma = getPrisma();
+      const row = await prisma.user.findUnique({ where: { id: otherId }, select: { id: true } });
+      recipientExists = !!row;
+    } catch (err) {
+      logError("conversations.prisma_recipient_failed", { error: err.message });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    if (!recipientExists) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     const conversation = await getOrCreateDm(user.uid, otherId);

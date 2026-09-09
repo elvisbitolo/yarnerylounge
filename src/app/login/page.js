@@ -3,9 +3,14 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { auth } from "@/lib/firebase/client";
-import { sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
-import { loginWithEmail, loginWithGoogle, refreshSession } from "@/lib/client-auth";
+import {
+  completeSupabaseGoogle,
+  loginWithGoogle,
+  loginWithSupabaseEmail,
+  refreshSession,
+  resendSignupVerification,
+  sendPasswordReset,
+} from "@/lib/client-auth";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -27,27 +32,54 @@ export default function LoginPage() {
   const [resent, setResent] = useState(false);
 
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has("session_refresh")) return;
-    let cancelled = false;
-    (async () => {
-      const refreshed = await refreshSession();
-      if (!cancelled && refreshed) {
-        // Full reload so server-rendered pages read the fresh Firestore doc.
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
-        window.location.assign("/dashboard");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("session_refresh")) {
+      let cancelled = false;
+      (async () => {
+        const refreshed = await refreshSession();
+        if (!cancelled && refreshed) {
+          // Full reload so server-rendered pages read the fresh Firestore doc.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
+          window.location.assign("/dashboard");
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (params.has("provider")) {
+      // Returned from the Google OAuth redirect; exchange the Supabase session
+      // for the httpOnly cookie (legacy Firebase Google members are linked
+      // server-side) and reload into the app.
+      let cancelled = false;
+      (async () => {
+        try {
+          const ok = await completeSupabaseGoogle();
+          if (!cancelled && ok) {
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
+            window.location.assign("/dashboard");
+          }
+        } catch (err) {
+          if (!cancelled) {
+            if (err.code === "not_prepaid" && err.redirect) {
+              window.location.assign(err.redirect);
+            } else {
+              setError(err.message || t("googleFailed"));
+            }
+          }
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [t]);
 
   async function resendVerification() {
-    if (!auth.currentUser) return;
     setBusy("verify");
     setError("");
     try {
-      await sendEmailVerification(auth.currentUser);
+      await resendSignupVerification(email);
       setResent(true);
     } catch (err) {
       setError(err.message || "Could not resend verification email");
@@ -60,27 +92,13 @@ export default function LoginPage() {
     setError("");
     setVerifyNotice("");
     setBusy("google");
-    let navigated = false;
     try {
+      // Full-page Google OAuth redirect through Supabase; the mount-time
+      // completeSupabaseGoogle() finalizer exchanges the session on return.
       await loginWithGoogle();
-      navigated = true;
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-      window.location.assign("/dashboard");
     } catch (err) {
-      if (err.code === "no_account") {
-        navigated = true;
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-        window.location.assign("/signup");
-        return;
-      }
-      if (err.code === "email_not_verified") {
-        setVerifyNotice(err.message);
-        setResent(false);
-      } else {
-        setError(err.message || t("googleFailed"));
-      }
-    } finally {
-      if (!navigated) setBusy("");
+      setError(err.message || t("googleFailed"));
+      setBusy("");
     }
   }
 
@@ -89,27 +107,19 @@ export default function LoginPage() {
     setError("");
     setVerifyNotice("");
     setBusy("email");
-    let navigated = false;
     try {
-      await loginWithEmail(email, password);
-      navigated = true;
+      await loginWithSupabaseEmail(email, password);
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
       window.location.assign("/dashboard");
     } catch (err) {
-      if (err.code === "auth/user-not-found") {
-        navigated = true;
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-        window.location.assign("/signup");
-        return;
-      }
-      if (err.code === "email_not_verified") {
+      if (err.code === "email_not_verified" || err.code === "email_not_confirmed") {
         setVerifyNotice(err.message);
         setResent(false);
       } else {
         setError(err.message || "Sign-in failed");
       }
     } finally {
-      if (!navigated) setBusy("");
+      setBusy("");
     }
   }
 
@@ -118,7 +128,7 @@ export default function LoginPage() {
     setError("");
     setBusy("reset");
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordReset(email);
       setResetSent(true);
     } catch (err) {
       setError(err.message || "Failed to send reset email");

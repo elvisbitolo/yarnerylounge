@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/server/auth";
+import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { adminDb } from "@/lib/firebase/admin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { validateCommentText } from "@/lib/server/posts-core";
 import { createNotification } from "@/lib/server/notifications";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req, { params }) {
   const auth = await requireUser();
@@ -12,14 +13,24 @@ export async function GET(req, { params }) {
   if (denied) return denied;
 
   const { id } = await params;
-  const snap = await adminDb()
-    .collection("articles")
-    .doc(id)
-    .collection("comments")
-    .orderBy("createdAt", "asc")
-    .get();
-  const comments = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  return NextResponse.json({ comments });
+  try {
+    const prisma = getPrisma();
+    const rows = await prisma.articleComment.findMany({
+      where: { articleId: id },
+      orderBy: { createdAt: "asc" },
+    });
+    const comments = rows.map((r) => ({
+      id: r.id,
+      authorId: r.authorId,
+      authorName: r.authorName,
+      text: r.text,
+      createdAt: r.createdAt,
+    }));
+    return NextResponse.json({ comments });
+  } catch (err) {
+    logError("articles.comments.prisma_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to load comments" }, { status: 500 });
+  }
 }
 
 export async function POST(req, { params }) {
@@ -38,35 +49,37 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: check.error }, { status: 400 });
   }
 
-  const userDoc = await adminDb().collection("users").doc(user.uid).get();
-  const authorName = userDoc.exists
-    ? userDoc.data().name || user.name || user.email?.split("@")[0] || "Member"
-    : user.email?.split("@")[0] || "Member";
+  const userDoc = await getUserDoc(user.uid);
+  const authorName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
 
-  const articleDoc = await adminDb().collection("articles").doc(id).get();
-  if (!articleDoc.exists) {
-    return NextResponse.json({ error: "Article not found" }, { status: 404 });
-  }
-  const article = articleDoc.data();
-
-  const commentRef = await adminDb().collection("articles").doc(id).collection("comments").add({
-    authorId: user.uid,
-    authorName,
-    text: check.text,
-    createdAt: new Date(),
-  });
-
-  if (article.authorId && article.authorId !== user.uid) {
-    await createNotification({
-      userId: article.authorId,
-      type: "comment",
-      actorId: user.uid,
-      actorName: authorName,
-      targetId: id,
-      href: `/articles/${id}`,
-      text: "commented on your article",
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.article.findUnique({ where: { id } });
+    if (!row) {
+      return NextResponse.json({ error: "Article not found" }, { status: 404 });
+    }
+    const comment = await prisma.articleComment.create({
+      data: {
+        articleId: id,
+        authorId: user.uid,
+        authorName,
+        text: check.text,
+      },
     });
+    if (row.authorId && row.authorId !== user.uid) {
+      await createNotification({
+        userId: row.authorId,
+        type: "comment",
+        actorId: user.uid,
+        actorName: authorName,
+        targetId: id,
+        href: `/articles/${id}`,
+        text: "commented on your article",
+      });
+    }
+    return NextResponse.json({ id: comment.id });
+  } catch (err) {
+    logError("articles.comments.prisma_write_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to post comment" }, { status: 500 });
   }
-
-  return NextResponse.json({ id: commentRef.id });
 }

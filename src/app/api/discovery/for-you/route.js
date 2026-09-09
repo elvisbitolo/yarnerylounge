@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { getCurrentUser } from "@/lib/server/auth";
+import { getPrisma } from "@/lib/db/prisma";
+import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req) {
   const user = await getCurrentUser();
@@ -8,22 +9,43 @@ export async function GET(req) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const userDoc = await adminDb().collection("users").doc(user.uid).get();
-  const userData = userDoc.exists ? userDoc.data() : {};
+  const userDoc = await getUserDoc(user.uid);
+  const userData = userDoc || {};
   const interests = [
     ...(Array.isArray(userData.crafts) ? userData.crafts : []),
     ...(Array.isArray(userData.interests) ? userData.interests : []),
     ...(Array.isArray(userData.hashtags) ? userData.hashtags : []),
   ].map((s) => String(s).toLowerCase().trim()).filter(Boolean);
 
+  // Postgres-first pool readers for the discovery pools (posts by the user,
+  // latest posts, active spaces, published courses).
+  const prisma = getPrisma();
+  let source;
+  try {
+    const [ownRows, postRows, spaceRows, courseRows] = await Promise.all([
+      prisma.post.findMany({
+        where: { authorId: user.uid },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: { hashtags: true },
+      }),
+      prisma.post.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+      prisma.space.findMany({ where: { status: "active" }, take: 50 }),
+      prisma.course.findMany({ where: { status: "published" }, take: 50 }),
+    ]);
+    source = {
+      ownPosts: ownRows.map((r) => r.hashtags || []),
+      posts: postRows.map((r) => ({ ...r, _type: "post" })),
+      spaces: spaceRows.map((r) => ({ ...r, _type: "space" })),
+      courses: courseRows.map((r) => ({ ...r, _type: "course" })),
+    };
+  } catch (err) {
+    logError("discovery.prisma_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not load discovery" }, { status: 500 });
+  }
+
   const ownHashtags = [];
-  const ownPostsSnap = await adminDb()
-    .collection("posts")
-    .where("authorId", "==", user.uid)
-    .limit(50)
-    .get();
-  for (const d of ownPostsSnap.docs) {
-    const tags = d.data().hashtags;
+  for (const tags of source.ownPosts) {
     if (!Array.isArray(tags)) continue;
     for (const t of tags) {
       const clean = String(t).toLowerCase().trim();
@@ -34,12 +56,6 @@ export async function GET(req) {
   }
   const allInterests = [...interests, ...ownHashtags];
   const interestsSet = new Set(allInterests);
-
-  const [postsSnap, spacesSnap, coursesSnap] = await Promise.all([
-    adminDb().collection("posts").orderBy("createdAt", "desc").limit(100).get(),
-    adminDb().collection("spaces").where("status", "==", "active").limit(50).get(),
-    adminDb().collection("courses").where("status", "==", "published").limit(50).get(),
-  ]);
 
   function scoreItem(item) {
     let score = 0;
@@ -66,26 +82,21 @@ export async function GET(req) {
     return null;
   }
 
-  const posts = postsSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data(), _type: "post" }))
-    .map((item) => ({ ...item, _score: scoreItem(item), _reason: getReason(item) }))
-    .sort((a, b) => b._score - a._score)
-    .slice(0, 10)
-    .map(({ _score, _reason, ...item }) => item);
-
-  const spaces = spacesSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data(), _type: "space" }))
-    .map((item) => ({ ...item, _score: scoreItem(item), _reason: getReason(item) }))
-    .sort((a, b) => b._score - a._score)
-    .slice(0, 10)
-    .map(({ _score, _reason, ...item }) => item);
-
-  const courses = coursesSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data(), _type: "course" }))
-    .map((item) => ({ ...item, _score: scoreItem(item), _reason: getReason(item) }))
-    .sort((a, b) => b._score - a._score)
-    .slice(0, 10)
-    .map(({ _score, _reason, ...item }) => item);
-
-  return NextResponse.json({ posts, spaces, courses });
+  return NextResponse.json({
+    posts: source.posts
+      .map((item) => ({ ...item, _score: scoreItem(item), _reason: getReason(item) }))
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 10)
+      .map(({ _score, _reason, ...item }) => item),
+    spaces: source.spaces
+      .map((item) => ({ ...item, _score: scoreItem(item), _reason: getReason(item) }))
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 10)
+      .map(({ _score, _reason, ...item }) => item),
+    courses: source.courses
+      .map((item) => ({ ...item, _score: scoreItem(item), _reason: getReason(item) }))
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 10)
+      .map(({ _score, _reason, ...item }) => item),
+  });
 }

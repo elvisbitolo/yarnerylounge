@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req, { params }) {
   const { id } = await params;
@@ -14,28 +15,27 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
   }
 
-  const eventSnap = await adminDb().collection("events").doc(id).get();
-  if (!eventSnap.exists) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  }
-
   const { searchParams } = new URL(req.url);
   const occurrenceId = searchParams.get("occurrenceId") || "";
 
-  const snap = occurrenceId
-    ? await adminDb()
-        .collection("rsvps")
-        .where("eventId", "==", id)
-        .where("occurrenceId", "==", occurrenceId)
-        .get()
-    : await adminDb().collection("rsvps").where("eventId", "==", id).get();
-
-  const attendees = snap.docs.map((d) => d.data());
-  const names = attendees.map((a) => a.name || "Member").slice(0, 6);
-
-  return NextResponse.json({
-    count: attendees.length,
-    names,
-    mine: attendees.some((a) => a.userId === user.uid),
-  });
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.event.findUnique({ where: { id } });
+    if (!row) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+    const rows = await prisma.rsvp.findMany({
+      where: { eventId: id, ...(occurrenceId ? { occurrenceId } : {}) },
+    });
+    const attendees = rows.map((r) => ({ userId: r.userId, name: r.name || "" }));
+    const names = attendees.map((a) => a.name || "Member").slice(0, 6);
+    return NextResponse.json({
+      count: attendees.length,
+      names,
+      mine: attendees.some((a) => a.userId === user.uid),
+    });
+  } catch (err) {
+    logError("events.prisma_attendees_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to load attendees" }, { status: 500 });
+  }
 }

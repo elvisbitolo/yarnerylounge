@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
 import styles from "../admin/rooms/admin.module.css";
 

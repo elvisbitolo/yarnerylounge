@@ -1,8 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 
 const CACHE_PREFIX = "yarnery:membership:";
 const CACHE_TTL_MS = 10 * 60 * 1000;

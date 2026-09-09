@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { adminDb } from "@/lib/firebase/admin";
 import { extractHashtags } from "@/lib/server/hashtags";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { isValidImageUrl } from "@/lib/server/posts-core";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req) {
   const auth = await requireUser();
@@ -14,32 +15,29 @@ export async function GET(req) {
   const authorId = searchParams.get("authorId");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 50);
 
-  let query = adminDb().collection("articles").orderBy("createdAt", "desc");
-  if (authorId) {
-    query = query.where("authorId", "==", authorId);
+  try {
+    const prisma = getPrisma();
+    const rows = await prisma.article.findMany({
+      where: authorId ? { authorId } : undefined,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    const articles = rows.map((row) => ({
+      id: row.id,
+      title: row.title || "",
+      excerpt: row.excerpt || "",
+      authorId: row.authorId || "",
+      authorName: row.authorName || "Member",
+      coverImage: row.coverImage || "",
+      hashtags: row.hashtags || [],
+      readTime: row.readTime || 1,
+      createdAt: row.createdAt ? new Date(row.createdAt).getTime() : 0,
+    }));
+    return NextResponse.json({ articles });
+  } catch (err) {
+    logError("articles.list.prisma_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to load articles" }, { status: 500 });
   }
-  const snap = await query.limit(limit).get();
-
-  const articles = snap.docs.map((doc) => {
-    const d = doc.data();
-    return {
-      id: doc.id,
-      title: d.title || "",
-      excerpt: d.excerpt || "",
-      authorId: d.authorId || "",
-      authorName: d.authorName || "Member",
-      coverImage: d.coverImage || "",
-      hashtags: d.hashtags || [],
-      readTime: d.readTime || 1,
-      createdAt: d.createdAt?.toMillis
-        ? d.createdAt.toMillis()
-        : d.createdAt
-          ? new Date(d.createdAt).getTime()
-          : 0,
-    };
-  });
-
-  return NextResponse.json({ articles });
 }
 
 export async function POST(req) {
@@ -71,18 +69,24 @@ export async function POST(req) {
 
   const authorName = auth.userDoc?.name || auth.user.email || "Member";
 
-  const ref = await adminDb().collection("articles").add({
-    title: cleanTitle,
-    content: cleanContent,
-    excerpt: cleanExcerpt,
-    coverImage: cleanCover,
-    authorId: auth.user.uid,
-    authorName,
-    hashtags: extractHashtags(cleanTitle + " " + cleanContent),
-    readTime,
-    likes: {},
-    createdAt: new Date(),
-  });
-
-  return NextResponse.json({ ok: true, id: ref.id });
+  try {
+    const prisma = getPrisma();
+    const article = await prisma.article.create({
+      data: {
+        title: cleanTitle,
+        content: cleanContent,
+        excerpt: cleanExcerpt,
+        coverImage: cleanCover,
+        authorId: auth.user.uid,
+        authorName,
+        hashtags: extractHashtags(cleanTitle + " " + cleanContent),
+        readTime,
+        likes: {},
+      },
+    });
+    return NextResponse.json({ ok: true, id: article.id });
+  } catch (err) {
+    logError("articles.prisma_create_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to create article" }, { status: 500 });
+  }
 }

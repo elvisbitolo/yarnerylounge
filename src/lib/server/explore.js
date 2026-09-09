@@ -1,68 +1,93 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { listEvents, expandEvents } from "@/lib/server/events";
 
 function toMillis(value) {
   if (!value) return 0;
-  if (value.toMillis) return value.toMillis();
+  if (value instanceof Date) return value.getTime();
   return new Date(value).getTime();
 }
 
 export async function getExploreData(limit = 6) {
-  const [roomsSnap, eventsSnap, coursesSnap, spacesSnap] = await Promise.all([
-    adminDb().collection("rooms").orderBy("createdAt", "desc").get(),
-    adminDb().collection("events").orderBy("startTime", "asc").get(),
-    adminDb().collection("courses").orderBy("createdAt", "desc").get(),
-    adminDb().collection("spaces").orderBy("createdAt", "desc").get(),
-  ]);
+  const prisma = getPrisma();
+  const safeLimit = Math.max(Number(limit) || 6, 1);
 
-  const rooms = roomsSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((room) => room.publicPreview && room.status === "active")
-    .slice(0, limit)
-    .map((room) => ({
-      id: room.id,
-      slug: room.slug,
-      name: room.name,
-      description: room.description || "",
-      kind: room.kind || "standard",
-    }));
+  if (!prisma) {
+    return { rooms: [], events: [], courses: [], spaces: [] };
+  }
 
-  const now = Date.now();
-  const upcoming = eventsSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((event) => event.publicPreview);
-  const events = expandEvents(upcoming)
-    .filter((event) => toMillis(event.startTime) > now)
-    .sort((a, b) => toMillis(a.startTime) - toMillis(b.startTime))
-    .slice(0, limit)
-    .map((event) => ({
-      id: event.id,
-      title: event.title,
-      description: event.description || "",
-      startTime: toMillis(event.startTime),
-    }));
+  try {
+    const [roomRows, eventRows, courseRows, spaceRows] = await Promise.all([
+      prisma.room.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.event.findMany({ orderBy: { startTime: "asc" } }),
+      prisma.course.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.space.findMany({ orderBy: { createdAt: "desc" } }),
+    ]);
 
-  const courses = coursesSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((course) => course.publicPreview && course.status === "published")
-    .slice(0, limit)
-    .map((course) => ({
-      id: course.id,
-      title: course.title,
-      description: course.description || "",
-      purchasePriceCents: Number(course.purchasePriceCents) || 0,
-    }));
+    const rooms = roomRows
+      .map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        description: row.description || "",
+        kind: row.kind || "standard",
+        publicPreview: !!row.publicPreview,
+        status: row.status || "active",
+      }))
+      .filter((room) => room.publicPreview && room.status === "active")
+      .slice(0, safeLimit)
+      .map(({ publicPreview, status, ...rest }) => rest);
 
-  const spaces = spacesSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((space) => space.publicPreview && space.status === "active" && space.access !== "invite")
-    .slice(0, limit)
-    .map((space) => ({
-      id: space.id,
-      slug: space.slug,
-      name: space.name,
-      description: space.description || "",
-    }));
+    const courses = courseRows
+      .map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description || "",
+        purchasePriceCents: Number(row.purchasePriceCents) || 0,
+        publicPreview: !!row.publicPreview,
+        status: row.status || "draft",
+      }))
+      .filter((course) => course.publicPreview && course.status === "published")
+      .slice(0, safeLimit)
+      .map(({ publicPreview, status, ...rest }) => rest);
 
-  return { rooms, events, courses, spaces };
+    const spaces = spaceRows
+      .map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        description: row.description || "",
+        publicPreview: !!row.publicPreview,
+        status: row.status || "active",
+        access: row.access || "public",
+      }))
+      .filter((space) => space.publicPreview && space.status === "active" && space.access !== "invite")
+      .slice(0, safeLimit)
+      .map(({ publicPreview, status, ...rest }) => rest);
+
+    const now = Date.now();
+    const events = expandEvents(
+      eventRows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description || "",
+        startTime: toMillis(row.startTime),
+        publicPreview: !!row.publicPreview,
+      }))
+    )
+      .filter((event) => event.publicPreview && toMillis(event.startTime) > now)
+      .sort((a, b) => toMillis(a.startTime) - toMillis(b.startTime))
+      .slice(0, safeLimit)
+      .map((event) => ({
+        id: event.id,
+        title: event.title,
+        description: event.description || "",
+        startTime: toMillis(event.startTime),
+      }));
+
+    return { rooms, events, courses, spaces };
+  } catch (err) {
+    logError("explore.prisma_failed", { error: err.message });
+    return { rooms: [], events: [], courses: [], spaces: [] };
+  }
 }

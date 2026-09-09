@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { getCourse, getModules } from "@/lib/server/courses";
 import { canManageScope } from "@/lib/server/hosts";
 import { clean } from "@/lib/server/validate";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function POST(req, { params }) {
   const { id: courseId } = await params;
@@ -25,39 +26,50 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Lesson title and module required" }, { status: 400 });
   }
 
-  const moduleSnap = await adminDb().collection("modules").doc(moduleId).get();
-  if (!moduleSnap.exists || moduleSnap.data().courseId !== courseId) {
-    return NextResponse.json({ error: "Module not found in this course" }, { status: 404 });
-  }
-
-  const existing = await getModules(courseId);
+  const prisma = getPrisma();
   let position = 1;
-  for (const mod of existing) {
-    if (mod.id === moduleId) {
-      const lessonsSnap = await adminDb().collection("lessons").where("moduleId", "==", moduleId).get();
-      position = lessonsSnap.docs.length ? Math.max(...lessonsSnap.docs.map((d) => d.data().position)) + 1 : 1;
-      break;
+  try {
+    const mod = await prisma.module.findUnique({
+      where: { id: moduleId },
+      select: { id: true, courseId: true },
+    });
+    if (!mod || mod.courseId !== courseId) {
+      return NextResponse.json({ error: "Module not found in this course" }, { status: 404 });
     }
-  }
+    const existing = await getModules(courseId);
+    for (const m of existing) {
+      if (m.id === moduleId) {
+        const lessons = await prisma.lesson.findMany({
+          where: { moduleId },
+          select: { position: true },
+        });
+        position = lessons.length ? Math.max(...lessons.map((l) => l.position || 0)) + 1 : 1;
+        break;
+      }
+    }
 
-  const lessonKind = kind === "video" ? "video" : "text";
-  const data = {
-    courseId,
-    moduleId,
-    title: lessonTitle,
-    body: clean(body, 100000) || "",
-    kind: lessonKind,
-    position,
-    createdAt: new Date(),
-  };
-  if (lessonKind === "video") {
-    data.videoUrl = videoUrl || "";
-  }
-  if (releaseAt) {
-    const parsed = Date.parse(releaseAt);
-    if (Number.isFinite(parsed)) data.releaseAt = new Date(parsed);
-  }
+    const lessonKind = kind === "video" ? "video" : "text";
+    const data = {
+      courseId,
+      moduleId,
+      title: lessonTitle,
+      body: clean(body, 100000) || "",
+      kind: lessonKind,
+      position,
+      createdAt: new Date(),
+    };
+    if (lessonKind === "video") {
+      data.videoUrl = videoUrl || "";
+    }
+    if (releaseAt) {
+      const parsed = Date.parse(releaseAt);
+      if (Number.isFinite(parsed)) data.releaseAt = new Date(parsed);
+    }
 
-  const ref = await adminDb().collection("lessons").add(data);
-  return NextResponse.json({ id: ref.id });
+    const created = await prisma.lesson.create({ data });
+    return NextResponse.json({ id: created.id });
+  } catch (err) {
+    logError("lessons.create_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not create lesson" }, { status: 500 });
+  }
 }

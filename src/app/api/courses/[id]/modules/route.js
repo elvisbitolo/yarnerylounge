@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { getCourse, getModules } from "@/lib/server/courses";
 import { canManageScope } from "@/lib/server/hosts";
 import { clean } from "@/lib/server/validate";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req, { params }) {
   const { id: courseId } = await params;
@@ -16,14 +17,18 @@ export async function GET(req, { params }) {
   }
   const modules = await getModules(courseId);
   const lessons = {};
-  for (const mod of modules) {
-    const snap = await adminDb()
-      .collection("lessons")
-      .where("moduleId", "==", mod.id)
-      .get();
-    lessons[mod.id] = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
+  const prisma = getPrisma();
+  try {
+    const rows = await prisma.lesson.findMany({
+      where: { moduleId: { in: modules.map((m) => m.id) } },
+      orderBy: { position: "asc" },
+    });
+    for (const lesson of rows) {
+      if (!lessons[lesson.moduleId]) lessons[lesson.moduleId] = [];
+      lessons[lesson.moduleId].push(lesson);
+    }
+  } catch (err) {
+    logError("modules.lessons_read_failed", { error: err.message });
   }
   return NextResponse.json({ modules, lessons });
 }
@@ -48,13 +53,21 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Module title required" }, { status: 400 });
   }
 
-  const existing = await getModules(courseId);
-  const position = existing.length ? Math.max(...existing.map((m) => m.position)) + 1 : 1;
-  const ref = await adminDb().collection("modules").add({
-    courseId,
-    title: moduleTitle,
-    position,
-    createdAt: new Date(),
-  });
-  return NextResponse.json({ id: ref.id });
+  const prisma = getPrisma();
+  try {
+    const existing = await getModules(courseId);
+    const position = existing.length ? Math.max(...existing.map((m) => m.position)) + 1 : 1;
+    const created = await prisma.module.create({
+      data: {
+        courseId,
+        title: moduleTitle,
+        position,
+        createdAt: new Date(),
+      },
+    });
+    return NextResponse.json({ id: created.id });
+  } catch (err) {
+    logError("modules.create_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not create module" }, { status: 500 });
+  }
 }

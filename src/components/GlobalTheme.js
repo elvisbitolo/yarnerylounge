@@ -27,10 +27,29 @@ export default function GlobalTheme() {
   const { membership } = useMembership();
 
   useEffect(() => {
-    // Hardcoded speakeasy defaults first so the app never relies on the API;
-    // then the cached member theme (fetched once via MembershipProvider).
+    // Hardcoded speakeasy defaults first so the app never relies on the API.
     applyTheme(DEFAULT_SPEAKEASY_THEME);
-    applyTheme(membership?.theme || null);
+
+    const hasUserPick = () => {
+      try {
+        return typeof localStorage !== "undefined" && localStorage.getItem("yarnerylounge-theme") !== null;
+      } catch {
+        return false;
+      }
+    };
+
+    const applyCommunityTheme = () => {
+      if (hasUserPick()) return;
+      applyTheme(membership?.theme || null);
+    };
+
+    applyCommunityTheme();
+
+    // ThemePicker's "Use community theme" tells us a member reverted their
+    // override — re-apply the saved community theme right away.
+    const onRevert = () => applyCommunityTheme();
+    window.addEventListener("yarnery-theme-revert", onRevert);
+    return () => window.removeEventListener("yarnery-theme-revert", onRevert);
   }, [membership?.theme]);
 
   return null;

@@ -389,40 +389,94 @@
   display: block;
 }
 
-.chatRail {
+.chatSheet {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(360px, 88vw);
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 10px;
+  width: min(560px, 94vw);
+  height: min(58%, 420px);
   display: flex;
   flex-direction: column;
-  z-index: 3;
-  background: #f4e4e8;
-  border-left: 1px solid #e5d9dc;
-  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18);
+  z-index: 4;
+  border-radius: 18px 18px 14px 14px;
   overflow: hidden;
+  background: #f4e4e8;
+  border: 1px solid #e5d9dc;
+  box-shadow: 0 -12px 44px rgba(0, 0, 0, 0.35);
 }
 
-.chatRail > * {
+.chatSheetHeader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  background: linear-gradient(90deg, var(--primary, #e91e63), var(--primary-hover, #c2185b));
+  color: #fff;
+}
+
+.chatSheetTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.chatSheetClose {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chatSheetClose:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.chatSheetBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chatSheetBody > * {
   flex: 1;
   min-height: 0;
 }
 
-.chatClose {
+.chatFab {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid #e5d9dc;
-  background: #fff;
-  color: #8a7c6f;
-  font-size: 16px;
-  line-height: 1;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 66px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(90deg, var(--primary, #e91e63), var(--primary-hover, #c2185b));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 10px 26px rgba(233, 30, 99, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chatFab:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 14px 32px rgba(233, 30, 99, 0.55);
 }
 
 .roomActionBar {
@@ -466,9 +520,14 @@
 }
 
 @media (max-width: 640px) {
-  .chatRail {
-    width: 88vw;
-    max-width: none;
+  .chatSheet {
+    width: 96vw;
+    height: min(52%, 360px);
+  }
+
+  .chatFab {
+    bottom: 60px;
+    padding: 9px 16px;
   }
 
   .roomActionBtn {
@@ -478,15 +537,6 @@
 
   .roomActionLeave {
     margin-left: 0;
-  }
-}
-
-@media (max-width: 640px) {
-  .chatBottom {
-    height: 280px;
-    max-height: 44%;
-    min-height: 150px;
-    padding: 8px 10px 10px;
   }
 }
 

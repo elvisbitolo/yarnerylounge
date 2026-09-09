@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // Magenta + Yellow is the default Secret Yarnery brand theme (index 0). The
 // alternate palettes are available for members who prefer a different accent.
@@ -115,20 +115,47 @@ function applyFontSize(percent) {
   root.style.fontSize = percent === 100 ? "" : `${percent}%`;
 }
 
+const POS_KEY = "yarnerylounge-theme-pos";
+const THEME_KEY = "yarnerylounge-theme";
+const FONT_KEY = "yarnerylounge-font-size";
+const FAB_SIZE = 48;
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 const SIZE_STEP = 6;
 
 export default function ThemePicker() {
   const [active, setActive] = useState(() => {
     if (typeof window === "undefined") return 0;
-    const saved = parseInt(localStorage.getItem("yarnerylounge-theme"), 10);
+    const saved = parseInt(localStorage.getItem(THEME_KEY), 10);
     return saved >= 0 && saved < THEMES.length ? saved : 0;
   });
   const [open, setOpen] = useState(false);
   const [fontPct, setFontPct] = useState(() => {
     if (typeof window === "undefined") return 100;
-    const saved = parseInt(localStorage.getItem("yarnerylounge-font-size"), 10);
+    const saved = parseInt(localStorage.getItem(FONT_KEY), 10);
     return saved >= 82 && saved <= 124 ? saved : 100;
   });
+  const [pos, setPos] = useState(() => {
+    if (typeof window === "undefined") return { right: 16, bottom: 96 };
+    try {
+      const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+      if (saved && Number.isFinite(saved.right) && Number.isFinite(saved.bottom)) {
+        return {
+          right: clamp(saved.right, 4, Math.max(4, window.innerWidth - FAB_SIZE - 4)),
+          bottom: clamp(saved.bottom, 76, Math.max(76, window.innerHeight - FAB_SIZE - 4)),
+        };
+      }
+    } catch {
+      /* use the default */
+    }
+    return { right: 16, bottom: 96 };
+  });
+
+  const dragRef = useRef(null);
+  const movedRef = useRef(0);
 
   useEffect(() => {
     applyTheme(THEMES[active]);
@@ -141,40 +168,80 @@ export default function ThemePicker() {
   const select = (idx) => {
     setActive(idx);
     applyTheme(THEMES[idx]);
-    localStorage.setItem("yarnerylounge-theme", idx.toString());
+    localStorage.setItem(THEME_KEY, idx.toString());
+  };
+
+  const revertToCommunity = () => {
+    localStorage.removeItem(THEME_KEY);
+    setActive(0);
+    window.dispatchEvent(new Event("yarnery-theme-revert"));
   };
 
   const resize = (delta) => {
     const next = Math.min(124, Math.max(82, fontPct + delta));
     setFontPct(next);
     applyFontSize(next);
-    localStorage.setItem("yarnerylounge-font-size", next.toString());
+    localStorage.setItem(FONT_KEY, next.toString());
   };
 
   const resizeReset = () => {
     setFontPct(100);
     applyFontSize(100);
-    localStorage.removeItem("yarnerylounge-font-size");
+    localStorage.removeItem(FONT_KEY);
   };
 
+  function onDragStart(e) {
+    dragRef.current = { startX: e.x, startY: e.y, right: pos.right, bottom: pos.bottom };
+    movedRef.current = 0;
+    e.target.setPointerCapture?.(e.pointerId);
+  }
+
+  function onDragMove(e) {
+    if (!dragRef.current) return;
+    const dx = e.x - dragRef.current.startX;
+    const dy = e.y - dragRef.current.startY;
+    movedRef.current = Math.max(movedRef.current, Math.abs(dx) + Math.abs(dy));
+    setPos({
+      right: clamp(dragRef.current.right - dx, 4, Math.max(4, window.innerWidth - FAB_SIZE - 4)),
+      bottom: clamp(dragRef.current.bottom - dy, 76, Math.max(76, window.innerHeight - FAB_SIZE - 4)),
+    });
+  }
+
+  function onDragEnd(e) {
+    if (!dragRef.current) return;
+    e.target.releasePointerCapture?.(e.pointerId);
+    const wasDrag = movedRef.current > 8;
+    dragRef.current = null;
+    if (wasDrag) {
+      localStorage.setItem(POS_KEY, JSON.stringify(pos));
+      return;
+    }
+    setOpen(!open);
+  }
+
   return (
-    <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100 }}>
+    <div style={{ position: "fixed", right: pos.right, bottom: pos.bottom, zIndex: 100, touchAction: "none" }}>
       <button
-        onClick={() => setOpen(!open)}
+        onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
         aria-label="Change theme"
-        title="Theme & text size"
+        title="Theme & text size (drag to move)"
         style={{
-          width: 44,
-          height: 44,
+          width: FAB_SIZE,
+          height: FAB_SIZE,
           borderRadius: "50%",
-          border: "2px solid rgba(255,255,255,0.15)",
-          background: active !== null ? THEMES[active].primary : "#e91e63",
-          cursor: "pointer",
+          border: "2px solid rgba(255,255,255,0.18)",
+          background: THEMES[active].primary,
+          cursor: "grab",
+          touchAction: "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: `0 4px 16px ${active !== null ? THEMES[active].primary : "#e91e63"}44`,
-          transition: "all 0.2s ease",
+          boxShadow: `0 6px 20px ${THEMES[active].primary}55`,
+          transition: "box-shadow 0.2s ease",
+          userSelect: "none",
         }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -182,102 +249,100 @@ export default function ThemePicker() {
           <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
         </svg>
       </button>
-
       {open && (
         <div
           style={{
             position: "absolute",
-            bottom: 56,
+            bottom: FAB_SIZE + 8,
             right: 0,
             background: "#1f1f1f",
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 16,
             padding: 16,
-            width: 200,
-            boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
+            width: 216,
+            boxShadow: "0 16px 48px rgba(0,0,0,0.55)",
             zIndex: 101,
           }}
         >
-          <p style={{ fontSize: 12, fontWeight: 700, color: "#a1a1aa", margin: "0 0 12px", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Theme
+          <p style={{ margin: "0 0 4px", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+            Accent theme
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          <p style={{ margin: "0 0 10px", color: "#cfcfcf", fontSize: 11.5 }}>
+            Tip: drag the round button anywhere on screen.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {THEMES.map((theme, idx) => (
               <button
                 key={theme.name}
+                type="button"
                 onClick={() => select(idx)}
                 aria-label={`Select ${theme.name} theme`}
+                title={theme.name}
                 style={{
-                  width: "100%",
-                  aspectRatio: "1",
-                  borderRadius: 10,
-                  border: idx === active ? `2px solid ${theme.primary}` : "2px solid transparent",
-                  background: theme.primary,
+                  width: 30,
+                  height: 30,
+                  borderRadius: "50%",
+                  border: idx === active ? "3px solid #fff" : "1px solid rgba(255,255,255,0.25)",
+                  background: `linear-gradient(135deg, ${theme.primary}, ${theme.accent})`,
                   cursor: "pointer",
-                  position: "relative",
-                  transition: "all 0.15s ease",
-                  transform: idx === active ? "scale(1.1)" : "scale(1)",
                 }}
-              >
-                {idx === active && (
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-              </button>
+              />
             ))}
           </div>
-          <p style={{ fontSize: 11, color: "#71717a", margin: "12px 0 0", textAlign: "center" }}>
-            {active !== null ? THEMES[active].name : ""}
-          </p>
 
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", marginTop: 14, paddingTop: 14 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#a1a1aa", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Text size ({fontPct}%)
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              <button
-                onClick={() => resize(-SIZE_STEP)}
-                aria-label="Decrease text size"
-                style={sizeBtnStyle}
-              >
-                A-
-              </button>
-              <button onClick={resizeReset} aria-label="Reset text size" style={sizeBtnStyle}>
-                Reset
-              </button>
-              <button
-                onClick={() => resize(SIZE_STEP)}
-                aria-label="Increase text size"
-                style={sizeBtnStyle}
-              >
-                A+
-              </button>
-            </div>
+          <button
+            type="button"
+            onClick={revertToCommunity}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              padding: "7px 0",
+              borderRadius: 9,
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "transparent",
+              color: "#fff",
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Use community theme
+          </button>
+
+          <p style={{ margin: "12px 0 2px", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+            Text size
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <button
+              type="button"
+              onClick={() => resize(-SIZE_STEP)}
+              aria-label="Decrease text size"
+              style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "#fff", fontSize: 15, cursor: "pointer" }}
+            >
+              A−
+            </button>
+            <span style={{ color: "#fff", fontSize: 12.5, minWidth: 42, textAlign: "center" }}>
+              {fontPct}%
+            </span>
+            <button
+              type="button"
+              onClick={() => resize(SIZE_STEP)}
+              aria-label="Increase text size"
+              style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "#fff", fontSize: 15, cursor: "pointer" }}
+            >
+              A+
+            </button>
+            <button
+              type="button"
+              onClick={resizeReset}
+              aria-label="Reset text size"
+              style={{ width: 52, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "#fff", fontSize: 12, cursor: "pointer" }}
+            >
+              Reset
+            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-const sizeBtnStyle = {
-  background: "#2b2b2f",
-  border: "1px solid rgba(255,255,255,0.1)",
-  color: "#e4e4e7",
-  borderRadius: 8,
-  padding: "8px 0",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-};

@@ -1,4 +1,5 @@
 import { CAPABILITIES } from "@/lib/server/capabilities";
+import { toMillis } from "@/lib/server/user-core";
 
 const PAID_PLANS = new Set(["hooking-up", "moving-in"]);
 
@@ -9,16 +10,9 @@ export function deriveMembership(userDoc, now = Date.now()) {
   const plan = userDoc?.plan || "flirting";
   const role = userDoc?.role || "member";
 
-  const expiresAt = userDoc?.expiresAt;
-  const expiresAtMs = expiresAt?.toMillis
-    ? expiresAt.toMillis()
-    : typeof expiresAt === "string"
-      ? new Date(expiresAt).getTime()
-      : expiresAt instanceof Date
-        ? expiresAt.getTime()
-        : NaN;
+  const expiresAtMs = toMillis(userDoc?.expiresAt);
   const paidPlan = PAID_PLANS.has(plan);
-  const expired = paidPlan && Number.isFinite(expiresAtMs) && expiresAtMs < now;
+  const expired = paidPlan && expiresAtMs > 0 && expiresAtMs < now;
 
   let planKey = "flirting";
   if (role === "owner" || role === "moderator") planKey = "moving-in";

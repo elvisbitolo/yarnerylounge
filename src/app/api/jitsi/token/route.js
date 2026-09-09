@@ -12,6 +12,7 @@ import { getScopedHostRights } from "@/lib/server/hosts";
 import { getUserDoc } from "@/lib/server/auth";
 import { getCapabilities, canPublishRemote, canHost } from "@/lib/server/capabilities";
 import { signJitsiToken, jitsiRoomName, getJitsiAppId } from "@/lib/server/jitsi";
+import { getPrisma } from "@/lib/db/prisma";
 
 export async function POST(req) {
   try {
@@ -95,6 +96,18 @@ export async function POST(req) {
       avatar,
       roomName: room.name,
     });
+
+    const prisma = getPrisma();
+    prisma.roomEvent
+      .create({
+        data: {
+          userId: auth.user.uid,
+          roomId: room.id,
+          roomName: room.name,
+          joinedAt: new Date(),
+        },
+      })
+      .catch((err) => console.error("roomEvent.record_failed", err));
 
     return NextResponse.json({
       token,

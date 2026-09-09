@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { sendEmail } from "@/lib/server/email";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -22,40 +23,45 @@ export async function POST(req) {
 
   const since = new Date(Date.now() - ONE_WEEK);
 
-  const topPostsSnap = await adminDb()
-    .collection("posts")
-    .orderBy("createdAt", "desc")
-    .limit(100)
-    .get();
-
+  const prisma = getPrisma();
   const topPosts = [];
-  for (const doc of topPostsSnap.docs) {
-    const d = doc.data();
-    const created = d.createdAt?.toDate ? d.createdAt.toDate() : new Date(d.createdAt);
-    if (created < since) continue;
-    const likeCount = Object.keys(d.likes || {}).length;
-    topPosts.push({ id: doc.id, text: d.text || "", author: d.authorName || "Member", likes: likeCount });
+  try {
+    const rows = await prisma.post.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, text: true, authorName: true, likes: true, createdAt: true },
+    });
+    for (const r of rows) {
+      const created = r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt);
+      if (created < since) continue;
+      const likeCount = r.likes && typeof r.likes === "object" ? Object.keys(r.likes).length : 0;
+      topPosts.push({ id: r.id, text: r.text || "", author: r.authorName || "Member", likes: likeCount });
+    }
+  } catch (err) {
+    logError("digest.prisma_posts_read_failed", { error: err.message });
   }
   topPosts.sort((a, b) => b.likes - a.likes);
   topPosts.length = Math.min(topPosts.length, 5);
 
-  const eventsSnap = await adminDb()
-    .collection("events")
-    .where("startTime", ">=", new Date())
-    .orderBy("startTime", "asc")
-    .limit(10)
-    .get();
-
-  const upcomingEvents = eventsSnap.docs.map((doc) => {
-    const d = doc.data();
-    const raw = d.startTime;
-    const date = raw?.toDate ? raw.toDate() : new Date(raw);
-    return {
-      title: d.title || "Event",
-      date: isNaN(date.getTime()) ? "Date TBD" : date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
-      location: d.location || "Online",
-    };
-  }).slice(0, 3);
+  let upcomingEvents = [];
+  try {
+    const rows = await prisma.event.findMany({
+      where: { startTime: { gte: new Date() } },
+      orderBy: { startTime: "asc" },
+      take: 10,
+      select: { title: true, startTime: true },
+    });
+    upcomingEvents = rows.map((r) => {
+      const date = r.startTime instanceof Date ? r.startTime : new Date(r.startTime);
+      return {
+        title: r.title || "Event",
+        date: isNaN(date.getTime()) ? "Date TBD" : date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+        location: "Online",
+      };
+    }).slice(0, 3);
+  } catch (err) {
+    logError("digest.prisma_events_read_failed", { error: err.message });
+  }
 
   let postsHtml = "";
   if (topPosts.length > 0) {
@@ -117,12 +123,20 @@ export async function POST(req) {
   });
   textParts.push(`\nVisit: https://yarnerylounge.vercel.app/feed`);
 
-  const usersSnap = await adminDb().collection("users").limit(200).get();
+  let usersForDigest = [];
+  try {
+    const rows = await prisma.user.findMany({
+      take: 200,
+      select: { email: true, extra: true },
+    });
+    usersForDigest = rows.map((r) => ({ email: r.email, emailPreferences: r.extra?.emailPreferences }));
+  } catch (err) {
+    logError("digest.prisma_users_read_failed", { error: err.message });
+  }
   let sent = 0;
   let skipped = 0;
 
-  for (const doc of usersSnap.docs) {
-    const u = doc.data();
+  for (const u of usersForDigest) {
     if (!u.email) { skipped++; continue; }
     if (u.emailPreferences?.weeklyDigest === false) { skipped++; continue; }
 

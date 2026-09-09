@@ -6,6 +6,7 @@ import {
   mapShopifyLineItems,
   computeExpiresAt,
   buildSubscriptionDoc,
+  shouldGrantMembership,
 } from "../shopify.js";
 
 test("SHOPIFY_VARIANTS covers all 5 documented variants", () => {
@@ -72,4 +73,47 @@ test("buildSubscriptionDoc maps anniversary/anual and expiry", () => {
   assert.equal(annual.tier, "moving-in");
   assert.equal(annual.role, "host");
   assert.equal(annual.currentPeriodEnd, undefined);
+});
+
+test("shouldGrantMembership: orders/paid always counts as paid", () => {
+  assert.equal(shouldGrantMembership({ topic: "orders/paid", data: {} }), true);
+  assert.equal(
+    shouldGrantMembership({ topic: "orders/paid", data: { financial_status: "paid" } }),
+    true
+  );
+  assert.equal(
+    shouldGrantMembership({ topic: "orders/paid", data: { financial_status: "partially_refunded" } }),
+    true
+  );
+  assert.equal(
+    shouldGrantMembership({ topic: "orders/paid", data: { financial_status: "pending" } }),
+    false
+  );
+  assert.equal(
+    shouldGrantMembership({ topic: "orders/paid", data: { financial_status: "voided" } }),
+    false
+  );
+});
+
+test("shouldGrantMembership: orders/create only grants once paid", () => {
+  assert.equal(
+    shouldGrantMembership({ topic: "orders/create", data: { financial_status: "paid" } }),
+    true
+  );
+  assert.equal(shouldGrantMembership({ topic: "orders/create", data: {} }), false);
+  assert.equal(
+    shouldGrantMembership({ topic: "orders/create", data: { financial_status: "pending" } }),
+    false
+  );
+  assert.equal(
+    shouldGrantMembership({ topic: "orders/create", data: { financial_status: "voided" } }),
+    false
+  );
+});
+
+test("shouldGrantMembership: unrelated topics never grant", () => {
+  assert.equal(shouldGrantMembership({ topic: "orders/cancelled" }), false);
+  assert.equal(shouldGrantMembership({ topic: "orders/fulfilled" }), false);
+  assert.equal(shouldGrantMembership({ topic: "refunds/create" }), false);
+  assert.equal(shouldGrantMembership({ topic: "", data: { financial_status: "paid" } }), false);
 });

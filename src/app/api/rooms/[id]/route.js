@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { logAudit } from "@/lib/server/audit";
-import { deleteRoom } from "@/lib/server/rooms";
 import { clean } from "@/lib/server/validate";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 function isStaff(auth) {
   return auth.userDoc?.role === "owner" || auth.userDoc?.role === "moderator";
@@ -34,12 +34,21 @@ export async function PATCH(req, { params }) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const ref = adminDb().collection("rooms").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  let room = null;
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.room.findUnique({
+      where: { id },
+      select: { id: true, spaceId: true, groupId: true },
+    });
+    if (!row) {
+      return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    }
+    room = { id, spaceId: row.spaceId, groupId: row.groupId };
+  } catch (err) {
+    logError("room.prisma_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to load room" }, { status: 500 });
   }
-  const room = snap.data();
 
   const access = await canManageRoom(auth, room);
   if (!access.ok) {
@@ -90,8 +99,23 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  update.updatedAt = new Date();
-  await ref.update(update);
+  try {
+    const prisma = getPrisma();
+    await prisma.room.update({
+      where: { id },
+      data: {
+        ...(update.publicPreview !== undefined && { publicPreview: update.publicPreview }),
+        ...(update.recordingAllowed !== undefined && { recordingAllowed: update.recordingAllowed }),
+        ...(update.replayVisibility !== undefined && { replayVisibility: update.replayVisibility }),
+        ...(update.name !== undefined && { name: update.name }),
+        ...(update.description !== undefined && { description: update.description }),
+        opensAt: update.opensAt === undefined ? undefined : update.opensAt,
+      },
+    });
+  } catch (err) {
+    logError("room.update_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to update room" }, { status: 500 });
+  }
 
   await logAudit({
     actorId: auth.user.uid,
@@ -109,19 +133,37 @@ export async function DELETE(req, { params }) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const ref = adminDb().collection("rooms").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  let room = null;
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.room.findUnique({
+      where: { id },
+      select: { id: true, spaceId: true, groupId: true, slug: true, name: true },
+    });
+    if (!row) {
+      return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    }
+    room = { id, spaceId: row.spaceId, groupId: row.groupId, slug: row.slug, name: row.name };
+  } catch (err) {
+    logError("room.prisma_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to load room" }, { status: 500 });
   }
-  const room = snap.data();
 
   const access = await canManageRoom(auth, room);
   if (!access.ok || !access.isHost) {
     return NextResponse.json({ error: "Room host access required" }, { status: 403 });
   }
 
-  await deleteRoom({ id, slug: room.slug, name: room.name });
+  try {
+    const prisma = getPrisma();
+    await prisma.roomEvent.deleteMany({ where: { roomId: id } });
+    await prisma.roomSignal.deleteMany({ where: { roomId: id } });
+    await prisma.roomMessage.deleteMany({ where: { roomId: id } });
+    await prisma.room.delete({ where: { id } });
+  } catch (err) {
+    logError("room.delete_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to delete room" }, { status: 500 });
+  }
 
   await logAudit({
     actorId: auth.user.uid,

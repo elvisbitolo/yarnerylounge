@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { getCourse } from "@/lib/server/courses";
 import { canManageScope } from "@/lib/server/hosts";
 import { clean } from "@/lib/server/validate";
 import { serialize } from "@/lib/server/serialize";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req, { params }) {
   const { id } = await params;
@@ -72,8 +73,15 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
   patch.updatedAt = new Date();
-  await adminDb().collection("courses").doc(id).update(patch);
-  return NextResponse.json({ ok: true });
+
+  const prisma = getPrisma();
+  try {
+    await prisma.course.update({ where: { id }, data: patch });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    logError("courses.update_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not update course" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req, { params }) {
@@ -90,12 +98,12 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ error: "Course host access required" }, { status: 403 });
   }
 
-  const modulesSnap = await adminDb().collection("modules").where("courseId", "==", id).get();
-  for (const mod of modulesSnap.docs) {
-    const lessonsSnap = await adminDb().collection("lessons").where("moduleId", "==", mod.id).get();
-    for (const lesson of lessonsSnap.docs) await lesson.ref.delete();
-    await mod.ref.delete();
+  const prisma = getPrisma();
+  try {
+    await prisma.course.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    logError("courses.delete_prisma_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not delete course" }, { status: 500 });
   }
-  await adminDb().collection("courses").doc(id).delete();
-  return NextResponse.json({ ok: true });
 }

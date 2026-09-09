@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import styles from "../rooms/admin.module.css";

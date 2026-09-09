@@ -9,14 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 
 const RoomDataContext = createContext(null);
 
@@ -24,53 +16,6 @@ export function useRoomData() {
   const ctx = useContext(RoomDataContext);
   if (!ctx) throw new Error("useRoomData must be used within RoomDataProvider");
   return ctx;
-}
-
-function snapshotTs(value) {
-  if (value instanceof Date) return value.getTime();
-  if (value?.toMillis) return value.toMillis();
-  if (typeof value === "number") return value;
-  return new Date(value || 0).getTime();
-}
-
-function mapSnapshot(doc) {
-  const data = doc.data();
-  const reactions = {};
-  for (const [emoji, byUids] of Object.entries(data.reactions || {})) {
-    reactions[emoji] = Object.keys(byUids || {});
-  }
-  return {
-    id: doc.id,
-    userId: data.userId || data.senderId || "",
-    userName: data.userName || "Member",
-    userAvatar: data.userAvatar || "",
-    role: data.role || "viewer",
-    imageData: data.deleted ? "" : data.imageData || "",
-    text: data.deleted ? "" : data.text || "",
-    mentions: data.mentions || [],
-    replyTo: data.replyTo
-      ? { id: data.replyTo.id || "", text: data.replyTo.text || "", from: data.replyTo.from || "" }
-      : null,
-    reactions,
-    pinned: !!data.pinned,
-    pinnedAt: snapshotTs(data.pinnedAt),
-    deleted: !!data.deleted,
-    createdAt: snapshotTs(data.createdAt) || Date.now(),
-  };
-}
-
-function mapSignal(doc) {
-  const data = doc.data();
-  return {
-    id: doc.id,
-    type: data.type || "",
-    fromIdentity: data.fromIdentity || "",
-    target: data.target || "",
-    value: data.value,
-    emoji: data.emoji || "",
-    hostName: data.hostName || "",
-    createdAt: snapshotTs(data.createdAt) || Date.now(),
-  };
 }
 
 export default function RoomDataProvider({
@@ -90,8 +35,6 @@ export default function RoomDataProvider({
   const [raisedHands, setRaisedHands] = useState({});
   const [myHandRaised, setMyHandRaised] = useState(false);
   const [speakerInvite, setSpeakerInvite] = useState(null);
-  const [messagesPoll, setMessagesPoll] = useState(false);
-  const [signalsPoll, setSignalsPoll] = useState(false);
 
   const cursorRef = useRef(null);
   const lastLoadedAtRef = useRef(null);
@@ -156,30 +99,6 @@ export default function RoomDataProvider({
 
   useEffect(() => {
     if (!roomId) return;
-    let unsub;
-    try {
-      const col = collection(db, "rooms", roomId, "messages");
-      const q = query(col, orderBy("createdAt", "desc"), limit(300));
-      unsub = onSnapshot(
-        q,
-        (snap) => {
-          const list = snap.docs.map(mapSnapshot);
-          if (list.length) {
-            mergeMessages(list);
-          }
-        },
-        () => {
-          setMessagesPoll(true);
-        }
-      );
-    } catch {
-      setTimeout(() => setMessagesPoll(true), 0);
-    }
-    return () => unsub?.();
-  }, [roomId, mergeMessages]);
-
-  useEffect(() => {
-    if (!roomId || !messagesPoll) return;
     const timer = setInterval(async () => {
       const after = (lastLoadedAtRef.current || Date.now()) - 1;
       try {
@@ -195,7 +114,7 @@ export default function RoomDataProvider({
       }
     }, 4000);
     return () => clearInterval(timer);
-  }, [roomId, messagesPoll, mergeMessages]);
+  }, [roomId, mergeMessages]);
 
   const applySignals = useCallback((list) => {
     const sorted = [...list].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -223,32 +142,6 @@ export default function RoomDataProvider({
 
   useEffect(() => {
     if (!roomId) return;
-    let unsub;
-    try {
-      const col = collection(db, "rooms", roomId, "signals");
-      const q = query(col, orderBy("createdAt", "desc"), limit(100));
-      unsub = onSnapshot(
-        q,
-        (snap) => {
-          const list = snap.docs.map(mapSignal);
-          if (list.length) {
-            const max = list.reduce((acc, s) => Math.max(acc, s.createdAt || 0), signalsCursorRef.current || 0);
-            signalsCursorRef.current = max;
-          }
-          applySignals(list);
-        },
-        () => {
-          setSignalsPoll(true);
-        }
-      );
-    } catch {
-      setTimeout(() => setSignalsPoll(true), 0);
-    }
-    return () => unsub?.();
-  }, [roomId, applySignals]);
-
-  useEffect(() => {
-    if (!roomId || !signalsPoll) return;
     const timer = setInterval(async () => {
       const after = signalsCursorRef.current || Date.now() - 60 * 1000;
       try {
@@ -265,7 +158,7 @@ export default function RoomDataProvider({
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [roomId, signalsPoll, applySignals]);
+  }, [roomId, applySignals]);
 
   const clearSpeakerInvite = useCallback(() => setSpeakerInvite(null), []);
 

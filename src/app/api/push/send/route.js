@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireOwner, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logAudit } from "@/lib/server/audit";
 import { clean } from "@/lib/server/validate";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
 
@@ -40,44 +41,48 @@ export async function POST(req) {
 
   let sent = 0;
   let failed = 0;
-  let lastDoc = null;
   const PAGE = 500;
-  for (;;) {
-    let query = adminDb().collection("pushSubscriptions").orderBy("__name__").limit(PAGE);
-    if (lastDoc) query = query.startAfter(lastDoc);
-    const snap = await query.get();
-    if (snap.empty) break;
 
-    const jobs = [];
-    for (const doc of snap.docs) {
-      const sub = doc.data();
-      jobs.push(
-        webpush
-          .sendNotification(
-            { endpoint: sub.endpoint, keys: sub.keys },
-            payload
-          )
-          .then(() => {
-            sent++;
-          })
-          .catch(async (err) => {
-            failed++;
-            if (err.statusCode === 404 || err.statusCode === 410) {
-              try {
-                await doc.ref.delete();
-              } catch {
-                // ignore clean-up failures
+  const prisma = getPrisma();
+  try {
+    let lastCursor = null;
+    for (;;) {
+      const subs = await prisma.pushSubscription.findMany({
+        take: PAGE,
+        ...(lastCursor ? { cursor: { id: lastCursor }, skip: 1 } : {}),
+        orderBy: { id: "asc" },
+        select: { id: true, endpoint: true, keys: true },
+      });
+      if (subs.length === 0) break;
+
+      const jobs = [];
+      for (const sub of subs) {
+        jobs.push(
+          webpush
+            .sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload)
+            .then(() => {
+              sent++;
+            })
+            .catch(async (err) => {
+              failed++;
+              if (err.statusCode === 404 || err.statusCode === 410) {
+                try {
+                  await prisma.pushSubscription.delete({ where: { id: sub.id } });
+                } catch {
+                  // ignore clean-up failures
+                }
               }
-            }
-          })
-      );
+            })
+        );
+      }
+      await Promise.all(jobs);
+
+      lastCursor = subs[subs.length - 1].id;
+      if (subs.length < PAGE) break;
     }
-    await Promise.all(jobs);
-
-    lastDoc = snap.docs[snap.docs.length - 1];
-    if (snap.docs.length < PAGE) break;
+  } catch (err) {
+    logError("push.send_prisma_failed", { error: err.message });
   }
-
   await logAudit({
     actorId: auth.user.uid,
     actorName: auth.userDoc?.name || auth.user.email || "",

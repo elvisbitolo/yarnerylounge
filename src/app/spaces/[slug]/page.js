@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import {
   getSpaceBySlug,
   getSpaceMembers,
@@ -87,10 +87,16 @@ export default async function SpacePage({ params }) {
 
   let allMembers = [];
   if (isOwner) {
-    const usersSnap = await adminDb().collection("users").orderBy("name", "asc").get();
-    allMembers = usersSnap.docs
-      .map((doc) => ({ id: doc.id, name: doc.data().name || "" }))
-      .filter((m) => m.name);
+    const prisma = getPrisma();
+    if (prisma) {
+      const userRows = await prisma.user.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      });
+      allMembers = userRows
+        .map((doc) => ({ id: doc.id, name: doc.name || "" }))
+        .filter((m) => m.name);
+    }
   }
 
   return (

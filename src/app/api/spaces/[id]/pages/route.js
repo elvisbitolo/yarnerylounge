@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { canManageScope } from "@/lib/server/hosts";
@@ -11,6 +10,8 @@ import {
   validatePageSlug,
   validateVisibility,
 } from "@/lib/server/pages-core";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 function visiblePages(pages, isMember) {
   return pages.filter((page) => page.visibility === "all" || isMember);
@@ -94,11 +95,14 @@ export async function POST(req, { params }) {
 }
 
 async function pageSlugTaken(spaceId, slug) {
-  const snap = await adminDb()
-    .collection("pages")
-    .where("spaceId", "==", spaceId)
-    .where("slug", "==", slug)
-    .limit(1)
-    .get();
-  return !snap.empty;
+  try {
+    const page = await getPrisma().spacePage.findUnique({
+      where: { spaceId_slug: { spaceId, slug } },
+      select: { id: true },
+    });
+    return !!page;
+  } catch (err) {
+    logError("pages.slug_lookup_failed", { error: err.message, spaceId, slug });
+    return false;
+  }
 }

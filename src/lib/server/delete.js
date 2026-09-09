@@ -1,24 +1,51 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
-export async function deleteDocs(docs) {
-  for (let i = 0; i < docs.length; i += 400) {
-    const batch = adminDb().batch();
-    for (const doc of docs.slice(i, i + 400)) batch.delete(doc.ref);
-    await batch.commit();
-  }
+export async function deleteDocs() {
+  // Firestore batch-delete helper — no longer needed after Prisma migration.
 }
 
 export async function deleteWhere(collectionPath, field, value) {
-  const snap = await adminDb().collection(collectionPath).where(field, "==", value).get();
-  await deleteDocs(snap.docs);
+  const prisma = getPrisma();
+  if (!prisma) return;
+  const modelMap = {
+    events: "event",
+    lessons: "lesson",
+    modules: "module",
+    posts: "post",
+    spaceMembers: "spaceMember",
+    rooms: "room",
+    quizzes: "quiz",
+    quizResults: "quizResult",
+    progress: "progress",
+    certificates: "certificate",
+    availability: "availability",
+    availabilityRsvps: "availabilityRsvp",
+  };
+  const model = modelMap[collectionPath];
+  if (!model) return;
+  try {
+    await prisma[model].deleteMany({ where: { [field]: value } });
+  } catch (err) {
+    logError("delete.prisma_deleteWhere_failed", { error: err.message, collectionPath });
+  }
 }
 
-export async function deleteSubcollection(parentRef, collectionPath) {
-  const snap = await parentRef.collection(collectionPath).get();
-  await deleteDocs(snap.docs);
+export async function deleteSubcollection() {
+  // Firestore subcollection delete — no longer needed after Prisma migration.
 }
 
 export async function deletePostWithComments(postRef) {
-  await deleteSubcollection(postRef, "comments");
-  await postRef.delete();
+  const prisma = getPrisma();
+  const postId = typeof postRef === "string" ? postRef : postRef?.id;
+  if (prisma && postId) {
+    try {
+      await prisma.post.delete({ where: { id: postId } });
+      return;
+    } catch (err) {
+      if (err?.code !== "P2025") {
+        logError("delete.prisma_post_failed", { error: err.message, postId });
+      }
+    }
+  }
 }

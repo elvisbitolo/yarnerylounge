@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import { fillTemplate } from "@/lib/server/automations-core";
 import { sendEmail } from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notifications";
@@ -10,11 +10,35 @@ import { logError } from "@/lib/server/log";
 
 export { fillTemplate };
 
+function toMillisValue(v) {
+  if (v == null) return null;
+  if (typeof v.toMillis === "function") return v.toMillis();
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === "number") return v;
+  return new Date(v).getTime();
+}
+
 export async function getOwnerUser() {
-  const snap = await adminDb().collection("users").where("role", "==", "owner").limit(1).get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return { uid: doc.id, ...doc.data() };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.user.findFirst({
+        where: { role: "owner" },
+        select: { id: true, name: true, email: true, username: true },
+      });
+      if (row) {
+        return {
+          uid: row.id,
+          name: row.name || "",
+          email: row.email || "",
+          username: row.username || "",
+        };
+      }
+    } catch (err) {
+      logError("automations.prisma_owner_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function createAutomation({ name, trigger, action, config = {}, createdBy }) {
@@ -22,45 +46,83 @@ export async function createAutomation({ name, trigger, action, config = {}, cre
   if (!clean) {
     throw Object.assign(new Error("Automation name required"), { code: 400 });
   }
-  const ref = adminDb().collection("automations").doc();
-  await ref.set({
-    name: clean,
-    trigger,
-    action,
-    config,
-    active: true,
-    createdBy,
-    createdAt: new Date(),
-  });
-  return { id: ref.id };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const created = await prisma.automation.create({
+        data: {
+          name: clean,
+          trigger,
+          action,
+          config,
+          active: true,
+          createdBy,
+          createdAt: new Date(),
+        },
+      });
+      return { id: created.id };
+    } catch (err) {
+      logError("automations.prisma_create_failed", { error: err.message });
+    }
+  }
+  return { id: "" };
+}
+
+function mapAutomationRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    trigger: row.trigger,
+    action: row.action,
+    config: row.config || {},
+    active: row.active,
+    createdBy: row.createdBy,
+    createdAt: toMillisValue(row.createdAt) || 0,
+  };
 }
 
 export async function listAutomations() {
-  const snap = await adminDb().collection("automations").orderBy("createdAt", "desc").get();
-  return snap.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toMillis
-        ? data.createdAt.toMillis()
-        : data.createdAt
-          ? new Date(data.createdAt).getTime()
-          : 0,
-    };
-  });
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.automation.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+      return rows.map(mapAutomationRow);
+    } catch (err) {
+      logError("automations.prisma_list_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 export async function setAutomationActive(id, active) {
-  const ref = adminDb().collection("automations").doc(id);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-  await ref.update({ active: !!active });
-  return { id };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const res = await prisma.automation.updateMany({
+        where: { id },
+        data: { active: !!active },
+      });
+      if (res.count) return { id };
+    } catch (err) {
+      logError("automations.prisma_set_active_failed", { error: err.message });
+    }
+  }
+  return null;
 }
 
 export async function deleteAutomation(id) {
-  await adminDb().collection("automations").doc(id).delete();
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      await prisma.automation.deleteMany({ where: { id } });
+      return;
+    } catch (err) {
+      logError("automations.prisma_delete_failed", { error: err.message });
+    }
+  }
 }
 
 function placeholderValues(context) {
@@ -142,12 +204,19 @@ async function executeAction(automation, context) {
 }
 
 export async function runAutomations(trigger, context = {}) {
-  const snap = await adminDb()
-    .collection("automations")
-    .where("active", "==", true)
-    .where("trigger", "==", trigger)
-    .get();
-  const automations = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  let automations = null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.automation.findMany({
+        where: { active: true, trigger },
+      });
+      if (rows.length) automations = rows.map(mapAutomationRow);
+    } catch (err) {
+      logError("automations.prisma_run_failed", { error: err.message });
+    }
+  }
+  if (!automations) automations = [];
   for (const automation of automations) {
     const targetUserId = context.subjectUid || "";
     try {
@@ -187,9 +256,18 @@ async function sendPushToUser(uid, title, body, url = "/dashboard") {
     throw new Error("Push not configured — add VAPID keys.");
   }
   webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
-  const doc = await adminDb().collection("pushSubscriptions").doc(uid).get();
-  if (!doc.exists) return;
-  const sub = doc.data();
+
+  let sub = null;
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.pushSubscription.findUnique({ where: { id: uid } });
+      if (row) sub = { endpoint: row.endpoint, keys: row.keys };
+    } catch (err) {
+      logError("automations.prisma_push_failed", { error: err.message });
+    }
+  }
+  if (!sub) return;
   await webpush.sendNotification(
     { endpoint: sub.endpoint, keys: sub.keys },
     JSON.stringify({ title, body, url })

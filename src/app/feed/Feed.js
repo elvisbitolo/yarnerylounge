@@ -3,17 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  doc,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDoc,
-} from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/client";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import { UPGRADE_URL } from "@/lib/upgrade-url";
 import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
@@ -295,17 +285,18 @@ function PollBlock({ postId, post, uid, disabled }) {
 
   useEffect(() => {
     let active = true;
-    getDoc(doc(db, "pollVotes", `${postId}_${uid}`))
-      .then((snap) => {
-        if (active && snap.exists()) {
-          setVotedOption(snap.data().option);
+    fetch(`/api/posts/${postId}/vote`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (active && data && typeof data.votedOption === "number") {
+          setVotedOption(data.votedOption);
         }
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [postId, uid]);
+  }, [postId]);
 
   const deadlineMs = post.pollDeadline ? new Date(post.pollDeadline).getTime() : 0;
   const isExpired = deadlineMs > 0 && now >= deadlineMs;
@@ -417,17 +408,28 @@ function CommentList({ postId, uid, canModerate, disabled }) {
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    const q = query(
-      collection(db, "posts", postId, "comments"),
-      orderBy("createdAt", "asc")
-    );
-    const unsub = onSnapshot(q, (snap) =>
-      setComments(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-    return unsub;
-  }, [postId]);
+    let active = true;
+    let timer;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active) setComments(data.comments || []);
+      } catch {
+        /* keep polling */
+      }
+    };
+    load();
+    timer = setInterval(load, 20000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [postId, version]);
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -442,6 +444,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Reply failed");
       setText("");
+      setVersion((v) => v + 1);
     } catch (err) {
       console.error(err);
     } finally {
@@ -456,6 +459,8 @@ function CommentList({ postId, uid, canModerate, disabled }) {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || "Failed to delete comment");
+    } else {
+      setVersion((v) => v + 1);
     }
   }
 
@@ -578,40 +583,39 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
 
   useEffect(() => {
     const isCommunity = !groupId && !spaceId;
+    const load = async () => {
+      if (isCommunity) {
+        loadCommunityPosts();
+        return;
+      }
+      const params = new URLSearchParams();
+      if (spaceId) params.set("spaceId", spaceId);
+      if (groupId) params.set("groupId", groupId);
+      try {
+        const res = await fetch(`/api/posts?${params.toString()}`);
+        if (!res.ok) throw new Error("Feed read failed");
+        const data = await res.json();
+        setPosts(sortFeedPosts(data.posts || []));
+        setLoadError(false);
+      } catch (err) {
+        console.error("Feed read failed", err);
+        setLoadError(true);
+      }
+    };
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (!user) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
         window.location.assign("/login");
         return;
       }
-      if (isCommunity) loadCommunityPosts();
+      load();
     });
 
-    if (isCommunity) {
-      const interval = setInterval(loadCommunityPosts, 25000);
-      return () => {
-        clearInterval(interval);
-        unsubAuth();
-      };
-    }
-
-    const base = collection(db, "posts");
-    let q;
-    if (spaceId) {
-      q = query(base, where("spaceId", "==", spaceId));
-    } else {
-      q = query(base, where("groupId", "==", groupId));
-    }
-    const unsubPosts = onSnapshot(
-      q,
-      (snap) => setPosts(sortFeedPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })))),
-      (err) => {
-        console.error("Feed read failed", err);
-      }
-    );
+    load();
+    const interval = setInterval(load, 25000);
     return () => {
+      clearInterval(interval);
       unsubAuth();
-      unsubPosts();
     };
   }, [groupId, spaceId, loadCommunityPosts, sortFeedPosts]);
 
@@ -1031,6 +1035,7 @@ const trimmed = text.trim();
                 <div>
                   <p className={styles.postAuthor}>
                     {post.authorName}
+                    {post.kind === "announcement" && <span className={styles.kindBadge}>📜 {t("announcement")}</span>}
                     {post.kind === "poll" && <span className={styles.kindBadge}>📊 {t("tabPoll")}</span>}
                     {post.kind === "question" && <span className={styles.kindBadge}>❓ {t("tabQuestion")}</span>}
                     {post.kind === "win" && <span className={styles.kindBadge}>🏆 {t("tabWin")}</span>}
@@ -1047,7 +1052,7 @@ const trimmed = text.trim();
                     {post.pinned ? t("unpin") : t("pin")}
                   </button>
                 )}
-                {(post.authorId === uid || canModerate) && (
+                {(post.authorId === uid || (canModerate && post.authorId !== "system")) && (
                   <button
                     className={styles.deletePost}
                     onClick={() => handleDelete(post.id)}
@@ -1056,7 +1061,7 @@ const trimmed = text.trim();
                     {t("delete")}
                   </button>
                 )}
-                {post.authorId !== uid && (
+                {post.authorId !== uid && post.authorId !== "system" && (
                   <ReportButton type="post" targetId={post.id} />
                 )}
               </div>
@@ -1067,12 +1072,18 @@ const trimmed = text.trim();
               {post.imageUrl && (
                 <img src={post.imageUrl} alt="" className={styles.postImage} />
               )}
-              <div className={styles.postActions}>
-                <LikeButton postId={post.id} likes={post.likes} uid={uid} disabled={!canWriteChat && !canModerate} />
-                <BookmarkButton postId={post.id} bookmarks={post.bookmarks} uid={uid} disabled={!canWriteChat && !canModerate} />
-              </div>
-              <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={!canWriteChat && !canModerate} />
-              <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={!canWriteChat && !canModerate} />
+              {post.kind === "announcement" && post.authorId === "system" ? (
+                <p className={styles.readOnlyNote}>{t("readOnlyNote")}</p>
+              ) : (
+                <>
+                  <div className={styles.postActions}>
+                    <LikeButton postId={post.id} likes={post.likes} uid={uid} disabled={!canWriteChat && !canModerate} />
+                    <BookmarkButton postId={post.id} bookmarks={post.bookmarks} uid={uid} disabled={!canWriteChat && !canModerate} />
+                  </div>
+                  <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={!canWriteChat && !canModerate} />
+                  <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={!canWriteChat && !canModerate} />
+                </>
+              )}
             </article>
           ))}
         </div>

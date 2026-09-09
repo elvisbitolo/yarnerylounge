@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { requireUser, guardJson } from "@/lib/server/authorize";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req, { params }) {
   const auth = await requireUser();
@@ -8,26 +9,27 @@ export async function GET(req, { params }) {
   if (denied) return denied;
 
   const { id } = await params;
-  const doc = await adminDb().collection("articles").doc(id).get();
-  if (!doc.exists) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.article.findUnique({ where: { id } });
+    if (!row) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({
+      id: row.id,
+      title: row.title || "",
+      content: row.content || "",
+      excerpt: row.excerpt || "",
+      coverImage: row.coverImage || "",
+      authorId: row.authorId || "",
+      authorName: row.authorName || "Member",
+      hashtags: row.hashtags || [],
+      readTime: row.readTime || 1,
+      likes: Object.keys(row.likes || {}),
+      createdAt: row.createdAt ? new Date(row.createdAt).getTime() : 0,
+    });
+  } catch (err) {
+    logError("articles.get.prisma_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to load article" }, { status: 500 });
   }
-  const d = doc.data();
-  return NextResponse.json({
-    id: doc.id,
-    title: d.title || "",
-    content: d.content || "",
-    excerpt: d.excerpt || "",
-    coverImage: d.coverImage || "",
-    authorId: d.authorId || "",
-    authorName: d.authorName || "Member",
-    hashtags: d.hashtags || [],
-    readTime: d.readTime || 1,
-    likes: Object.keys(d.likes || {}),
-    createdAt: d.createdAt?.toMillis
-      ? d.createdAt.toMillis()
-      : d.createdAt
-        ? new Date(d.createdAt).getTime()
-        : 0,
-  });
 }

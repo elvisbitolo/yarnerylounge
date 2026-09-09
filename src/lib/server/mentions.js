@@ -1,4 +1,5 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { createNotification } from "./notifications";
 
 const MENTION_REGEX = /@([a-zA-Z0-9_]{1,30})/g;
@@ -21,16 +22,19 @@ export function extractMentions(text) {
 
 export async function resolveMentions(usernames) {
   if (!usernames.length) return [];
+  const prisma = getPrisma();
   const results = [];
   for (const username of usernames) {
-    const snap = await adminDb()
-      .collection("users")
-      .where("username", "==", username)
-      .limit(1)
-      .get();
-    if (!snap.empty) {
-      const doc = snap.docs[0];
-      results.push({ uid: doc.id, username, name: doc.data().name || username });
+    if (prisma) {
+      try {
+        const row = await prisma.user.findFirst({ where: { username } });
+        if (row) {
+          results.push({ uid: row.id, username, name: row.name || username });
+          continue;
+        }
+      } catch (err) {
+        logError("mentions.prisma_resolve_failed", { error: err.message });
+      }
     }
   }
   return results;
@@ -62,32 +66,42 @@ export async function sendMentionNotifications({
 export async function searchMembersForMention(query, limit = 8) {
   if (!query || query.length < 1) return [];
   const q = query.toLowerCase();
-  const snap = await adminDb().collection("users").limit(100).get();
-  const matches = [];
-  for (const doc of snap.docs) {
-    const data = doc.data();
-    const name = (data.name || "").toLowerCase();
-    const username = (data.username || "").toLowerCase();
-    if (name.includes(q) || username.includes(q)) {
-      matches.push({
-        uid: doc.id,
-        name: data.name || "",
-        username: data.username || "",
-        photoURL: data.photoURL || "",
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.user.findMany({
+        take: 100,
+        select: { id: true, name: true, username: true, photoURL: true },
       });
-      if (matches.length >= limit) break;
+      const matches = [];
+      for (const row of rows) {
+        const name = (row.name || "").toLowerCase();
+        const username = (row.username || "").toLowerCase();
+        if (name.includes(q) || username.includes(q)) {
+          matches.push({
+            uid: row.id,
+            name: row.name || "",
+            username: row.username || "",
+            photoURL: row.photoURL || "",
+          });
+          if (matches.length >= limit) break;
+        }
+      }
+      matches.sort((a, b) => {
+        const aExact = a.username === q || a.name.toLowerCase() === q;
+        const bExact = b.username === q || b.name.toLowerCase() === q;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        const aStarts = a.username.startsWith(q) || a.name.toLowerCase().startsWith(q);
+        const bStarts = b.username.startsWith(q) || b.name.toLowerCase().startsWith(q);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return 0;
+      });
+      return matches;
+    } catch (err) {
+      logError("mentions.prisma_search_failed", { error: err.message });
     }
   }
-  matches.sort((a, b) => {
-    const aExact = a.username === q || a.name.toLowerCase() === q;
-    const bExact = b.username === q || b.name.toLowerCase() === q;
-    if (aExact && !bExact) return -1;
-    if (!aExact && bExact) return 1;
-    const aStarts = a.username.startsWith(q) || a.name.toLowerCase().startsWith(q);
-    const bStarts = b.username.startsWith(q) || b.name.toLowerCase().startsWith(q);
-    if (aStarts && !bStarts) return -1;
-    if (!aStarts && bStarts) return 1;
-    return 0;
-  });
-  return matches;
+  return [];
 }

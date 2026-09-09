@@ -1,20 +1,16 @@
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
+import { isPaidPlanExpired } from "@/lib/server/user-core";
+import { isOpenAccess } from "@/lib/server/access-policy";
 
 // The lounge gate decides whether a signed-in user may stay on a page.
 // Returns a redirect target ("/plan-expired" or "/membership") or null to allow.
 //
 // opts.matchmaker: only users with matchmaker capability may pass, otherwise a
 //   flirting/guest is sent to /membership (which redirects to the speakeasy).
-// An expired paid plan is always redirected to /plan-expired.
+// An expired paid plan is always redirected to /plan-expired — except during
+// open access, where every signed-in member is admitted regardless.
 export async function loungeGate(uid, userDoc, opts = {}) {
-  const plan = userDoc?.plan || "flirting";
-  const expiresAt = userDoc?.expiresAt;
-  const expiresAtMs = expiresAt?.toMillis
-    ? expiresAt.toMillis()
-    : typeof expiresAt === "string"
-      ? new Date(expiresAt).getTime()
-      : NaN;
-  if (plan !== "flirting" && expiresAtMs && !Number.isNaN(expiresAtMs) && expiresAtMs < Date.now()) {
+  if (!isOpenAccess() && isPaidPlanExpired(userDoc)) {
     return "/plan-expired";
   }
   if (opts.matchmaker) {

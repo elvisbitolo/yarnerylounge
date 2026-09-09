@@ -14,6 +14,16 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // CLI operations (generate/migrate) run best over the direct/session
+    // pooler connection. The transaction pooler (DATABASE_URL, port 6543)
+    // breaks Prisma Migrate with `prepared statement "s1" already exists` —
+    // PgBouncer re-uses sessions across backend connections. The runtime app
+    // is unaffected: src/lib/db/prisma.js reads DATABASE_URL itself.
+    url:
+      process.env["PRISMA_DIRECT_URL"] ||
+      process.env["DIRECT_URL"] ||
+      process.env["POSTGRES_URL_NON_POOLING"] ||
+      process.env["DATABASE_URL"] ||
+      process.env["POSTGRES_PRISMA_URL"],
   },
 });

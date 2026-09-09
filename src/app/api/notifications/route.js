@@ -1,26 +1,18 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
 import { listNotifications } from "@/lib/server/notifications";
+import { rateLimitGuard } from "@/lib/server/rate-limit";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    return NextResponse.json({ unread: 0, error: "Not signed in" }, { status: 401 });
   }
-  const notifications = await listNotifications(user.uid);
-  return NextResponse.json({
-    notifications: notifications.map((n) => ({
-      id: n.id,
-      type: n.type,
-      actorName: n.actorName,
-      targetId: n.targetId,
-      href: n.href,
-      text: n.text,
-      read: n.read,
-      createdAt:
-        n.createdAt instanceof Date
-          ? n.createdAt.toISOString()
-          : new Date(n.createdAt.toMillis ? n.createdAt.toMillis() : n.createdAt).toISOString(),
-    })),
-  });
+  const limited = rateLimitGuard(`notif-unread:${user.uid}`, { limit: 240 });
+  if (limited) return limited;
+  const list = await listNotifications(user.uid, 50);
+  const unread = list.filter((n) => !n.read).length;
+  return NextResponse.json({ unread });
 }

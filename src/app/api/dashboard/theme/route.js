@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { adminDb } from "@/lib/firebase/admin";
+import { logError } from "@/lib/server/log";
+import { getPrisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +10,18 @@ export async function GET() {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const doc = await adminDb().collection("users").doc(auth.user.uid).get();
-  const data = doc.exists ? doc.data() : {};
+  let theme = null;
+  try {
+    const row = await getPrisma().user.findUnique({
+      where: { id: auth.user.uid },
+      select: { extra: true },
+    });
+    theme = row?.extra?.dashboardTheme || null;
+  } catch (err) {
+    logError("theme.prisma_read_failed", { error: err.message });
+  }
 
-  return NextResponse.json({ theme: data.dashboardTheme || null });
+  return NextResponse.json({ theme });
 }
 
 export async function POST(req) {
@@ -34,10 +43,22 @@ export async function POST(req) {
     }
   }
 
-  await adminDb().collection("users").doc(auth.user.uid).set(
-    { dashboardTheme: safe },
-    { merge: true }
-  );
+  try {
+    const prisma = getPrisma();
+    const existing = await prisma.user.findUnique({
+      where: { id: auth.user.uid },
+      select: { extra: true },
+    });
+    const extra = { ...(existing?.extra || {}) };
+    extra.dashboardTheme = safe;
+    await prisma.user.update({
+      where: { id: auth.user.uid },
+      data: { extra, updatedAt: new Date() },
+    });
+  } catch (err) {
+    logError("theme.save_failed", { error: err.message, uid: auth.user.uid });
+    return NextResponse.json({ error: "Could not save theme" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, theme: safe });
 }

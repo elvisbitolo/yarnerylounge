@@ -1,29 +1,55 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import { canModerate } from "@/lib/server/auth";
 import { rankResults } from "@/lib/server/search-engine";
+import { logError } from "@/lib/server/log";
 
 function toMillis(value) {
   if (!value) return 0;
-  if (typeof value.toMillis === "function") return value.toMillis();
   if (value instanceof Date) return value.getTime();
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
 }
 
+const FETCH_MODELS = {
+  posts: "post",
+  users: "user",
+  groups: "group",
+  spaces: "space",
+  courses: "course",
+  events: "event",
+  rooms: "room",
+};
+
 async function fetchDocs(collectionName, limit = 300) {
-  const snap = await adminDb().collection(collectionName).limit(limit).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const prisma = getPrisma();
+  const model = FETCH_MODELS[collectionName];
+  if (prisma && model) {
+    try {
+      return await prisma[model].findMany({ take: limit });
+    } catch (err) {
+      logError("search.prisma_fetch_failed", { error: err.message, collectionName });
+    }
+  }
+  return [];
 }
 
 async function getUserMemberships(uid) {
-  const [spaceSnap, groupSnap] = await Promise.all([
-    adminDb().collection("spaceMembers").where("userId", "==", uid).limit(500).get(),
-    adminDb().collection("groupMembers").where("userId", "==", uid).limit(500).get(),
-  ]);
-  return {
-    spaceIds: new Set(spaceSnap.docs.map((d) => d.data().spaceId)),
-    groupIds: new Set(groupSnap.docs.map((d) => d.data().groupId)),
-  };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const [spaceRows, groupRows] = await Promise.all([
+        prisma.spaceMember.findMany({ where: { userId: uid }, take: 500 }),
+        prisma.groupMember.findMany({ where: { userId: uid }, take: 500 }),
+      ]);
+      return {
+        spaceIds: new Set(spaceRows.map((m) => m.spaceId)),
+        groupIds: new Set(groupRows.map((m) => m.groupId)),
+      };
+    } catch (err) {
+      logError("search.prisma_memberships_failed", { error: err.message, uid });
+    }
+  }
+  return { spaceIds: new Set(), groupIds: new Set() };
 }
 
 const TYPE_LIMIT = 20;
@@ -71,12 +97,14 @@ export async function searchCommunity(
 
   let rawPosts = [];
   if (tag) {
-    const snap = await adminDb()
-      .collection("posts")
-      .where("hashtags", "array-contains", tag)
-      .limit(60)
-      .get();
-    rawPosts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        rawPosts = await prisma.post.findMany({ where: { hashtags: { has: tag } }, take: 60 });
+      } catch (err) {
+        logError("search.prisma_hashtag_failed", { error: err.message, tag });
+      }
+    }
   } else if (needle && includeCategory("posts")) {
     rawPosts = await fetchDocs("posts");
   }
@@ -174,6 +202,8 @@ export async function searchCommunity(
       : [],
   ]);
 
+  const prisma = getPrisma();
+
   return {
     posts,
     members: members.map((m) => ({
@@ -191,17 +221,20 @@ export async function searchCommunity(
     })),
     spaces: await Promise.all(
       spaces.map(async (s) => {
-        const memberSnap = await adminDb()
-          .collection("spaceMembers")
-          .where("spaceId", "==", s.id)
-          .limit(1)
-          .get();
+        let memberCount = 0;
+        if (prisma) {
+          try {
+            memberCount = await prisma.spaceMember.count({ where: { spaceId: s.id } });
+          } catch (err) {
+            logError("search.prisma_member_count_failed", { error: err.message, spaceId: s.id });
+          }
+        }
         return {
           id: s.id,
           name: s.name,
           slug: s.slug,
           description: s.description || "",
-          memberCount: memberSnap.size,
+          memberCount,
           _score: s._score,
         };
       })

@@ -1,34 +1,31 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { adminDb } from "@/lib/firebase/admin";
 import { ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_ROOM_SLUG = ALWAYS_ON_ROOMS[0].slug;
 
-async function findRoom(slug) {
-  const snap = await adminDb()
-    .collection("rooms")
-    .where("slug", "==", slug)
-    .limit(1)
-    .get();
-  return snap.empty ? null : snap.docs[0];
-}
-
 export async function GET(req) {
   const url = new URL(req.url);
   const roomSlug = url.searchParams.get("room") || DEFAULT_ROOM_SLUG;
-  const room = await findRoom(roomSlug);
-  if (!room) return NextResponse.json({ music: null });
-  const data = room.data();
-  return NextResponse.json({
-    roomSlug,
-    music: data.musicUrl || null,
-    musicFileId: data.musicFileId || null,
-    musicName: data.musicName || null,
-    musicPlaying: !!data.musicPlaying,
-  });
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.room.findUnique({ where: { slug: roomSlug } });
+    if (!row) return NextResponse.json({ music: null });
+    return NextResponse.json({
+      roomSlug,
+      music: row.musicUrl || null,
+      musicFileId: row.musicFileId || null,
+      musicName: row.musicName || null,
+      musicPlaying: !!row.musicPlaying,
+    });
+  } catch (err) {
+    logError("room.music.read_failed", { error: err.message });
+    return NextResponse.json({ music: null });
+  }
 }
 
 export async function POST(req) {
@@ -38,15 +35,24 @@ export async function POST(req) {
 
   const { roomSlug, musicUrl, musicFileId, musicName, musicPlaying } = await req.json();
   const slug = typeof roomSlug === "string" && roomSlug ? roomSlug : DEFAULT_ROOM_SLUG;
-  const room = await findRoom(slug);
-  if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
-  const update = {};
-  if (typeof musicName === "string") update.musicName = musicName;
-  if (typeof musicUrl === "string") update.musicUrl = musicUrl;
-  if (typeof musicFileId === "string") update.musicFileId = musicFileId;
-  if (typeof musicPlaying === "boolean") update.musicPlaying = musicPlaying;
+  try {
+    const prisma = getPrisma();
+    const row = await prisma.room.findUnique({ where: { slug } });
+    if (!row) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
-  await room.ref.set(update, { merge: true });
-  return NextResponse.json({ ok: true });
+    await prisma.room.update({
+      where: { slug },
+      data: {
+        ...(typeof musicName === "string" && { musicName }),
+        ...(typeof musicUrl === "string" && { musicUrl }),
+        ...(typeof musicFileId === "string" && { musicFileId }),
+        ...(typeof musicPlaying === "boolean" && { musicPlaying }),
+      },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    logError("room.music.update_failed", { error: err.message });
+    return NextResponse.json({ error: "Failed to update music" }, { status: 500 });
+  }
 }

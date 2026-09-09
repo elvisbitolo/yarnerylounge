@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
 import { SHOPIFY_UPGRADE_URL } from "@/lib/server/shopify";
+import { getUserByEmail } from "@/lib/server/auth";
+import { isOpenAccess, OPEN_ACCESS_PLAN } from "@/lib/server/access-policy";
+import { toMillis } from "@/lib/server/user-core";
 
 export const dynamic = "force-dynamic";
 
-function toMillis(value) {
-  if (!value) return 0;
-  if (typeof value.toMillis === "function") return value.toMillis();
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "string") {
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
+const STAFF_ROLES = ["owner", "moderator"];
 
 export async function POST(req) {
   try {
@@ -30,13 +22,20 @@ export async function POST(req) {
     }
     const clean = email.toLowerCase().trim();
 
-    const snap = await adminDb()
-      .collection("users")
-      .where("email", "==", clean)
-      .limit(1)
-      .get();
+    // Open-access mode admits everyone while the community ramps up.
+    if (isOpenAccess()) {
+      return NextResponse.json({
+        allowed: true,
+        email: clean,
+        plan: OPEN_ACCESS_PLAN,
+        role: "member",
+        openAccess: true,
+        isNew: true,
+      });
+    }
 
-    if (snap.empty) {
+    const userDoc = await getUserByEmail(clean);
+    if (!userDoc) {
       return NextResponse.json(
         {
           error: "not_prepaid",
@@ -47,12 +46,10 @@ export async function POST(req) {
       );
     }
 
-    const doc = snap.docs[0];
-    const data = doc.data();
-    const role = data.role || "member";
-    const staff = role === "owner" || role === "moderator";
+    const role = userDoc.role || "member";
+    const staff = STAFF_ROLES.includes(role);
 
-    if (data.paymentStatus !== "paid" && !staff) {
+    if (userDoc.paymentStatus !== "paid" && !staff) {
       return NextResponse.json(
         {
           error: "not_prepaid",
@@ -63,7 +60,7 @@ export async function POST(req) {
       );
     }
 
-    const expiresAtMs = toMillis(data.expiresAt);
+    const expiresAtMs = toMillis(userDoc.expiresAt);
     if (!staff && expiresAtMs > 0 && expiresAtMs < Date.now()) {
       return NextResponse.json(
         {
@@ -78,9 +75,9 @@ export async function POST(req) {
     return NextResponse.json({
       allowed: true,
       email: clean,
-      plan: data.plan || "flirting",
+      plan: userDoc.plan || "flirting",
       role,
-      isNew: doc.id === clean,
+      isNew: userDoc.id === clean,
     });
   } catch (err) {
     logError("auth.precheck_failed", { error: err.message });

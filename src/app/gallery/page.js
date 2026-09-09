@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
 import Nav from "@/components/Nav";
 import GalleryGrid from "./GalleryGrid";
 
@@ -53,27 +53,24 @@ export default async function GalleryPage() {
   if (!user) redirect("/login");
   const userDoc = await getUserDoc(user.uid);
 
-  const snap = await adminDb()
-    .collection("posts")
-    .orderBy("createdAt", "desc")
-    .limit(200)
-    .get();
+  const prisma = getPrisma();
+  const postRows = prisma
+    ? await prisma.post.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      })
+    : [];
 
-  const photos = snap.docs
-    .map((doc) => {
-      const d = doc.data();
+  const photos = postRows
+    .map((d) => {
       if (!d.imageUrl) return null;
       return {
-        id: doc.id,
+        id: d.id,
         imageUrl: d.imageUrl,
         text: d.text || "",
         authorId: d.authorId || "",
         authorName: d.authorName || "Member",
-        createdAt: d.createdAt?.toMillis
-          ? d.createdAt.toMillis()
-          : d.createdAt
-            ? new Date(d.createdAt).getTime()
-            : 0,
+        createdAt: d.createdAt ? d.createdAt.getTime() : 0,
       };
     })
     .filter(Boolean)

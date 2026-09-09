@@ -1,4 +1,6 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
+import { mapGamificationRow, mapLeaderboardRow } from "./gamification-core.js";
 
 export const POINTS = {
   POST: 10,
@@ -29,170 +31,173 @@ function todayKey(offset = 0) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function docRef(uid) {
-  return adminDb().collection("gamification").doc(uid);
-}
-
-async function ensureDoc(uid, name) {
-  const ref = docRef(uid);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    try {
-      await ref.set({
-        points: 0,
-        streak: 0,
-        bestStreak: 0,
-        badges: {},
-        lastVisitDate: "",
-        recentVisits: [],
-        name: name || "Member",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }, { merge: false });
-    } catch (err) {
-      if (err.code !== 6 && !err.message?.includes("ALREADY_EXISTS")) throw err;
-    }
+export async function getGamification(uid) {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return null;
+    const row = await prisma.gamification.findFirst({
+      where: { OR: [{ id: uid }, { userId: uid }] },
+    });
+    return row ? mapGamificationRow(row) : null;
+  } catch (err) {
+    logError("gamification.prisma_read_failed", { error: err.message });
+    return null;
   }
-  return ref;
 }
 
-export async function getGamification(uid, name) {
-  const ref = await ensureDoc(uid, name);
-  const snap = await ref.get();
-  const data = snap.data() || {};
-  return {
-    points: data.points || 0,
-    streak: data.streak || 0,
-    bestStreak: data.bestStreak || 0,
-    badges: data.badges || {},
-    name: data.name || "Member",
-    lastVisitDate: data.lastVisitDate || "",
-    recentVisits: Array.isArray(data.recentVisits) ? data.recentVisits : [],
-  };
+export async function getLeaderboard(limit = 20) {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return [];
+    const rows = await prisma.gamification.findMany({
+      orderBy: { points: "desc" },
+      take: limit,
+    });
+    return rows.map(mapLeaderboardRow);
+  } catch (err) {
+    logError("gamification.prisma_leaderboard_failed", { error: err.message });
+    return [];
+  }
 }
 
 export async function awardPoints(uid, amount, name) {
-  await adminDb().runTransaction(async (tx) => {
-    const ref = docRef(uid);
-    const snap = await tx.get(ref);
-    if (!snap.exists) {
-      tx.set(ref, {
-        points: amount,
-        streak: 0,
-        bestStreak: 0,
-        badges: {},
-        lastVisitDate: "",
-        recentVisits: [],
-        name: name || "Member",
-        createdAt: new Date(),
-        updatedAt: new Date(),
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+    const row = await prisma.gamification.findFirst({
+      where: { OR: [{ id: uid }, { userId: uid }] },
+    });
+    if (!row) {
+      await prisma.gamification.create({
+        data: {
+          id: uid,
+          userId: uid,
+          points: amount,
+          streak: 0,
+          bestStreak: 0,
+          badges: {},
+          lastVisitDate: "",
+          recentVisits: [],
+          name: name || "Member",
+        },
       });
       return;
     }
-    tx.update(ref, {
-      points: Math.max(0, (snap.data().points || 0) + amount),
-      updatedAt: new Date(),
+    await prisma.gamification.update({
+      where: { id: row.id },
+      data: { points: Math.max(0, (row.points || 0) + amount) },
     });
-  });
+  } catch (err) {
+    logError("gamification.award_points_failed", { error: err.message });
+  }
 }
 
 export async function awardBadge(uid, code, name) {
   const meta = BADGES[code];
   if (!meta) return;
-  await adminDb().runTransaction(async (tx) => {
-    const ref = docRef(uid);
-    const snap = await tx.get(ref);
-    if (!snap.exists) {
-      tx.set(ref, {
-        points: POINTS.BADGE_BONUS,
-        streak: 0,
-        bestStreak: 0,
-        badges: { [code]: { name: meta.name, earnedAt: new Date() } },
-        lastVisitDate: "",
-        recentVisits: [],
-        name: name || "Member",
-        createdAt: new Date(),
-        updatedAt: new Date(),
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+    const row = await prisma.gamification.findFirst({
+      where: { OR: [{ id: uid }, { userId: uid }] },
+    });
+    if (!row) {
+      await prisma.gamification.create({
+        data: {
+          id: uid,
+          userId: uid,
+          points: POINTS.BADGE_BONUS,
+          streak: 0,
+          bestStreak: 0,
+          badges: { [code]: { name: meta.name, earnedAt: new Date() } },
+          lastVisitDate: "",
+          recentVisits: [],
+          name: name || "Member",
+        },
       });
       return;
     }
-    const data = snap.data();
-    const badges = data.badges || {};
+    const badges =
+      row.badges && typeof row.badges === "object" ? { ...row.badges } : {};
     if (badges[code]) return;
     badges[code] = { name: meta.name, earnedAt: new Date() };
-    tx.update(ref, {
-      badges,
-      points: (data.points || 0) + POINTS.BADGE_BONUS,
-      updatedAt: new Date(),
+    await prisma.gamification.update({
+      where: { id: row.id },
+      data: {
+        badges,
+        points: (row.points || 0) + POINTS.BADGE_BONUS,
+      },
     });
-  });
+  } catch (err) {
+    logError("gamification.award_badge_failed", { error: err.message });
+  }
 }
 
 export async function recordDailyVisit(uid, name) {
-  await adminDb().runTransaction(async (tx) => {
-    const ref = docRef(uid);
-    const snap = await tx.get(ref);
-    const now = todayKey();
-    if (!snap.exists) {
-      tx.set(ref, {
-        points: POINTS.DAILY_VISIT,
-        streak: 1,
-        bestStreak: 1,
-        badges: {},
-        lastVisitDate: now,
-        name: name || "Member",
-        createdAt: new Date(),
-        updatedAt: new Date(),
+  const now = todayKey();
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+    const row = await prisma.gamification.findFirst({
+      where: { OR: [{ id: uid }, { userId: uid }] },
+    });
+    if (!row) {
+      await prisma.gamification.create({
+        data: {
+          id: uid,
+          userId: uid,
+          points: POINTS.DAILY_VISIT,
+          streak: 1,
+          bestStreak: 1,
+          badges: {},
+          lastVisitDate: now,
+          recentVisits: [],
+          name: name || "Member",
+        },
       });
       return;
     }
-    const data = snap.data();
-    if (data.lastVisitDate === now) return;
+    if (row.lastVisitDate === now) return;
 
-    let streak = data.streak || 0;
-    if (data.lastVisitDate === todayKey(1)) {
+    let streak = row.streak || 0;
+    if (row.lastVisitDate === todayKey(1)) {
       streak += 1;
     } else {
       streak = 1;
     }
-    const bestStreak = Math.max(data.bestStreak || 0, streak);
-    const recentVisits = [...(Array.isArray(data.recentVisits) ? data.recentVisits : []), now]
+    const bestStreak = Math.max(row.bestStreak || 0, streak);
+    const recentVisits = [
+      ...(Array.isArray(row.recentVisits) ? row.recentVisits : []),
+      now,
+    ]
       .filter((v, i, arr) => arr.indexOf(v) === i)
       .slice(-7);
-    const badges = data.badges || {};
+    const badges =
+      row.badges && typeof row.badges === "object" ? { ...row.badges } : {};
     const newBadges = {};
-    if (streak >= 3 && !badges.streak_3) newBadges.streak_3 = { name: BADGES.streak_3.name, earnedAt: new Date() };
-    if (streak >= 7 && !badges.streak_7) newBadges.streak_7 = { name: BADGES.streak_7.name, earnedAt: new Date() };
-    if (streak >= 30 && !badges.streak_30) newBadges.streak_30 = { name: BADGES.streak_30.name, earnedAt: new Date() };
+    if (streak >= 3 && !badges.streak_3)
+      newBadges.streak_3 = { name: BADGES.streak_3.name, earnedAt: new Date() };
+    if (streak >= 7 && !badges.streak_7)
+      newBadges.streak_7 = { name: BADGES.streak_7.name, earnedAt: new Date() };
+    if (streak >= 30 && !badges.streak_30)
+      newBadges.streak_30 = { name: BADGES.streak_30.name, earnedAt: new Date() };
 
-    tx.update(ref, {
-      streak,
-      bestStreak,
-      lastVisitDate: now,
-      recentVisits,
-      points: (data.points || 0) + POINTS.DAILY_VISIT + Object.keys(newBadges).length * POINTS.BADGE_BONUS,
-      badges: { ...badges, ...newBadges },
-      name: name || data.name || "Member",
-      updatedAt: new Date(),
+    await prisma.gamification.update({
+      where: { id: row.id },
+      data: {
+        streak,
+        bestStreak,
+        lastVisitDate: now,
+        recentVisits,
+        points:
+          (row.points || 0) +
+          POINTS.DAILY_VISIT +
+          Object.keys(newBadges).length * POINTS.BADGE_BONUS,
+        badges: { ...badges, ...newBadges },
+        name: name || row.name || "Member",
+      },
     });
-  });
-}
-
-export async function getLeaderboard(limit = 20) {
-  const snap = await adminDb()
-    .collection("gamification")
-    .orderBy("points", "desc")
-    .limit(limit)
-    .get();
-  return snap.docs.map((d, index) => {
-    const data = d.data();
-    return {
-      userId: d.id,
-      name: data.name || "Member",
-      points: data.points || 0,
-      streak: data.streak || 0,
-      badgeCount: Object.keys(data.badges || {}).length,
-      rank: index + 1,
-    };
-  });
+  } catch (err) {
+    logError("gamification.record_daily_visit_failed", { error: err.message });
+  }
 }

@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
-import { addMessage, getConversation } from "@/lib/server/chat";
+import { getConversation, addMessage } from "@/lib/server/chat";
 import { createNotification } from "@/lib/server/notifications";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { getPrisma } from "@/lib/db/prisma";
 import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
 import { validateReplyText } from "@/lib/server/chat-core";
@@ -141,13 +140,17 @@ export async function POST(req, { params }) {
   let attachment = body?.attachment || null;
 
   if (parentId) {
-    const parentSnap = await adminDb()
-      .collection("conversations")
-      .doc(conversationId)
-      .collection("messages")
-      .doc(parentId)
-      .get();
-    if (!parentSnap.exists) {
+    try {
+      const prisma = getPrisma();
+      const parent = await prisma.conversationMessage.findUnique({
+        where: { id: parentId },
+        select: { conversationId: true },
+      });
+      if (!parent || parent.conversationId !== conversationId) {
+        return NextResponse.json({ error: "Parent message not found" }, { status: 404 });
+      }
+    } catch (err) {
+      logError("chat.prisma_parent_read_failed", { error: err.message });
       return NextResponse.json({ error: "Parent message not found" }, { status: 404 });
     }
   }
@@ -186,46 +189,54 @@ export async function POST(req, { params }) {
   }
 
   if (parentId) {
-    const parentRef = adminDb()
-      .collection("conversations")
-      .doc(conversationId)
-      .collection("messages")
-      .doc(parentId);
-    await parentRef.update({
-      replyCount: FieldValue.increment(1),
-    }).catch(() => {});
+    try {
+      const prisma = getPrisma();
+      await prisma.conversationMessage.updateMany({
+        where: { id: parentId, conversationId },
+        data: { replyCount: { increment: 1 } },
+      });
+    } catch (err) {
+      logError("chat.prisma_reply_count_failed", { error: err.message });
+    }
   }
 
   const conv = await getConversation(conversationId, user.uid);
   if (conv && conv.type === "dm") {
     const otherId = (conv.participantIds || []).find((id) => id !== user.uid);
     if (otherId) {
-      const otherSnap = await adminDb().collection("users").doc(otherId).get();
-      if (otherSnap.exists) {
-        const other = otherSnap.data();
-        if (other.notifications !== "off") {
-          const snippet = text || (attachment?.kind === "image" ? "📷 Photo" : `📎 ${attachment?.name || "File"}`);
-          await createNotification({
-            userId: otherId,
-            type: "dm",
-            actorId: user.uid,
-            actorName: senderName,
-            href: `/chat/${conversationId}`,
-            text: snippet,
+      let other = null;
+      try {
+        const prisma = getPrisma();
+        const row = await prisma.user.findUnique({
+          where: { id: otherId },
+          select: { email: true, notifications: true },
+        });
+        if (row) other = { email: row.email || "", notifications: row.notifications || "" };
+      } catch (err) {
+        logError("chat.prisma_dm_recipient_failed", { error: err.message });
+      }
+      if (other && other.notifications !== "off") {
+        const snippet = text || (attachment?.kind === "image" ? "📷 Photo" : `📎 ${attachment?.name || "File"}`);
+        await createNotification({
+          userId: otherId,
+          type: "dm",
+          actorId: user.uid,
+          actorName: senderName,
+          href: `/chat/${conversationId}`,
+          text: snippet,
+        }).catch((err) => {
+          logError("notification.dm_failed", { conversationId, error: err.message });
+        });
+        if (other.email) {
+          await sendEmail({
+            to: other.email,
+            subject: `New message from ${senderName}`,
+            text:
+              `${senderName} sent you a message:\n\n"${snippet}"\n\n` +
+              `Reply in the community chat: ${process.env.NEXT_PUBLIC_APP_URL || ""}/chat/${conversationId}`,
           }).catch((err) => {
-            logError("notification.dm_failed", { conversationId, error: err.message });
+            logError("email.dm_notify_failed", { conversationId, error: err.message });
           });
-          if (other.email) {
-            await sendEmail({
-              to: other.email,
-              subject: `New message from ${senderName}`,
-              text:
-                `${senderName} sent you a message:\n\n"${snippet}"\n\n` +
-                `Reply in the community chat: ${process.env.NEXT_PUBLIC_APP_URL || ""}/chat/${conversationId}`,
-            }).catch((err) => {
-              logError("email.dm_notify_failed", { conversationId, error: err.message });
-            });
-          }
         }
       }
     }

@@ -1,32 +1,59 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import { getRoom } from "@/lib/server/rooms";
 
 const BATCH_LIMIT = 400;
 export const ANNOUNCEMENT_MAX = 2000;
 
 async function communityRecipients() {
-  const snap = await adminDb().collection("users").limit(1000).get();
-  return snap.docs
-    .filter((doc) => !doc.data().suspended)
-    .map((doc) => doc.id);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.user.findMany({
+        where: { suspended: { not: true } },
+        take: 1000,
+        select: { id: true },
+      });
+      if (rows.length) return rows.map((row) => row.id);
+    } catch (err) {
+      logError("announcements.prisma_community_recipients_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 async function spaceRecipients(spaceId) {
-  const snap = await adminDb()
-    .collection("spaceMembers")
-    .where("spaceId", "==", spaceId)
-    .limit(1000)
-    .get();
-  return snap.docs.map((doc) => doc.data().userId);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.spaceMember.findMany({
+        where: { spaceId },
+        take: 1000,
+        select: { userId: true },
+      });
+      if (rows.length) return rows.map((row) => row.userId);
+    } catch (err) {
+      logError("announcements.prisma_space_recipients_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 async function groupRecipients(groupId) {
-  const snap = await adminDb()
-    .collection("groupMembers")
-    .where("groupId", "==", groupId)
-    .limit(1000)
-    .get();
-  return snap.docs.map((doc) => doc.data().userId);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.groupMember.findMany({
+        where: { groupId },
+        take: 1000,
+        select: { userId: true },
+      });
+      if (rows.length) return rows.map((row) => row.userId);
+    } catch (err) {
+      logError("announcements.prisma_group_recipients_failed", { error: err.message });
+    }
+  }
+  return [];
 }
 
 async function roomRecipients(roomId) {
@@ -57,52 +84,65 @@ export async function sendAnnouncement({
   if (!text) throw Object.assign(new Error("Announcement message required"), { code: 400 });
 
   const uids = await recipientsForScope({ scopeType, scopeId });
-  const db = adminDb();
-
-  for (let i = 0; i < uids.length; i += BATCH_LIMIT) {
-    const chunk = uids.slice(i, i + BATCH_LIMIT);
-    const batch = db.batch();
-    for (const userId of chunk) {
-      const ref = db.collection("notifications").doc();
-      batch.set(ref, {
-        userId,
-        type: "announcement",
-        actorId: actorId || "",
-        actorName: actorName || "Secret Yarnery",
-        targetId: scopeId || "",
-        href,
-        text,
-        read: false,
-        createdAt: new Date(),
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      if (uids.length) {
+        await prisma.notification.createMany({
+          data: uids.map((userId) => ({
+            userId,
+            type: "announcement",
+            actorId: actorId || "",
+            actorName: actorName || "Secret Yarnery",
+            targetId: scopeId || "",
+            href,
+            text,
+            read: false,
+            createdAt: new Date(),
+          })),
+        });
+      }
+      await prisma.announcement.create({
+        data: {
+          title: text.slice(0, 100),
+          body: text,
+          authorId: actorId || "",
+          authorName: actorName || "Secret Yarnery",
+          spaceId: scopeId || "",
+          createdAt: new Date(),
+        },
       });
+      return { sentCount: uids.length };
+    } catch (err) {
+      logError("announcements.prisma_send_failed", { error: err.message });
     }
-    await batch.commit();
   }
-
-  await db.collection("announcements").add({
-    scopeType,
-    scopeId: scopeId || "",
-    message: text,
-    sentCount: uids.length,
-    actorId: actorId || "",
-    createdAt: new Date(),
-  });
-
   return { sentCount: uids.length };
 }
 
 export async function listAnnouncements(limit = 20) {
-  const snap = await adminDb()
-    .collection("announcements")
-    .orderBy("createdAt", "desc")
-    .limit(limit)
-    .get();
-  return snap.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : 0,
-    };
-  });
+  const safeLimit = Math.max(Number(limit) || 20, 1);
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.announcement.findMany({
+        orderBy: { createdAt: "desc" },
+        take: safeLimit,
+      });
+      if (rows.length) {
+        return rows.map((row) => ({
+          id: row.id,
+          scopeType: row.spaceId,
+          scopeId: row.spaceId,
+          message: row.body || "",
+          sentCount: 0,
+          actorId: row.authorId || "",
+          createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : 0,
+        }));
+      }
+    } catch (err) {
+      logError("announcements.prisma_list_failed", { error: err.message });
+    }
+  }
+  return [];
 }

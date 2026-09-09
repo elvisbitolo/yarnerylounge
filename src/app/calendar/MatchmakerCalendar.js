@@ -6,9 +6,9 @@ import { CalendarDays, Plus, Trash2, Users, ChevronLeft, ChevronRight, X } from 
 import styles from "./calendar.module.css";
 
 const ROOMS = [
-  { slug: "happy-hour-hub", name: "Happy Hour Hub", color: "#f472b6" },
+  { slug: "happy-hour-hub", name: "Happy Hour Hub", color: "#e91e63" },
   { slug: "lo-fi-and-loops", name: "Lo-Fi & Loops", color: "#2dd4bf" },
-  { slug: "velvet-accent-den", name: "The Velvet Accent Den", color: "#a78bfa" },
+  { slug: "velvet-den", name: "The Velvet Den", color: "#a78bfa" },
   { slug: "silent-studio", name: "The Silent Studio", color: "#94a3b8" },
 ];
 

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
 import { getSpace, isSpaceMember, updateSpace, cascadeDeleteSpace } from "@/lib/server/spaces";
 import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 
 export async function GET(req, { params }) {
   const { id } = await params;
@@ -23,10 +24,12 @@ export async function GET(req, { params }) {
   }
 
   const membership = await isSpaceMember(id, auth.user.uid);
-  const membersSnap = await adminDb()
-    .collection("spaceMembers")
-    .where("spaceId", "==", id)
-    .get();
+  let memberCount = 0;
+  try {
+    memberCount = await getPrisma().spaceMember.count({ where: { spaceId: id } });
+  } catch (err) {
+    logError("spaces.member_count_failed", { error: err.message, spaceId: id });
+  }
 
   return NextResponse.json({
     space: {
@@ -38,7 +41,7 @@ export async function GET(req, { params }) {
       requiredTier: space.requiredTier || "",
       purchasePriceCents: space.purchasePriceCents || 0,
       features: space.features || {},
-      memberCount: membersSnap.size,
+      memberCount,
       joined: !!membership,
     },
   });

@@ -1,4 +1,5 @@
-import { adminDb } from "@/lib/firebase/admin";
+import { getPrisma } from "@/lib/db/prisma";
+import { logError } from "@/lib/server/log";
 import {
   DEFAULT_CHECKLIST_STEPS,
   CHECKLIST_KEYS,
@@ -10,12 +11,19 @@ export { DEFAULT_CHECKLIST_STEPS, CHECKLIST_KEYS, normalizeChecklistSteps };
 const SETTINGS_ID = "community";
 
 export async function getSettings() {
-  const doc = await adminDb().collection("settings").doc(SETTINGS_ID).get();
-  if (!doc.exists) {
-    return { welcomeChecklist: DEFAULT_CHECKLIST_STEPS };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row = await prisma.setting.findUnique({ where: { id: SETTINGS_ID } });
+      if (row) {
+        const data = row.welcomeChecklist;
+        return { welcomeChecklist: normalizeChecklistSteps(data) };
+      }
+    } catch (err) {
+      logError("settings.prisma_get_failed", { error: err.message });
+    }
   }
-  const data = doc.data();
-  return { ...data, welcomeChecklist: normalizeChecklistSteps(data.welcomeChecklist) };
+  return { welcomeChecklist: DEFAULT_CHECKLIST_STEPS };
 }
 
 export async function updateSettings(patch = {}) {
@@ -23,6 +31,16 @@ export async function updateSettings(patch = {}) {
   if (patch.welcomeChecklist !== undefined) {
     data.welcomeChecklist = normalizeChecklistSteps(patch.welcomeChecklist);
   }
-  await adminDb().collection("settings").doc(SETTINGS_ID).set(data, { merge: true });
-  return { welcomeChecklist: data.welcomeChecklist };
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      await prisma.setting.upsert({
+        where: { id: SETTINGS_ID },
+        create: { id: SETTINGS_ID, welcomeChecklist: data.welcomeChecklist },
+        update: { welcomeChecklist: data.welcomeChecklist },
+      });
+    } catch (err) {
+      logError("settings.prisma_update_failed", { error: err.message });
+    }
+  }
 }
