@@ -245,6 +245,29 @@ export async function refreshSession() {
   return false;
 }
 
+// "Auth wall" healer: the httpOnly session cookie holds a Supabase access token
+// that expires on its own (~1h), and getCurrentUser never refreshes. When a
+// signed-in member lands back on /login or /signup walled, rotate the cookie's
+// refresh token first — if the session is alive we get straight into the app,
+// otherwise we fall through to the form.
+export async function reconcileSessionCookie() {
+  try {
+    const me = await fetch("/api/me", { cache: "no-store" });
+    if (me.ok) {
+      const data = await me.json().catch(() => ({}));
+      if (data?.uid) return true;
+    }
+  } catch {
+    // Fall through to the refresh attempt below.
+  }
+  try {
+    const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
+    return refreshed.ok;
+  } catch {
+    return false;
+  }
+}
+
 function supabaseError(error) {
   const msg = typeof error === "string" ? error : error?.message || "Authentication failed";
   const err = new Error(msg);

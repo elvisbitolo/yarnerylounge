@@ -7,6 +7,7 @@ import {
   completeSupabaseGoogle,
   loginWithGoogle,
   loginWithSupabaseEmail,
+  reconcileSessionCookie,
   refreshSession,
   resendSignupVerification,
   sendPasswordReset,
@@ -43,23 +44,20 @@ export default function LoginPage() {
   const [resent, setResent] = useState(false);
 
   // Already signed in? Bounce straight into the app instead of re-showing the
-  // auth form (the "auth wall"). Skipped on the Google OAuth / session-refresh
-  // return paths, where the page's own finalizer handles the session.
+  // auth form (the "auth wall"). If the cookie's access token has expired, the
+  // reconcile helper rotates it via /api/auth/refresh first, so a live session
+  // never strands a member on the form. Skipped on the Google OAuth /
+  // session-refresh return paths, where the page's own finalizer handles the
+  // session.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("session_refresh") || params.has("provider")) return;
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch("/api/me", { cache: "no-store" });
-        if (!res.ok) return;
-        const me = await res.json();
-        if (!cancelled && me?.uid) {
-          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- signed-in visitors skip the auth wall
-          window.location.assign("/dashboard");
-        }
-      } catch {
-        // Stay on the page; the form still works.
+      const signedIn = await reconcileSessionCookie();
+      if (!cancelled && signedIn) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components read the (possibly rotated) session cookie
+        window.location.assign("/dashboard");
       }
     })();
     return () => {
