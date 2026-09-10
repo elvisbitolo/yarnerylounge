@@ -42,6 +42,7 @@ function cleanPrivateKey(raw) {
     .replace(/\r/g, "")
     .replace(/\\r/g, "")
     .replace(/\\n/g, "\n")
+    .replace(/^["']+|["']+$/g, "")
     .trim();
 }
 
