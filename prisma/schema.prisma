@@ -680,6 +680,8 @@ model ConversationMessage {
   replyCount     Int       @default(0)
   attachment     Json?
   hasAttachment  Boolean?  @default(false)
+  pinned         Boolean   @default(false)
+  pinnedAt       DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id])
