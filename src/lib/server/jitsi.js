@@ -24,8 +24,21 @@ import jwt from "jsonwebtoken";
 //   are accepted by some JWT libraries and then rejected by JaaS, which
 //   leaves the iframe stuck on "Connecting".
 
+// A Vercel CLI status line — "◇ injected env (82) from .env.local." — has been
+// pasted on top of some env values in this project. This helper recovers the
+// LAST non-empty line of a value, discarding any CLI/metadata lines above it.
+function lastMeaningfulLine(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  const lines = value
+    .split(/\r?\n/)
+    .map((l) => l.trim().replace(/^["']+|["']+$/g, ""))
+    .filter(Boolean);
+  return lines[lines.length - 1] || "";
+}
+
 export function getJitsiAppId() {
-  return process.env.JITSI_APP_ID || "";
+  return lastMeaningfulLine(process.env.JITSI_APP_ID);
 }
 
 // The API Key ID registered for this tenant in the JaaS console. This is the
@@ -34,16 +47,25 @@ export function getJitsiAppId() {
 // canonical name (matching the 8x8/8x8.vc docs); JITSI_API_KEY_ID is accepted
 // as a fallback so Vercel/Env vars added under either name keep working.
 export function getJitsiApiKeyId() {
-  return process.env.JITSI_KEY_ID || process.env.JITSI_API_KEY_ID || "";
+  const keyId = process.env.JITSI_KEY_ID || process.env.JITSI_API_KEY_ID || "";
+  return lastMeaningfulLine(keyId);
 }
 
 function cleanPrivateKey(raw) {
-  return (raw || "")
+  const normalized = (raw || "")
     .replace(/\r/g, "")
     .replace(/\\r/g, "")
-    .replace(/\\n/g, "\n")
-    .replace(/^["']+|["']+$/g, "")
-    .trim();
+    .replace(/\\n/g, "\n");
+  const lines = normalized
+    .split("\n")
+    .map((l) => l.trim().replace(/^["']+|["']+$/g, ""))
+    .filter(Boolean);
+  // Drop any CLI/metadata line above the PEM and anything after its END line.
+  const begin = lines.findIndex((l) => l.startsWith("-----BEGIN"));
+  const block = begin >= 0 ? lines.slice(begin) : lines;
+  const endIdx = block.findIndex((l) => l.startsWith("-----END"));
+  const finished = endIdx >= 0 ? block.slice(0, endIdx + 1) : block;
+  return finished.join("\n").trim();
 }
 
 // The RSA private key with line-break escapes (\r, \r\n, literal \\n) and

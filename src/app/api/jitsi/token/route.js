@@ -117,7 +117,9 @@ export async function POST(req) {
       const keyLines = keyV ? keyV.split(/\r?\n/) : [];
       logError("jitsi.token.not_configured", {
         appId: appIdV ? "set" : "missing",
+        appIdStart: appIdV ? appIdV.slice(0, 24) : "",
         apiKeyId: keyIdV ? "set" : "missing",
+        apiKeyIdStart: keyIdV ? keyIdV.slice(0, 24) : "",
         apiKeyIdEqualsAppId: keyIdV === appIdV,
         keyIdVar: process.env.JITSI_KEY_ID ? "set" : "missing",
         apiKeyIdVar: process.env.JITSI_API_KEY_ID ? "set" : "missing",
