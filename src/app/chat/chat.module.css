@@ -127,8 +127,39 @@
 }
 
 .threadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 18px 24px;
   border-bottom: 1px solid #e6e6ef;
+}
+
+.presenceStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b6b7b;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.presenceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a5a5b2;
+  box-shadow: 0 0 0 3px rgba(165, 165, 178, 0.14);
+}
+
+.presenceStatus[data-online="true"] {
+  color: #267a4b;
+}
+
+.presenceStatus[data-online="true"] .presenceDot {
+  background: #2ebd68;
+  box-shadow: 0 0 0 3px rgba(46, 189, 104, 0.16);
 }
 
 .threadTitle {

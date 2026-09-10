@@ -14,6 +14,9 @@ import FollowButton from "@/components/FollowButton";
 import RecognitionForm from "./RecognitionForm";
 import StickerDisplay from "./StickerDisplay";
 import MembersToExplore from "./MembersToExplore";
+import MemberSafetyControls from "./MemberSafetyControls";
+import { getMemberSafety } from "@/lib/server/member-safety";
+import { listProjects } from "@/lib/server/projects";
 import styles from "./profile.module.css";
 
 export const dynamic = "force-dynamic";
@@ -96,9 +99,10 @@ export default async function MemberProfilePage({ params }) {
 
   const prisma = getPrisma();
 
-  const [memberRow, postRows, recognitionCount, recognitions, stickerRows, gamiRow, followData] = await Promise.all([
+  const [memberRow, postRows, projectRows, recognitionCount, recognitions, stickerRows, gamiRow, followData, safetyData] = await Promise.all([
     prisma.user.findUnique({ where: { id } }),
     prisma.post.findMany({ where: { authorId: id } }),
+    listProjects(id),
     getRecognitionCount(id),
     listRecognitions(id, 10),
     prisma.sticker.findMany({ where: { toUid: id } }),
@@ -113,6 +117,7 @@ export default async function MemberProfilePage({ params }) {
       ]);
       return { following: fol, followerCount: fc, followingCount: fgc };
     })(),
+    getMemberSafety(viewer.uid, id).catch(() => ({ blocked: false, muted: false })),
   ]);
 
   const stickerSummary = {};
@@ -155,6 +160,7 @@ export default async function MemberProfilePage({ params }) {
     }))
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 20);
+  const projects = projectRows || [];
 
 const coverUrl = member.coverPhotoURL || "";
   const bannerBackground = coverUrl
@@ -350,14 +356,41 @@ const coverUrl = member.coverPhotoURL || "";
                 isSelf={isSelf}
               />
             )}
-            {!isSelf && (
+            {!isSelf && !safetyData.blocked && (
               <Link className={styles.messageBtn} href={`/chat?with=${id}`}>
                 Message
               </Link>
             )}
+            {!isSelf && <MemberSafetyControls targetId={id} targetName={member.name} />}
           </div>
           </div>
         </div>
+
+        <section className={styles.projectsSection} aria-labelledby="projects-title">
+          <div className={styles.projectsHeader}>
+            <h2 id="projects-title" className={styles.sectionTitle}>Project portfolio</h2>
+            {isSelf && <Link className={styles.projectManageLink} href="/portfolio">Manage projects</Link>}
+          </div>
+          {projects.length === 0 ? (
+            <p className={styles.empty}>{isSelf ? "Add projects to show the community what you are making." : "No projects added yet."}</p>
+          ) : (
+            <div className={styles.projectGrid}>
+              {projects.map((project) => (
+                <article key={project.id} className={styles.projectCard}>
+                  {project.imageUrls?.[0] && <img src={project.imageUrls[0]} alt="" className={styles.projectImage} />}
+                  <div className={styles.projectBody}>
+                    <div className={styles.projectTitleRow}>
+                      <h3>{project.title}</h3>
+                      {project.featured && <span className={styles.projectFeatured}>Featured</span>}
+                    </div>
+                    <p className={styles.projectMeta}>{[project.craft, project.projectType, project.status].filter(Boolean).join(" · ")}</p>
+                    {project.description && <p className={styles.projectDescription}>{project.description}</p>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         <div className={styles.stats}>
           <Link className={styles.statItem} href="/leaderboard">

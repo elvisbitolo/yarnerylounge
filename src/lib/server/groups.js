@@ -27,6 +27,7 @@ function mapGroupRow(row) {
     welcomePostId: row.welcomePostId || "",
     welcomePostText: row.welcomePostText || "",
     avatar: row.avatar || "",
+    imageUrl: row.imageUrl || "",
   };
 }
 

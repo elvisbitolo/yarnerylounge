@@ -100,3 +100,21 @@ LiveKit surface is now gone:
 - Only `*-core.js` files are node-tested (`node --test`).
 - `.clinerules` prefers `run_commands`; a `bash`/shell tool has been used
   successfully all session.
+
+## Phase 8 — Speakeasy feature completion
+
+- Match decisions: daily matches now support persisted `accepted`/`passed`
+  decisions through `/api/members/blind-date/decision`; the swipe experience
+  remains unchanged.
+- Location discovery: the member directory now filters by timezone and shows
+  privacy-preserving approximate country markers in a responsive map.
+- Room presence: JaaS-connected room sessions heartbeat through
+  `/api/rooms/[id]/presence`, powering member-directory live status and live
+  viewer counts without trusting stale room events.
+- Project portfolios: members can create, update status, feature, upload
+  images for, and delete dedicated projects from `/portfolio`; active and
+  completed projects appear on member profiles.
+- Room safety: chat actions now mute/block members locally and report room
+  messages into the existing moderation queue; blocked authors are filtered
+  from room chat history and future loads.
+- Migration `6_match_presence_projects` is applied to production.

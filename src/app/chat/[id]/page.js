@@ -5,6 +5,7 @@ import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import Thread from "./Thread";
+import PresenceStatus from "../PresenceStatus";
 import styles from "../chat.module.css";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export default async function ConversationPage({ params }) {
 
   const messages = await listMessages(id);
   const caps = await getCapabilities(user.uid);
+  const presenceIds = (conversation.participantIds || []).filter((participantId) => participantId !== user.uid);
 
   return (
       <Nav role={userDoc?.role}>
@@ -31,6 +33,11 @@ export default async function ConversationPage({ params }) {
         <div className={styles.thread}>
           <div className={styles.threadHeader}>
             <h1 className={styles.threadTitle}>{conversation.title}</h1>
+            {presenceIds.length > 0 && conversation.type === "dm" ? (
+              <PresenceStatus userId={presenceIds[0]} />
+            ) : presenceIds.length > 0 ? (
+              <PresenceStatus userIds={presenceIds} />
+            ) : null}
           </div>
           <Thread
             conversationId={id}

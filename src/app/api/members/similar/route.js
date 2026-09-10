@@ -3,21 +3,57 @@ import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
 
 function similarityScore(a, b) {
   let score = 0;
   let max = 0;
 
-  const locationWeight = 3;
+  const values = (person, ...keys) => {
+    const result = [];
+    for (const key of keys) {
+      const value = person?.[key] ?? person?.extra?.[key];
+      if (Array.isArray(value)) result.push(...value);
+      else if (typeof value === "string" && value.trim()) result.push(value.trim());
+    }
+    return [...new Set(result.map((value) => value.toLowerCase()))];
+  };
+
+  const overlap = (left, right) => {
+    if (!left.length || !right.length) return 0;
+    return left.filter((value) => right.includes(value)).length / Math.max(left.length, right.length);
+  };
+
+  const addSetSignal = (weight, ...keys) => {
+    max += weight;
+    score += overlap(values(a, ...keys), values(b, ...keys)) * weight;
+  };
+
+  const locationWeight = 2;
   max += locationWeight;
   if (a.country && b.country && a.country === b.country) score += locationWeight;
   else if (a.country && b.country) score += 0.5;
 
+  const timezoneWeight = 2;
+  max += timezoneWeight;
+  const aTimezone = a.extra?.timezone || a.timezone || "";
+  const bTimezone = b.extra?.timezone || b.timezone || "";
+  if (aTimezone && bTimezone && aTimezone.toLowerCase() === bTimezone.toLowerCase()) score += timezoneWeight;
+
+  addSetSignal(3, "craftInterests", "crafts");
+  addSetSignal(2, "projectTypes");
+  addSetSignal(2, "hobbies", "crochetTechniques");
+  addSetSignal(2, "communityGoals");
+
   const yarnWeight = 2;
   max += yarnWeight;
-  if (a.goToYarn && b.goToYarn && a.goToYarn.toLowerCase() === b.goToYarn.toLowerCase()) {
-    score += yarnWeight;
-  }
+  const aYarn = a.yarnPreference || a.goToYarn || "";
+  const bYarn = b.yarnPreference || b.goToYarn || "";
+  if (aYarn && bYarn && aYarn.toLowerCase() === bYarn.toLowerCase()) score += yarnWeight;
+
+  const skillWeight = 1;
+  max += skillWeight;
+  if (a.skillLevel && b.skillLevel && a.skillLevel === b.skillLevel) score += skillWeight;
 
   const hookWeight = 1.5;
   max += hookWeight;
@@ -25,14 +61,7 @@ function similarityScore(a, b) {
     score += hookWeight;
   }
 
-  const colorWeight = 2;
-  max += colorWeight;
-  const aColors = Array.isArray(a.favoriteColors) ? a.favoriteColors : [];
-  const bColors = Array.isArray(b.favoriteColors) ? b.favoriteColors : [];
-  if (aColors.length && bColors.length) {
-    const shared = aColors.filter((c) => bColors.includes(c)).length;
-    score += (shared / Math.max(aColors.length, bColors.length)) * colorWeight;
-  }
+  addSetSignal(2, "favoriteColors");
 
   const textWeight = 2;
   max += textWeight;
@@ -61,10 +90,15 @@ export async function GET(req) {
     return NextResponse.json({ members: [] });
   }
 
+  // Similarity is a member-facing endpoint. Never allow a caller to choose
+  // another user's profile as the scoring baseline; doing so can disclose
+  // private profile attributes through the returned ranking.
   const url = new URL(req.url);
-  const forUid = url.searchParams.get("for") || null;
-  const baseUid = forUid || auth.user.uid;
-  const exclude = forUid || auth.user.uid;
+  if (url.searchParams.has("for") && url.searchParams.get("for") !== auth.user.uid) {
+    return NextResponse.json({ error: "Invalid match profile" }, { status: 403 });
+  }
+  const baseUid = auth.user.uid;
+  const exclude = auth.user.uid;
 
   const prisma = getPrisma();
 
@@ -75,6 +109,16 @@ export async function GET(req) {
     favoriteColors: true,
     headline: true,
     bio: true,
+    crafts: true,
+    hobbies: true,
+    crochetTechniques: true,
+    craftInterests: true,
+    projectTypes: true,
+    communityGoals: true,
+    skillLevel: true,
+    yarnPreference: true,
+    hookSize: true,
+    extra: true,
   };
   let myData;
   try {
@@ -100,12 +144,22 @@ export async function GET(req) {
     goToYarn: true,
     favoriteHookSize: true,
     bio: true,
+    crafts: true,
+    hobbies: true,
+    crochetTechniques: true,
+    craftInterests: true,
+    projectTypes: true,
+    communityGoals: true,
+    skillLevel: true,
+    yarnPreference: true,
+    hookSize: true,
+    extra: true,
   };
   let candidates;
   try {
     const rows = await prisma.user.findMany({
       take: 500,
-      where: { id: { not: exclude } },
+      where: { id: { not: exclude }, suspended: { not: true } },
       select: userSelect,
     });
     candidates = rows.map((r) => ({ id: r.id, ...r }));
@@ -115,6 +169,7 @@ export async function GET(req) {
   }
 
   const scored = candidates
+    .filter((c) => !isSafetyId(myData.extra, BLOCKED_KEY, c.id) && !isSafetyId(c.extra, BLOCKED_KEY, auth.user.uid))
     .map((c) => ({ ...c, score: similarityScore(myData, c) }))
     .filter((c) => c.score > 0)
     .sort((a, b) => b.score - a.score)

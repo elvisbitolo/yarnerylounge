@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { blockedMemberIdsFor } from "@/lib/server/member-safety";
 
 export const ROOM_MESSAGE_MAX = 2000;
 export const ROOM_QUICK_EMOJIS = [
@@ -35,7 +36,8 @@ export async function getRoomForChat(roomId) {
   const prisma = getPrisma();
   if (prisma) {
     try {
-      const row = await prisma.room.findUnique({ where: { id: roomId } });
+      const row = await prisma.room.findUnique({ where: { id: roomId } })
+        || await prisma.room.findUnique({ where: { slug: roomId } });
       if (row && (row.status || "active") === "active") {
         return { id: row.id, ...row };
       }
@@ -45,6 +47,11 @@ export async function getRoomForChat(roomId) {
     }
   }
   return null;
+}
+
+async function resolveRoomId(roomKey) {
+  const room = await getRoomForChat(roomKey);
+  return room?.id || null;
 }
 
 function decodeMessage(raw) {
@@ -80,25 +87,33 @@ function decodeMessage(raw) {
   return msg;
 }
 
-export async function listRoomMessages(roomId, { before, after, limit = 50 } = {}) {
+async function filterBlockedMessages(messages, viewerId) {
+  if (!viewerId || messages.length === 0) return messages;
+  const blocked = await blockedMemberIdsFor(viewerId, messages.map((message) => message.userId));
+  return messages.filter((message) => !blocked.has(message.userId));
+}
+
+export async function listRoomMessages(roomId, { before, after, limit = 50, viewerId = "" } = {}) {
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
   const prisma = getPrisma();
   if (prisma) {
     try {
+      const storageRoomId = await resolveRoomId(roomId);
+      if (!storageRoomId) return { messages: [], hasMore: false };
       if (after) {
         const afterTs = Number.isFinite(after) ? after : toMillis(after);
         if (!afterTs) return { messages: [], hasMore: false };
         const rows = await prisma.roomMessage.findMany({
-          where: { roomId, createdAt: { gte: new Date(afterTs) } },
+          where: { roomId: storageRoomId, createdAt: { gte: new Date(afterTs) } },
           orderBy: { createdAt: "asc" },
           take: safeLimit,
         });
         if (rows.length) {
-          const list = rows.map(decodeMessage).sort((a, b) => a.createdAt - b.createdAt);
+          const list = await filterBlockedMessages(rows.map(decodeMessage).sort((a, b) => a.createdAt - b.createdAt), viewerId);
           return { messages: list, hasMore: rows.length >= safeLimit };
         }
       } else {
-        const where = { roomId };
+        const where = { roomId: storageRoomId };
         if (before) {
           const beforeTs = Number.isFinite(before) ? before : toMillis(before);
           if (beforeTs) where.createdAt = { lt: new Date(beforeTs) };
@@ -110,10 +125,10 @@ export async function listRoomMessages(roomId, { before, after, limit = 50 } = {
         });
         if (rows.length) {
           const hasMore = rows.length > safeLimit;
-          const list = rows
+          const list = await filterBlockedMessages(rows
             .slice(0, safeLimit)
             .map(decodeMessage)
-            .sort((a, b) => a.createdAt - b.createdAt);
+            .sort((a, b) => a.createdAt - b.createdAt), viewerId);
           return { messages: list, hasMore };
         }
       }
@@ -127,6 +142,7 @@ export async function listRoomMessages(roomId, { before, after, limit = 50 } = {
 export async function addRoomMessage(roomId, sender, { text, mentions = [], replyTo = null, imageData = "" }) {
   const room = await getRoomForChat(roomId);
   if (!room) return null;
+  const storageRoomId = room.id;
   const clean = String(text || "").trim();
   const cleanImage = String(imageData || "").trim();
   if ((!clean && !cleanImage) || clean.length > ROOM_MESSAGE_MAX) return null;
@@ -134,7 +150,7 @@ export async function addRoomMessage(roomId, sender, { text, mentions = [], repl
     ? [...new Set(mentions.filter((m) => typeof m === "string" && m))]
     : [];
   const payload = {
-    roomId,
+    roomId: storageRoomId,
     userId: sender.uid,
     userName: sender.name,
     userAvatar: sender.avatar || "",
@@ -165,8 +181,10 @@ export async function toggleRoomReaction(roomId, messageId, uid, emoji) {
   const prisma = getPrisma();
   if (prisma) {
     try {
+      const storageRoomId = await resolveRoomId(roomId);
       const row = await prisma.roomMessage.findUnique({ where: { id: messageId } });
       if (!row) return { error: "Message not found" };
+      if (storageRoomId && row.roomId !== storageRoomId) return { error: "Message not found" };
       const reactions = row.reactions && typeof row.reactions === "object" ? { ...row.reactions } : {};
       const emojiReactions = reactions[emoji] && typeof reactions[emoji] === "object" ? { ...reactions[emoji] } : {};
       const alreadyReacted = !!emojiReactions[uid];
@@ -200,8 +218,10 @@ export async function toggleRoomPin(roomId, messageId) {
   const prisma = getPrisma();
   if (prisma) {
     try {
+      const storageRoomId = await resolveRoomId(roomId);
       const row = await prisma.roomMessage.findUnique({ where: { id: messageId } });
       if (!row) return { error: "Message not found" };
+      if (storageRoomId && row.roomId !== storageRoomId) return { error: "Message not found" };
       const isPinned = !!row.pinned;
       await prisma.roomMessage.update({
         where: { id: messageId },
@@ -221,8 +241,10 @@ export async function softDeleteRoomMessage(roomId, messageId) {
   const prisma = getPrisma();
   if (prisma) {
     try {
+      const storageRoomId = await resolveRoomId(roomId);
       const row = await prisma.roomMessage.findUnique({ where: { id: messageId } });
       if (!row) return { error: "Message not found" };
+      if (storageRoomId && row.roomId !== storageRoomId) return { error: "Message not found" };
       if (row.deleted) return { deleted: true };
       await prisma.roomMessage.update({
         where: { id: messageId },
@@ -241,8 +263,10 @@ export async function listPinnedRoomMessages(roomId, limit = 10) {
   const prisma = getPrisma();
   if (prisma) {
     try {
+      const storageRoomId = await resolveRoomId(roomId);
+      if (!storageRoomId) return [];
       const rows = await prisma.roomMessage.findMany({
-        where: { roomId, pinned: true },
+        where: { roomId: storageRoomId, pinned: true },
         orderBy: { pinnedAt: "desc" },
         take: safeLimit,
       });

@@ -54,7 +54,8 @@ async function listActiveRooms() {
 }
 
 async function computeLiveViewers(activeRoomList) {
-  return 0;
+  const { countActiveRoomMembers } = await import("./room-presence.js");
+  return countActiveRoomMembers(activeRoomList.map((room) => room.id));
 }
 
 function loadPurchasePrice(data) {

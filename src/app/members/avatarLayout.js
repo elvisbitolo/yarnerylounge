@@ -73,7 +73,7 @@ export function composeLayout(members, opts = {}) {
     overlapFactor = 0.9,
   } = opts;
 
-  if (!members.length) return [];
+  if (!members || !members.length) return [];
 
   const items = members.map((m, idx) => ({
     id: m.id,

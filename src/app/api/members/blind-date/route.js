@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { pickDailyBlindDate } from "@/lib/server/blind-date";
+import { getMatchDecision } from "@/lib/server/match-decisions";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -28,5 +29,6 @@ export async function GET(req) {
   }
 
   const { member, ...summary } = pick;
-  return NextResponse.json({ member: summary });
+  const decision = await getMatchDecision(auth.user.uid, summary.date);
+  return NextResponse.json({ member: summary, decision: decision?.decision || null });
 }

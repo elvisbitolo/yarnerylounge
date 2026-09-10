@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { dayKeyFor, hashingKey, seededPick, computeScore } from "./blind-date-core.js";
+import { BLOCKED_KEY, isSafetyId } from "./member-safety.js";
 
 async function findStoredPick(uid, date) {
   const prisma = getPrisma();
@@ -73,7 +74,10 @@ export async function pickDailyBlindDate(uid) {
   if (stored?.memberId) {
     try {
       const member = await prisma.user.findUnique({ where: { id: stored.memberId } });
-      if (member) return { ...stored, member };
+      if (member && !member.suspended && !isSafetyId(me?.extra, BLOCKED_KEY, member.id) && !isSafetyId(member.extra, BLOCKED_KEY, uid)) {
+        return { ...stored, member };
+      }
+      await clearDailyBlindDate(uid, today);
     } catch (err) {
       logError("blind-date.prisma_member_failed", { error: err.message });
     }
@@ -89,7 +93,8 @@ export async function pickDailyBlindDate(uid) {
 
   const candidates = rawCandidates
     .filter((u) => u.id !== uid)
-    .filter((m) => m.name)
+    .filter((m) => m.name && !m.suspended)
+    .filter((m) => !isSafetyId(me.extra, BLOCKED_KEY, m.id) && !isSafetyId(m.extra, BLOCKED_KEY, uid))
     .sort((a, b) => computeScore(me, b) - computeScore(me, a))
     .slice(0, 40);
 

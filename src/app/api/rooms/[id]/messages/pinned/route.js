@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
-  const messages = await listPinnedRoomMessages(roomId);
+  const messages = await listPinnedRoomMessages(room.id);
   return NextResponse.json({ messages });
 }
 
@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
 
   const userDoc = await getUserDoc(auth.user.uid);
   const staff = userDoc?.role === "owner" || userDoc?.role === "moderator";
-  const rights = await getScopedHostRights(auth.user.uid, "room", roomId);
+  const rights = await getScopedHostRights(auth.user.uid, "room", room.id);
   if (!(staff || rights.isHost || rights.isCoHost)) {
     return NextResponse.json({ error: "Host controls required" }, { status: 403 });
   }
@@ -51,7 +51,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "messageId required" }, { status: 400 });
   }
 
-  const result = await toggleRoomPin(roomId, messageId);
+  const result = await toggleRoomPin(room.id, messageId);
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 404 });
   }

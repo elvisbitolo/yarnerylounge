@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { encryptText, decryptText } from "@/lib/server/crypto";
+import { BLOCKED_KEY, isSafetyId } from "./member-safety-core.js";
 
 function toMillisValue(v) {
   if (v == null) return null;
@@ -240,7 +241,18 @@ export async function listConversations(uid) {
           rows.flatMap((r) => (r.participantIds || []).filter((id) => id !== uid))
         );
         const names = await loadNames(ids);
-        return rows
+        const safetyRows = await prisma.user.findMany({
+          where: { id: { in: [uid, ...ids] } },
+          select: { id: true, extra: true },
+        });
+        const extras = new Map(safetyRows.map((row) => [row.id, row.extra]));
+        const viewerExtra = extras.get(uid);
+        const visibleRows = rows.filter((row) => {
+          if (row.type !== "dm") return true;
+          const otherId = (row.participantIds || []).find((id) => id !== uid);
+          return !isSafetyId(viewerExtra, BLOCKED_KEY, otherId) && !isSafetyId(extras.get(otherId), BLOCKED_KEY, uid);
+        });
+        return visibleRows
           .map((row) => {
             const data = mapConversationRow(row);
             const title =
@@ -254,6 +266,7 @@ export async function listConversations(uid) {
               groupId: data.groupId || "",
               lastMessage: data.lastMessageEnc ? decryptText(data.lastMessage) : data.lastMessage || "",
               lastMessageAt: data.lastMessageAt || 0,
+              lastReadAt: toMillisValue(row.lastReadAt?.[uid]) || 0,
               updatedAt: toMillisValue(row.updatedAt) || 0,
             };
           })

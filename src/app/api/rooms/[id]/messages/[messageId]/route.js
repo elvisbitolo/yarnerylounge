@@ -27,13 +27,13 @@ export async function POST(req, { params }) {
 
   const userDoc = await getUserDoc(auth.user.uid);
   const staff = userDoc?.role === "owner" || userDoc?.role === "moderator";
-  const rights = await getScopedHostRights(auth.user.uid, "room", roomId);
+  const rights = await getScopedHostRights(auth.user.uid, "room", room.id);
 
   let message = null;
   try {
     const prisma = getPrisma();
     const row = await prisma.roomMessage.findUnique({
-      where: { id: messageId, roomId },
+      where: { id: messageId, roomId: room.id },
       select: { userId: true },
     });
     if (!row) {
@@ -50,7 +50,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const result = await softDeleteRoomMessage(roomId, messageId);
+  const result = await softDeleteRoomMessage(room.id, messageId);
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 404 });
   }

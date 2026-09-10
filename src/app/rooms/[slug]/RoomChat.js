@@ -16,8 +16,13 @@ import {
   Loader2,
   Clock,
   Lock,
+  RefreshCcw,
+  ShieldAlert,
+  VolumeX,
+  Ban,
 } from "lucide-react";
 import { useRoomData } from "./RoomDataProvider";
+import ReportModal from "../../feed/ReportModal";
 import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "./room.module.css";
 
@@ -72,7 +77,7 @@ function ReactionChip({ emoji, userIds, onToggle, active }) {
   );
 }
 
-function MessageRow({ msg, hostId, currentUserId, canModerate, onToggleReaction, onReply, onReact }) {
+function MessageRow({ msg, hostId, currentUserId, canModerate, onToggleReaction, onReply, onReact, onRetry, onSafety, onReport }) {
   const t = useTranslations("rooms");
   const isHostUser = msg.role === "host" || (msg.userId && msg.userId === hostId);
   const isMe = msg.userId === currentUserId;
@@ -131,6 +136,11 @@ function MessageRow({ msg, hostId, currentUserId, canModerate, onToggleReaction,
                   </span>
                 )}
               </p>
+              {msg.isLocal && msg.failed && (
+                <button type="button" className={styles.chatRetry} onClick={() => onRetry && onRetry(msg)}>
+                  <RefreshCcw size={12} /> Retry
+                </button>
+              )}
               {msg.reactions && Object.keys(msg.reactions).length > 0 && (
                 <div className={styles.chatReactions}>
                   {Object.entries(msg.reactions).map(([emoji, userIds]) => (
@@ -172,6 +182,19 @@ function MessageRow({ msg, hostId, currentUserId, canModerate, onToggleReaction,
                   <Pin size={13} />
                 </button>
               )}
+              {!isMe && (
+                <>
+                  <button type="button" className={styles.chatActionBtn} title="Mute member" onClick={() => onSafety?.(msg, "mute")}>
+                    <VolumeX size={13} />
+                  </button>
+                  <button type="button" className={`${styles.chatActionBtn} ${styles.chatActionDanger}`} title="Block member" onClick={() => onSafety?.(msg, "block")}>
+                    <Ban size={13} />
+                  </button>
+                  <button type="button" className={styles.chatActionBtn} title="Report message" onClick={() => onReport?.(msg)}>
+                    <ShieldAlert size={13} />
+                  </button>
+                </>
+              )}
               {canDelete && (
                 <button
                   type="button"
@@ -190,29 +213,59 @@ function MessageRow({ msg, hostId, currentUserId, canModerate, onToggleReaction,
   );
 }
 
-export default function RoomChat({ hostId, currentUserId, canWriteChat = true, planKey = "flirting" }) {
+export default function RoomChat({ hostId, currentUserId, participantCount = 0, roomConnected = false, canWriteChat = true, planKey = "flirting" }) {
   const t = useTranslations("rooms");
   const {
     messages,
+    roomId,
     loadingHistory,
     hasMore,
     loadEarlier,
     chatError,
     canModerate,
     sendChatMessage,
+    retryChatMessage,
     toggleReaction,
+    hideUser,
+    onMuteParticipant,
   } = useRoomData();
   const [draft, setDraft] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [unread, setUnread] = useState(0);
   const [attachBusy, setAttachBusy] = useState(false);
+  const [reportMessage, setReportMessage] = useState(null);
+  const [safetyBusy, setSafetyBusy] = useState("");
+  const [safetyNotice, setSafetyNotice] = useState("");
   const listRef = useRef(null);
   const composerRef = useRef(null);
   const fileInputRef = useRef(null);
   const nearBottomRef = useRef(true);
   const prevLenRef = useRef(0);
   const canPost = canWriteChat || canModerate;
+
+  async function handleSafety(message, action) {
+    const targetId = message?.userId;
+    if (!targetId || safetyBusy) return;
+    setSafetyBusy(`${action}:${targetId}`);
+    setSafetyNotice("");
+    try {
+      const res = await fetch("/api/members/safety", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetId, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not update safety settings");
+      if (action === "mute") onMuteParticipant?.(message.userId, message.userName);
+      if (action === "block") hideUser?.(targetId);
+      setSafetyNotice(action === "block" ? "Member blocked and hidden from this room." : "Member muted for you.");
+    } catch (error) {
+      setSafetyNotice(error.message || "Could not update safety settings");
+    } finally {
+      setSafetyBusy("");
+    }
+  }
 
   useEffect(() => {
     const el = listRef.current;
@@ -298,12 +351,18 @@ export default function RoomChat({ hostId, currentUserId, canWriteChat = true, p
           <MessageCircle size={17} className={styles.chatHeaderIcon} />
           <span className={styles.chatHeaderTitle}>{t("liveChat")}</span>
           <span className={styles.chatHeaderCount}>
-            {t("chatPeople", { count: messages.length })}
+            {t("peopleInRoom", { count: participantCount })}
           </span>
         </div>
-        <span className={styles.chatHeaderPinned}>
-          <Pin size={13} /> {t("pinnedMessage")}
-        </span>
+        <div className={styles.chatHeaderStatus}>
+          <span className={styles.chatPresence} data-active={roomConnected ? "true" : "false"}>
+            <span className={styles.chatPresenceDot} aria-hidden="true" />
+            {roomConnected ? "Live now" : "Connecting…"}
+          </span>
+          <span className={styles.chatHeaderPinned}>
+            <MessageCircle size={13} /> {t("liveChat")}
+          </span>
+        </div>
       </div>
 
       <div className={styles.chatMessages} ref={listRef} aria-live="polite">
@@ -330,10 +389,13 @@ export default function RoomChat({ hostId, currentUserId, canWriteChat = true, p
                 canModerate={canModerate}
                 onToggleReaction={toggleReaction}
                 onReact={(messageId, emoji) => toggleReaction(messageId, emoji)}
+                onRetry={retryChatMessage}
                 onReply={(msg) => {
                   setReplyingTo(msg);
                   composerRef.current && composerRef.current.focus();
                 }}
+                onSafety={handleSafety}
+                onReport={setReportMessage}
               />
             ))}
           </>
@@ -364,6 +426,15 @@ export default function RoomChat({ hostId, currentUserId, canWriteChat = true, p
       )}
 
       {chatError && <div className={styles.chatError}>{chatError}</div>}
+      {safetyNotice && <div className={styles.chatError} role="status">{safetyNotice}</div>}
+      {reportMessage && (
+        <ReportModal
+          type="room_message"
+          targetId={reportMessage.id}
+          roomId={roomId}
+          onClose={() => setReportMessage(null)}
+        />
+      )}
 
       {!canPost && (
         <div className={styles.upgradePrompt}>

@@ -5,7 +5,42 @@
 }
 
 .header {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
   margin-bottom: 32px;
+}
+
+.headerCopy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.headerArt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 260px;
+  min-height: 150px;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+
+.headerArtItem {
+  position: relative;
+  min-width: 0;
+}
+
+.headerArtItem + .headerArtItem {
+  border-left: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.headerArtItem img,
+.matchCardImage img {
+  object-fit: cover;
 }
 
 .title {
@@ -47,6 +82,14 @@
   align-items: center;
   gap: 12px;
   padding: 18px 20px 12px;
+}
+
+.matchCardImage {
+  position: relative;
+  height: 150px;
+  margin: 0 20px;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 .matchCardIcon {
@@ -339,6 +382,21 @@
   color: #9b9bab;
 }
 
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .headerArt {
+    width: 100%;
+    min-height: 160px;
+  }
+
+  .matchCardImage {
+    margin: 0 14px;
+  }
+}
+
 /* Lock State */
 .lockState {
   text-align: center;
@@ -392,7 +450,7 @@
 }
 
 .error {
-  margin: 16px 20px 0;
+  margin: 0;
   padding: 12px 14px;
   background: #fef2f2;
   border: 1px solid #fecaca;

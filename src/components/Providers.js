@@ -1,7 +1,7 @@
 "use client";
 
 import { NextIntlClientProvider } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MembershipProvider } from "@/lib/membership";
 
 function readLocale() {
@@ -12,6 +12,13 @@ function readLocale() {
 
 export default function Providers({ messages, locale: serverLocale, children }) {
   const [locale, setLocale] = useState(() => readLocale() || serverLocale || "en");
+
+  useEffect(() => {
+    const heartbeat = () => fetch("/api/presence", { method: "POST", keepalive: true }).catch(() => {});
+    heartbeat();
+    const timer = setInterval(heartbeat, 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale] || messages.en} timeZone="UTC">

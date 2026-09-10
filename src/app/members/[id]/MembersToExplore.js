@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./explore.module.css";
 
-export default function MembersToExplore({ forUid }) {
+export default function MembersToExplore() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const url = forUid ? `/api/members/similar?for=${encodeURIComponent(forUid)}` : "/api/members/similar";
+    const url = "/api/members/similar";
     fetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -17,7 +17,7 @@ export default function MembersToExplore({ forUid }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [forUid]);
+  }, []);
 
   if (loading) {
     return <p className={styles.loading}>Finding members to explore…</p>;

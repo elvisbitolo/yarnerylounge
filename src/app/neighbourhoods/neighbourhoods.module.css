@@ -38,17 +38,36 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 20px 18px 18px;
+  padding: 0 0 18px;
   border-radius: 20px;
   background: var(--surface, #121212);
   border: 1px solid var(--border, #262626);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
+  overflow: hidden;
+}
+
+.cardImageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #1a1a1f;
+}
+
+.cardImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .cardHeader {
   display: flex;
   align-items: center;
   gap: 14px;
+  padding: 20px 18px 0;
 }
 
 .cardEmoji {
@@ -87,6 +106,7 @@
   line-height: 1.55;
   color: var(--dash-muted, #a3a3a3);
   margin: 0;
+  padding: 0 18px;
 }
 
 .cardMeta {
@@ -96,6 +116,7 @@
   font-size: 12.5px;
   color: var(--dash-muted, #a3a3a3);
   margin: 0;
+  padding: 0 18px;
 }
 
 .memberCount {
@@ -114,6 +135,7 @@
   align-items: center;
   gap: 8px;
   align-self: flex-start;
+  margin: 0 18px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--dash-muted, #a3a3a3);
@@ -144,6 +166,7 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  padding: 0 18px;
 }
 
 .enter {

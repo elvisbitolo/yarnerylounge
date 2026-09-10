@@ -64,7 +64,7 @@ export default async function RoomPage({ params }) {
         userId={user.uid}
         userEmail={userDoc?.email || user.email || ""}
         userName={userDoc?.name || user.displayName || "Member"}
-        userAvatar={userDoc?.avatar || user.photoURL || ""}
+        userAvatar={userDoc?.photoURL || user.photoURL || ""}
       />
 </Nav>
     </>

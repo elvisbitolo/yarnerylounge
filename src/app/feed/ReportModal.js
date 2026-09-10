@@ -12,7 +12,7 @@ const REASONS = [
   "Other",
 ];
 
-export default function ReportModal({ type, targetId, commentPostId, onClose }) {
+export default function ReportModal({ type, targetId, commentPostId, roomId, onClose }) {
   const [reason, setReason] = useState("");
   const [other, setOther] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,7 @@ export default function ReportModal({ type, targetId, commentPostId, onClose }) 
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, targetId, commentPostId, reason: finalReason }),
+        body: JSON.stringify({ type, targetId, commentPostId, roomId, reason: finalReason }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

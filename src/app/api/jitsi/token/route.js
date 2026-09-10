@@ -20,6 +20,7 @@ import {
 } from "@/lib/server/jitsi";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
+import { toMillis } from "@/lib/server/user-core";
 
 // Development-only diagnostic sink. Never logs the token itself or the key.
 function logJwtDiagnostics(token) {
@@ -56,10 +57,10 @@ export async function POST(req) {
 
     if (!room.alwaysOn) {
       let opensAt = await getUpcomingRoomStart(room.slug);
-      if (!opensAt && room.opensAt) opensAt = room.opensAt.toMillis?.() || 0;
+      if (!opensAt && room.opensAt) opensAt = toMillis(room.opensAt);
       // Only block before the room has actually opened — an already-open room
       // with a stale `opensAt` timestamp must still be joinable for non-hosts.
-      const opensAtMillis = typeof opensAt === "number" ? opensAt : 0;
+      const opensAtMillis = toMillis(opensAt);
       const now = Date.now();
       if (opensAtMillis && opensAtMillis > now && !isHost) {
         return NextResponse.json(

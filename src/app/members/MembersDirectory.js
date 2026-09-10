@@ -7,6 +7,7 @@ import MemberBadge from "@/components/MemberBadge";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import { countryNames } from "@/lib/profile/countries";
 import { composeLayout } from "./avatarLayout";
+import MembersMap from "./MembersMap";
 import styles from "./members.module.css";
 
 const TABS = [
@@ -145,6 +146,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
   const [location, setLocation] = useState("");
   const [craft, setCraft] = useState("");
   const [hobby, setHobby] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [hover, setHover] = useState(null);
   const [matchTarget, setMatchTarget] = useState(null);
   const hideTimer = useRef(null);
@@ -202,6 +204,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
   }, [members]);
 
   const locations = useMemo(() => distinct(members.map((m) => m.location)), [members]);
+  const timezones = useMemo(() => distinct(members.map((m) => m.timezone)), [members]);
 
   const hobbiesInUse = useMemo(
     () => distinct(([]).concat(members.flatMap((m) => (Array.isArray(m.hobbies) ? m.hobbies : [])))),
@@ -224,6 +227,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
       if (craft && !member.crafts?.includes(craft)) return false;
       if (country && member.country !== country) return false;
       if (location && member.location !== location) return false;
+      if (timezone && member.timezone !== timezone) return false;
       if (hobby && !(Array.isArray(member.hobbies) && member.hobbies.includes(hobby))) return false;
       if (!query) return true;
       return (
@@ -243,7 +247,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
       return [...pool].sort((a, b) => (b.points || 0) - (a.points || 0));
     }
     return [...pool].sort((a, b) => a.name.localeCompare(b.name));
-  }, [members, tab, query, country, location, craft, hobby, todayKey]);
+  }, [members, tab, query, country, location, timezone, craft, hobby, todayKey]);
 
   const DENSE_BASE = 20;
   const DENSE_STEP = Math.round((14 * 960) / preset.width);
@@ -307,6 +311,15 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
           </select>
           <select
             className={styles.locationSelect}
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+            aria-label="Filter by timezone"
+          >
+            <option value="">All timezones</option>
+            {timezones.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+          <select
+            className={styles.locationSelect}
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             aria-label="Filter by location"
@@ -351,7 +364,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>
-          {query || tab !== "all" || country || location || craft || hobby
+          {query || tab !== "all" || country || location || timezone || craft || hobby
             ? "No members match this view."
             : "No members yet."}
         </p>
@@ -423,10 +436,12 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
                   </Link>
                 );
               })}
-            </div>
+      </div>
           )}
         </div>
       )}
+
+      <MembersMap members={filtered} selectedCountry={country} onSelectCountry={setCountry} />
 
       {hover && tooltipPos && (
         <div

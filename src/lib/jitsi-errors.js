@@ -233,6 +233,8 @@ export function jitsiErrorInfo(code) {
 export function validateTokenResponse(data) {
   if (!data || typeof data !== "object") return null;
   if (typeof data.token !== "string" || data.token.split(".").length !== 3) return null;
+  if (typeof data.appId !== "string" || !data.appId.trim()) return null;
+  if (typeof data.roomName !== "string" || !data.roomName.trim()) return null;
   return data;
 }
 

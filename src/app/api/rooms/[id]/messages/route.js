@@ -59,11 +59,12 @@ export async function GET(req, { params }) {
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
+  const storageRoomId = room.id;
 
   const limit = Number(req.nextUrl.searchParams.get("limit")) || 50;
   const before = parseCursor(req.nextUrl);
   const after = parseAfter(req.nextUrl);
-  const { messages, hasMore } = await listRoomMessages(roomId, { before, after, limit });
+  const { messages, hasMore } = await listRoomMessages(storageRoomId, { before, after, limit, viewerId: auth.user.uid });
   return NextResponse.json({ messages, hasMore });
 }
 
@@ -80,10 +81,11 @@ export async function POST(req, { params }) {
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
+  const storageRoomId = room.id;
 
   const userDoc = await getUserDoc(auth.user.uid);
   const caps = await getCapabilities(auth.user.uid);
-  const hostRights = await getScopedHostRights(auth.user.uid, "room", roomId);
+  const hostRights = await getScopedHostRights(auth.user.uid, "room", storageRoomId);
   const canWriteAnyway =
     canModerate(userDoc) || hostRights.isHost || hostRights.isCoHost;
   if (!canWriteChat(caps) && !canWriteAnyway) {
@@ -116,10 +118,10 @@ export async function POST(req, { params }) {
   }
 
   const senderName = userDoc?.name || auth.user.name || auth.user.email?.split("@")[0] || "Member";
-  const role = await roleFor(roomId, userDoc, auth.user.uid);
+  const role = await roleFor(storageRoomId, userDoc, auth.user.uid);
 
   const messageId = await addRoomMessage(
-    roomId,
+    storageRoomId,
     {
       uid: auth.user.uid,
       name: senderName,

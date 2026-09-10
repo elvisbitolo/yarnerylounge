@@ -28,7 +28,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Invalid emoji" }, { status: 400 });
   }
 
-  const result = await toggleRoomReaction(roomId, messageId, auth.user.uid, emoji);
+  const result = await toggleRoomReaction(room.id, messageId, auth.user.uid, emoji);
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 404 });
   }

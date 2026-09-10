@@ -23,10 +23,11 @@ export async function GET(req, { params }) {
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
+  const storageRoomId = room.id;
 
   const rawAfter = req.nextUrl.searchParams.get("after");
   const after = Number(rawAfter);
-  const { signals, hasMore } = await listRoomSignals(roomId, {
+  const { signals, hasMore } = await listRoomSignals(storageRoomId, {
     after: Number.isFinite(after) && after > 0 ? after : 0,
   });
   return NextResponse.json({ signals, hasMore });
@@ -45,6 +46,7 @@ export async function POST(req, { params }) {
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
+  const storageRoomId = room.id;
 
   const body = await req.json().catch(() => ({}));
   const type = typeof body?.type === "string" ? body.type.trim() : "";
@@ -57,7 +59,7 @@ export async function POST(req, { params }) {
     typeof body?.emoji === "string" ? body.emoji.trim().slice(0, 8) : "";
 
   const userDoc = await getUserDoc(auth.user.uid);
-  const rights = await getScopedHostRights(auth.user.uid, "room", roomId);
+  const rights = await getScopedHostRights(auth.user.uid, "room", storageRoomId);
   const isHostPower = !!userDoc && (userDoc.role === "owner" || userDoc.role === "moderator" || rights.isHost || rights.isCoHost);
 
   const payload = { type, value: !!body?.value, target, emoji };
@@ -70,7 +72,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: "Target required" }, { status: 400 });
     }
     payload.hostName = userDoc?.name || auth.user.name || auth.user.email?.split("@")[0] || "Host";
-    await addRoomSignal(roomId, auth.user.uid, payload);
+    await addRoomSignal(storageRoomId, auth.user.uid, payload);
     return NextResponse.json({ ok: true });
   }
 
@@ -78,7 +80,7 @@ export async function POST(req, { params }) {
     if (!emoji) {
       return NextResponse.json({ error: "Emoji required" }, { status: 400 });
     }
-    await addRoomSignal(roomId, auth.user.uid, payload);
+    await addRoomSignal(storageRoomId, auth.user.uid, payload);
     return NextResponse.json({ ok: true });
   }
 
@@ -86,7 +88,7 @@ export async function POST(req, { params }) {
     if (target && !isHostPower) {
       return NextResponse.json({ error: "Host required" }, { status: 403 });
     }
-    await addRoomSignal(roomId, auth.user.uid, payload);
+    await addRoomSignal(storageRoomId, auth.user.uid, payload);
     return NextResponse.json({ ok: true });
   }
 

@@ -13,9 +13,14 @@ import jwt from "jsonwebtoken";
 //
 // JWT contract (https://developer.8x8.com/jaas/docs/api-keys-jwt):
 //   header:  { alg: "RS256", kid: <API Key ID>, typ: "JWT" }
-//   body:    aud: "jitsi", iss: "chat", sub: <AppID>, room: <"AppID/Room">,
+//   body:    aud: "jitsi", iss: "chat", sub: <AppID>,
+//            room: the meeting name ONLY (not "AppID/Room" — JaaSMeeting already
+//            prefixes the tenant in the iframe). "*" allows every room.
 //            exp/nbf, context.user { id, name, avatar, email, moderator },
 //            context.features { recording, livestreaming, transcription, outbound-call }
+//   moderator + feature flags MUST be the strings "true" / "false". Booleans
+//   are accepted by some JWT libraries and then rejected by JaaS, which
+//   leaves the iframe stuck on "Connecting".
 
 export function getJitsiAppId() {
   return process.env.JITSI_APP_ID || "";
@@ -54,10 +59,14 @@ export function jitsiRoomName(roomName) {
   return `Yarnery-Lounge-${clean || "Lounge"}`;
 }
 
-// Full JaaS room id used in the iframe URL and the JWT "room" claim:
-// "<appId>/Yarnery-Lounge-<RoomName>".
+// Iframe path only (`8x8.vc/<appId>/<room>`). Never put this in the JWT `room`
+// claim — JaaS compares that claim to the unprefixed meeting name.
 export function jitsiFullRoom(roomName) {
   return `${getJitsiAppId()}/${jitsiRoomName(roomName)}`;
+}
+
+function jaasFlag(value) {
+  return value ? "true" : "false";
 }
 
 // Signs a short-lived (1h) RS256 JaaS JWT.
@@ -95,7 +104,7 @@ export async function signJitsiToken({
     aud: "jitsi",
     iss: "chat",
     sub: appId,
-    room: jitsiFullRoom(roomName),
+    room: jitsiRoomName(roomName),
     exp: now + 3600,
     iat: now,
     nbf: now - 30,
@@ -105,13 +114,13 @@ export async function signJitsiToken({
         name: displayName || "Member",
         email: email || "",
         avatar: avatar || "",
-        moderator: Boolean(moderator),
+        moderator: jaasFlag(moderator),
       },
       features: {
-        recording: Boolean(recording),
-        livestreaming: false,
-        transcription: false,
-        "outbound-call": false,
+        recording: jaasFlag(recording),
+        livestreaming: "false",
+        transcription: "false",
+        "outbound-call": "false",
       },
       room: { regex: false },
     },

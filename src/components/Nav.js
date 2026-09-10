@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import NotificationBell from "./NotificationBell";
+import ChatInboxButton from "./ChatInboxButton";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import SidebarProfile from "./SidebarProfile";
@@ -85,6 +86,7 @@ const COMMUNITY_ITEMS = [
   { href: "/members", key: "members" },
   { href: "/neighbourhoods", key: "neighbourhoods" },
   { href: "/gallery", key: "gallery" },
+  { href: "/portfolio", key: "portfolio" },
   { href: "/leaderboard", key: "leaderboard" },
 ];
 
@@ -350,6 +352,7 @@ export default function Nav({ role, children }) {
             </svg>
           </button>
           <NotificationBell />
+          <ChatInboxButton />
           <LanguageSwitcher />
           <ProfileMenu />
         </div>

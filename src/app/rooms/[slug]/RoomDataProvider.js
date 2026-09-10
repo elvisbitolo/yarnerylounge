@@ -25,6 +25,7 @@ export default function RoomDataProvider({
   currentUserAvatar,
   canModerate = false,
   isHost = false,
+  onMuteParticipant = null,
   children,
 }) {
   const [messages, setMessages] = useState([]);
@@ -35,6 +36,7 @@ export default function RoomDataProvider({
   const [raisedHands, setRaisedHands] = useState({});
   const [myHandRaised, setMyHandRaised] = useState(false);
   const [speakerInvite, setSpeakerInvite] = useState(null);
+  const [hiddenUserIds, setHiddenUserIds] = useState(() => new Set());
 
   const cursorRef = useRef(null);
   const lastLoadedAtRef = useRef(null);
@@ -46,21 +48,27 @@ export default function RoomDataProvider({
     userIdRef.current = currentUserId;
   }, [currentUserId]);
 
-  useEffect(() => {
-    if (signalsCursorRef.current !== null) return;
-    signalsCursorRef.current = Date.now() - 60 * 1000;
-  }, [roomId]);
-
   const mergeMessages = useCallback((incoming, { prepend = false } = {}) => {
     setMessages((prev) => {
       const map = new Map();
-      for (const m of prepend ? incoming : prev) map.set(m.id, m);
-      for (const m of prepend ? prev : incoming) map.set(m.id, m);
+      const visible = (list) => list.filter((m) => !hiddenUserIds.has(m.userId));
+      for (const m of visible(prepend ? incoming : prev)) map.set(m.id, m);
+      for (const m of visible(prepend ? prev : incoming)) map.set(m.id, m);
       const merged = [...map.values()].sort((a, b) => a.createdAt - b.createdAt);
       const max = merged.reduce((acc, m) => Math.max(acc, m.createdAt || 0), lastLoadedAtRef.current || 0);
       lastLoadedAtRef.current = max;
       return merged;
     });
+  }, [hiddenUserIds]);
+
+  const hideUser = useCallback((userId) => {
+    if (!userId) return;
+    setHiddenUserIds((prev) => {
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+    setMessages((prev) => prev.filter((message) => message.userId !== userId));
   }, []);
 
   const loadHistory = useCallback(
@@ -240,6 +248,20 @@ export default function RoomDataProvider({
     [roomId, currentUserId, currentUserName, currentUserAvatar, canModerate, isHost]
   );
 
+  const retryChatMessage = useCallback(
+    async (message) => {
+      if (!message?.failed) return false;
+      setMessages((prev) => prev.filter((item) => item.id !== message.id));
+      return sendChatMessage(
+        message.text,
+        message.replyTo,
+        message.mentions || [],
+        message.imageData || ""
+      );
+    },
+    [sendChatMessage]
+  );
+
   const toggleReaction = useCallback(
     async (messageId, emoji) => {
       if (!roomId || !messageId) return;
@@ -329,6 +351,7 @@ export default function RoomDataProvider({
   const value = useMemo(
     () => ({
       messages,
+      roomId,
       loadingHistory,
       hasMore,
       loadEarlier,
@@ -340,6 +363,7 @@ export default function RoomDataProvider({
       canModerate,
       isHost,
       sendChatMessage,
+      retryChatMessage,
       toggleReaction,
       togglePin,
       deleteMessage,
@@ -348,9 +372,12 @@ export default function RoomDataProvider({
       dismissHand,
       clearSpeakerInvite,
       sendSpeakerInvite,
+      hideUser,
+      onMuteParticipant,
     }),
     [
       messages,
+      roomId,
       loadingHistory,
       hasMore,
       loadEarlier,
@@ -362,6 +389,7 @@ export default function RoomDataProvider({
       canModerate,
       isHost,
       sendChatMessage,
+      retryChatMessage,
       toggleReaction,
       togglePin,
       deleteMessage,
@@ -370,6 +398,8 @@ export default function RoomDataProvider({
       dismissHand,
       clearSpeakerInvite,
       sendSpeakerInvite,
+      hideUser,
+      onMuteParticipant,
     ]
   );
 

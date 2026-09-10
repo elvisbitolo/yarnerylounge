@@ -3,7 +3,9 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { loungeGate } from "@/lib/server/lounge-gate";
+import { listActiveRoomMemberIds } from "@/lib/server/room-presence";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
+import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
 import Nav from "@/components/Nav";
 import MembersDirectory from "./MembersDirectory";
 import BlindDateCard from "./BlindDateCard";
@@ -33,7 +35,7 @@ export default async function MembersPage() {
     });
   }
 
-  const liveUids = new Set();
+  const liveUids = new Set(await listActiveRoomMemberIds());
   const caps = await getCapabilities(user.uid);
   const matchmakerEnabled = canUseMatchmaker(caps);
   const gate = await loungeGate(user.uid, userDoc, { matchmaker: true });
@@ -46,7 +48,12 @@ export default async function MembersPage() {
   })();
 
   const members = userRows
-    .filter((m) => m.name)
+    .filter((m) => m.name && m.id !== user.uid)
+    .filter((m) => {
+      const viewerExtra = userDoc?.extra && typeof userDoc.extra === "object" ? userDoc.extra : {};
+      const memberExtra = m.extra && typeof m.extra === "object" ? m.extra : {};
+      return !isSafetyId(viewerExtra, BLOCKED_KEY, m.id) && !isSafetyId(memberExtra, BLOCKED_KEY, user.uid);
+    })
     .map((m) => {
       const extra = m.extra && typeof m.extra === "object" ? m.extra : {};
       return {
@@ -56,6 +63,7 @@ export default async function MembersPage() {
         headline: m.headline || "",
         location: m.location || "",
         country: m.country || "",
+        timezone: extra.timezone || "",
         bio: m.bio || "",
         photoURL: m.photoURL || "",
         favoriteColors: Array.isArray(m.favoriteColors) ? m.favoriteColors : [],
@@ -115,6 +123,7 @@ export default async function MembersPage() {
           viewer={{
             country: userDoc?.country || "",
             location: userDoc?.location || "",
+            timezone: userDoc?.extra?.timezone || "",
             goToYarn: userDoc?.goToYarn || "",
             favoriteHookSize: userDoc?.favoriteHookSize || "",
             skillLevel: userDoc?.extra?.skillLevel || userDoc?.skillLevel || "",

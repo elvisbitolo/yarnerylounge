@@ -9,16 +9,15 @@ import SkillLevelCard from "./SkillLevelCard";
 
 export default function MatchDashboard({ matchmakerEnabled }) {
   const [dailyMatch, setDailyMatch] = useState(null);
+  const [dailyDecision, setDailyDecision] = useState(null);
   const [similarMembers, setSimilarMembers] = useState([]);
-  const [dailyLoading, setDailyLoading] = useState(true);
-  const [similarLoading, setSimilarLoading] = useState(true);
+  const [dailyLoading, setDailyLoading] = useState(matchmakerEnabled);
+  const [similarLoading, setSimilarLoading] = useState(matchmakerEnabled);
   const [dailyError, setDailyError] = useState("");
   const [similarError, setSimilarError] = useState("");
 
   useEffect(() => {
     if (!matchmakerEnabled) {
-      setDailyLoading(false);
-      setSimilarLoading(false);
       return;
     }
     let cancelled = false;
@@ -31,7 +30,10 @@ export default function MatchDashboard({ matchmakerEnabled }) {
             throw new Error("blind date failed");
           }
           const blindData = await blindRes.json();
-          if (!cancelled && blindData.member) setDailyMatch(blindData.member);
+          if (!cancelled) {
+            setDailyMatch(blindData.member || null);
+            setDailyDecision(blindData.decision || null);
+          }
         } catch {
           if (!cancelled) setDailyError("Could not load today's match. Try again later.");
         } finally {
@@ -81,6 +83,8 @@ export default function MatchDashboard({ matchmakerEnabled }) {
     <div className={styles.dashboard}>
       <DailyMatchCard
         dailyMatch={dailyMatch}
+        dailyDecision={dailyDecision}
+        onDecision={setDailyDecision}
         dailyLoading={dailyLoading}
         dailyError={dailyError}
       />

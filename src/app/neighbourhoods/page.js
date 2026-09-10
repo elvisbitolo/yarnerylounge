@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listGroups, getGroupMembers, isGroupMember } from "@/lib/server/groups";
+import { NEIGHBOURHOOD_ORDER, NEIGHBOURHOOD_IMAGES, ensureCommunityGroups } from "@/lib/server/community-groups";
 import Nav from "@/components/Nav";
 import GroupJoinButton from "@/app/groups/GroupJoinButton";
 import styles from "./neighbourhoods.module.css";
@@ -14,10 +16,18 @@ export default async function NeighbourhoodsPage() {
 
   const userDoc = await getUserDoc(user.uid);
 
+  await ensureCommunityGroups(user.uid);
   const groups = await listGroups();
+  const activeGroups = groups.filter((group) => group.status === "active");
+  const orderIndex = new Map(NEIGHBOURHOOD_ORDER.map((slug, index) => [slug, index]));
+  const orderedGroups = [...activeGroups].sort((a, b) => {
+    const aIndex = orderIndex.has(a.slug) ? orderIndex.get(a.slug) : Number.MAX_SAFE_INTEGER;
+    const bIndex = orderIndex.has(b.slug) ? orderIndex.get(b.slug) : Number.MAX_SAFE_INTEGER;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return (a.name || "").localeCompare(b.name || "");
+  });
   const withCounts = [];
-  for (const group of groups) {
-    if (group.status !== "active") continue;
+  for (const group of orderedGroups) {
     const members = await getGroupMembers(group.id);
     const membership = await isGroupMember(group.id, user.uid);
     withCounts.push({
@@ -30,6 +40,7 @@ export default async function NeighbourhoodsPage() {
       hangoutRoomSlug: group.hangoutRoomSlug || "",
       emoji: group.emoji || "",
       color: group.color || "",
+      imageUrl: group.imageUrl || NEIGHBOURHOOD_IMAGES[group.slug] || "",
       memberCount: members.length,
       memberNames: members.slice(0, 6).map((m) => m.name),
       joined: !!membership,
@@ -43,7 +54,7 @@ export default async function NeighbourhoodsPage() {
           <h1 className={styles.title}>Neighbourhoods</h1>
           <p className={styles.subtitle}>
             Specialized neighbourhoods built for you — Blanket Guild, the WIP Jail,
-            Caffeine &amp; Crochet, the Garment Glam District and more. Pick one, move in,
+            Caffeine &amp; Crochet and the Garment Glam District. Pick one, move in,
             and meet the neighbours who share your craft.
           </p>
         </header>
@@ -54,6 +65,17 @@ export default async function NeighbourhoodsPage() {
           <div className={styles.grid}>
             {withCounts.map((hood) => (
               <article key={hood.id} className={styles.card} style={{ "--hoodColor": hood.color || "#e91e63" }}>
+                {hood.imageUrl && (
+                  <div className={styles.cardImageWrap}>
+                    <Image
+                      src={hood.imageUrl}
+                      alt={`${hood.name} — neighbours crocheting together`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1080px) 50vw, 340px"
+                      className={styles.cardImage}
+                    />
+                  </div>
+                )}
                 <div className={styles.cardHeader}>
                   <span className={styles.cardEmoji} aria-hidden="true">
                     {hood.emoji || "🧶"}

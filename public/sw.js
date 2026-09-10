@@ -61,14 +61,18 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     caches.match(request).then((cached) => {
-      const fetching = fetch(request).then((response) => {
-        if (isCacheable(response)) {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        if (response && isCacheable(response)) {
           const copy = response.clone();
           caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
         }
         return response;
-      }).catch(() => cached);
-      return cached || fetching;
+      }).catch(() => {
+        // If fetch fails and we have nothing cached, fall back to the network error
+        // by returning a basic Response so the browser doesn't crash.
+        return new Response("", { status: 503, statusText: "Service Unavailable" });
+      });
     })
   );
 });

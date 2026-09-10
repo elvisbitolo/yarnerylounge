@@ -165,6 +165,8 @@ export default function RoomClient({
   const videoStatusRef = useRef("idle");
   const micStatusRef = useRef("idle");
   const apiReadyRef = useRef(false);
+  const presenceSessionRef = useRef("");
+  const presenceTimerRef = useRef(null);
 
   const cameraWatchdogRef = useRef(null);
   const reconnectWatchdogRef = useRef(null);
@@ -241,11 +243,48 @@ export default function RoomClient({
   // Teardown everything on unmount.
   useEffect(() => {
     return () => {
+      stopRoomPresence();
       stopAllMedia();
       disposeApi();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function presenceSessionId() {
+    if (presenceSessionRef.current) return presenceSessionRef.current;
+    const random = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    presenceSessionRef.current = `room-${random}`;
+    return presenceSessionRef.current;
+  }
+
+  function sendRoomPresence(status) {
+    const sessionId = presenceSessionRef.current;
+    if (!sessionId || !roomId) return;
+    const body = JSON.stringify({ sessionId, status });
+    fetch(`/api/rooms/${encodeURIComponent(roomId)}/presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: status === "leave",
+      credentials: "include",
+    }).catch(() => {});
+  }
+
+  function startRoomPresence() {
+    if (presenceTimerRef.current) return;
+    presenceSessionId();
+    sendRoomPresence("join");
+    presenceTimerRef.current = setInterval(() => sendRoomPresence("heartbeat"), 30_000);
+  }
+
+  function stopRoomPresence() {
+    if (presenceTimerRef.current) clearInterval(presenceTimerRef.current);
+    presenceTimerRef.current = null;
+    if (presenceSessionRef.current) sendRoomPresence("leave");
+    presenceSessionRef.current = "";
+  }
 
   // Warm the JaaS token while the user still sits on the prejoin screen, so
   // clicking Pop in mounts the meeting immediately instead of waiting on the
@@ -286,6 +325,13 @@ export default function RoomClient({
   }
 
   function startConnecting() {
+    // Release any prejoin getUserMedia tracks before the JaaS iframe boots.
+    // Holding the camera/mic in the parent (or hiding the iframe) is a common
+    // cause of the JaaS client stalling forever on "Connecting".
+    stopAllMedia();
+    setVideoStatus((s) => (s === "ready" || s === "starting" ? "off" : s));
+    setMicStatus((s) => (s === "ready" || s === "starting" ? "off" : s));
+
     const at = Date.now();
     connectAtRef.current = at;
     setConnectAt(at);
@@ -422,21 +468,23 @@ export default function RoomClient({
     }
   }
 
-  // Convenience: if already inside the room, push the desired device state into
-  // Jitsi once the local track is ready (without ever blocking the connection).
+  // Convenience: after join, push the desired device state into Jitsi.
+  // Local prejoin tracks were released before mount, so we toggle from the
+  // muted-by-default JaaS state rather than waiting for a parent "ready" track.
   function autoEnableIfInside() {
     const api = apiRef.current;
     if (!api) return;
-    const stage = phaseRef.current;
-    if (stage !== "connected") return;
+    if (phaseRef.current !== "connected") return;
+    if (viewer) return;
     try {
-      const readyVideo = videoStatusRef.current === "ready";
-      const readyMic = micStatusRef.current === "ready";
-      if (videoDesiredRef.current && readyVideo) {
+      if (videoDesiredRef.current) {
         api.executeCommand("toggleVideo");
+        setVideoStatus("starting");
+        armCameraWatchdog();
       }
-      if (micDesiredRef.current && !audioLocked && readyMic) {
+      if (micDesiredRef.current && !audioLocked) {
         api.executeCommand("toggleAudio");
+        setMicStatus("starting");
       }
     } catch {
       /* api not ready yet */
@@ -514,7 +562,8 @@ export default function RoomClient({
     api.addEventListener("participantJoined", syncCount);
     api.addEventListener("participantLeft", syncCount);
 
-    api.addEventListener("videoConferenceJoined", () => {
+    const markJoined = () => {
+      startRoomPresence();
       syncCount();
       if (connectAtRef.current) {
         logDevTiming("JAAS joined room", connectAtRef.current);
@@ -522,13 +571,19 @@ export default function RoomClient({
       }
       setConnectAt(0);
       setConnStalled(false);
+      // Update refs before any follow-up work — setState is async and
+      // autoEnableIfInside reads phaseRef.
+      phaseRef.current = "connected";
+      connStatusRef.current = "connected";
       setPhase("connected");
       setConnStatus("connected");
       clearWatchdogs();
       handleConnectedMedia();
-    });
+    };
 
+    api.addEventListener("videoConferenceJoined", markJoined);
     api.addEventListener("videoConferenceLeft", () => {
+      stopRoomPresence();
       clearWatchdogs();
       connectAtRef.current = 0;
       setConnectAt(0);
@@ -539,8 +594,10 @@ export default function RoomClient({
     });
 
     api.addEventListener("connectionEstablished", () => {
-      setConnStatus("connected");
+      // XMPP is up. Treat this as joined for overlay purposes — some JaaS
+      // builds delay or skip videoConferenceJoined while the iframe is covered.
       if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+      markJoined();
     });
 
     api.addEventListener("connectionInterrupted", () => {
@@ -600,6 +657,7 @@ export default function RoomClient({
   }
 
   function handleLeave() {
+    stopRoomPresence();
     try {
       apiRef.current?.executeCommand("hangup");
     } catch {
@@ -614,7 +672,23 @@ export default function RoomClient({
     router.push("/rooms");
   }
 
+  function muteRemoteParticipant(userId, displayName) {
+    const api = apiRef.current;
+    if (!api || !displayName) return;
+    try {
+      const participant = (api.getParticipantsInfo?.() || []).find((item) =>
+        item.displayName === displayName || item.formattedDisplayName === displayName || item.id === userId
+      );
+      if (participant?.participantId) {
+        api.executeCommand("setRemoteParticipantVolume", participant.participantId, 0);
+      }
+    } catch {
+      /* The preference is still stored server-side when the remote API is unavailable. */
+    }
+  }
+
   function dismissError() {
+    stopRoomPresence();
     clearWatchdogs();
     disposeApi();
     stopAllMedia();
@@ -627,6 +701,7 @@ export default function RoomClient({
   }
 
   function reconnectNow() {
+    stopRoomPresence();
     clearWatchdogs();
     stopAllMedia();
     disposeApi();
@@ -642,10 +717,9 @@ export default function RoomClient({
     setRoomError(null);
     setPhase("authenticating");
 
-    // Camera/mic detection runs in parallel and NEVER gates joining.
-    if (!viewer && (videoDesiredRef.current || (micDesiredRef.current && !audioLocked))) {
-      startDetecting();
-    }
+    // Do not open camera/mic here — the JaaS iframe must be the one that
+    // acquires devices after it connects. Prejoin preview is released in
+    // startConnecting(); desired devices are toggled on after join.
 
     const t0 = Date.now();
     let tokenData;
@@ -736,8 +810,6 @@ export default function RoomClient({
     // camera. Desired devices are enabled right after join, independently.
     startWithAudioMuted: true,
     startWithVideoMuted: true,
-    startAudioMuted: true,
-    startVideoMuted: true,
     // Cap resolution: lower encode cost + faster local track ready.
     constraints: {
       video: { height: { ideal: 540, max: 720 }, width: { ideal: 960, max: 1280 } },
@@ -1031,16 +1103,20 @@ export default function RoomClient({
               </div>
               <div className={styles.chatSheetBody}>
                 <RoomDataProvider
+                  key={roomId}
                   roomId={roomId}
                   currentUserId={userId}
                   currentUserName={userName}
                   currentUserAvatar={userAvatar}
                   canModerate={isStaff || isHost || isCoHost}
                   isHost={isHost}
+                  onMuteParticipant={muteRemoteParticipant}
                 >
                   <RoomChat
                     hostId={hostId}
                     currentUserId={userId}
+                    participantCount={participantCount}
+                    roomConnected={connStatus === "connected"}
                     currentUserName={userName}
                     currentUserAvatar={userAvatar}
                     canWriteChat={canWriteChat}

@@ -15,11 +15,17 @@ const VALID_GOALS = ["learn", "share", "patterns", "connect", "marketplace", "ch
 function validate(body) {
   const errors = [];
   if (!VALID_SKILLS.includes(body.skillLevel)) errors.push("Invalid skill level");
-  if (!Array.isArray(body.craftInterests) || body.craftInterests.length === 0) errors.push("Select at least one craft");
-  if (!Array.isArray(body.projectTypes) || body.projectTypes.length === 0) errors.push("Select at least one project type");
+  if (!Array.isArray(body.craftInterests) || !body.craftInterests.some((c) => VALID_CRAFTS.includes(c))) {
+    errors.push("Select at least one craft");
+  }
+  if (!Array.isArray(body.projectTypes) || !body.projectTypes.some((p) => VALID_PROJECTS.includes(p))) {
+    errors.push("Select at least one project type");
+  }
   if (!VALID_YARNS.includes(body.yarnPreference)) errors.push("Invalid yarn preference");
   if (!VALID_HOOKS.includes(body.hookSize)) errors.push("Invalid hook size");
-  if (!Array.isArray(body.communityGoals) || body.communityGoals.length === 0) errors.push("Select at least one goal");
+  if (!Array.isArray(body.communityGoals) || !body.communityGoals.some((g) => VALID_GOALS.includes(g))) {
+    errors.push("Select at least one goal");
+  }
   return errors;
 }
 
@@ -28,19 +34,25 @@ export async function POST(req) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const errors = validate(body);
   if (errors.length > 0) {
     return NextResponse.json({ error: errors[0] }, { status: 400 });
   }
 
+  const craftInterests = body.craftInterests.filter((c) => VALID_CRAFTS.includes(c));
+  const projectTypes = body.projectTypes.filter((p) => VALID_PROJECTS.includes(p));
+  const communityGoals = body.communityGoals.filter((g) => VALID_GOALS.includes(g));
+  const timezone = typeof body.timezone === "string" && body.timezone.length <= 80
+    ? body.timezone.trim()
+    : "";
   const profile = {
     skillLevel: body.skillLevel,
-    craftInterests: body.craftInterests.filter((c) => VALID_CRAFTS.includes(c)),
-    projectTypes: body.projectTypes.filter((p) => VALID_PROJECTS.includes(p)),
+    craftInterests,
+    projectTypes,
     yarnPreference: body.yarnPreference,
     hookSize: body.hookSize,
-    communityGoals: body.communityGoals.filter((g) => VALID_GOALS.includes(g)),
+    communityGoals,
     onboardingCompleted: true,
     onboardingCompletedAt: new Date(),
   };
@@ -49,18 +61,21 @@ export async function POST(req) {
     const prisma = getPrisma();
     const existing = await prisma.user.findUnique({
       where: { id: auth.user.uid },
-      select: { id: true },
+      select: { id: true, extra: true },
     });
+    const extra = { ...(existing?.extra && typeof existing.extra === "object" ? existing.extra : {}) };
+    if (timezone) extra.timezone = timezone;
     if (existing) {
       await prisma.user.update({
         where: { id: auth.user.uid },
-        data: { ...profile, updatedAt: new Date() },
+        data: { ...profile, extra, updatedAt: new Date() },
       });
     } else {
       await prisma.user.create({
         data: {
           id: auth.user.uid,
           name: auth.user.name || auth.user.email || "",
+          extra: timezone ? { timezone } : undefined,
           ...profile,
         },
       });

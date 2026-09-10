@@ -61,6 +61,8 @@ async function deleteMember(prisma, id) {
     prisma.roomMessage.deleteMany({ where: { userId: id } }),
     prisma.roomSignal.deleteMany({ where: { userId: id } }),
     prisma.roomEvent.deleteMany({ where: { userId: id } }),
+    prisma.roomPresence.deleteMany({ where: { userId: id } }),
+    prisma.project.deleteMany({ where: { userId: id } }),
     prisma.rsvp.deleteMany({ where: { userId: id } }),
     prisma.availability.deleteMany({ where: { userId: id } }),
     prisma.availabilityRsvp.deleteMany({ where: { userId: id } }),

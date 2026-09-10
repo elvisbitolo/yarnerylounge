@@ -12,6 +12,7 @@ import { isSpaceMember } from "@/lib/server/spaces";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { isEitherMemberBlocked } from "@/lib/server/member-safety";
 
 export async function GET(req) {
   const user = await getCurrentUser();
@@ -54,6 +55,9 @@ export async function POST(req) {
     }
     if (!recipientExists) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    if (await isEitherMemberBlocked(user.uid, otherId)) {
+      return NextResponse.json({ error: "Messaging is unavailable for this member" }, { status: 403 });
     }
     const conversation = await getOrCreateDm(user.uid, otherId);
     return NextResponse.json({ conversation });

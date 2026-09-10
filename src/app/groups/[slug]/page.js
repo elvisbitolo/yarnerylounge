@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getGroupBySlug, getGroupMembers, isGroupMember } from "@/lib/server/groups";
 import { listRoomsForGroup } from "@/lib/server/rooms";
@@ -49,6 +50,18 @@ export default async function GroupPage({ params }) {
         </p>
 
         <div className={styles.groupHeader}>
+          {group.imageUrl && (
+            <div className={styles.groupImageWrap}>
+              <Image
+                src={group.imageUrl}
+                alt={`${group.name} — neighbours crocheting together`}
+                fill
+                sizes="(max-width: 560px) 100vw, 960px"
+                className={styles.groupImage}
+                priority={false}
+              />
+            </div>
+          )}
           <h1 className={styles.title}>
             {group.emoji ? `${group.emoji} ` : ""}{group.name}
           </h1>
@@ -73,21 +86,25 @@ export default async function GroupPage({ params }) {
               <span className={styles.memberNames}> — {memberNames.join(", ")}</span>
             )}
           </p>
-          {userDoc?.role === "owner" ? (
-            <Link className={styles.groupChatLink} href={`/chat?group=${group.id}`}>
-              Group chat
-            </Link>
-          ) : (
-            <GroupJoinButton groupId={group.id} initialJoined={!!membership} />
-          )}
-          {membership && userDoc?.role !== "owner" && (
-            <Link className={styles.groupChatLink} href={`/chat?group=${group.id}`}>
-              Group chat
-            </Link>
-          )}
+          <div className={styles.groupActions}>
+            {userDoc?.role === "owner" || membership ? (
+              <Link className={styles.groupChatLink} href={`/chat?group=${group.id}`}>
+                Text neighbours
+              </Link>
+            ) : (
+              <GroupJoinButton groupId={group.id} initialJoined={false} />
+            )}
+            {membership || userDoc?.role === "owner" ? (
+              <Link className={styles.shareLink} href="#group-feed">
+                Share a picture
+              </Link>
+            ) : (
+              <span className={styles.joinHint}>Join to unlock chat and photo sharing</span>
+            )}
+          </div>
         </div>
 
-        <h2 className={styles.sectionTitle}>Group feed</h2>
+        <h2 id="group-feed" className={styles.sectionTitle}>Neighbourhood feed</h2>
         <div className={styles.groupLayout}>
           <div className={styles.groupMain}>
             {membership || userDoc?.role === "owner" ? (

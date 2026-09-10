@@ -27,7 +27,8 @@ export async function getRoomForSignals(roomId) {
   const prisma = getPrisma();
   if (prisma) {
     try {
-      const row = await prisma.room.findUnique({ where: { id: roomId } });
+      const row = await prisma.room.findUnique({ where: { id: roomId } })
+        || await prisma.room.findUnique({ where: { slug: roomId } });
       if (row && (row.status || "active") === "active") {
         return {
           id: row.id,
@@ -51,9 +52,11 @@ export async function addRoomSignal(roomId, fromIdentity, payload) {
   const prisma = getPrisma();
   if (prisma) {
     try {
+      const room = await getRoomForSignals(roomId);
+      if (!room) return null;
       const created = await prisma.roomSignal.create({
         data: {
-          roomId,
+          roomId: room.id,
           type: payload.type || "",
           fromIdentity,
           target: payload.target || "",
@@ -77,8 +80,10 @@ export async function listRoomSignals(roomId, { after, limit = 100 } = {}) {
   const prisma = getPrisma();
   if (prisma) {
     try {
+      const room = await getRoomForSignals(roomId);
+      if (!room) return { signals: [], hasMore: false };
       const rows = await prisma.roomSignal.findMany({
-        where: { roomId, createdAt: { gt: new Date(afterTs) } },
+        where: { roomId: room.id, createdAt: { gt: new Date(afterTs) } },
         orderBy: { createdAt: "asc" },
         take: safeLimit,
       });

@@ -1,6 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapRoomRow } from "../rooms-core.js";
+import { isRoomLive, mapRoomRow } from "../rooms-core.js";
+
+test("isRoomLive: always-on rooms stay live despite a stale schedule", () => {
+  assert.equal(
+    isRoomLive({ status: "active", alwaysOn: true, opensAt: new Date(Date.now() + 86_400_000) }),
+    true
+  );
+});
+
+test("isRoomLive: scheduled rooms open at their start time", () => {
+  const now = Date.UTC(2026, 0, 1);
+  assert.equal(isRoomLive({ status: "active", opensAt: now + 1 }, now), false);
+  assert.equal(isRoomLive({ status: "active", opensAt: now }, now), true);
+});
 
 test("mapRoomRow: null stays null", () => {
   assert.equal(mapRoomRow(null), null);

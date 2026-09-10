@@ -16,6 +16,14 @@ export default function SimilarMembersCard({ similarMembers, topMatches, similar
           <h2 id="similar-members-title" className={styles.matchCardTitle}>Members Like You</h2>
         </div>
       </div>
+      <div className={styles.matchCardImage}>
+        <Image
+          src="/images/match/colorful-crochet-yarn-grid.jpg"
+          alt="Colorful yarn arranged for shared fiber interests"
+          fill
+          sizes="(max-width: 640px) 100vw, 920px"
+        />
+      </div>
       <div className={styles.matchCardBody}>
         <p className={styles.matchCardDesc}>
           Browse crafters who share your favorite yarns, hook sizes, and creative interests.
