@@ -88,18 +88,21 @@ export default function ChatInboxButton() {
             </div>
           ) : (
             <div className={styles.list}>
-              {visible.map((conversation) => (
+              {visible.map((conversation) => {
+                const title = conversation?.title || conversation?.name || "Member";
+                return (
                 <Link key={conversation.id} href={`/chat/${conversation.id}`} className={styles.item} onClick={() => setOpen(false)}>
-                  <span className={styles.avatar}>{(conversation.title || "?").slice(0, 1).toUpperCase()}</span>
+                  <span className={styles.avatar}>{title.slice(0, 1).toUpperCase()}</span>
                   <span className={styles.itemBody}>
                     <span className={styles.itemTop}>
-                      <strong>{conversation.title}</strong>
+                      <strong>{title}</strong>
                       <time>{timeLabel(conversation.lastMessageAt)}</time>
                     </span>
                     <span className={styles.preview}>{conversation.lastMessage || "Say hello!"}</span>
                   </span>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
           <Link href="/chat" className={styles.viewAll} onClick={() => setOpen(false)}>View all chats</Link>

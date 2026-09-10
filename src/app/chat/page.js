@@ -113,12 +113,12 @@ export default async function ChatPage({ searchParams }) {
             {conversations.map((conv) => (
               <Link key={conv.id} href={`/chat/${conv.id}`} className={styles.item}>
                 <div className={styles.avatar}>
-                  {(conv.title || "?").slice(0, 1).toUpperCase()}
+                  {((conv?.title || conv?.name || "Member")).slice(0, 1).toUpperCase()}
                 </div>
                 <div className={styles.itemBody}>
                   <div className={styles.itemTop}>
                     <p className={styles.itemTitle}>
-                      {conv.title}
+                      {conv?.title || conv?.name || "Member"}
                     </p>
                     <p className={styles.itemTime}>{timeLabel(conv.lastMessageAt)}</p>
                   </div>

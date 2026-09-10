@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 import { getRoomBySlug } from "@/lib/server/rooms";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
 import { getUpcomingRoomStart } from "@/lib/server/events";
@@ -12,9 +13,11 @@ import { getScopedHostRights } from "@/lib/server/hosts";
 import { getUserDoc, canModerate } from "@/lib/server/auth";
 import { getCapabilities, canPublishRemote, canHost } from "@/lib/server/capabilities";
 import {
-  signJitsiToken,
+  buildJitsiTokenPayload,
   jitsiRoomName,
   getJitsiAppId,
+  getJitsiApiKeyId,
+  getJitsiPrivateKey,
   isJitsiConfigured,
   describeJitsiToken,
 } from "@/lib/server/jitsi";
@@ -107,8 +110,10 @@ export async function POST(req) {
     if (!isJitsiConfigured()) {
       logError("jitsi.token.not_configured", {
         appId: getJitsiAppId() ? "set" : "missing",
-        apiKeyId: process.env.JITSI_API_KEY_ID ? "set" : "missing",
-        privateKey: process.env.JITSI_PRIVATE_KEY ? "set" : "missing",
+        apiKeyId: getJitsiApiKeyId() ? "set" : "missing",
+        keyIdVar: process.env.JITSI_KEY_ID ? "set" : "missing",
+        apiKeyIdVar: process.env.JITSI_API_KEY_ID ? "set" : "missing",
+        privateKey: getJitsiPrivateKey() ? "set" : "missing",
       });
       return NextResponse.json(
         { error: "Unable to join this room. Please try again.", code: "jaas_not_configured" },
@@ -121,16 +126,29 @@ export async function POST(req) {
     // plain member token with every feature permission off.
     const isModerator = canModerate({ role: userDoc?.role }) || isHost || isCoHost;
 
+    // Sign the RS256 JaaS JWT inline. The header MUST be
+    // { alg: "RS256", kid: <API Key ID>, typ: "JWT" } — JaaS looks the "kid"
+    // up in the console before verifying the signature, so a missing or wrong
+    // kid fails every join. JITSI_KEY_ID is preferred, JITSI_API_KEY_ID is the
+    // fallback (see getJitsiApiKeyId).
     const started = Date.now();
-    const token = await signJitsiToken({
-      identity: auth.user.uid,
-      displayName,
-      email: auth.user.email || userDoc?.email || "",
-      avatar,
-      roomName: room.name,
-      moderator: isModerator,
-      recording: isModerator,
-    });
+    const token = jwt.sign(
+      buildJitsiTokenPayload({
+        appId: getJitsiAppId(),
+        identity: auth.user.uid,
+        displayName,
+        email: auth.user.email || userDoc?.email || "",
+        avatar,
+        roomName: room.name,
+        moderator: isModerator,
+        recording: isModerator,
+      }),
+      getJitsiPrivateKey(),
+      {
+        algorithm: "RS256",
+        header: { alg: "RS256", kid: getJitsiApiKeyId(), typ: "JWT" },
+      }
+    );
     if (process.env.JAAS_TOKEN_DEBUG === "true") {
       console.info(`[jaas] token minted in ${Date.now() - started}ms`);
     }

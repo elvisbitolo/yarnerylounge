@@ -210,6 +210,16 @@ function uniqueIds(ids) {
   return [...new Set(ids.filter(Boolean))].slice(0, 100);
 }
 
+// Resolves a participant's display name from whatever shape the data comes
+// back in — a plain row, or a row nested inside a Supabase/Prisma join's
+// `participant.user`. Never yields "undefined": falls back to "Member".
+function participantName(candidate) {
+  if (!candidate) return "Member";
+  const name = candidate.user?.name ?? candidate.name;
+  if (typeof name === "string" && name.trim()) return name.trim();
+  return "Member";
+}
+
 async function loadNames(ids) {
   const names = {};
   if (ids.length === 0) return names;
@@ -219,7 +229,7 @@ async function loadNames(ids) {
     try {
       const rows = await prisma.user.findMany({ where: { id: { in: ids } } });
       for (const row of rows) {
-        names[row.id] = row.name || row.email?.split("@")[0] || "Member";
+        names[row.id] = participantName(row) || row.email?.split("@")[0] || "Member";
       }
       return names;
     } catch (err) {

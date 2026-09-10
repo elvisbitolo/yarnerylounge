@@ -143,10 +143,10 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
   const [country, setCountry] = useState("");
-  const [location, setLocation] = useState("");
   const [craft, setCraft] = useState("");
   const [hobby, setHobby] = useState("");
   const [timezone, setTimezone] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [hover, setHover] = useState(null);
   const [matchTarget, setMatchTarget] = useState(null);
   const hideTimer = useRef(null);
@@ -203,7 +203,6 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
     return [...all, ...inUse.filter((c) => !all.includes(c))];
   }, [members]);
 
-  const locations = useMemo(() => distinct(members.map((m) => m.location)), [members]);
   const timezones = useMemo(() => distinct(members.map((m) => m.timezone)), [members]);
 
   const hobbiesInUse = useMemo(
@@ -226,7 +225,6 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
       if (tab === "hosts" && member.role !== "owner" && member.role !== "moderator") return false;
       if (craft && !member.crafts?.includes(craft)) return false;
       if (country && member.country !== country) return false;
-      if (location && member.location !== location) return false;
       if (timezone && member.timezone !== timezone) return false;
       if (hobby && !(Array.isArray(member.hobbies) && member.hobbies.includes(hobby))) return false;
       if (!query) return true;
@@ -247,7 +245,9 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
       return [...pool].sort((a, b) => (b.points || 0) - (a.points || 0));
     }
     return [...pool].sort((a, b) => a.name.localeCompare(b.name));
-  }, [members, tab, query, country, location, timezone, craft, hobby, todayKey]);
+  }, [members, tab, query, country, timezone, craft, hobby, todayKey]);
+
+  const activeFilterCount = [country, hobby, timezone].filter(Boolean).length;
 
   const DENSE_BASE = 20;
   const DENSE_STEP = Math.round((14 * 960) / preset.width);
@@ -297,50 +297,63 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
         <p className={styles.matchmakerTitle}>
           <span className={styles.matchmakerSparkle}>✦</span> Find Members
         </p>
-        <div className={styles.locationFilters}>
-          <select
-            className={styles.locationSelect}
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            aria-label="Filter by country"
+        <div className={styles.filterBar}>
+          <button
+            type="button"
+            className={filtersOpen ? `${styles.filtersToggle} ${styles.filtersToggleActive}` : styles.filtersToggle}
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            aria-haspopup="true"
           >
-            <option value="">All countries</option>
-            {countries.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            className={styles.locationSelect}
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            aria-label="Filter by timezone"
-          >
-            <option value="">All timezones</option>
-            {timezones.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-          <select
-            className={styles.locationSelect}
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            aria-label="Filter by location"
-          >
-            <option value="">All locations</option>
-            {locations.map((l) => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-          <select
-            className={styles.locationSelect}
-            value={hobby}
-            onChange={(e) => setHobby(e.target.value)}
-            aria-label="Filter by hobby"
-          >
-            <option value="">All hobbies</option>
-            {hobbyOptions.map((h) => (
-              <option key={h.value} value={h.value}>{h.label}</option>
-            ))}
-          </select>
+            <span className={styles.filtersToggleIcon} aria-hidden="true">⚙</span>
+            Filters
+            {activeFilterCount > 0 && <span className={styles.filtersBadge}>{activeFilterCount}</span>}
+          </button>
         </div>
+        {filtersOpen && (
+          <div className={styles.filtersDropdown}>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Location</span>
+              <select
+                className={styles.locationSelect}
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                aria-label="Filter by location"
+              >
+                <option value="">All countries</option>
+                {countries.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Hobbies</span>
+              <select
+                className={styles.locationSelect}
+                value={hobby}
+                onChange={(e) => setHobby(e.target.value)}
+                aria-label="Filter by hobby"
+              >
+                <option value="">All hobbies</option>
+                {hobbyOptions.map((h) => (
+                  <option key={h.value} value={h.value}>{h.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Timezone</span>
+              <select
+                className={styles.locationSelect}
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                aria-label="Filter by timezone"
+              >
+                <option value="">All timezones</option>
+                {timezones.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+          </div>
+        )}
         <div className={styles.craftRow}>
           <span className={styles.craftLabel}>Crafts</span>
           <button
@@ -364,7 +377,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>
-          {query || tab !== "all" || country || location || timezone || craft || hobby
+          {query || tab !== "all" || country || timezone || craft || hobby
             ? "No members match this view."
             : "No members yet."}
         </p>

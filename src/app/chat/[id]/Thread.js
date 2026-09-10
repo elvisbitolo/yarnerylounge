@@ -445,7 +445,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
           <span className={tStyles.pinnedLabel}>📌 Pinned</span>
           {pinnedMessages.slice(0, 3).map((p) => (
             <span key={p.id} className={tStyles.pinnedChip}>
-              {p.senderName}: …
+              {(p?.senderName || "Member")}: …
             </span>
           ))}
         </div>
@@ -471,7 +471,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
               <div
                 className={isMine ? `${styles.bubble} ${styles.mine}` : styles.bubble}
               >
-                {!isMine && <p className={styles.bubbleName}>{msg.senderName}</p>}
+                {!isMine && <p className={styles.bubbleName}>{msg?.senderName || "Member"}</p>}
                 <BubbleContent msg={msg} searchQuery={searchQuery.trim()} />
                 {msg.attachment?.kind === "image" && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -591,7 +591,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
                         <div
                           className={`${tStyles.replyBubble} ${isReplyMine ? tStyles.replyMine : ""}`}
                         >
-                          {!isReplyMine && <p className={styles.bubbleName}>{reply.senderName}</p>}
+                          {!isReplyMine && <p className={styles.bubbleName}>{reply?.senderName || "Member"}</p>}
                           <BubbleContent msg={reply} searchQuery={searchQuery.trim()} isReply />
                           <p className={styles.bubbleTime}>{timeLabel(replyMillis)}</p>
                         </div>

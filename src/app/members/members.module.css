@@ -251,6 +251,85 @@
   cursor: not-allowed;
 }
 
+.filterBar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.filtersToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid #d8d8e3;
+  background: #ffffff;
+  color: #6b6b7b;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filtersToggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filtersToggleActive {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.filtersToggleIcon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.filtersBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #fbbf24;
+  color: #1a1206;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filtersDropdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 12px;
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filterLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b6b7b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.filterField select {
+  width: 100%;
+}
+
 .mapCard {
   margin-top: 24px;
   padding: 20px;

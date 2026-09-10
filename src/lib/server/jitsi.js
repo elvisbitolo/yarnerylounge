@@ -5,9 +5,11 @@ import jwt from "jsonwebtoken";
 // JaaS identity has THREE distinct credentials — never conflate them:
 //   JITSI_APP_ID       -> the tenant AppID (e.g. "vpaas-magic-cookie-...")
 //                          used as the JWT "sub" claim and the room prefix.
+//   JITSI_KEY_ID or
 //   JITSI_API_KEY_ID   -> the API Key ID listed in the JaaS console for the
 //                          uploaded public key (e.g. "<AppID>/4f4910"), used
 //                          as the JWT header "kid" claim. NOT the AppID.
+//                          JITSI_KEY_ID is preferred when both are present.
 //   JITSI_PRIVATE_KEY  -> the RSA private key that signs the JWT. Never
 //                          exposed to clients and never used as "kid".
 //
@@ -28,9 +30,11 @@ export function getJitsiAppId() {
 
 // The API Key ID registered for this tenant in the JaaS console. This is the
 // value the JaaS server looks up via the JWT header "kid" before validating
-// the signature, so it must match the console exactly.
+// the signature, so it must match the console exactly. JITSI_KEY_ID is the
+// canonical name (matching the 8x8/8x8.vc docs); JITSI_API_KEY_ID is accepted
+// as a fallback so Vercel/Env vars added under either name keep working.
 export function getJitsiApiKeyId() {
-  return process.env.JITSI_API_KEY_ID || "";
+  return process.env.JITSI_KEY_ID || process.env.JITSI_API_KEY_ID || "";
 }
 
 function cleanPrivateKey(raw) {
@@ -41,10 +45,17 @@ function cleanPrivateKey(raw) {
     .trim();
 }
 
+// The RSA private key with line-break escapes (\r, \r\n, literal \\n) and
+// surrounding whitespace normalized, so paste-from-.env keeps working
+// regardless of how the value was stored.
+export function getJitsiPrivateKey() {
+  return cleanPrivateKey(process.env.JITSI_PRIVATE_KEY);
+}
+
 export function isJitsiConfigured() {
   const appId = getJitsiAppId();
   const apiKeyId = getJitsiApiKeyId();
-  const privateKey = cleanPrivateKey(process.env.JITSI_PRIVATE_KEY);
+  const privateKey = getJitsiPrivateKey();
   return Boolean(
     appId &&
       apiKeyId &&
@@ -75,14 +86,18 @@ function jaasFlag(value) {
   return value ? "true" : "false";
 }
 
-// Signs a short-lived (1h) RS256 JaaS JWT.
+// Builds the shared JaaS JWT payload. Extracted so the API route can sign
+// inline (guaranteeing the header) while `signJitsiToken` reuses the same
+// claims without drifting.
+//   appId       -> tenant AppID -> JWT "sub"
 //   identity    -> unique user id (Auth uid) -> context.user.id
 //   displayName -> participant tile name -> context.user.name
 //   email       -> participant email -> context.user.email
 //   avatar      -> optional public avatar URL -> context.user.avatar
 //   moderator   -> grants JaaS moderator powers (and JaaS recording UI)
 //   recording   -> grants the JaaS "recording" feature in features.*
-export async function signJitsiToken({
+export function buildJitsiTokenPayload({
+  appId,
   identity,
   displayName,
   email = "",
@@ -91,22 +106,8 @@ export async function signJitsiToken({
   moderator = false,
   recording = false,
 }) {
-  const appId = getJitsiAppId();
-  const apiKeyId = getJitsiApiKeyId();
-  const privateKey = cleanPrivateKey(process.env.JITSI_PRIVATE_KEY);
-
-  if (!appId) {
-    throw new Error("JAAS_CONFIG_MISSING_APP_ID");
-  }
-  if (!apiKeyId || apiKeyId === appId) {
-    throw new Error("JAAS_CONFIG_MISSING_API_KEY_ID");
-  }
-  if (!privateKey.startsWith("-----BEGIN")) {
-    throw new Error("JAAS_CONFIG_MISSING_PRIVATE_KEY");
-  }
-
   const now = Math.floor(Date.now() / 1000);
-  const payload = {
+  return {
     aud: "jitsi",
     iss: "chat",
     sub: appId,
@@ -131,11 +132,51 @@ export async function signJitsiToken({
       room: { regex: false },
     },
   };
+}
 
-  return jwt.sign(payload, privateKey, {
-    algorithm: "RS256",
-    header: { alg: "RS256", kid: apiKeyId, typ: "JWT" },
-  });
+// Signs a short-lived (1h) RS256 JaaS JWT. The header is always
+// { alg: "RS256", kid: <API Key ID>, typ: "JWT" } — JaaS rejects any token
+// whose "kid" does not match the API Key ID registered in the console.
+export async function signJitsiToken({
+  identity,
+  displayName,
+  email = "",
+  avatar = "",
+  roomName,
+  moderator = false,
+  recording = false,
+}) {
+  const appId = getJitsiAppId();
+  const apiKeyId = getJitsiApiKeyId();
+  const privateKey = getJitsiPrivateKey();
+
+  if (!appId) {
+    throw new Error("JAAS_CONFIG_MISSING_APP_ID");
+  }
+  if (!apiKeyId || apiKeyId === appId) {
+    throw new Error("JAAS_CONFIG_MISSING_API_KEY_ID");
+  }
+  if (!privateKey.startsWith("-----BEGIN")) {
+    throw new Error("JAAS_CONFIG_MISSING_PRIVATE_KEY");
+  }
+
+  return jwt.sign(
+    buildJitsiTokenPayload({
+      appId,
+      identity,
+      displayName,
+      email,
+      avatar,
+      roomName,
+      moderator,
+      recording,
+    }),
+    privateKey,
+    {
+      algorithm: "RS256",
+      header: { alg: "RS256", kid: apiKeyId, typ: "JWT" },
+    }
+  );
 }
 
 // Development-only diagnostic: decodes (does NOT verify) a JWT and returns
