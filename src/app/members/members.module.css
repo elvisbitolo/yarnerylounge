@@ -6,7 +6,7 @@
 .container {
   max-width: 960px;
   margin: 0 auto;
-  padding: 48px 24px;
+  padding: 2rem;
 }
 
 .title {
@@ -48,6 +48,7 @@
   background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6));
   border: 1px solid rgba(167,139,250,0.25);
   border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 .blindDateCard {

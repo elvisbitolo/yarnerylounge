@@ -270,7 +270,7 @@ export function RecentMessages({ data }) {
             <li key={conv.id}>
               <Link className={styles.item} href="/chat">
                 <span className={styles.itemSplit}>
-                  <span className={styles.itemTitle}>{conv.title}</span>
+                  <span className={styles.itemTitle}>{conv?.title || conv?.name || "Chat"}</span>
                   <span className={styles.itemMeta}>{timeAgo(conv.lastMessageAt)}</span>
                 </span>
                 <span className={styles.itemBody}>{conv.lastMessage || "No messages yet"}</span>

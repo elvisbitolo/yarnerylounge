@@ -108,12 +108,24 @@ export async function POST(req) {
     const avatar = userDoc?.photoURL || auth.user.photoURL || "";
 
     if (!isJitsiConfigured()) {
+      // Granular diagnostics (no secrets). The two guards left in
+      // isJitsiConfigured are `apiKeyId !== appId` and the key starting with
+      // "-----BEGIN" — so we record exactly which one fails.
+      const appIdV = getJitsiAppId();
+      const keyIdV = getJitsiApiKeyId();
+      const keyV = getJitsiPrivateKey();
+      const keyLines = keyV ? keyV.split(/\r?\n/) : [];
       logError("jitsi.token.not_configured", {
-        appId: getJitsiAppId() ? "set" : "missing",
-        apiKeyId: getJitsiApiKeyId() ? "set" : "missing",
+        appId: appIdV ? "set" : "missing",
+        apiKeyId: keyIdV ? "set" : "missing",
+        apiKeyIdEqualsAppId: keyIdV === appIdV,
         keyIdVar: process.env.JITSI_KEY_ID ? "set" : "missing",
         apiKeyIdVar: process.env.JITSI_API_KEY_ID ? "set" : "missing",
-        privateKey: getJitsiPrivateKey() ? "set" : "missing",
+        privateKey: keyV ? "set" : "missing",
+        privateKeyHeaderOk: keyV ? keyV.startsWith("-----BEGIN") : false,
+        privateKeyStart: keyLines[0] ? keyLines[0].slice(0, 30) : "",
+        keyLineCount: keyLines.filter(Boolean).length,
+        keyLength: keyV ? keyV.length : 0,
       });
       return NextResponse.json(
         { error: "Unable to join this room. Please try again.", code: "jaas_not_configured" },

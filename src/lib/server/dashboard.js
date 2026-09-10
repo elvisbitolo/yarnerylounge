@@ -231,7 +231,7 @@ export async function getRecentMessages(uid, limit = 3) {
   const conversations = await listConversations(uid);
   return conversations.slice(0, limit).map((conv) => ({
     id: conv.id,
-    title: conv.title || "Chat",
+    title: conv?.title || conv?.name || "Chat",
     lastMessage: conv.lastMessage || "",
     updatedAt: conv.updatedAt || 0,
   }));

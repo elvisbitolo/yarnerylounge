@@ -370,7 +370,7 @@ export async function getDashboardMessages(uid, limit = 5) {
   const conversations = await listConversations(uid);
   return conversations.slice(0, limit).map((conv) => ({
     id: conv.id,
-    title: conv.title || "Chat",
+    title: conv?.title || conv?.name || "Chat",
     lastMessage: (conv.lastMessage || "").slice(0, 100),
     lastMessageAt: conv.lastMessageAt || conv.updatedAt || 0,
   }));
