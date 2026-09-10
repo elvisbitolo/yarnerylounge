@@ -2,55 +2,36 @@
 
 import { useEffect } from "react";
 import { useMembership } from "@/lib/membership";
-import { DEFAULT_SPEAKEASY_THEME } from "@/lib/speakeasy-theme";
+import {
+  DEFAULT_THEME,
+  mergeTheme,
+  sanitizeTheme,
+  applyThemeToDom,
+} from "@/lib/site-theme";
 
-const VAR_MAP = {
-  bg: ["--background", "--dash-bg"],
-  surface: ["--dash-surface"],
-  border: ["--dash-border"],
-  text: ["--foreground", "--dash-text"],
-  muted: ["--dash-muted"],
-  accent: ["--dash-accent"],
-  primary: ["--primary"],
-};
-
-function applyTheme(theme) {
-  if (!theme) return;
-  const r = document.documentElement;
-  for (const [key, vars] of Object.entries(VAR_MAP)) {
-    if (!theme[key]) continue;
-    for (const v of vars) r.style.setProperty(v, theme[key]);
-  }
-}
-
+// Single source of truth for the member-controlled site theme. Renders nothing:
+// it just mirrors the saved dashboardTheme (membership.theme) onto the shared
+// CSS custom properties on every page. The other theme UI (ThemePicker) edits
+// and persists that same object — nothing else writes these variables, so the
+// saved theme can never get clobbered by a competing applier.
 export default function GlobalTheme() {
   const { membership } = useMembership();
 
   useEffect(() => {
-    // Hardcoded speakeasy defaults first so the app never relies on the API.
-    applyTheme(DEFAULT_SPEAKEASY_THEME);
-
-    const hasUserPick = () => {
-      try {
-        return typeof localStorage !== "undefined" && localStorage.getItem("yarnerylounge-theme") !== null;
-      } catch {
-        return false;
-      }
-    };
-
-    const applyCommunityTheme = () => {
-      if (hasUserPick()) return;
-      applyTheme(membership?.theme || null);
-    };
-
-    applyCommunityTheme();
+    const saved = sanitizeTheme(membership?.theme);
+    applyThemeToDom(mergeTheme(DEFAULT_THEME, saved));
 
     // ThemePicker's "Use community theme" tells us a member reverted their
-    // override — re-apply the saved community theme right away.
-    const onRevert = () => applyCommunityTheme();
+    // override — re-apply the saved (now cleared) theme right away.
+    const onRevert = () => {
+      const next = sanitizeTheme(membership?.theme);
+      applyThemeToDom(mergeTheme(DEFAULT_THEME, next));
+    };
     window.addEventListener("yarnery-theme-revert", onRevert);
     return () => window.removeEventListener("yarnery-theme-revert", onRevert);
   }, [membership?.theme]);
 
   return null;
 }
+
+export { THEME_KEYS } from "@/lib/site-theme";

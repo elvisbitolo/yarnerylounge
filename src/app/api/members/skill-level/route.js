@@ -40,6 +40,7 @@ export async function GET() {
       },
     });
     const members = rows
+      .filter((u) => u.extra && typeof u.extra === "object" && u.extra.profileVisibility !== "private")
       .filter((member) => String(member.skillLevel || member.extra?.skillLevel || "").trim().toLowerCase() === skillLevel)
       .filter((member) => !isSafetyId(me?.extra, BLOCKED_KEY, member.id) && !isSafetyId(member.extra, BLOCKED_KEY, auth.user.uid))
       .map((member) => ({

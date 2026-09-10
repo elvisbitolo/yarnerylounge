@@ -33,6 +33,6 @@ export function deriveMembership(userDoc, now = Date.now()) {
     role,
     capabilities: caps,
     profileBadge: caps.profileBadge,
-    theme: userDoc?.dashboardTheme || null,
+    theme: userDoc?.extra?.dashboardTheme || userDoc?.dashboardTheme || null,
   };
 }

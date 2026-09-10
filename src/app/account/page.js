@@ -5,6 +5,7 @@ import AccountTabs from "./AccountTabs";
 import LogoutButton from "./LogoutButton";
 import WelcomeChecklist from "./WelcomeChecklist";
 import StreakCard from "./StreakCard";
+import ProfileVisibility from "./ProfileVisibility";
 import { tierLabel } from "@/lib/server/plans";
 import styles from "./account.module.css";
 
@@ -91,6 +92,11 @@ export default async function AccountPage() {
               </span>
             </div>
           )}
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Privacy</h2>
+          <ProfileVisibility value={userDoc?.extra?.profileVisibility || "public"} />
         </section>
       </div>
     </Nav>

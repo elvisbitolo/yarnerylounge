@@ -202,6 +202,13 @@ export function normalizeProfile(body) {
       errors.notifications = "Notifications must be \"on\" or \"off\"";
     }
   }
+  if ("profileVisibility" in body) {
+    if (body.profileVisibility === "public" || body.profileVisibility === "private") {
+      patch.profileVisibility = body.profileVisibility;
+    } else {
+      errors.profileVisibility = "Profile visibility must be \"public\" or \"private\"";
+    }
+  }
   if ("socialLinks" in body) {
     const links = normalizeSocial(body.socialLinks);
     if (links.length > 0) {

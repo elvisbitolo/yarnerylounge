@@ -231,7 +231,16 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
             <ChevronRight size={18} />
           </button>
         </div>
-        <button className={styles.addBtn} onClick={() => setShowAdd(true)}>
+        <button
+          type="button"
+          className={styles.addBtn}
+          onClick={() => {
+            setError("");
+            setShowAdd(true);
+          }}
+          aria-haspopup="dialog"
+          aria-label="Add availability"
+        >
           <Plus size={16} /> Add Availability
         </button>
       </div>
@@ -417,10 +426,10 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
   }
 
   return (
-    <div className={styles.modalBackdrop} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
+    <div className={styles.modalBackdrop} onMouseDown={onClose} role="presentation">
+      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-availability-title">
         <div className={styles.modalHead}>
-          <h2 className={styles.modalTitle}>Add Availability</h2>
+          <h2 id="add-availability-title" className={styles.modalTitle}>Add Availability</h2>
           <button className={styles.iconBtn} onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>

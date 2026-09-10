@@ -1,6 +1,7 @@
 export const GOLDEN_ANGLE = 2.399963229728653;
 
 export function hashId(id) {
+  if (!id) return 0;
   let h = 2166136261;
   for (let i = 0; i < id.length; i += 1) {
     h ^= id.charCodeAt(i);
@@ -75,7 +76,9 @@ export function composeLayout(members, opts = {}) {
 
   if (!members || !members.length) return [];
 
-  const items = members.map((m, idx) => ({
+  const items = members
+    .filter((m) => m && m.id)
+    .map((m, idx) => ({
     id: m.id,
     points: m.points || 0,
     createdAt: m.createdAt || 0,

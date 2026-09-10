@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
+import { sanitizeTheme } from "@/lib/site-theme";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 
@@ -35,13 +36,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid theme" }, { status: 400 });
   }
 
-  const allowed = ["bg", "surface", "border", "text", "muted", "accent"];
-  const safe = {};
-  for (const key of allowed) {
-    if (typeof theme[key] === "string" && /^#[0-9a-fA-F]{6}$/.test(theme[key])) {
-      safe[key] = theme[key].toLowerCase();
-    }
-  }
+  const safe = sanitizeTheme(theme);
 
   try {
     const prisma = getPrisma();

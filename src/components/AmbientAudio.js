@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Volume2, Volume1, VolumeX, SlidersHorizontal } from "lucide-react";
+import useDraggableFloat from "@/lib/use-draggable-float";
 
 function generateAmbientWav() {
   const sampleRate = 22050;
@@ -77,6 +78,15 @@ export default function AmbientAudio({
     return localStorage.getItem("speakeasy_continuous_music") === "true";
   });
   const [showSlider, setShowSlider] = useState(false);
+
+  const musicDrag = useDraggableFloat({
+    storageKey: "yarnerylounge-music-pos",
+    defaultPos: { left: 24, bottom: 24 },
+    width: 150,
+    height: 48,
+    minBottom: 20,
+    anchor: "left",
+  });
 
   const audioRef = useRef(null);
   const prevSrcRef = useRef("");
@@ -239,21 +249,20 @@ export default function AmbientAudio({
       )}
 
       {src && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            left: 24,
-            zIndex: 999,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
+        <div {...musicDrag.handlers} style={{ ...musicDrag.style, ...{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "grab",
+          userSelect: "none",
+        } }}>
           {/* Main toggle pill */}
           <button
             type="button"
-            onClick={toggle}
+            onClick={() => {
+              if (musicDrag.wasDragged()) return;
+              toggle();
+            }}
             aria-label={playing ? `Mute stream (${currentVolumePercent}%)` : "Play stream"}
             style={{
               width: 48,
@@ -281,7 +290,10 @@ export default function AmbientAudio({
           {/* Slider trigger */}
           <button
             type="button"
-            onClick={() => setShowSlider((v) => !v)}
+            onClick={() => {
+              if (musicDrag.wasDragged()) return;
+              setShowSlider((v) => !v);
+            }}
             aria-label="Adjust master volume slider"
             title="Master volume controls"
             style={{

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getRoomBySlug } from "@/lib/server/rooms";
+import { getRoomBySlug, seedAlwaysOnRooms } from "@/lib/server/rooms";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities } from "@/lib/server/capabilities";
@@ -17,6 +17,7 @@ export default async function RoomPage({ params }) {
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
+  await seedAlwaysOnRooms();
   const room = await getRoomBySlug(slug);
   if (!room || room.status !== "active") {
     return (

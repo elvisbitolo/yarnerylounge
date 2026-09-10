@@ -665,11 +665,33 @@ export default function ProfileEditor({ initial }) {
       if (!res.ok) throw new Error("Couldn't look up your location.");
       const data = await res.json();
       const match = countryByCode(data.countryCode);
-      if (match) setCountry(match.name);
-      const city = data.city || data.locality || data.principalSubdivision || "";
-      if (city) setLocation(city);
-      if (match || city) {
-        setNotice("Location detected — review it before saving.");
+      const detectedCountry = match ? match.name : normalize(country);
+      const city = normalize(data.city || data.locality || data.principalSubdivision || "");
+      const detectedLocation = city || normalize(location);
+
+      if (detectedCountry) setCountry(detectedCountry);
+      if (detectedLocation) setLocation(detectedLocation);
+
+      // Persist right away so the member's location always belongs to them,
+      // even if they leave the editor before pressing Save.
+      const patch = {};
+      if (detectedCountry && detectedCountry !== normalize(initial.country)) {
+        patch.country = detectedCountry;
+      }
+      if (detectedLocation && detectedLocation !== normalize(initial.location)) {
+        patch.location = detectedLocation;
+      }
+      const saveRes = await fetch("/api/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (Object.keys(patch).length && !saveRes.ok) {
+        throw new Error((await saveRes.json()).error || "Failed to save your location");
+      }
+
+      if (detectedCountry || detectedLocation) {
+        setNotice("Location detected and saved — update it any time.");
       } else {
         setNotice("We couldn't work out your exact country — pick it from the list instead.");
       }

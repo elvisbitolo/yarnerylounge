@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  background: #f7f1e9;
+  background: var(--background, #f7f1e9);
 }
 
 .container {
@@ -20,7 +20,7 @@
 .title {
   font-size: 28px;
   font-weight: 700;
-  color: #0a0e2a;
+  color: var(--accent, #f42e79);
   margin: 0;
 }
 
@@ -676,7 +676,8 @@
 .headerSub {
   margin: 4px 0 0;
   font-size: 14px;
-  color: #8a7c6f;
+  color: var(--link, #d81f66);
+  font-weight: 600;
 }
 
 .identity {

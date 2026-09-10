@@ -460,10 +460,7 @@
 }
 
 .chatFab {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 66px;
+  position: relative;
   z-index: 4;
   display: inline-flex;
   align-items: center;
@@ -475,13 +472,14 @@
   color: #fff;
   font-size: 13px;
   font-weight: 700;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 10px 26px rgba(233, 30, 99, 0.45);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
 }
 
 .chatFab:hover {
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateY(-2px);
   box-shadow: 0 14px 32px rgba(233, 30, 99, 0.55);
 }
 

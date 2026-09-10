@@ -59,7 +59,7 @@ export default function SignupPage() {
       const signedIn = await reconcileSessionCookie();
       if (!cancelled && signedIn) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components read the (possibly rotated) session cookie
-        window.location.assign("/dashboard");
+        window.location.assign("/signing-in");
       }
     })();
     return () => {
@@ -83,7 +83,7 @@ export default function SignupPage() {
       if (!cancelled && refreshed) {
         // Full reload so server-rendered pages read the fresh Firestore doc.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
-        window.location.assign("/dashboard");
+        window.location.assign("/signing-in");
       }
     })();
     return () => {
@@ -102,7 +102,7 @@ export default function SignupPage() {
         const ok = await completeSupabaseGoogle();
         if (!cancelled && ok) {
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-          window.location.assign("/dashboard");
+          window.location.assign("/signing-in");
         } else if (!cancelled) {
           // OAuth finished on a different origin and 308'd us here without a
           // recoverable session (stale host flow). Release the stuck param so
@@ -161,7 +161,7 @@ export default function SignupPage() {
       } else {
         navigated = true;
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-        window.location.assign("/dashboard");
+        window.location.assign("/signing-in");
       }
     } catch (err) {
       if (err.code === "not_prepaid" || err.code === "expired") {

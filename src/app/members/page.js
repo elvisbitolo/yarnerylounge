@@ -50,8 +50,12 @@ export default async function MembersPage() {
   const members = userRows
     .filter((m) => m.name && m.id !== user.uid)
     .filter((m) => {
-      const viewerExtra = userDoc?.extra && typeof userDoc.extra === "object" ? userDoc.extra : {};
       const memberExtra = m.extra && typeof m.extra === "object" ? m.extra : {};
+      if (memberExtra.profileVisibility === "private") {
+        const role = userDoc?.role || "member";
+        return role === "owner" || role === "moderator";
+      }
+      const viewerExtra = userDoc?.extra && typeof userDoc.extra === "object" ? userDoc.extra : {};
       return !isSafetyId(viewerExtra, BLOCKED_KEY, m.id) && !isSafetyId(memberExtra, BLOCKED_KEY, user.uid);
     })
     .map((m) => {

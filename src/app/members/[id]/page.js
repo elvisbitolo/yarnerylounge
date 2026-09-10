@@ -138,6 +138,11 @@ export default async function MemberProfilePage({ params }) {
   }
 
   const member = mapUserRow(memberRow);
+  const memberExtra = member.extra && typeof member.extra === "object" ? member.extra : {};
+  const viewerRole = viewerDoc?.role || "member";
+  const isPrivileged = viewerRole === "owner" || viewerRole === "moderator";
+  const isPrivateProfile = memberExtra.profileVisibility === "private";
+  const canViewProfile = isSelf || isPrivileged || !isPrivateProfile;
   const gami = gamiRow || {};
   const memberPoints = gami.points || 0;
   const memberStreak = gami.streak || 0;
@@ -166,6 +171,32 @@ const coverUrl = member.coverPhotoURL || "";
   const bannerBackground = coverUrl
     ? `url(${coverUrl}) center / cover no-repeat`
     : "linear-gradient(135deg, #fdf1f3, #fbe3ec, #efd9d6)";
+
+  if (!canViewProfile) {
+    return (
+      <Nav role={viewerDoc?.role}>
+        <div className={styles.container}>
+          <BackButton fallback="/members" label="All members" />
+          <div className={styles.profileCard}>
+            <div className={styles.header}>
+              <div className={styles.avatar}>
+                {(member.name || "?").slice(0, 1).toUpperCase()}
+              </div>
+              <div className={styles.headerBody}>
+                <h1 className={styles.title}>{member.name}</h1>
+                <p className={styles.subtitle}>
+                  {member.username && <span>@{member.username}</span>}
+                </p>
+              </div>
+            </div>
+          </div>
+          <p className={styles.subtitle}>
+            This member keeps their profile private.
+          </p>
+        </div>
+      </Nav>
+    );
+  }
 
   return (
       <Nav role={viewerDoc?.role}>

@@ -94,6 +94,7 @@ export async function pickDailyBlindDate(uid) {
   const candidates = rawCandidates
     .filter((u) => u.id !== uid)
     .filter((m) => m.name && !m.suspended)
+    .filter((m) => !(m.extra && typeof m.extra === "object" && m.extra.profileVisibility === "private"))
     .filter((m) => !isSafetyId(me.extra, BLOCKED_KEY, m.id) && !isSafetyId(m.extra, BLOCKED_KEY, uid))
     .sort((a, b) => computeScore(me, b) - computeScore(me, a))
     .slice(0, 40);

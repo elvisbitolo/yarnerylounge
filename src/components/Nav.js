@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -18,7 +18,7 @@ const CHEVRON = (
   </svg>
 );
 
-function SearchForm({ className }) {
+function SearchForm({ className, inputRef }) {
   const t = useTranslations("nav");
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -33,7 +33,12 @@ function SearchForm({ className }) {
   }
 
   return (
-    <form className={className || styles.topbarSearchWrap} onSubmit={handleSearch} role="search">
+    <form
+      className={className || styles.topbarSearchWrap}
+      onSubmit={handleSearch}
+      role="search"
+      aria-label={t("searchPlaceholder")}
+    >
       <span className={styles.topbarSearchIcon}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
           <circle cx="11" cy="11" r="7" />
@@ -41,6 +46,7 @@ function SearchForm({ className }) {
         </svg>
       </span>
       <input
+        ref={inputRef}
         className={styles.topbarInput}
         type="search"
         value={query}
@@ -219,9 +225,23 @@ export default function Nav({ role, children }) {
     () => role === "owner" || role === "moderator" || role === "host"
   );
   const [mobileSearch, setMobileSearch] = useState(false);
+  const mobileSearchInputRef = useRef(null);
   const [sidebarData, setSidebarData] = useState(null);
   const administrationLinks = getAdministrationLinks(role);
   const close = () => setMobileOpen(false);
+
+  useEffect(() => {
+    if (!mobileSearch) return undefined;
+    const frame = requestAnimationFrame(() => mobileSearchInputRef.current?.focus());
+    function onKeyDown(e) {
+      if (e.key === "Escape") setMobileSearch(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileSearch]);
 
   useEffect(() => {
     let active = true;
@@ -358,14 +378,14 @@ export default function Nav({ role, children }) {
         </div>
       </header>
       {mobileSearch && (
-        <div className={styles.mobileSearchOverlay}>
-          <SearchForm />
+        <div className={styles.mobileSearchOverlay} role="dialog" aria-modal="true" aria-label={t("searchPlaceholder")}>
+          <SearchForm inputRef={mobileSearchInputRef} />
           <button
             type="button"
             className={styles.topbarIconBtn}
             onClick={() => setMobileSearch(false)}
-            aria-label={t("toggleNav")}
-            title={t("toggleNav")}
+            aria-label="Close search"
+            title="Close search"
           >
             ×
           </button>

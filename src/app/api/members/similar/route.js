@@ -103,6 +103,7 @@ export async function GET(req) {
   const prisma = getPrisma();
 
   const similaritySelect = {
+    role: true,
     country: true,
     goToYarn: true,
     favoriteHookSize: true,
@@ -136,6 +137,7 @@ export async function GET(req) {
   }
 
   const userSelect = {
+    id: true,
     name: true,
     headline: true,
     country: true,
@@ -162,7 +164,16 @@ export async function GET(req) {
       where: { id: { not: exclude }, suspended: { not: true } },
       select: userSelect,
     });
-    candidates = rows.map((r) => ({ id: r.id, ...r }));
+    candidates = rows
+      .filter((r) => {
+        const rExtra = r.extra && typeof r.extra === "object" ? r.extra : {};
+        if (rExtra.profileVisibility === "private") {
+          const role = myData?.role || "member";
+          return role === "owner" || role === "moderator";
+        }
+        return true;
+      })
+      .map((r) => ({ id: r.id, ...r }));
   } catch (err) {
     logError("similar.prisma_read_failed", { error: err.message });
     candidates = [];

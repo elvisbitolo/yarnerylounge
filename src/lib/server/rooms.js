@@ -56,7 +56,7 @@ export async function getRoomBySlug(slug) {
   if (prisma) {
     try {
       const row = await prisma.room.findUnique({ where: { slug } });
-      return row ? mapRoomRow(row) : null;
+      if (row) return mapRoomRow(row);
     } catch (err) {
       logError("rooms.prisma_getBySlug_failed", { error: err.message });
     }

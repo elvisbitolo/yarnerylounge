@@ -56,8 +56,9 @@ export default function LoginPage() {
     (async () => {
       const signedIn = await reconcileSessionCookie();
       if (!cancelled && signedIn) {
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components read the (possibly rotated) session cookie
-        window.location.assign("/dashboard");
+        // Full reload lands the fresh session cookie; the signing-in screen
+        // keeps the transition looking smooth while server components load.
+        window.location.assign("/signing-in");
       }
     })();
     return () => {
@@ -72,9 +73,9 @@ export default function LoginPage() {
       (async () => {
         const refreshed = await refreshSession();
         if (!cancelled && refreshed) {
-          // Full reload so server-rendered pages read the fresh Firestore doc.
-          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
-          window.location.assign("/dashboard");
+          // Full reload so server components read the freshly rotated cookie;
+          // signing-in screen keeps the handoff feeling seamless.
+          window.location.assign("/signing-in");
         }
       })();
       return () => {
@@ -90,8 +91,9 @@ export default function LoginPage() {
         try {
           const ok = await completeSupabaseGoogle();
           if (!cancelled && ok) {
-            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-            window.location.assign("/dashboard");
+            // Signing-in screen keeps the post-OAuth handoff feeling smooth
+            // while the fresh session cookie is read server-side.
+            window.location.assign("/signing-in");
           } else if (!cancelled) {
             // OAuth finished on a different origin and 308'd us here without a
             // recoverable session (stale host flow). Release the stuck param so
@@ -149,8 +151,9 @@ export default function LoginPage() {
     setBusy("email");
     try {
       await loginWithSupabaseEmail(email, password);
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-      window.location.assign("/dashboard");
+      // Full reload so the fresh session cookie is read server-side; the
+      // signing-in screen keeps the transition from feeling like a delay.
+      window.location.assign("/signing-in");
     } catch (err) {
       if (err.code === "email_not_verified" || err.code === "email_not_confirmed") {
         setVerifyNotice(err.message);

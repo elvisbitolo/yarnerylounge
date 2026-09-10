@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { JaaSMeeting } from "@jitsi/react-sdk";
 import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
@@ -11,6 +11,7 @@ import RoomBackground from "@/components/RoomBackground";
 import RoomMusicPicker from "@/components/RoomMusicPicker";
 import RoomDataProvider from "./RoomDataProvider";
 import RoomChat from "./RoomChat";
+import useDraggableFloat from "@/lib/use-draggable-float";
 import styles from "./room.module.css";
 import {
   JITSI_ERROR,
@@ -20,6 +21,13 @@ import {
   validateTokenResponse,
   logDevTiming,
 } from "@/lib/jitsi-errors";
+
+// Jitsi's external_api.js is browser-only. Keep the SDK out of the server
+// render and load it when the room stage is actually mounted in the browser.
+const JaaSMeeting = dynamic(
+  () => import("@jitsi/react-sdk").then((mod) => mod.JaaSMeeting),
+  { ssr: false }
+);
 
 // Jitsi toolbar buttons: remove camera/mic so view-only tiers and muted-by-design
 // rooms cannot unmute through the Jitsi UI (server-side gating stays authoritative).
@@ -176,6 +184,17 @@ export default function RoomClient({
   const gotoRoomRef = useRef(null);
 
   const isBroadcast = kind === "broadcast";
+
+  const chatDrag = useDraggableFloat({
+    storageKey: "yarnerylounge-chat-fab-pos",
+    defaultPos: {
+      right: typeof window !== "undefined" ? Math.round((window.innerWidth - 110) / 2) : 90,
+      bottom: 66,
+    },
+    width: 110,
+    height: 40,
+    minBottom: 60,
+  });
   const isStaff = role === "owner" || role === "moderator";
   const viewerOnly = isBroadcast && !isHost && !isCoHost;
   const planCanPublish = canPublishPlan || isStaff || isHost || isCoHost;
@@ -612,6 +631,8 @@ export default function RoomClient({
     });
 
     api.addEventListener("conferenceFailed", (error) => {
+      // eslint-disable-next-line no-console
+      console.error("[room] conferenceFailed:", JSON.stringify(error, null, 2));
       const n = normalizeJitsiError(error);
       setRoomError(n);
       setPhase("error");
@@ -624,6 +645,8 @@ export default function RoomClient({
         type.toLowerCase().includes("conference") &&
         (error?.fatal === true || error?.error?.fatal === true);
       if (fatal) {
+        // eslint-disable-next-line no-console
+        console.error("[room] fatal errorOccurred:", JSON.stringify(error, null, 2));
         setRoomError(normalizeJitsiError(error));
         setPhase("error");
       } else if (process.env.NODE_ENV !== "production") {
@@ -1128,16 +1151,22 @@ export default function RoomClient({
           )}
 
           {!showChat && (
-            <button
-              type="button"
-              className={styles.chatFab}
-              onClick={() => setShowChat(true)}
-              aria-label={t("showChat")}
-              title={t("showChat")}
-            >
-              <MessagesSquare size={19} />
-              <span>Chat</span>
-            </button>
+            <div style={chatDrag.style}>
+              <button
+                type="button"
+                className={styles.chatFab}
+                {...chatDrag.handlers}
+                onClick={() => {
+                  if (chatDrag.wasDragged()) return;
+                  setShowChat(true);
+                }}
+                aria-label={t("showChat")}
+                title={t("showChat")}
+              >
+                <MessagesSquare size={19} />
+                <span>Chat</span>
+              </button>
+            </div>
           )}
 
           <div className={styles.roomActionBar}>
