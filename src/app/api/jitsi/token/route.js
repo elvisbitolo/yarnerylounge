@@ -44,7 +44,7 @@ export async function POST(req) {
     const limitedIp = rateLimitGuard(`jitsi-token-ip:${ip}`, { limit: 100 });
     if (limitedIp) return limitedIp;
 
-    const { slug } = await req.json();
+    const { slug } = await req.json().catch(() => ({}));
     if (!slug || typeof slug !== "string") {
       return NextResponse.json({ error: "Room required" }, { status: 400 });
     }
