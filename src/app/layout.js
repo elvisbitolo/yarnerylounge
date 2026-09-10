@@ -1,13 +1,11 @@
 import { Geist, Geist_Mono, Assistant } from "next/font/google";
 import { cookies } from "next/headers";
-import dynamic from "next/dynamic";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import PushSetup from "@/components/PushSetup";
 import GlobalTheme from "@/components/GlobalTheme";
-
-const PushSetup = dynamic(() => import("@/components/PushSetup"), { ssr: false });
-const LoungeExpiryGuard = dynamic(() => import("@/components/LoungeExpiryGuard"), { ssr: false });
-const ThemePicker = dynamic(() => import("@/components/ThemePicker"), { ssr: false });
+import LoungeExpiryGuard from "@/components/LoungeExpiryGuard";
+import ThemePicker from "@/components/ThemePicker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
