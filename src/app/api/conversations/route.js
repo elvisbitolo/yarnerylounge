@@ -47,6 +47,9 @@ export async function POST(req) {
     let recipientExists = false;
     try {
       const prisma = getPrisma();
+      if (!prisma) {
+        return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+      }
       const row = await prisma.user.findUnique({ where: { id: otherId }, select: { id: true } });
       recipientExists = !!row;
     } catch (err) {

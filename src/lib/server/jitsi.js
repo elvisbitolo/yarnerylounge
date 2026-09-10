@@ -33,12 +33,18 @@ export function getJitsiApiKeyId() {
   return process.env.JITSI_API_KEY_ID || "";
 }
 
+function cleanPrivateKey(raw) {
+  return (raw || "")
+    .replace(/\r/g, "")
+    .replace(/\\r/g, "")
+    .replace(/\\n/g, "\n")
+    .trim();
+}
+
 export function isJitsiConfigured() {
   const appId = getJitsiAppId();
   const apiKeyId = getJitsiApiKeyId();
-  const privateKey = (process.env.JITSI_PRIVATE_KEY || "")
-    .replace(/\\n/g, "\n")
-    .trim();
+  const privateKey = cleanPrivateKey(process.env.JITSI_PRIVATE_KEY);
   return Boolean(
     appId &&
       apiKeyId &&
@@ -87,7 +93,7 @@ export async function signJitsiToken({
 }) {
   const appId = getJitsiAppId();
   const apiKeyId = getJitsiApiKeyId();
-  const privateKey = (process.env.JITSI_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  const privateKey = cleanPrivateKey(process.env.JITSI_PRIVATE_KEY);
 
   if (!appId) {
     throw new Error("JAAS_CONFIG_MISSING_APP_ID");

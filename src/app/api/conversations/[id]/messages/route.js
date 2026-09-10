@@ -142,6 +142,9 @@ export async function POST(req, { params }) {
   if (parentId) {
     try {
       const prisma = getPrisma();
+      if (!prisma) {
+        return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+      }
       const parent = await prisma.conversationMessage.findUnique({
         where: { id: parentId },
         select: { conversationId: true },
@@ -191,10 +194,12 @@ export async function POST(req, { params }) {
   if (parentId) {
     try {
       const prisma = getPrisma();
-      await prisma.conversationMessage.updateMany({
-        where: { id: parentId, conversationId },
-        data: { replyCount: { increment: 1 } },
-      });
+      if (prisma) {
+        await prisma.conversationMessage.updateMany({
+          where: { id: parentId, conversationId },
+          data: { replyCount: { increment: 1 } },
+        });
+      }
     } catch (err) {
       logError("chat.prisma_reply_count_failed", { error: err.message });
     }
@@ -207,11 +212,13 @@ export async function POST(req, { params }) {
       let other = null;
       try {
         const prisma = getPrisma();
-        const row = await prisma.user.findUnique({
-          where: { id: otherId },
-          select: { email: true, notifications: true },
-        });
-        if (row) other = { email: row.email || "", notifications: row.notifications || "" };
+        if (prisma) {
+          const row = await prisma.user.findUnique({
+            where: { id: otherId },
+            select: { email: true, notifications: true },
+          });
+          if (row) other = { email: row.email || "", notifications: row.notifications || "" };
+        }
       } catch (err) {
         logError("chat.prisma_dm_recipient_failed", { error: err.message });
       }

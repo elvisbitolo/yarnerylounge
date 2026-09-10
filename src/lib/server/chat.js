@@ -219,7 +219,7 @@ async function loadNames(ids) {
     try {
       const rows = await prisma.user.findMany({ where: { id: { in: ids } } });
       for (const row of rows) {
-        names[row.id] = row.name || "Member";
+        names[row.id] = row.name || row.email?.split("@")[0] || "Member";
       }
       return names;
     } catch (err) {
@@ -255,14 +255,18 @@ export async function listConversations(uid) {
         return visibleRows
           .map((row) => {
             const data = mapConversationRow(row);
+            const otherId = data.type === "dm"
+              ? (data.participantIds.filter((id) => id !== uid)[0] || "")
+              : "";
+            const resolvedName = otherId ? names[otherId] : "";
             const title =
               data.type === "dm"
-                ? (data.participantIds.filter((id) => id !== uid)[0] || "Chat")
+                ? (resolvedName || (otherId ? "Member" : "Chat"))
                 : data.name || "Group chat";
             return {
               id: data.id,
               type: data.type,
-              title: names[title] || title,
+              title,
               groupId: data.groupId || "",
               lastMessage: data.lastMessageEnc ? decryptText(data.lastMessage) : data.lastMessage || "",
               lastMessageAt: data.lastMessageAt || 0,
@@ -289,12 +293,14 @@ export async function getConversation(id, uid) {
         if (!pids.includes(uid)) return null;
         const ids = uniqueIds(pids.filter((vid) => vid !== uid));
         const names = await loadNames(ids);
+        const otherId = pids.filter((v) => v !== uid)[0] || "";
+        const resolvedName = otherId ? names[otherId] : "";
         return {
           ...mapConversationRow(row),
           participantIds: pids,
           title:
             row.type === "dm"
-              ? names[pids.filter((v) => v !== uid)[0]] || "Chat"
+              ? (resolvedName || (otherId ? "Member" : "Chat"))
               : row.name || "Group chat",
           createdAt: toMillisValue(row.createdAt),
         };
@@ -327,7 +333,7 @@ export async function listMessages(conversationId, limitCount = 200) {
               id: row.id,
               conversationId: row.conversationId,
               senderId: row.senderId,
-              senderName: row.senderName || "",
+              senderName: row.senderName || "Member",
               text: decryptText(row.text),
               createdAt: toMillisValue(row.createdAt) || 0,
               readBy,
@@ -365,7 +371,7 @@ export async function addMessage(conversationId, sender, text, attachment = null
       const msgData = {
         conversationId,
         senderId: sender.uid,
-        senderName: sender.name || "",
+        senderName: sender.name || "Member",
         text: encryptText(text),
         createdAt: now,
         readBy: {},
