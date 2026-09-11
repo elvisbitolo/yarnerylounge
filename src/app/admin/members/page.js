@@ -123,36 +123,40 @@ export default function AdminMembersPage() {
                 </div>
                 {member.role !== "owner" && (
                   <div className={styles.itemActions}>
-                    <a
+<a
                       className={styles.toggle}
                       style={{ display: "inline-block", height: 36, padding: "8px 14px", fontSize: 13 }}
                       href={`/members/${member.id}`}
                     >
                       Profile
                     </a>
-                    <select
-                      className={styles.input}
-                      style={{ width: 130, height: 36, padding: "0 8px" }}
-                      value={member.role === "moderator" ? "moderator" : "member"}
-                      onChange={(e) => updateMember(member.id, { role: e.target.value })}
+                    {role === "owner" && (
+                      <select
+                        className={styles.input}
+                        style={{ width: 130, height: 36, padding: "0 8px" }}
+                        value={member.role === "moderator" ? "moderator" : "member"}
+                        onChange={(e) => updateMember(member.id, { role: e.target.value })}
+                      >
+                        <option value="member">Member</option>
+                        <option value="moderator">Moderator</option>
+                      </select>
+                    )}
+                    <a
+                      className={styles.toggle}
+                      style={{ display: "inline-block", height: 36, padding: "8px 14px", fontSize: 13 }}
+                      href={`/admin/hosts?userId=${member.id}`}
                     >
-                      <option value="member">Member</option>
-                      <option value="moderator">Moderator</option>
-                    </select>
-                  <a
-                    className={styles.toggle}
-                    style={{ display: "inline-block", height: 36, padding: "8px 14px", fontSize: 13 }}
-                    href={`/admin/hosts?userId=${member.id}`}
-                  >
-                    Host
-                  </a>
-                  <button
-                    className={member.foundingMember ? styles.submit : styles.toggle}
-                    style={{ height: 36, padding: "0 14px", fontSize: 13 }}
-                    onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}
-                  >
-                    {member.foundingMember ? "Unmark 🧶" : "Mark founding"}
-                  </button>
+                      Host
+                    </a>
+                    {role === "owner" && (
+                      <button
+                        className={member.foundingMember ? styles.submit : styles.toggle}
+                        style={{ height: 36, padding: "0 14px", fontSize: 13 }}
+                        onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}
+                      >
+                        {member.foundingMember ? "Unmark 🧶" : "Mark founding"}
+                      </button>
+                    )}
                   <button
                     className={member.suspended ? styles.submit : styles.delete}
                     style={{ height: 36, padding: "0 14px", fontSize: 13 }}
