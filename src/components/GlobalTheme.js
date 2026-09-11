@@ -31,6 +31,23 @@ export default function GlobalTheme() {
     return () => window.removeEventListener("yarnery-theme-revert", onRevert);
   }, [membership?.theme]);
 
+  // Restore the member's saved text-size on every page load. ThemePanel writes
+  // the same key but only lives inside the settings panel, so without this the
+  // size "UI" resets after every refresh even though it was never applied live.
+  useEffect(() => {
+    const FONT_KEY = "yarnerylounge-font-size";
+    let saved = 100;
+    try {
+      const raw = parseInt(localStorage.getItem(FONT_KEY), 10);
+      if (raw >= 82 && raw <= 124) saved = raw;
+    } catch {
+      /* ignore */
+    }
+    if (saved !== 100) {
+      document.documentElement.style.zoom = (saved / 100).toString();
+    }
+  }, []);
+
   return null;
 }
 
