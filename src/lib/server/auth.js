@@ -28,6 +28,49 @@ export async function verifySupabaseToken(token) {
   }
 }
 
+// Rotates the Supabase access + refresh tokens stored in the httpOnly cookie.
+// Unlike getCurrentUser (server components cannot write cookies) the callers of
+// this helper ARE route handlers and must write the fresh { access, refresh }
+// pair back themselves. Returns the mapped identity plus the fresh pair, a
+// reason the rotation failed, or null when there is no refreshable cookie.
+export async function rotateCookieSession() {
+  const cookieStore = await cookies();
+  const session = parseSessionCookie(cookieStore.get(AUTH_COOKIE)?.value);
+  if (!session?.access || !session?.refresh) return null;
+
+  try {
+    const { default: supabaseAdmin } = await import("@/lib/supabase/service");
+    const { data, error } = await supabaseAdmin.auth.refreshSession({
+      refresh_token: session.refresh,
+    });
+    if (error || !data?.session?.access_token) return { error: "expired" };
+
+    const identity = mapSupabaseUser(data.session.user);
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        const row = await prisma.user.findUnique({
+          where: { id: identity.uid },
+          select: { id: true, suspended: true },
+        });
+        if (!row || row.suspended) return { error: "unavailable" };
+      } catch (err) {
+        // Fail open on DB errors: a brief outage must not log members out.
+        logError("auth.rotate_db_check_failed", { error: err.message });
+      }
+    }
+
+    return {
+      identity,
+      access: data.session.access_token,
+      refresh: data.session.refresh_token,
+    };
+  } catch (err) {
+    logError("auth.rotate_failed", { error: err.message });
+    return { error: "expired" };
+  }
+}
+
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(AUTH_COOKIE)?.value;

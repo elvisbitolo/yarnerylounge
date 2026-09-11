@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v5";
+const VERSION = "v6";
 
 // Minimal doctype'd offline shell. The SW must ALWAYS hand respondWith() a real
 // Response — resolving it with null/undefined makes the browser throw

@@ -1,5 +1,6 @@
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { forgetCachedMembership } from "@/lib/membership";
+import { beginExplicitLogout } from "@/lib/auth-client";
 
 // Canonical origin for all auth redirect targets. Must be the single public
 // host (www.christasspeakeasy.com) — NOT window.location.origin — so an OAuth
@@ -242,6 +243,10 @@ export async function refreshSupabaseSession() {
 
 export async function logout() {
   forgetCachedMembership(supabaseBrowser.auth.getUser()?.user?.id);
+  // Tell the auth shim this is a deliberate sign-out BEFORE signOut() fires the
+  // null-session event, so it doesn't race /api/me and keep the SPA signed in
+  // while the cookie is still being cleared.
+  beginExplicitLogout();
   try {
     await supabaseBrowser.auth.signOut();
   } catch {
