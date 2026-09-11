@@ -71,11 +71,11 @@ export async function GET() {
     photoURL: userDoc?.photoURL || "",
     coverPhotoURL: userDoc?.coverPhotoURL || "",
     notifications: userDoc?.notifications || "on",
-    points: Number(gamification.points) || 0,
-    streak: Number(gamification.streak) || 0,
-    bestStreak: Number(gamification.bestStreak) || 0,
-    lastVisitDate: gamification.lastVisitDate || "",
-    recentVisits: Array.isArray(gamification.recentVisits) ? gamification.recentVisits : [],
+    points: Number(gamification?.points) || 0,
+    streak: Number(gamification?.streak) || 0,
+    bestStreak: Number(gamification?.bestStreak) || 0,
+    lastVisitDate: gamification?.lastVisitDate || "",
+    recentVisits: Array.isArray(gamification?.recentVisits) ? gamification.recentVisits : [],
     createdAt: userDoc?.createdAt
       ? (userDoc.createdAt.toMillis ? userDoc.createdAt.toMillis() : new Date(userDoc.createdAt).getTime())
       : null,

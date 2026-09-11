@@ -16,11 +16,12 @@ export default async function LeaderboardPage() {
   const userDoc = await getUserDoc(user.uid);
 
   const name = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
-  const [mine, leaderboard, recognized] = await Promise.all([
+  const [rawMine, leaderboard, recognized] = await Promise.all([
     getGamification(user.uid, name),
     getLeaderboard(20),
     getRecognitionLeaderboard(20),
   ]);
+  const mine = rawMine ?? { points: 0, streak: 0, bestStreak: 0, badges: {} };
 
   const myRank = leaderboard.find((entry) => entry.userId === user.uid)?.rank || null;
   const earnedCodes = Object.keys(mine.badges || {});

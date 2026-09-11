@@ -180,7 +180,7 @@ async function loadRecommended(uid, contributors) {
 
 export async function getSidebarData(uid, period = "day") {
   const gami = await getGamification(uid);
-  const streak = Number(gami.streak) || 0;
+  const streak = Number(gami?.streak) || 0;
 
   const since = startOfDay(1);
   const sinceDate = new Date(since);
@@ -211,8 +211,8 @@ export async function getSidebarData(uid, period = "day") {
 
   return {
     streak,
-    bestStreak: Number(gami.bestStreak) || 0,
-    points: Number(gami.points) || 0,
+    bestStreak: Number(gami?.bestStreak) || 0,
+    points: Number(gami?.points) || 0,
     nextMilestone: milestone,
     activity: {
       onlineNow: onlineUids.size,
