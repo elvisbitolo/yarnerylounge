@@ -122,7 +122,7 @@ export default function AdminMembersPage() {
                   </p>
                 </div>
                 {member.role !== "owner" && (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div className={styles.itemActions}>
                     <a
                       className={styles.toggle}
                       style={{ display: "inline-block", height: 36, padding: "8px 14px", fontSize: 13 }}

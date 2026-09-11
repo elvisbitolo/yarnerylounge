@@ -313,6 +313,12 @@
   transition: background 0.2s ease;
 }
 
+@media (max-width: 900px) {
+  .content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+}
+
 .liveBanner {
   background: linear-gradient(120deg, #e91e63, #f06292);
 }

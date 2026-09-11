@@ -107,8 +107,10 @@
 
 .itemActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  flex-shrink: 0;
+  align-items: center;
+  min-width: 0;
 }
 
 .statGrid {
