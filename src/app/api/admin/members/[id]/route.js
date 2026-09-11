@@ -108,7 +108,7 @@ export async function DELETE(req, { params }) {
       prisma.recognition.deleteMany({ where: { OR: [{ fromUid: id }, { toUid: id }] } }),
       prisma.hostAssignment.deleteMany({ where: { userId: id } }),
       prisma.roomMessage.deleteMany({ where: { userId: id } }),
-      prisma.roomSignal.deleteMany({ where: { userId: id } }),
+      prisma.roomSignal.deleteMany({ where: { fromIdentity: id } }),
       prisma.roomEvent.deleteMany({ where: { userId: id } }),
       prisma.roomPresence.deleteMany({ where: { userId: id } }),
       prisma.project.deleteMany({ where: { userId: id } }),
