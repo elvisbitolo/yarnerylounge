@@ -112,7 +112,7 @@ export default function ThemePicker() {
             position: "absolute",
             bottom: FAB_SIZE + 8,
             right: 0,
-            background: "#1c1c1c",
+            background: "#b6b1a4",
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 16,
             padding: 16,

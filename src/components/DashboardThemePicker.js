@@ -92,7 +92,7 @@ export default function DashboardThemePicker() {
             width: "min(340px, calc(100vw - 24px))",
             maxHeight: "min(70vh, 560px)",
             overflowY: "auto",
-            background: "#1c1c1c",
+            background: "#b6b1a4",
             border: "1px solid rgba(255,255,255,0.14)",
             borderRadius: 16,
             padding: 18,
