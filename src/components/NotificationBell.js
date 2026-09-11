@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import styles from "./Nav.module.css";
+import { Bell } from "lucide-react";
 
 export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
@@ -46,7 +47,7 @@ export default function NotificationBell() {
 
   return (
     <Link className={styles.bell} href="/notifications" title="Notifications">
-      <span className={styles.bellIcon}>🔔</span>
+      <span className={styles.bellIcon}><Bell size={16} /></span>
       {unread > 0 && <span className={styles.bellBadge}>{unread}</span>}
     </Link>
   );

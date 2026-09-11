@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import styles from "./Nav.module.css";
 import MemberBadge from "./MemberBadge";
+import { Flame } from "lucide-react";
 
 function initials(name) {
   return (name || "?")
@@ -55,7 +56,7 @@ export default function SidebarProfile({ points = 0, streak = 0, close }) {
           </p>
           <p className={styles.profileCardHandle}>{handle}</p>
           <p className={styles.profileCardMeta}>
-            {xp.toLocaleString()} XP · 🔥 {streak || 0}
+            {xp.toLocaleString()} XP · <Flame size={13} /> {streak || 0}
           </p>
         </div>
       </Link>

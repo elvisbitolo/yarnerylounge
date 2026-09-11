@@ -5,6 +5,7 @@ import { getGamification, getLeaderboard, BADGES } from "@/lib/server/gamificati
 import { getRecognitionLeaderboard } from "@/lib/server/recognition";
 import Nav from "@/components/Nav";
 import styles from "./leaderboard.module.css";
+import { Flame, PartyPopper, Lock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,7 @@ export default async function LeaderboardPage() {
               <Link className={styles.nameLink} href={`/members/${entry.userId}`}>
                 {entry.name}
               </Link>
-              <p className={styles.streak}>{entry.streak} 🔥</p>
+              <p className={styles.streak}>{entry.streak} <Flame size={14} /></p>
               <p className={styles.badges}>{entry.badgeCount} badges</p>
               <p className={styles.points}>{entry.points} pts</p>
             </div>
@@ -91,7 +92,7 @@ export default async function LeaderboardPage() {
               <p className={styles.badges}>
                 {entry.count === 1 ? "1 recognition" : `${entry.count} recognitions`}
               </p>
-              <p className={styles.points}>{entry.count} 🎉</p>
+              <p className={styles.points}>{entry.count} <PartyPopper size={14} /></p>
             </div>
           ))}
           {recognized.length === 0 && (
@@ -105,7 +106,7 @@ export default async function LeaderboardPage() {
             const earned = mine.badges[code];
             return (
               <div key={code} className={earned ? styles.badge : `${styles.badge} ${styles.badgeLocked}`}>
-                <p className={styles.badgeName}>{earned ? "✓" : "🔒"} {badge.name}</p>
+                <p className={styles.badgeName}>{earned ? "✓" : <Lock size={13} />} {badge.name}</p>
                 <p className={styles.badgeDesc}>{badge.description}</p>
               </div>
             );

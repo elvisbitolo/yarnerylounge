@@ -6,6 +6,7 @@ import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import LessonView from "./LessonView";
 import styles from "./lesson.module.css";
+import { Lock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ export default async function LessonPage({ params }) {
         <div className={styles.container}>
           <BackButton fallback={`/courses/${courseId}`} label="Back to course" />
           <div className={styles.locked}>
-            <h1 className={styles.title}>🔒 Locked</h1>
+            <h1 className={styles.title}><Lock size={18} /> Locked</h1>
             <p className={styles.lockedText}>
               This lesson unlocks on{" "}
               {releaseAt.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}

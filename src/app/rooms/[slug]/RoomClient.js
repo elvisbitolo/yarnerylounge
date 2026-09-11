@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff } from "lucide-react";
+import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -961,12 +961,12 @@ export default function RoomClient({
             {viewer && <p className={styles.watchNote}>{t("watchingOnly")}</p>}
             {(audioLocked && !viewer) || (vibeMode === "force-mute" && !viewer) ? (
               <p className={styles.watchNote}>
-                🔇 Audio is always off in this room — cameras stay on for company.
+                <MicOff size={14} /> Audio is always off in this room — cameras stay on for company.
               </p>
             ) : null}
             {raiseHandToTalk && !viewer && (
               <p className={styles.watchNote}>
-                🙋 Raise your hand to talk — the host will invite you to speak.
+                <Hand size={14} /> Raise your hand to talk — the host will invite you to speak.
               </p>
             )}
             {inlineError && <p className={styles.error}>{inlineError}</p>}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./search.module.css";
+import { Heart } from "lucide-react";
 
 const TYPE_TABS = [
   { key: "", label: "All" },
@@ -233,7 +234,7 @@ export default function SearchBoard({ initialQ, initialHashtag, initialType, ini
                   {post.kind === "poll" && <span className={styles.kindBadge}>Poll</span>}
                 </p>
                 <p className={styles.cardMeta}>
-                  by {post.authorName} · {timeAgo(post.createdAt)} · ❤ {post.likeCount}
+                  by {post.authorName} · {timeAgo(post.createdAt)} · <Heart size={12} /> {post.likeCount}
                 </p>
                 {post.hashtags.length > 0 && (
                   <p className={styles.tags}>

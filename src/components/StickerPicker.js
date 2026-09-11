@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PartyPopper } from "lucide-react";
 
 const STICKERS = [
   { type: "trophy", emoji: "🏆", label: "Trophy" },
@@ -51,7 +52,7 @@ export default function StickerPicker({ toUid, toName, onSent }) {
           transition: "background 0.15s ease, border-color 0.15s ease",
         }}
       >
-        🎉 Send sticker
+        <PartyPopper size={14} /> Send sticker
       </button>
 
       {open && (

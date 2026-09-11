@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import useDraggableFloat from "@/lib/use-draggable-float";
 import ThemePanel from "@/components/ThemePanel";
 import { useMembership } from "@/lib/membership";
@@ -31,13 +31,19 @@ export default function ThemePicker() {
     minBottom: 76,
   });
 
-  useEffect(() => {
+  const [themeRef, setThemeRef] = useState(membership?.theme);
+
+  // Sync the light/dark mode when the saved theme arrives/changes. This is the
+  // React-recommended "adjust state during render" pattern (guarded, so it runs
+  // once) instead of setState inside an effect, which lint flags and re-renders.
+  if (membership?.theme !== themeRef) {
+    setThemeRef(membership?.theme);
     const saved = sanitizeTheme(membership?.theme);
     const hasSavedVisual = saved.bg || saved.text;
     if (hasSavedVisual) {
       setMode(APPEARANCE_PRESETS.light.bg === saved.bg ? "light" : "dark");
     }
-  }, [membership?.theme]);
+  }
 
   function effectiveTheme() {
     return mergeTheme(DEFAULT_THEME, sanitizeTheme(membership?.theme));

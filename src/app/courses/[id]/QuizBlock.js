@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import styles from "./QuizBlock.module.css";
+import { PartyPopper } from "lucide-react";
 
 const LETTERS = ["A", "B", "C", "D"];
 
@@ -50,7 +51,7 @@ export default function QuizBlock({ quizId, questions, passingScore, previousRes
         <h2 className={styles.title}>Lesson quiz</h2>
         <div className={styles.resultCard}>
           <p className={styles.resultStatus}>
-            {previousResult.passed ? "You passed this quiz 🎉" : "You haven&apos;t passed this quiz yet"}
+            {previousResult.passed ? <>You passed this quiz <PartyPopper size={14} /></> : "You haven&apos;t passed this quiz yet"}
           </p>
           <p className={styles.resultText}>
             Your score: {previousResult.score}/{previousResult.total} (
@@ -83,7 +84,7 @@ export default function QuizBlock({ quizId, questions, passingScore, previousRes
                 }
               >
                 <p className={styles.scoreHeading}>
-                  {submitted.passed ? "You passed! 🎉" : "Not this time"}
+                  {submitted.passed ? <>You passed! <PartyPopper size={14} /></> : "Not this time"}
                 </p>
                 <p className={styles.scoreText}>
                   {submitted.score} / {submitted.total} correct ({submitted.percentage}%)

@@ -17,6 +17,7 @@ import {
 } from "@/lib/server/profile";
 import styles from "./account.module.css";
 import coverStyles from "./cover.module.css";
+import { Image as ImageIcon } from "lucide-react";
 
 const QUESTIONS_PER_PAGE = 3;
 const QUIZ_PAGE_COUNT = Math.ceil(QUIZ_QUESTIONS.length / QUESTIONS_PER_PAGE);
@@ -902,7 +903,7 @@ export default function ProfileEditor({ initial }) {
           <img className={coverStyles.coverImg} src={coverPhotoURL} alt="Cover" />
         ) : (
           <span className={coverStyles.coverPlaceholder}>
-            <span className={coverStyles.coverPlaceholderIcon}>🖼</span>
+            <span className={coverStyles.coverPlaceholderIcon}><ImageIcon size={20} /></span>
             Add a cover photo
           </span>
         )}

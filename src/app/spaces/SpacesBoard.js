@@ -5,16 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./spaces.module.css";
+import { MessageCircle, MessageSquareText, Users, Calendar, GraduationCap, Radio } from "lucide-react";
 
 const SPACE_THEMES = ["indigo", "violet", "teal", "amber", "sky", "emerald", "rose", "fuchsia"];
 
 const FEATURE_ICONS = {
-  feed: "💬",
-  chat: "💭",
-  members: "👥",
-  events: "📅",
-  courses: "🎓",
-  live: "📡",
+  feed: MessageCircle,
+  chat: MessageSquareText,
+  members: Users,
+  events: Calendar,
+  courses: GraduationCap,
+  live: Radio,
 };
 
 export default function SpacesBoard({ spaces, uid }) {
@@ -80,11 +81,14 @@ export default function SpacesBoard({ spaces, uid }) {
                 </p>
                 {features.length > 0 && (
                   <p className={styles.featureChips}>
-                    {features.map((feature) => (
-                      <span key={feature} className={styles.featureChip}>
-                        {FEATURE_ICONS[feature]} {feature}
-                      </span>
-                    ))}
+                    {features.map((feature) => {
+                      const Icon = FEATURE_ICONS[feature];
+                      return (
+                        <span key={feature} className={styles.featureChip}>
+                          {Icon ? <Icon size={13} /> : null} {feature}
+                        </span>
+                      );
+                    })}
                   </p>
                 )}
               </div>

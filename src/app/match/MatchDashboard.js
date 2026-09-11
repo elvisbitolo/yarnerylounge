@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "./match.module.css";
+import { Lock } from "lucide-react";
 import DailyMatchCard from "./DailyMatchCard";
 import SimilarMembersCard from "./SimilarMembersCard";
 import SkillLevelCard from "./SkillLevelCard";
@@ -66,7 +67,7 @@ export default function MatchDashboard({ matchmakerEnabled }) {
   if (!matchmakerEnabled) {
     return (
       <div className={styles.lockState}>
-        <div className={styles.lockIcon}>🔒</div>
+        <div className={styles.lockIcon}><Lock size={22} /></div>
         <h2 className={styles.lockTitle}>Matchmaker is for premium members</h2>
         <p className={styles.lockDesc}>
           Upgrade to Hooking Up or Moving In to unlock fiber matchmaking,

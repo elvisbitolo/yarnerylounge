@@ -7,6 +7,7 @@ import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import QuizBlock from "./QuizBlock";
 import styles from "../courses.module.css";
+import { Lock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -133,7 +134,7 @@ export default async function CoursePage({ params }) {
                             className={locked ? `${styles.lesson} ${styles.lessonLocked}` : styles.lesson}
                           >
                             <span className={isDone ? `${styles.lessonMark} ${styles.lessonDone}` : styles.lessonMark}>
-                              {locked ? "🔒" : isDone ? "✓" : "•"}
+                              {locked ? <Lock size={14} /> : isDone ? "✓" : "•"}
                             </span>
                             <span className={styles.lessonTitle}>{lesson.title}</span>
                             {lesson.kind === "video" && (

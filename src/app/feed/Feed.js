@@ -9,6 +9,7 @@ import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./feed.module.css";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle } from "lucide-react";
 
 function resizeImage(file, maxSize = 1600) {
   return new Promise((resolve, reject) => {
@@ -205,7 +206,7 @@ function EmojiReactionBar({ postId, commentId, reactions, uid, disabled }) {
         disabled={disabled}
         title={t("addReaction")}
       >
-        ☺
+        <PlusCircle size={16} />
       </button>
       {open && (
         <div className={styles.reactionPicker}>
@@ -809,10 +810,10 @@ const trimmed = text.trim();
       <form className={styles.composer} onSubmit={handlePost}>
         <div className={styles.kindTabs}>
           {[
-            { key: "post", label: `✍️ ${t("tabPost")}` },
-            { key: "poll", label: `📊 ${t("tabPoll")}` },
-            { key: "question", label: `❓ ${t("tabQuestion")}` },
-            { key: "win", label: `🏆 ${t("tabWin")}` },
+            { key: "post", icon: <PenSquare size={14} />, label: t("tabPost") },
+            { key: "poll", icon: <BarChart3 size={14} />, label: t("tabPoll") },
+            { key: "question", icon: <HelpCircle size={14} />, label: t("tabQuestion") },
+            { key: "win", icon: <Trophy size={14} />, label: t("tabWin") },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -820,7 +821,7 @@ const trimmed = text.trim();
               className={kind === tab.key ? styles.kindTabActive : styles.kindTab}
               onClick={() => setKind(tab.key)}
             >
-              {tab.label}
+              {tab.icon} {tab.label}
             </button>
           ))}
         </div>
@@ -1035,11 +1036,11 @@ const trimmed = text.trim();
                 <div>
                   <p className={styles.postAuthor}>
                     {post.authorName}
-                    {post.kind === "announcement" && <span className={styles.kindBadge}>📜 {t("announcement")}</span>}
-                    {post.kind === "poll" && <span className={styles.kindBadge}>📊 {t("tabPoll")}</span>}
-                    {post.kind === "question" && <span className={styles.kindBadge}>❓ {t("tabQuestion")}</span>}
-                    {post.kind === "win" && <span className={styles.kindBadge}>🏆 {t("tabWin")}</span>}
-                    {post.pinned && <span className={styles.pinnedBadge}>📌 {t("pinned")}</span>}
+                    {post.kind === "announcement" && <span className={styles.kindBadge}><ScrollText size={13} /> {t("announcement")}</span>}
+                    {post.kind === "poll" && <span className={styles.kindBadge}><BarChart3 size={13} /> {t("tabPoll")}</span>}
+                    {post.kind === "question" && <span className={styles.kindBadge}><HelpCircle size={13} /> {t("tabQuestion")}</span>}
+                    {post.kind === "win" && <span className={styles.kindBadge}><Trophy size={13} /> {t("tabWin")}</span>}
+                    {post.pinned && <span className={styles.pinnedBadge}><Pin size={13} /> {t("pinned")}</span>}
                   </p>
                   <p className={styles.postTime}>{timeAgo(post.createdAt)}</p>
                 </div>

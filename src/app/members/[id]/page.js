@@ -18,6 +18,7 @@ import MemberSafetyControls from "./MemberSafetyControls";
 import { getMemberSafety } from "@/lib/server/member-safety";
 import { listProjects } from "@/lib/server/projects";
 import styles from "./profile.module.css";
+import { Globe, Ruler, Palette, Scissors, MessageSquareText, Sparkles, Camera, Music2, MessageCircle, X, ShoppingBag, Pin, Link2, Medal, Heart } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -46,25 +47,25 @@ function formatJoined(value) {
 function commonalities(viewer, member) {
   const found = [];
   if (viewer.country && viewer.country === member.country) {
-    found.push({ icon: "🌍", label: `Both in ${member.country}` });
+    found.push({ icon: Globe, label: `Both in ${member.country}` });
   }
   if (viewer.goToYarn && viewer.goToYarn === member.goToYarn) {
-    found.push({ icon: "🧶", label: `Both love ${member.goToYarn}` });
+    found.push({ icon: Heart, label: `Both love ${member.goToYarn}` });
   }
   if (viewer.favoriteHookSize && viewer.favoriteHookSize === member.favoriteHookSize) {
-    found.push({ icon: "🪝", label: `Both use a ${member.favoriteHookSize}` });
+    found.push({ icon: Ruler, label: `Both use a ${member.favoriteHookSize}` });
   }
   if (Array.isArray(viewer.favoriteColors) && Array.isArray(member.favoriteColors)) {
     const overlap = viewer.favoriteColors.filter((c) => member.favoriteColors.includes(c));
     if (overlap.length > 0) {
-      found.push({ icon: "🎨", label: `${overlap.length} favorite ${overlap.length === 1 ? "color" : "colors"} in common` });
+      found.push({ icon: Palette, label: `${overlap.length} favorite ${overlap.length === 1 ? "color" : "colors"} in common` });
     }
   }
   if (Array.isArray(viewer.crafts) && Array.isArray(member.crafts)) {
     const overlap = viewer.crafts.filter((c) => member.crafts.includes(c));
     if (overlap.length > 0) {
       found.push({
-        icon: "🧵",
+        icon: Palette,
         label: `${overlap.length} shared ${overlap.length === 1 ? "craft" : "crafts"}: ${overlap.map((c) => CRAFT_LABELS[c] || c).join(", ")}`,
       });
     }
@@ -72,19 +73,19 @@ function commonalities(viewer, member) {
   if (Array.isArray(viewer.crochetTechniques) && Array.isArray(member.crochetTechniques)) {
     const overlap = viewer.crochetTechniques.filter((t) => member.crochetTechniques.includes(t));
     if (overlap.length > 0) {
-      found.push({ icon: "✂️", label: `${overlap.length} shared technique${overlap.length === 1 ? "" : "s"}` });
+      found.push({ icon: Scissors, label: `${overlap.length} shared technique${overlap.length === 1 ? "" : "s"}` });
     }
   }
   if (Array.isArray(viewer.crochetMotivation) && Array.isArray(member.crochetMotivation)) {
     const overlap = viewer.crochetMotivation.filter((m) => member.crochetMotivation.includes(m));
     if (overlap.length > 0) {
-      found.push({ icon: "💭", label: `${overlap.length} shared reason${overlap.length === 1 ? "" : "s"} you crochet` });
+      found.push({ icon: MessageSquareText, label: `${overlap.length} shared reason${overlap.length === 1 ? "" : "s"} you crochet` });
     }
   }
   for (const q of QUIZ_QUESTIONS) {
     const v = quizAnswerLabel(q, viewer);
     const m = quizAnswerLabel(q, member);
-    if (v && m && v === m) found.push({ icon: "✨", label: `Both picked “${m}”` });
+    if (v && m && v === m) found.push({ icon: Sparkles, label: `Both picked “${m}”` });
   }
   return found.slice(0, 6);
 }
@@ -241,16 +242,16 @@ const coverUrl = member.coverPhotoURL || "";
                     title={link.platform}
                   >
                     <span className={styles.socialIcon}>
-                      {link.platform === "instagram" && "📷"}
-                      {link.platform === "tiktok" && "🎵"}
+                      {link.platform === "instagram" && <Camera size={14} />}
+                      {link.platform === "tiktok" && <Music2 size={14} />}
                       {link.platform === "youtube" && "▶"}
-                      {link.platform === "facebook" && "👤"}
-                      {link.platform === "twitter" && "𝕏"}
-                      {link.platform === "etsy" && "🛍"}
-                      {link.platform === "pinterest" && "📌"}
+                      {link.platform === "facebook" && <MessageCircle size={14} />}
+                      {link.platform === "twitter" && <X size={14} />}
+                      {link.platform === "etsy" && <ShoppingBag size={14} />}
+                      {link.platform === "pinterest" && <Pin size={14} />}
                       {link.platform === "ravelry" && "🧶"}
-                      {link.platform === "website" && "🌐"}
-                      {link.platform === "other" && "🔗"}
+                      {link.platform === "website" && <Globe size={14} />}
+                      {link.platform === "other" && <Link2 size={14} />}
                     </span>
                     <span className={styles.socialLabel}>
                       {link.platform === "twitter" ? "X / Twitter" : link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
@@ -450,7 +451,7 @@ const coverUrl = member.coverPhotoURL || "";
             <ul className={styles.similarList}>
               {memberSimilarities.map((s, i) => (
                 <li key={i} className={styles.similarItem}>
-                  <span className={styles.similarIcon}>{s.icon}</span>
+                  <span className={styles.similarIcon}><s.icon size={16} /></span>
                   <span>{s.label}</span>
                 </li>
               ))}
@@ -499,7 +500,7 @@ const coverUrl = member.coverPhotoURL || "";
             <div className={styles.badgeGrid}>
               {earnedBadges.map((badge) => (
                 <div key={badge.code} className={styles.badge}>
-                  <span className={styles.badgeIcon}>🏅</span>
+                  <span className={styles.badgeIcon}><Medal size={16} /></span>
                   <p className={styles.badgeName}>{badge.name}</p>
                   <p className={styles.badgeDesc}>{badge.description}</p>
                 </div>

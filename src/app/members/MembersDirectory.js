@@ -9,6 +9,7 @@ import { countryNames } from "@/lib/profile/countries";
 import { composeLayout } from "./avatarLayout";
 import MembersMap from "./MembersMap";
 import styles from "./members.module.css";
+import { SlidersHorizontal, MapPin, MessageCircle } from "lucide-react";
 
 const TABS = [
   { key: "all", label: "All" },
@@ -305,7 +306,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
             aria-expanded={filtersOpen}
             aria-haspopup="true"
           >
-            <span className={styles.filtersToggleIcon} aria-hidden="true">⚙</span>
+            <span className={styles.filtersToggleIcon} aria-hidden="true"><SlidersHorizontal size={14} /></span>
             Filters
             {activeFilterCount > 0 && <span className={styles.filtersBadge}>{activeFilterCount}</span>}
           </button>
@@ -492,7 +493,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
           {hover.member.headline && <p className={styles.tooltipHeadline}>{hover.member.headline}</p>}
           {hover.member.bio && <p className={styles.tooltipBio}>{hover.member.bio}</p>}
           {hover.member.location && (
-            <p className={styles.tooltipLocation}>📍 {hover.member.location}</p>
+            <p className={styles.tooltipLocation}><MapPin size={12} /> {hover.member.location}</p>
           )}
           {hover.member.country && (
             <p className={styles.tooltipLocation}>{hover.member.country}</p>
@@ -542,7 +543,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
               href={`/chat?with=${hover.member.id}`}
               onClick={() => setHover(null)}
             >
-              💬 Message
+              <MessageCircle size={13} /> Message
             </Link>
             <Link
               className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}

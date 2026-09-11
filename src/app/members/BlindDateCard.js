@@ -93,7 +93,7 @@ export default function BlindDateCard() {
         </span>
       </Link>
       <p className={styles.blindDateNote}>
-        <span className={styles.blindDateNoteIcon}>✨</span> One new curated profile every 24 hours.
+        <span className={styles.blindDateNoteIcon}><Sparkles size={13} /></span> One new curated profile every 24 hours.
       </p>
     </div>
   );

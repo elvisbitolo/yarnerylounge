@@ -7,6 +7,7 @@ import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
 import ForYou from "./ForYou";
 import styles from "./discovery.module.css";
+import { Heart, MessageCircle } from "lucide-react";
 
 function money(cents) {
   return cents > 0 ? `$${(cents / 100).toFixed(2)}` : "";
@@ -133,7 +134,7 @@ export default function DiscoveryPage() {
                         {post.text || "(no text)"}
                       </span>
                       <span className={styles.listMeta}>
-                        {post.likeCount} ♥ · {post.commentCount} 💬
+                        {post.likeCount} <Heart size={13} /> · {post.commentCount} <MessageCircle size={13} />
                       </span>
                     </Link>
                   ))}

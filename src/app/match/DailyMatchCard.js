@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { HeartHandshake, MessageCircle, Check, X } from "lucide-react";
+import { HeartHandshake, MessageCircle, Check, X, Sparkles } from "lucide-react";
 import styles from "./match.module.css";
 import { initialsFor } from "./match-utils";
 
@@ -91,7 +91,7 @@ export default function DailyMatchCard({ dailyMatch, dailyDecision, onDecision, 
                 </Link>
               </div>
             )}
-            <p className={styles.matchNote}>✨ One new curated profile every 24 hours.</p>
+            <p className={styles.matchNote}><Sparkles size={13} /> One new curated profile every 24 hours.</p>
           </div>
         ) : (
           <p className={styles.statusLine}>No match yet — check back tomorrow.</p>

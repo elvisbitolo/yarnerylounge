@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { Globe } from "lucide-react";
 
 const LANGUAGES = [
   { code: "en", label: "English", flag: "🇬🇧" },
@@ -46,7 +47,7 @@ export default function LanguageSwitcher() {
           alignItems: "center",
         }}
       >
-        🌐
+        <Globe size={18} />
       </button>
       {open && (
         <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMembership } from "@/lib/membership";
 import {
   THEME_KEYS,
@@ -87,10 +87,15 @@ function ColorRow({ label, value, onChange }) {
 export default function ThemePanel() {
   const { membership, refresh } = useMembership();
   const [theme, setTheme] = useState(() => mergeTheme(DEFAULT_THEME, sanitizeTheme(membership?.theme)));
+  const [themeSource, setThemeSource] = useState(membership?.theme);
 
-  useEffect(() => {
-    setTheme((prev) => mergeTheme(DEFAULT_THEME, sanitizeTheme(membership?.theme)));
-  }, [membership?.theme]);
+  // Keep the swatches in sync when the saved theme arrives/changes. This is the
+  // React-recommended "adjust state during render" pattern (guarded, so it runs
+  // once) instead of setState inside an effect, which lint flags and re-renders.
+  if (membership?.theme !== themeSource) {
+    setThemeSource(membership?.theme);
+    setTheme(mergeTheme(DEFAULT_THEME, sanitizeTheme(membership?.theme)));
+  }
 
   function commit(next) {
     const t = sanitizeTheme(next);

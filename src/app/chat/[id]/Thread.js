@@ -5,6 +5,7 @@ import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "../chat.module.css";
 import tStyles from "./thread.module.css";
 import { renderRichText } from "@/lib/chat-render";
+import { Pin, Paperclip, Image as ImageIcon, Lock, Smile } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -442,7 +443,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
 
       {pinnedMessages.length > 0 && (
         <div className={tStyles.pinnedBar}>
-          <span className={tStyles.pinnedLabel}>📌 Pinned</span>
+          <span className={tStyles.pinnedLabel}><Pin size={12} /> Pinned</span>
           {pinnedMessages.slice(0, 3).map((p) => (
             <span key={p.id} className={tStyles.pinnedChip}>
               {(p?.senderName || "Member")}: …
@@ -488,7 +489,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
                     download={msg.attachment.name}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <span className={styles.fileIcon}>📎</span>
+                    <span className={styles.fileIcon}><Paperclip size={13} /></span>
                     <span className={styles.fileMeta}>
                       <span className={styles.fileName}>{msg.attachment.name}</span>
                       <span className={styles.fileSize}>
@@ -525,7 +526,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
                     className={msg.pinned ? tStyles.pinBtnActive : tStyles.replyBtn}
                     onClick={() => togglePin(msg)}
                   >
-                    {msg.pinned ? "📌 Pinned" : "📌 Pin"}
+                    {msg.pinned ? <><Pin size={10} /> Pinned</> : <><Pin size={10} /> Pin</>}
                   </button>
                   <button
                     type="button"
@@ -535,7 +536,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
                       setReactionsOpen(reactionsOpen === msg.id ? null : msg.id);
                     }}
                   >
-                    🙂
+<Smile size={14} />
                   </button>
                 </div>
                 )}
@@ -652,7 +653,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
       {attachment && (
         <div className={styles.attachPreview}>
           <span className={styles.attachPreviewIcon}>
-            {attachment.kind === "image" ? "🖼️" : "📎"}
+            {attachment.kind === "image" ? <ImageIcon size={13} /> : <Paperclip size={13} />}
           </span>
           <span className={styles.attachPreviewName}>{attachment.name}</span>
           <button
@@ -691,7 +692,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
           onClick={() => setShowEmoji((v) => !v)}
           aria-label="Add emoji"
         >
-          😊
+<Smile size={18} />
         </button>
         <button
           type="button"
@@ -699,7 +700,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
           onClick={() => fileRef.current?.click()}
           aria-label="Attach a file"
         >
-          📎
+          <Paperclip size={18} />
         </button>
         <textarea
           ref={inputRef}
@@ -730,7 +731,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
       </form>
       ) : (
         <div className={styles.upgradePrompt}>
-          <span>🔒</span>
+          <span><Lock size={16} /></span>
           <span>Upgrade to chat with the community!</span>
           <a
             className={styles.upgradePromptLink}

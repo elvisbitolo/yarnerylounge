@@ -1,4 +1,5 @@
 import styles from "./account.module.css";
+import { Flame } from "lucide-react";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -34,7 +35,7 @@ export default function StreakCard({ gamification }) {
       <div className={styles.streakStats}>
         <div className={styles.streakStat}>
           <span className={styles.streakNumber}>{streak}</span>
-          <span className={styles.streakLabel}>day streak 🔥</span>
+          <span className={styles.streakLabel}>day streak <Flame size={13} /></span>
         </div>
         <div className={styles.streakStat}>
           <span className={styles.streakNumber}>{bestStreak}</span>
@@ -54,7 +55,7 @@ export default function StreakCard({ gamification }) {
                 day.active ? `${styles.streakDay} ${styles.streakDayActive}` : styles.streakDay
               }
             >
-              {day.active ? "🔥" : ""}
+              {day.active ? <Flame size={14} /> : null}
             </span>
           </div>
         ))}
