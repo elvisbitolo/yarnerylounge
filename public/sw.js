@@ -1,7 +1,20 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v4";
+const VERSION = "v5";
+
+// Minimal doctype'd offline shell. The SW must ALWAYS hand respondWith() a real
+// Response — resolving it with null/undefined makes the browser throw
+// "Failed to load ''. A ServiceWorker intercepted the request..." and can leave
+// the rendered page in Quirks Mode (no <!DOCTYPE html>).
+const OFFLINE_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title></head><body style="font-family:system-ui,sans-serif;text-align:center;padding:3rem 1rem"><h1>You're offline</h1><p>Please reconnect and try again.</p></body></html>`;
+
+const offlineResponse = () =>
+  new Response(OFFLINE_HTML, {
+    status: 503,
+    statusText: "Service Unavailable",
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -39,8 +52,14 @@ self.addEventListener("fetch", (event) => {
   // Only a real 200 for the exact URL is worth caching. Following a redirect
   // to /login or /signup caches that auth shell under the requested URL, which
   // later gets served offline and looks like the app is stuck reloading.
-  const isCacheable = (response) =>
-    response.ok && new URL(response.url).pathname === new URL(request.url).pathname;
+  const isCacheable = (response) => {
+    if (!response || !response.ok) return false;
+    try {
+      return new URL(response.url).pathname === new URL(request.url).pathname;
+    } catch {
+      return false;
+    }
+  };
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -52,8 +71,13 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() =>
-          caches.match(request).then((cached) => cached || caches.match("/"))
+        .then(
+          (response) => response || offlineResponse(),
+          () =>
+            caches.match(request).then((cached) => {
+              if (cached) return cached;
+              return caches.match("/");
+            }).then((cached) => cached || offlineResponse())
         )
     );
     return;
