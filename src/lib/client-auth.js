@@ -252,13 +252,24 @@ export async function logout() {
 
 export async function refreshSession() {
   const { data } = await supabaseBrowser.auth.getSession();
-  if (data?.session?.access_token) {
-    return refreshSupabaseSession();
+  if (!data?.session?.access_token) {
+    const user = supabaseBrowser.auth.getUser()?.user;
+    if (!user) return false;
+    forgetCachedMembership(user.id);
+    return false;
   }
-  const user = supabaseBrowser.auth.getUser()?.user;
-  if (!user) return false;
-  forgetCachedMembership(user.id);
-  return false;
+  const refreshed = await refreshSupabaseSession();
+  if (!refreshed) return false;
+  // Refresh succeeding is not proof the account is usable (a suspended or
+  // deleted member's tokens rotate fine). Re-verify against /api/me so this
+  // path can never bounce a dead session back into /signing-in.
+  try {
+    const me = await fetch("/api/me", { cache: "no-store" });
+    const meData = await me.json().catch(() => ({}));
+    return me.ok && !!meData?.uid;
+  } catch {
+    return false;
+  }
 }
 
 // "Auth wall" healer: the httpOnly session cookie holds a Supabase access token

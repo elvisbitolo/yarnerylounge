@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v3";
+const VERSION = "v4";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -124,10 +124,10 @@ export default function ThemePanel() {
   }
 
   function applyFont(percent) {
-    // The app styles in px, so html{font-size:%} only scales the rare rem/em
-    // values and looks broken. `zoom` scales px text everywhere (standard in
-    // Chrome/Safari/Firefox) so the control actually does something.
-    document.documentElement.style.zoom = percent === 100 ? "" : (percent / 100).toString();
+    // Text-only scaling. Setting html{font-size} affects rem/em text without
+    // zooming the whole page — zooming <html> shrinks the layout width too,
+    // which made the site look 3/4 in Firefox when A- was pressed.
+    document.documentElement.style.fontSize = percent === 100 ? "" : `${percent}%`;
     try {
       if (percent === 100) localStorage.removeItem(FONT_KEY);
       else localStorage.setItem(FONT_KEY, percent.toString());

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/server/auth";
-import { parseSessionCookie, serializeSupabaseCookie } from "@/lib/server/auth-core";
+import { parseSessionCookie, serializeSupabaseCookie, mapSupabaseUser } from "@/lib/server/auth-core";
 import { assertSameOrigin } from "@/lib/server/same-origin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
 // Rotates the Supabase access + refresh tokens stored in the session cookie and
@@ -42,6 +43,37 @@ export async function POST(req) {
       });
       return res;
     }
+
+    // A successful rotation must still not resurrect an account that a server
+    // page would refuse. Suspended or deleted members get a 401 that clears the
+    // cookie instead of fresh tokens — otherwise every /login -> /signing-in ->
+    // /dashboard bounce stays "valid-looking" to refresh but dead to
+    // getCurrentUser, which is exactly the reload loop people see on mobile.
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        const identity = mapSupabaseUser(data.session.user);
+        const row = await prisma.user.findUnique({
+          where: { id: identity.uid },
+          select: { id: true, suspended: true },
+        });
+        if (!row || row.suspended) {
+          const res = NextResponse.json({ error: "account_unavailable" }, { status: 401 });
+          res.cookies.set(AUTH_COOKIE, "", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 0,
+          });
+          return res;
+        }
+      } catch (err) {
+        // Fail open on DB errors: a brief outage must not log members out.
+        logError("auth.refresh_db_check_failed", { error: err.message });
+      }
+    }
+
     const res = NextResponse.json({ ok: true, uid: data.session.user.id });
     res.cookies.set(
       AUTH_COOKIE,

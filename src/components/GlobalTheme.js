@@ -44,7 +44,7 @@ export default function GlobalTheme() {
       /* ignore */
     }
     if (saved !== 100) {
-      document.documentElement.style.zoom = (saved / 100).toString();
+      document.documentElement.style.fontSize = `${saved}%`;
     }
   }, []);
 
