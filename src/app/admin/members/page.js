@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
+import ConfirmModal from "@/components/ConfirmModal";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import styles from "../rooms/admin.module.css";
 
@@ -13,6 +14,8 @@ export default function AdminMembersPage() {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("member");
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(null);
+  const [delBusy, setDelBusy] = useState(false);
 
   const loadMembers = useCallback(async () => {
     const res = await fetch("/api/admin/members");
@@ -51,21 +54,30 @@ export default function AdminMembersPage() {
     await loadMembers();
   }
 
-  async function deleteMember(member) {
+  function requestDelete(member) {
     setError("");
-    const ok = window.confirm(
-      `Delete ${member.name || "this member"} permanently?\n\nThis removes their account, posts, and all data. This can't be undone.`
-    );
-    if (!ok) return;
-    const res = await fetch(`/api/admin/members/${member.id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Delete failed");
-      return;
+    setDeleting(member);
+  }
+
+  async function confirmDelete() {
+    const member = deleting;
+    if (!member) return;
+    setDelBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/members/${member.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Delete failed");
+        return;
+      }
+      await loadMembers();
+    } finally {
+      setDeleting(null);
+      setDelBusy(false);
     }
-    await loadMembers();
   }
 
   const q = query.trim().toLowerCase();
@@ -167,7 +179,7 @@ export default function AdminMembersPage() {
                   <button
                     className={styles.delete}
                     style={{ height: 36, padding: "0 14px", fontSize: 13 }}
-                    onClick={() => deleteMember(member)}
+                    onClick={() => requestDelete(member)}
                   >
                     Delete
                   </button>
@@ -178,6 +190,16 @@ export default function AdminMembersPage() {
           </div>
         )}
       </div>
+      <ConfirmModal
+        open={!!deleting}
+        title="Delete member"
+        message={`Delete ${deleting?.name || "this member"} permanently?\n\nThis removes their account, posts, and all data. This can't be undone.`}
+        confirmLabel="Delete"
+        busy={delBusy}
+        busyLabel="Deleting…"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
 </Nav>
   );
 }

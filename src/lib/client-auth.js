@@ -267,18 +267,29 @@ export async function refreshSession() {
 // refresh token first — if the session is alive we get straight into the app,
 // otherwise we fall through to the form.
 export async function reconcileSessionCookie() {
-  try {
-    const me = await fetch("/api/me", { cache: "no-store" });
-    if (me.ok) {
+  const meHasUid = async () => {
+    try {
+      const me = await fetch("/api/me", { cache: "no-store" });
+      if (!me.ok) return false;
       const data = await me.json().catch(() => ({}));
-      if (data?.uid) return true;
+      return !!data?.uid;
+    } catch {
+      return false;
     }
-  } catch {
-    // Fall through to the refresh attempt below.
-  }
+  };
+
+  // Only trust the cookie when /api/me actually accepts it. A successful
+  // /api/auth/refresh alone is NOT proof of a usable session — suspended/
+  // deleted accounts refresh fine but getCurrentUser keeps refusing them, so
+  // trusting refresh.ok would bounce /signing-in <-> /dashboard <-> /login
+  // forever (auto-reloading the tab).
+  const needsRefresh = !(await meHasUid());
+  if (!needsRefresh) return true;
+
   try {
     const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
-    return refreshed.ok;
+    if (!refreshed.ok) return false;
+    return meHasUid();
   } catch {
     return false;
   }

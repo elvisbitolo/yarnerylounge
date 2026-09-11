@@ -1,0 +1,100 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border: 1px solid #e6e6ef;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.45);
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #17171c;
+  margin: 0 0 10px;
+}
+
+.message {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4a4a5a;
+  margin: 0 0 22px;
+  white-space: pre-line;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancel {
+  height: 38px;
+  padding: 0 16px;
+  background: #ffffff;
+  border: 1px solid #d8d8e3;
+  border-radius: 8px;
+  color: #34344a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.cancel:hover:not(:disabled) {
+  border-color: var(--primary, #2563eb);
+  color: var(--primary, #2563eb);
+}
+
+.danger {
+  height: 38px;
+  padding: 0 16px;
+  background: #b91c1c;
+  border: 1px solid #b91c1c;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+.confirm {
+  height: 38px;
+  padding: 0 16px;
+  background: var(--primary, #2563eb);
+  border: 1px solid var(--primary, #2563eb);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.confirm:hover:not(:disabled) {
+  background: var(--primary-hover, #1d4ed8);
+}
+
+.cancel:disabled,
+.danger:disabled,
+.confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

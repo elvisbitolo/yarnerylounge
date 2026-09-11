@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ConfirmModal from "@/components/ConfirmModal";
 import styles from "./portfolio.module.css";
 
 const INITIAL = { title: "", description: "", craft: "", projectType: "", yarnDetails: "", hookSize: "", status: "active", featured: false };
@@ -11,6 +12,7 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(null);
 
   function update(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -49,8 +51,10 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
     }
   }
 
-  async function remove(projectId) {
-    if (!window.confirm("Delete this project from your portfolio?")) return;
+  async function confirmDelete() {
+    const projectId = deleting;
+    if (!projectId) return;
+    setDeleting(null);
     const response = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
     if (response.ok) setProjects((prev) => prev.filter((project) => project.id !== projectId));
   }
@@ -108,7 +112,7 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
                   {project.description && <p className={styles.description}>{project.description}</p>}
                   <div className={styles.cardActions}>
                     <select aria-label={`Status for ${project.title}`} value={project.status} onChange={(e) => changeStatus(project, e.target.value)}><option value="active">In progress</option><option value="completed">Completed</option><option value="archived">Archived</option></select>
-                    <button type="button" onClick={() => remove(project.id)}>Delete</button>
+                    <button type="button" onClick={() => setDeleting(project.id)}>Delete</button>
                   </div>
                 </div>
               </article>
@@ -116,6 +120,14 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
           </div>
         )}
       </section>
+      <ConfirmModal
+        open={!!deleting}
+        title="Delete project"
+        message="Delete this project from your portfolio?"
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </main>
   );
 }
