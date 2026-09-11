@@ -133,8 +133,8 @@ function BottomNav({ t }) {
   const pathname = usePathname();
   const items = [
     { href: "/dashboard", label: t("home"), icon: "home", show: true },
-    { href: "/community", label: t("community"), icon: "community", show: true },
-    { href: "/rooms", label: t("rooms"), icon: "rooms", show: true },
+    { href: "/community", label: t("footerCommunity"), icon: "community", show: true },
+    { href: "/rooms", label: t("footerLounges"), icon: "rooms", show: true },
     { href: "/neighbourhoods", label: t("neighbourhoods"), icon: "neighbourhoods", show: true },
   ];
   const visible = items.filter((i) => i.show);
