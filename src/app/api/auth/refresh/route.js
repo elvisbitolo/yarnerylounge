@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { AUTH_COOKIE, SESSION_MAX_AGE_SECONDS, rotateCookieSession } from "@/lib/server/auth";
-import { serializeSupabaseCookie } from "@/lib/server/auth-core";
+import { cookies } from "next/headers";
+import { AUTH_COOKIE } from "@/lib/server/auth";
+import { parseSessionCookie } from "@/lib/server/auth-core";
+import { resolveSession } from "@/lib/server/session-store";
 import { assertSameOrigin } from "@/lib/server/same-origin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 
-// Rotates the Supabase access + refresh tokens stored in the session cookie and
-// writes the fresh pair back, so an expired access token (Supabase access
-// tokens default to ~1h) never strands a signed-in member. Refresh tokens are
-// single-use, so this route is the ONLY consumer of the stored refresh token —
-// getCurrentUser never refreshes (server components cannot write cookies).
+// Confirms the httpOnly session cookie still resolves to a live server-side
+// session. Rotation happens inside resolveSession against the Session table,
+// so this endpoint never needs to rewrite the cookie — the browser's sid stays
+// stable for the whole 14-day sliding window.
 export async function POST(req) {
   const crossOrigin = assertSameOrigin(req);
   if (crossOrigin) return crossOrigin;
@@ -17,16 +18,10 @@ export async function POST(req) {
   const limited = rateLimitGuard(`refresh-ip:${ip}`, { limit: 60 });
   if (limited) return limited;
 
-  const rotated = await rotateCookieSession();
+  const sid = parseSessionCookie((await cookies()).get(AUTH_COOKIE)?.value)?.sid;
+  const resolved = sid ? await resolveSession(sid) : null;
 
-  if (!rotated) {
-    // No cookie at all — nothing to rotate. Valid access tokens needing no
-    // rotation have nowhere to go here, which is expected: callers only POST
-    // this route when they suspect the session is stale.
-    return NextResponse.json({ error: "not_supabase_session" }, { status: 400 });
-  }
-
-  if (rotated.error === "expired") {
+  if (!resolved?.identity) {
     const res = NextResponse.json({ error: "session_expired" }, { status: 401 });
     res.cookies.set(AUTH_COOKIE, "", {
       httpOnly: true,
@@ -38,32 +33,5 @@ export async function POST(req) {
     return res;
   }
 
-  if (rotated.error === "unavailable") {
-    const res = NextResponse.json({ error: "account_unavailable" }, { status: 401 });
-    res.cookies.set(AUTH_COOKIE, "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-    return res;
-  }
-
-  const res = NextResponse.json({ ok: true, uid: rotated.identity.uid });
-  res.cookies.set(
-    AUTH_COOKIE,
-    serializeSupabaseCookie({
-      access: rotated.access,
-      refresh: rotated.refresh,
-    }),
-    {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_MAX_AGE_SECONDS,
-    }
-  );
-  return res;
+  return NextResponse.json({ ok: true, uid: resolved.identity.uid });
 }

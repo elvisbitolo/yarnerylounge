@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/server/auth";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
-import { serializeSupabaseCookie } from "@/lib/server/auth-core";
+import { serializeSessionCookie } from "@/lib/server/auth-core";
 import { assertSameOrigin } from "@/lib/server/same-origin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
 import { verifySupabaseToken } from "@/lib/server/auth";
+import { createSession } from "@/lib/server/session-store";
 import { getPrisma } from "@/lib/db/prisma";
 
 export async function POST(req) {
@@ -143,13 +144,19 @@ export async function POST(req) {
       }
     }
 
+    const sid = await createSession({
+      uid: identity.uid,
+      accessToken: supabaseToken,
+      refreshToken: supabaseRefreshToken || null,
+    });
+    if (!sid) {
+      throw new Error("session row not created");
+    }
+
     const res = NextResponse.json({ ok: true, uid: identity.uid, isNewUser });
     res.cookies.set(
       AUTH_COOKIE,
-      serializeSupabaseCookie({
-        access: supabaseToken,
-        refresh: supabaseRefreshToken || null,
-      }),
+      serializeSessionCookie(sid),
       {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",

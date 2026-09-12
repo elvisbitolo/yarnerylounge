@@ -4,13 +4,15 @@ import {
   parseJwtPayload,
   supabaseProjectRef,
   isSupabaseAccessJwt,
-  serializeSupabaseCookie,
+  serializeSessionCookie,
   parseSessionCookie,
   mapSupabaseUser,
+  identityFromAccessToken,
+  SESSION_MAX_AGE_SECONDS,
 } from "../auth-core.js";
 
-function makeAccessJwt(ref = "pwdopgyvkfsxxcuanoml", role = "authenticated", iss = `https://${ref}.supabase.co/auth/v1`) {
-  const payload = Buffer.from(JSON.stringify({ iss, ref, role, iat: 1788743998, exp: 2104319998 })).toString(
+function makeAccessJwt(ref = "pwdopgyvkfsxxcuanoml", role = "authenticated", iss = `https://${ref}.supabase.co/auth/v1`, extra = {}) {
+  const payload = Buffer.from(JSON.stringify({ iss, ref, role, iat: 1788743998, exp: 2104319998, ...extra })).toString(
     "base64url"
   );
   return `not.${payload}.sig`;
@@ -55,18 +57,62 @@ test("isSupabaseAccessJwt rejects wrong role, ref or garbage", () => {
   assert.equal(isSupabaseAccessJwt("not.a.jwt"), false);
 });
 
-test("session cookie serialization round-trips", () => {
-  const cookie = serializeSupabaseCookie({ access: "abc.def.ghi", refresh: "refresh-token" });
-  assert.deepEqual(parseSessionCookie(cookie), { access: "abc.def.ghi", refresh: "refresh-token" });
+test("session cookie serialization round-trips the opaque sid", () => {
+  const cookie = serializeSessionCookie("sid-123");
+  assert.deepEqual(parseSessionCookie(cookie), { sid: "sid-123" });
 });
 
-test("parseSessionCookie tolerates no refresh and legacy cookies", () => {
-  const cookie = serializeSupabaseCookie({ access: "abc" });
-  assert.deepEqual(parseSessionCookie(cookie), { access: "abc", refresh: null });
+test("parseSessionCookie rejects legacy and malformed cookies", () => {
+  assert.equal(parseSessionCookie('{"v":1,"a":"abc","r":"refresh"}'), null);
   assert.equal(parseSessionCookie("eyJfbGFjeS1sZWdhY3ktZmlyZWJhc2U"), null);
   assert.equal(parseSessionCookie("{not json"), null);
+  assert.equal(parseSessionCookie('{"v":2,"s":""}'), null);
+  assert.equal(parseSessionCookie('{"v":1,"s":"sid"}'), null);
   assert.equal(parseSessionCookie(""), null);
   assert.equal(parseSessionCookie(null), null);
+});
+
+test("identityFromAccessToken maps claims to the identity shape", () => {
+  const token = makeAccessJwt("pwdopgyvkfsxxcuanoml", "authenticated", `https://pwdopgyvkfsxxcuanoml.supabase.co/auth/v1`, {
+    sub: "uuid-1",
+    email: "Sam@Example.com",
+    email_verified: true,
+    user_metadata: { name: "Sam", avatar_url: "https://img/a.png" },
+  });
+  const identity = identityFromAccessToken(token);
+  assert.equal(identity.uid, "uuid-1");
+  assert.equal(identity.email, "Sam@Example.com");
+  assert.equal(identity.email_verified, true);
+  assert.equal(identity.name, "Sam");
+  assert.equal(identity.photoURL, "https://img/a.png");
+  assert.equal(identity.role, "member");
+});
+
+test("identityFromAccessToken handles unverified + metadata-less claims", () => {
+  const token = makeAccessJwt("pwdopgyvkfsxxcuanoml", "authenticated", `https://pwdopgyvkfsxxcuanoml.supabase.co/auth/v1`, {
+    sub: "uuid-2",
+    email: "jo@ex.com",
+    email_verified: false,
+    user_metadata: {},
+  });
+  const identity = identityFromAccessToken(token);
+  assert.equal(identity.uid, "uuid-2");
+  assert.equal(identity.email_verified, false);
+  assert.equal(identity.name, "jo");
+  assert.equal(identity.photoURL, "");
+});
+
+test("identityFromAccessToken tolerates missing sub and garbage", () => {
+  const noSub = makeAccessJwt("pwdopgyvkfsxxcuanoml", "authenticated", `https://pwdopgyvkfsxxcuanoml.supabase.co/auth/v1`, {
+    email: "jo@ex.com",
+  });
+  assert.equal(identityFromAccessToken(noSub), null);
+  assert.equal(identityFromAccessToken(null), null);
+  assert.equal(identityFromAccessToken("not.a.jwt"), null);
+});
+
+test("SESSION_MAX_AGE_SECONDS is the rolling 14-day window", () => {
+  assert.equal(SESSION_MAX_AGE_SECONDS, 60 * 60 * 24 * 14);
 });
 
 test("mapSupabaseUser produces the expected identity shape", () => {

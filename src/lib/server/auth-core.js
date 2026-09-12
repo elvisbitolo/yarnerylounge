@@ -39,25 +39,27 @@ export function isSupabaseAccessJwt(token, ref) {
   return true;
 }
 
-// Serializes a Supabase session reference into the value stored in the
-// httpOnly session cookie. The refresh token (when present) is kept for the
-// future /api/auth/refresh endpoint; access tokens expire on their own.
-export function serializeSupabaseCookie(session) {
-  return JSON.stringify({
-    v: 1,
-    a: session.access || "",
-    r: session.refresh || null,
-  });
+// Rolling session length. Every server-side refresh extends the session, so a
+// signed-in member is never logged out by inactivity; only explicit sign-out
+// (or an account that has been revoked/deleted) ends it.
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
+
+// Serializes the opaque session id into the value stored in the httpOnly
+// session cookie. The Supabase tokens themselves live server-side in the
+// Session table (v2), never in the browser cookie.
+export function serializeSessionCookie(sid) {
+  return JSON.stringify({ v: 2, s: sid });
 }
 
-// Parses the cookie back into { access, refresh } — or null when the cookie is
-// not a Supabase session value.
+// Parses the cookie back into { sid } — or null when the cookie is missing,
+// malformed, or a legacy v1 Supabase-token cookie (which must be recreated via
+// the login flow).
 export function parseSessionCookie(value) {
   if (!value) return null;
   try {
     const parsed = JSON.parse(value);
-    if (parsed && typeof parsed.a === "string" && parsed.a) {
-      return { access: parsed.a, refresh: parsed.r || null };
+    if (parsed && parsed.v === 2 && typeof parsed.s === "string" && parsed.s) {
+      return { sid: parsed.s };
     }
     return null;
   } catch {
@@ -81,4 +83,19 @@ export function mapSupabaseUser(user) {
     photoURL: user.user_metadata?.avatar_url || user.user_metadata?.picture || "",
     role: "member",
   };
+}
+
+// Maps identity straight from a Supabase access-token payload (sub/email/
+// email_verified/user_metadata are embedded in the JWT claims), so the shared
+// session fast path needs no network round-trip to Supabase Auth.
+export function identityFromAccessToken(access) {
+  const payload = parseJwtPayload(access);
+  if (!payload?.sub) return null;
+  const meta = payload.user_metadata || {};
+  return mapSupabaseUser({
+    id: payload.sub,
+    email: payload.email || "",
+    email_confirmed_at: payload.email_verified ? new Date().toISOString() : null,
+    user_metadata: meta,
+  });
 }

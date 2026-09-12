@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listDueQuestions, postScheduledQuestion, advanceQuestion } from "@/lib/server/questions";
+import { cleanupExpiredSessions } from "@/lib/server/session-store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -23,5 +24,5 @@ export async function GET(req) {
     }
   }
 
-  return NextResponse.json({ posted });
+  return NextResponse.json({ posted, sweptSessions: await cleanupExpiredSessions() });
 }

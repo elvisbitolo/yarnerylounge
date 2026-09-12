@@ -172,10 +172,13 @@ export async function signupWithEmail(name, email, password) {
   await checkPaidSignup(email);
   await signupWithSupabaseEmail(name, email, password);
   const { data } = supabaseBrowser.auth.getSession();
-  const supabaseToken = data?.session?.access_token;
-  if (supabaseToken) {
+  if (data?.session?.access_token) {
     try {
-      await createSession({ supabaseToken, name });
+      await createSession({
+        supabaseToken: data.session.access_token,
+        supabaseRefreshToken: data.session.refresh_token || undefined,
+        name,
+      });
     } catch {
       // Best-effort.
     }

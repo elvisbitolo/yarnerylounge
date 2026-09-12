@@ -68,6 +68,7 @@ model User {
   updatedAt              DateTime? @updatedAt
 
   subscription           Subscription?
+  sessions               Session[]
   gamification           Gamification?
   pushSubscription       PushSubscription?
   purchases              Purchase[]
@@ -145,6 +146,24 @@ model Subscription {
   user User? @relation(fields: [id], references: [id])
 
   @@index([userId])
+}
+
+model Session {
+  id           String    @id // opaque session id stored in the httpOnly cookie (v2)
+  userId       String
+  accessToken  String // Supabase access token; replaced server-side on expiry
+  refreshToken String // single-use Supabase refresh token, guarded by advisory lock
+  familyId     String   // stable per device for reuse detection
+  expiresAt    DateTime // sliding: extended SESSION_MAX_AGE_SECONDS on each refresh
+  lastSeenAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  revokedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
 }
 
 model Follow {

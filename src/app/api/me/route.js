@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   AUTH_COOKIE,
-  SESSION_MAX_AGE_SECONDS,
   getCurrentUser,
   getUserDoc,
-  rotateCookieSession,
 } from "@/lib/server/auth";
-import { serializeSupabaseCookie } from "@/lib/server/auth-core";
 import { normalizeProfile } from "@/lib/server/profile";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getGamification } from "@/lib/server/gamification";
@@ -39,25 +36,21 @@ const PROFILE_COLUMNS = new Set([
 ]);
 
 export async function GET() {
-  let user = await getCurrentUser();
-  let rotated = null;
+  // getCurrentUser resolves the opaque session cookie against the Postgres
+  // Session store and refreshes the access token server-side when needed, so a
+  // stale access token never reads as signed-out.
+  const user = await getCurrentUser();
   if (!user) {
-    // Access token expired but a refresh token exists? Rotate server-side and
-    // write the fresh cookie so a stale access token never reads as signed-out.
-    rotated = await rotateCookieSession();
-    if (rotated && !rotated.error) user = rotated.identity;
-  }
-  if (!user) {
+    // Genuinely gone (revoked / past the sliding window) — clear the cookie so
+    // the client stops treating this sid as a live session.
     const res = NextResponse.json({ error: "Not signed in" }, { status: 401 });
-    if (rotated?.error) {
-      res.cookies.set(AUTH_COOKIE, "", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 0,
-      });
-    }
+    res.cookies.set(AUTH_COOKIE, "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
     return res;
   }
   const userDoc = await getUserDoc(user.uid);
@@ -105,21 +98,6 @@ export async function GET() {
       : null,
   };
 
-  if (rotated) {
-    const res = NextResponse.json(payload);
-    res.cookies.set(
-      AUTH_COOKIE,
-      serializeSupabaseCookie({ access: rotated.access, refresh: rotated.refresh }),
-      {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: SESSION_MAX_AGE_SECONDS,
-      }
-    );
-    return res;
-  }
   return NextResponse.json(payload);
 }
 
