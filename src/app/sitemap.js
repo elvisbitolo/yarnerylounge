@@ -1,11 +1,12 @@
 import { getExploreData } from "@/lib/server/explore";
+import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap() {
-  const base = "https://yarnerylounge.vercel.app";
+  const base = CANONICAL_ORIGIN;
 
-  const staticRoutes = ["/signup", "/login", "/about", "/guidelines"].map(
+  const staticRoutes = ["/signup", "/login", "/about", "/guidelines", "/terms"].map(
     (path) => ({
       url: `${base}${path}`,
       lastModified: new Date(),

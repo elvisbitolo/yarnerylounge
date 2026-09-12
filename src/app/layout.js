@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, Assistant } from "next/font/google";
 import { cookies } from "next/headers";
+import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import PushSetup from "@/components/PushSetup";
@@ -24,7 +25,7 @@ const assistant = Assistant({
 });
 
 export const metadata = {
-  metadataBase: new URL("https://yarnerylounge.vercel.app"),
+  metadataBase: new URL(CANONICAL_ORIGIN),
   title: {
     default: "Secret Yarnery",
     template: "%s — Secret Yarnery",
@@ -58,7 +59,7 @@ export const metadata = {
     images: ["/og-image.png"],
   },
   alternates: {
-    canonical: "https://yarnerylounge.vercel.app",
+    canonical: CANONICAL_ORIGIN,
   },
 };
 

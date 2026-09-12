@@ -1,7 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /admin/
-Disallow: /api/
-Disallow: /dashboard/
-
-Sitemap: https://yarnerylounge.vercel.app/sitemap.xml

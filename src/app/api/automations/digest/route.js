@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/server/email";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+const SITE_BASE = process.env.NEXT_PUBLIC_APP_URL || CANONICAL_ORIGIN;
 
 function escapeHtml(str) {
   return String(str || "")
@@ -106,13 +108,13 @@ export async function POST(req) {
         <h2 style="font-size:16px;color:#333;padding:24px 16px 8px;margin:0;">Upcoming Events</h2>
         <table style="width:100%;border-collapse:collapse;">${eventsHtml}</table>
         <div style="padding:20px 16px;text-align:center;">
-          <a href="https://yarnerylounge.vercel.app/feed" style="color:#7c3aed;font-size:14px;font-weight:600;text-decoration:none;">Visit community &rarr;</a>
+          <a href="${SITE_BASE}/feed" style="color:#7c3aed;font-size:14px;font-weight:600;text-decoration:none;">Visit community &rarr;</a>
         </div>
       </div>
     </div>`;
 
   const textParts = [];
-  textParts.push("=== THIS WEEK AT VIDNETWORK ===\n");
+  textParts.push("=== THIS WEEK AT SECRET YARNERY ===\n");
   textParts.push("Top Posts:");
   topPosts.forEach((p, i) => {
     textParts.push(`  ${i + 1}. ${p.author} (${p.likes} likes): ${p.text.slice(0, 100)}`);
@@ -121,7 +123,7 @@ export async function POST(req) {
   upcomingEvents.forEach((e) => {
     textParts.push(`  - ${e.title} | ${e.date} | ${e.location}`);
   });
-  textParts.push(`\nVisit: https://yarnerylounge.vercel.app/feed`);
+  textParts.push(`\nVisit: ${SITE_BASE}/feed`);
 
   let usersForDigest = [];
   try {

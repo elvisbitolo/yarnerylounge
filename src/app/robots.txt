@@ -11,4 +11,4 @@ Disallow: /feed
 Disallow: /members
 Disallow: /match
 
-Sitemap: https://yarnerylounge.vercel.app/sitemap.xml
+Sitemap: https://www.christasspeakeasy.com/sitemap.xml

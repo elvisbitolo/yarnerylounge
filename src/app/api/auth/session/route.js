@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/server/auth";
+import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import { serializeSupabaseCookie } from "@/lib/server/auth-core";
 import { assertSameOrigin } from "@/lib/server/same-origin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
@@ -119,7 +120,7 @@ export async function POST(req) {
             `- Courses with lessons and progress tracking\n` +
             `- Events with RSVPs and reminders\n` +
             `- Groups, spaces, direct messages and a community feed\n\n` +
-            `To start exploring: ${process.env.NEXT_PUBLIC_APP_URL || ""}/explore\n\n` +
+            `To start exploring: ${process.env.NEXT_PUBLIC_APP_URL || CANONICAL_ORIGIN}/explore\n\n` +
             `We're glad you're here.\n\n— The Secret Yarnery Team`,
         }).catch((err) => {
           logError("email.welcome_failed", { uid: identity.uid, error: err.message });

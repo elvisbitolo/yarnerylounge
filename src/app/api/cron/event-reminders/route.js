@@ -3,6 +3,7 @@ import { sendEmail } from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notifications";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
+import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,7 +16,7 @@ export async function GET(req) {
 
   const now = new Date();
   const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://yarnerylounge.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || CANONICAL_ORIGIN;
 
   const prisma = getPrisma();
   const events = await prisma.event.findMany({
