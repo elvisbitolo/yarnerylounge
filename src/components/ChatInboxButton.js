@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MessageCircle, Search, X } from "lucide-react";
+import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import styles from "./ChatInboxButton.module.css";
 
 function timeLabel(millis) {
@@ -18,24 +19,46 @@ export default function ChatInboxButton() {
   const [filter, setFilter] = useState("all");
   const [summary, setSummary] = useState({ unread: 0, conversations: [] });
   const panelRef = useRef(null);
+  const buttonRef = useRef(null);
+  const panelId = "chat-inbox-panel";
 
   useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const response = await fetch("/api/chat/summary", { cache: "no-store" });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (active) setSummary({ unread: Number(data.unread) || 0, conversations: Array.isArray(data.conversations) ? data.conversations : [] });
-      } catch {
-        // The inbox remains usable through the full Chat page if this refresh fails.
+    let cleanup = null;
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (cleanup) cleanup();
+      cleanup = null;
+      if (!user) {
+        setSummary({ unread: 0, conversations: [] });
+        setOpen(false);
+        return;
       }
-    };
-    load();
-    const timer = setInterval(load, 20_000);
+      let active = true;
+      let timer = null;
+      const load = async () => {
+        try {
+          const response = await fetch("/api/chat/summary", { cache: "no-store" });
+          if (!response.ok) return;
+          const data = await response.json();
+          if (active) setSummary({ unread: Number(data.unread) || 0, conversations: Array.isArray(data.conversations) ? data.conversations : [] });
+        } catch {
+          // The inbox remains usable through the full Chat page if this refresh fails.
+        }
+      };
+      const onVisible = () => {
+        if (document.visibilityState === "visible") load();
+      };
+      document.addEventListener("visibilitychange", onVisible);
+      load();
+      timer = setInterval(load, 20_000);
+      cleanup = () => {
+        active = false;
+        if (timer) clearInterval(timer);
+        document.removeEventListener("visibilitychange", onVisible);
+      };
+    });
     return () => {
-      active = false;
-      clearInterval(timer);
+      unsubAuth();
+      if (cleanup) cleanup();
     };
   }, []);
 
@@ -44,30 +67,45 @@ export default function ChatInboxButton() {
     const close = (event) => {
       if (!panelRef.current?.contains(event.target)) setOpen(false);
     };
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   const visible = filter === "unread"
     ? summary.conversations.filter((conversation) => conversation.lastMessageAt > (conversation.lastReadAt || 0))
     : summary.conversations;
 
+  const unreadLabel = summary.unread > 99 ? "99+" : summary.unread;
+
   return (
     <div className={styles.wrap} ref={panelRef}>
       <button
+        ref={buttonRef}
         type="button"
         className={styles.button}
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        aria-label={summary.unread ? `Chat, ${summary.unread} unread` : "Chat"}
+        aria-haspopup="dialog"
+        aria-controls={open ? panelId : undefined}
+        aria-label={summary.unread > 0 ? `Chat, ${unreadLabel} unread` : "Chat"}
         title="Chat"
       >
         <MessageCircle size={19} />
-        {summary.unread > 0 && <span className={styles.badge}>{summary.unread > 99 ? "99+" : summary.unread}</span>}
+        {summary.unread > 0 && <span className={styles.badge}>{unreadLabel}</span>}
       </button>
 
       {open && (
-        <section className={styles.panel} aria-label="Chat inbox">
+        <section id={panelId} className={styles.panel} aria-label="Chat inbox">
           <div className={styles.panelHeader}>
             <div>
               <p className={styles.eyebrow}>Messages</p>
@@ -78,8 +116,8 @@ export default function ChatInboxButton() {
             </button>
           </div>
           <div className={styles.filters} role="tablist" aria-label="Chat filters">
-            <button type="button" className={filter === "all" ? styles.filterActive : styles.filter} onClick={() => setFilter("all")}>All</button>
-            <button type="button" className={filter === "unread" ? styles.filterActive : styles.filter} onClick={() => setFilter("unread")}>Unread{summary.unread > 0 ? ` · ${summary.unread}` : ""}</button>
+            <button type="button" className={filter === "all" ? styles.filterActive : styles.filter} onClick={() => setFilter("all")} aria-pressed={filter === "all"}>All</button>
+            <button type="button" className={filter === "unread" ? styles.filterActive : styles.filter} onClick={() => setFilter("unread")} aria-pressed={filter === "unread"}>Unread{summary.unread > 0 ? ` · ${summary.unread}` : ""}</button>
           </div>
           {visible.length === 0 ? (
             <div className={styles.empty}>
@@ -96,7 +134,7 @@ export default function ChatInboxButton() {
                   <span className={styles.itemBody}>
                     <span className={styles.itemTop}>
                       <strong>{title}</strong>
-                      <time>{timeLabel(conversation.lastMessageAt)}</time>
+                      <time dateTime={conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toISOString() : undefined}>{timeLabel(conversation.lastMessageAt)}</time>
                     </span>
                     <span className={styles.preview}>{conversation.lastMessage || "Say hello!"}</span>
                   </span>

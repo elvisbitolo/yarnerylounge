@@ -21,6 +21,12 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.button:focus-visible,
+.close:focus-visible {
+  outline: 2px solid #ff8db4;
+  outline-offset: 2px;
+}
+
 .badge {
   position: absolute;
   top: 1px;
@@ -201,4 +207,18 @@
 
 .viewAll:hover {
   background: rgba(233, 30, 99, 0.1);
+}
+
+/* On narrow screens the popover must never overhang the viewport. The chat
+   button sits left of the language + profile menus, so anchoring the panel
+   to it pushes it off the left edge; anchor to the viewport instead. */
+@media (max-width: 700px) {
+  .panel {
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100vh - 80px);
+  }
 }
