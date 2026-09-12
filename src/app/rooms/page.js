@@ -93,11 +93,11 @@ export default async function RoomsPage() {
           )}
         </div>
         <p className={styles.subtitle}>
-          Four always-on video lounge rooms — pick your vibe and join the crafters already inside.
+          Four always lounges — pick your vibe and join the crafters already inside.
         </p>
 
         {featuredRooms.length === 0 ? (
-          <p className={styles.empty}>The lounge rooms are being prepped — check back in a moment.</p>
+          <p className={styles.empty}>The lounges are being prepped — check back in a moment.</p>
         ) : (
           <div className={styles.grid}>
             {featuredRooms.map((room) => {
