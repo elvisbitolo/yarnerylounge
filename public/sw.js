@@ -1,7 +1,13 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v6";
+const VERSION = "v7";
+
+// NEVER touch API requests: a cached /api/me JSON that carries a uid replays
+// long after the session cookie is gone, which makes reconcileSessionCookie()
+// on /login + /signing-in believe a dead session is alive and bounce them in an
+// infinite login <-> signing-in reload loop.
+const isApiRequest = (url) => new URL(url).pathname.startsWith("/api/");
 
 // Minimal doctype'd offline shell. The SW must ALWAYS hand respondWith() a real
 // Response — resolving it with null/undefined makes the browser throw
@@ -48,6 +54,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || !request.url.startsWith(self.location.origin)) return;
+  if (isApiRequest(request.url)) return;
 
   // Only a real 200 for the exact URL is worth caching. Following a redirect
   // to /login or /signup caches that auth shell under the requested URL, which
