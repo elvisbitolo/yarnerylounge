@@ -3,7 +3,9 @@ import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
 import { deleteMemberData } from "@/lib/server/delete-member-data";
-import { logError } from "@/lib/server/log";
+import { logError, logInfo } from "@/lib/server/log";
+
+const SUPABASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function PATCH(req, { params }) {
   const { id } = await params;
@@ -88,12 +90,15 @@ export async function DELETE(req, { params }) {
   }
 
   try {
-    const { default: supabaseAdmin } = await import("@/lib/supabase/service");
-    await supabaseAdmin.auth.admin.deleteUser(id);
-  } catch (err) {
-    if (err.status !== 404) {
-      return NextResponse.json({ error: "Failed to delete account" }, { status: 500 });
+    if (SUPABASE_UUID.test(id)) {
+      const { default: supabaseAdmin } = await import("@/lib/supabase/service");
+      await supabaseAdmin.auth.admin.deleteUser(id);
+    } else {
+      logInfo("admin.members.delete_legacy_uid_skipped", { uid: id });
     }
+  } catch (err) {
+    logError("admin.members.delete_supabase_failed", { uid: id, error: err.message });
+    return NextResponse.json({ error: "Failed to delete account" }, { status: 500 });
   }
 
   try {
