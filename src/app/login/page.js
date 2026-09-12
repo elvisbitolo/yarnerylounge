@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import {
+  completePasswordRecovery,
   completeSupabaseGoogle,
+  isPasswordRecovery,
   loginWithGoogle,
   loginWithSupabaseEmail,
   reconcileSessionCookie,
@@ -19,6 +21,16 @@ import styles from "../auth.module.css";
 
 const LANDING_URL =
   process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";
+
+function subscribeRecovery() {
+  return () => {};
+}
+function getRecoverySnapshot() {
+  return isPasswordRecovery();
+}
+function getServerRecoverySnapshot() {
+  return false;
+}
 
 function BrandMark() {
   return (
@@ -42,16 +54,27 @@ export default function LoginPage() {
   const [resetSent, setResetSent] = useState(false);
   const [verifyNotice, setVerifyNotice] = useState("");
   const [resent, setResent] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Landed from the password-reset email? The Supabase recovery session lives
+  // in the URL hash — show the "choose a new password" form instead of the
+  // login form. useSyncExternalStore keeps hydration clean (server renders the
+  // login shell; the client swaps to the recovery form afterwards).
+  const recovering = useSyncExternalStore(
+    subscribeRecovery,
+    getRecoverySnapshot,
+    getServerRecoverySnapshot
+  );
 
   // Already signed in? Bounce straight into the app instead of re-showing the
   // auth form (the "auth wall"). If the cookie's access token has expired, the
   // reconcile helper rotates it via /api/auth/refresh first, so a live session
   // never strands a member on the form. Skipped on the Google OAuth /
-  // session-refresh return paths, where the page's own finalizer handles the
-  // session.
+  // session-refresh / password-recovery paths, where the page's own handler
+  // deals with the session.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has("session_refresh") || params.has("provider")) return;
+    if (params.has("session_refresh") || params.has("provider") || isPasswordRecovery()) return;
     let cancelled = false;
     (async () => {
       const signedIn = await reconcileSessionCookie();
@@ -177,6 +200,97 @@ export default function LoginPage() {
     } finally {
       setBusy("");
     }
+  }
+
+  async function handleRecovery(e) {
+    e.preventDefault();
+    setError("");
+    if (password.length < 8) {
+      setError(t("passwordTooShort"));
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError(t("passwordsMismatch"));
+      return;
+    }
+    setBusy("recovery");
+    try {
+      const ok = await completePasswordRecovery(password);
+      if (ok) {
+        // Full reload so the fresh session cookie is read server-side.
+        window.location.assign("/signing-in");
+      } else {
+        setError(t("recoveryInvalid"));
+      }
+    } catch (err) {
+      setError(err.message || t("recoveryInvalid"));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  if (recovering) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.authContainer}>
+          <div className={styles.authForm}>
+            <a className={styles.backLink} href={LANDING_URL}>
+              ← {t("backToLanding")}
+            </a>
+            <p className={styles.brand}><a className={styles.brandLink} href={LANDING_URL}>
+              <Image src="/brand/secretyarnery-logo.webp" alt="" width={90} height={28} className={styles.brandLogo} />
+              <span className={styles.brandWord}>Secret Yarnery</span>
+            </a></p>
+            <h1 className={styles.title}>{t("chooseNewPassword")}</h1>
+            <p className={styles.subtitle}>{t("recoveryDesc")}</p>
+
+            {error && <p className={styles.error}>{error}</p>}
+
+            <form onSubmit={handleRecovery}>
+              <PasswordInput
+                id="new-password"
+                label={t("newPassword")}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+              <PasswordInput
+                id="confirm-password"
+                label={t("confirmPassword")}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                showRules={false}
+              />
+              <button className={styles.submit} type="submit" disabled={!!busy}>
+                {busy === "recovery" ? t("signingIn") : t("updatePassword")}
+              </button>
+            </form>
+
+            <p className={styles.footer}>
+              <a
+                className={styles.link}
+                href="/login"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.assign("/login");
+                }}
+              >
+                {t("backToSignIn")}
+              </a>
+            </p>
+          </div>
+          <AuthAside />
+        </div>
+
+        {busy && (
+          <div className={styles.loadOverlay} role="status" aria-live="polite">
+            <div className={styles.spinner} />
+            <p className={styles.loadText}>{t("signingIn")}</p>
+          </div>
+        )}
+      </main>
+    );
   }
 
   if (forgotPassword) {

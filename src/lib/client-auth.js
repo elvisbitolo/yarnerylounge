@@ -229,6 +229,32 @@ export async function sendPasswordReset(email) {
   if (error) throw supabaseError(error);
 }
 
+// True when the current URL carries the Supabase password-recovery tokens
+// (the reset email's link lands on {APP_URL}/login#access_token=...&type=recovery).
+export function isPasswordRecovery() {
+  if (typeof window === "undefined") return false;
+  const hash = window.location.hash.replace(/^#/, "");
+  return new URLSearchParams(hash).get("type") === "recovery";
+}
+
+// Completes a password reset: sets the new password on the recovery session,
+// then exchanges the Supabase session for the httpOnly cookie so the member
+// lands straight inside the app without signing in again.
+export async function completePasswordRecovery(newPassword) {
+  const { error } = await supabaseBrowser.auth.updateUser({ password: newPassword });
+  if (error) throw supabaseError(error);
+
+  const { data } = await supabaseBrowser.auth.getSession();
+  const session = data?.session;
+  if (!session?.access_token) return false;
+
+  await createSession({
+    supabaseToken: session.access_token,
+    supabaseRefreshToken: session.refresh_token || undefined,
+  });
+  return true;
+}
+
 export async function resendSignupVerification(email) {
   const { error } = await supabaseBrowser.auth.resend({
     type: "signup",

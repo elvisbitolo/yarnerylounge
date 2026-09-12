@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getSubscription } from "@/lib/server/subscription";
 import { subscriptionStatus } from "@/lib/server/billing";
+import { isOpenAccess } from "@/lib/server/access-policy";
 import ExpiredPanel from "./ExpiredPanel";
 import styles from "./plan-expired.module.css";
 
@@ -10,6 +11,10 @@ export const dynamic = "force-dynamic";
 export default async function PlanExpiredPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  // While open access is on, tiers do not apply — a signed-in member is always
+  // admitted, so the renewal screen is never shown.
+  if (isOpenAccess()) redirect("/dashboard");
 
   const userDoc = await getUserDoc(user.uid);
   const plan = userDoc?.plan || "flirting";

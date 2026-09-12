@@ -52,14 +52,10 @@ export async function getAccessSub(uid) {
     return { status: "active", tier: "moving-in", planName: "moving-in", isStaffAccess: true };
   }
 
-  const sub = await getSubscription(uid);
-  if (sub && isActiveSubLogic(sub)) {
-    return sub;
-  }
-
   // Open-access mode: everyone is admitted until there are enough paying
-  // members to flip the gate on. Unsubscribed members load as the open-access
-  // plan instead of the view-only Flirting sub.
+  // members to flip the gate on. This takes precedence over even an existing
+  // subscription row so NO member is demoted to a paid/flirting tier while the
+  // community is still ramping up — "tiers do not apply" until flipped off.
   if (isOpenAccess()) {
     const openPlan = openAccessPlan();
     return {
@@ -70,6 +66,11 @@ export async function getAccessSub(uid) {
       planName: openPlan,
       isOpenAccess: true,
     };
+  }
+
+  const sub = await getSubscription(uid);
+  if (sub && isActiveSubLogic(sub)) {
+    return sub;
   }
 
   return FREE_ACCESS_SUB;

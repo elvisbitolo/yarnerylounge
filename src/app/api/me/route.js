@@ -7,6 +7,7 @@ import {
 import { normalizeProfile } from "@/lib/server/profile";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getGamification } from "@/lib/server/gamification";
+import { isOpenAccess } from "@/lib/server/access-policy";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -62,8 +63,10 @@ export async function GET() {
         : new Date(userDoc.expiresAt).getTime())
     : 0;
   const plan = userDoc?.plan || "flirting";
+  // While open access is on, tiers do not apply: a member with a lapsed paid
+  // plan is never "expired" and is never sent to /plan-expired.
   const isExpired =
-    plan !== "flirting" && expiresAt > 0 && expiresAt < Date.now();
+    !isOpenAccess() && plan !== "flirting" && expiresAt > 0 && expiresAt < Date.now();
 
   const payload = {
     uid: user.uid,
