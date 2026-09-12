@@ -9,7 +9,7 @@ import { PrismaClient } from "../../generated/prisma/client";
 //
 // Construction is lazy (via getPrisma) and returns null when no connection
 // string is configured, so importing this module never crashes a route — callers
-// decide how to degrade (see blind-date.js for the Firestore fallback pattern).
+// decide how to degrade.
 const globalForPrisma = globalThis;
 
 function databaseUrl() {

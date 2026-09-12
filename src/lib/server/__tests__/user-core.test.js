@@ -53,7 +53,7 @@ test("mapUserRow: null stays null and empty row keeps active-shaped defaults", (
   assert.equal(u.expiresAt, 0);
 });
 
-test("mapUserRow: full row maps to Firestore doc shape with epoch-millis timestamps", () => {
+test("mapUserRow: full row maps to doc shape with epoch-millis timestamps", () => {
   const ts = new Date("2025-02-01T00:00:00Z");
   const row = {
     id: "u1",

@@ -2,7 +2,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
 export async function deleteDocs() {
-  // Firestore batch-delete helper — no longer needed after Prisma migration.
+  // Legacy batch-delete helper — no longer needed after the Prisma migration.
 }
 
 export async function deleteWhere(collectionPath, field, value) {
@@ -32,7 +32,7 @@ export async function deleteWhere(collectionPath, field, value) {
 }
 
 export async function deleteSubcollection() {
-  // Firestore subcollection delete — no longer needed after Prisma migration.
+  // Legacy subcollection delete — no longer needed after the Prisma migration.
 }
 
 export async function deletePostWithComments(postRef) {

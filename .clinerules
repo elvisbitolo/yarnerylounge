@@ -2,4 +2,4 @@ CRITICAL TOOL RESTRICTION:
 - You do NOT have a tool named 'shell'. 
 - Whenever you need to execute a command, you MUST use the tool 'run_commands'. 
 - Never suggest using 'shell'. Always use 'run_commands'.
-- We are currently migrating to Supabase + Prisma.
+- Supabase (Postgres/Prisma) + Vercel is the sole backend — no Firebase.

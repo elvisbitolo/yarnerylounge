@@ -1,5 +1,5 @@
 // Pure helpers for the rooms storage cutover — no I/O, unit-testable.
-// See rooms.js for the storage layer (Prisma-first, Firestore fallback).
+// See rooms.js for the storage layer (Prisma-backed).
 
 export function mapRoomRow(row) {
   if (!row) return null;

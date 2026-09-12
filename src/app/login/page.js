@@ -84,8 +84,7 @@ export default function LoginPage() {
     }
     if (params.has("provider")) {
       // Returned from the Google OAuth redirect; exchange the Supabase session
-      // for the httpOnly cookie (legacy Firebase Google members are linked
-      // server-side) and reload into the app.
+      // for the httpOnly cookie and reload into the app.
       let cancelled = false;
       (async () => {
         try {

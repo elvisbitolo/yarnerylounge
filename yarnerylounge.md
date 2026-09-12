@@ -51,9 +51,8 @@ Firebase is fully removed — app code, dependencies and config:
 - `src/lib/server/auth.js`: Supabase-only. `verifySupabaseToken` uses the service
   role `getUser`; the access JWT is pre-filtered by `isSupabaseAccessJwt`
   (checks `role === "authenticated"` and the `iss = https://<ref>.supabase.co/auth/v1` ref).
-- `mapSupabaseUser` resolves a migrated member's original uid via
-  `app_metadata.firebase_uid` (falls back to the Supabase `user.id`), so legacy
-  members keep their existing Postgres rows on first login.
+- `mapSupabaseUser` uses the Supabase `user.id` as the uid (verified: 0 auth
+  users carry `app_metadata.firebase_uid`, so no legacy mapping is needed).
 - **Bug fixed**: `isSupabaseAccessJwt` previously required `iss === "supabase"`
   and rejected every real Supabase access token — restored correct issuer
   matching in `auth-core.js`.
@@ -64,8 +63,11 @@ Firebase is fully removed — app code, dependencies and config:
   `set-owner.mjs` + `create-owner.mjs` rewritten as Supabase +
   pg-based (`create-owner` creates the Supabase user, Postgres `User` row
   (`role = 'owner'`) and an open-access `Subscription`).
-- Remaining `firebase` string matches are intentional: `app_metadata.firebase_uid`
-  mapping and a URL-validation test.
+- Last pass (2026-09-11): `app_metadata.firebase_uid` fallback removed from
+  `auth-core.js`/`auth-client.js`; `src/app/api/auth/migrate/route.js` deleted;
+  `firebase.json`, `.firebaserc`, `firestore.rules`, `firestore.indexes.json`
+  deleted; `FIREBASE_*`/`NEXT_PUBLIC_FIREBASE_*` env vars removed from
+  `.env.local` and Vercel; `ci.yml` and `.gitignore` firebase entries removed.
 
 ## LiveKit removal (done)
 

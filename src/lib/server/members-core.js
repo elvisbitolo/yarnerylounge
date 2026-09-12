@@ -1,5 +1,5 @@
 // Pure helpers for the user/members storage cutover — no I/O, unit-testable.
-// See members.js for the storage layer (Prisma-first, Firestore fallback).
+// See members.js for the storage layer (Prisma-backed).
 
 export function mapUserRow(row) {
   if (!row) return null;

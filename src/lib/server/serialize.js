@@ -12,15 +12,15 @@ export function serialize(value) {
     if (typeof value.toMillis === "function") return value.toMillis();
     if (value instanceof Date) return value.getTime();
     if (typeof value.toDate === "function") return value.toDate().getTime();
-    // Firestore Blob
+    // Blob
     if (typeof value.toBase64 === "function") {
       return { _type: "blob", base64: value.toBase64() };
     }
-    // Firestore GeoPoint
+    // GeoPoint
     if (typeof value.latitude === "number" && typeof value.longitude === "number") {
       return { _type: "geopoint", latitude: value.latitude, longitude: value.longitude };
     }
-    // Firestore DocumentReference
+    // DocumentReference
     if (typeof value.path === "string" && typeof value.id === "string") {
       return value.path;
     }

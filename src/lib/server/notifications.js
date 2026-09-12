@@ -23,7 +23,7 @@ function toMillisValue(v) {
   return new Date(v);
 }
 
-// Maps a Prisma Notification row to the Firestore-doc shape consumers expect.
+// Maps a Prisma Notification row to the doc shape consumers expect.
 function mapNotificationRow(row) {
   if (!row) return null;
   return {

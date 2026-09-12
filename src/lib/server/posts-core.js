@@ -12,8 +12,8 @@ function millis(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-// Maps a Prisma Post row (or Firestore post doc) to the serialized post shape
-// API consumers expect (timestamps as epoch millis).
+// Maps a Prisma Post row to the serialized post shape API consumers expect
+// (timestamps as epoch millis).
 export function mapPostRow(row) {
   if (!row) return null;
   return {

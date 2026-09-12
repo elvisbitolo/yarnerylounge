@@ -133,7 +133,7 @@ test("isValidImageUrl: empty is allowed", () => {
 });
 
 test("isValidImageUrl: accepts http(s) absolute URLs", () => {
-  assert.equal(isValidImageUrl("https://firebasestorage.googleapis.com/v0/b/x/o/photo.png"), true);
+  assert.equal(isValidImageUrl("https://example.com/photo.png"), true);
   assert.equal(isValidImageUrl("http://example.com/a.png"), true);
 });
 

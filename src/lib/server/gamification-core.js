@@ -1,5 +1,5 @@
 // Pure helpers for the gamification storage cutover — no I/O, unit-testable.
-// See gamification.js for the storage layer (Prisma-first, Firestore fallback).
+// See gamification.js for the storage layer (Prisma-backed).
 
 export function mapGamificationRow(row) {
   if (!row) return null;

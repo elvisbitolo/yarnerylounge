@@ -4,8 +4,8 @@ import { toMillis } from "@/lib/server/user-core";
 const PAID_PLANS = new Set(["hooking-up", "moving-in"]);
 
 // Derives a cheap, read-efficient membership snapshot from the user doc only.
-// This mirrors getCapabilities (subscription doc) but needs a single Firestore
-// read, so global providers/badges never fan out queries per component.
+// This mirrors getCapabilities (subscription doc) with a single read, so global
+// providers/badges never fan out queries per component.
 export function deriveMembership(userDoc, now = Date.now()) {
   const plan = userDoc?.plan || "flirting";
   const role = userDoc?.role || "member";

@@ -7,7 +7,7 @@ test("serializeTimestamp: null and undefined stay null", () => {
   assert.equal(serializeTimestamp(undefined), null);
 });
 
-test("serializeTimestamp: Firestore-like Timestamp serializes to millis", () => {
+test("serializeTimestamp: Timestamp-like object serializes to millis", () => {
   const ts = { toMillis: () => 1234567890 };
   assert.equal(serializeTimestamp(ts), 1234567890);
 });

@@ -6,7 +6,7 @@ import { logError } from "@/lib/server/log";
 export const dynamic = "force-dynamic";
 
 // Single, cached read that the client MembershipProvider consumes instead of
-// hitting Firestore per component. Falls back to the free "Flirting" profile
+// hitting the DB per component. Falls back to the free "Flirting" profile
 // on any server error so badges/locked CTAs never crash the app.
 export async function GET() {
   try {

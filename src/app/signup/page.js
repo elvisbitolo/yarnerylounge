@@ -81,7 +81,7 @@ export default function SignupPage() {
     (async () => {
       const refreshed = await refreshSession();
       if (!cancelled && refreshed) {
-        // Full reload so server-rendered pages read the fresh Firestore doc.
+        // Full reload so server-rendered pages read the fresh session cookie.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
         window.location.assign("/signing-in");
       }
@@ -94,8 +94,7 @@ export default function SignupPage() {
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("provider")) return;
     // Returned from the Google OAuth redirect; exchange the Supabase session
-    // for the httpOnly cookie (legacy Firebase Google members are linked
-    // server-side) and reload into the app.
+    // for the httpOnly cookie and reload into the app.
     let cancelled = false;
     (async () => {
       try {

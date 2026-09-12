@@ -35,7 +35,7 @@ export function isStaff(userDoc) {
 export async function getAccessSub(uid) {
   let userDoc = null;
   // Staff role lives on the users collection; read Postgres first (the ETL
-  // mirrors it), Firestore stays the fallback.
+  // mirrors it).
   try {
     const prisma = getPrisma();
     if (prisma) {

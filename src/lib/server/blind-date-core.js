@@ -1,12 +1,11 @@
 // Pure decision logic for the Daily Blind Date — no I/O, so it can be unit
-// tested with node:test. See blind-date.js for the storage layer (Prisma-first
-// with a Firestore fallback while the Supabase migration rolls out).
+// tested with node:test. See blind-date.js for the storage layer (Prisma-backed).
 
 export function dayKeyFor(ts = Date.now()) {
   return new Date(ts).toISOString().slice(0, 10);
 }
 
-// Firestore-style composite key: one pick per user per day.
+// Composite key: one pick per user per day.
 export function hashingKey(uid, date = "") {
   return `${uid}:${date}`;
 }

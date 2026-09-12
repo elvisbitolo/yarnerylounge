@@ -92,15 +92,15 @@ test("mapSupabaseUser covers unverified + metadata-less users", () => {
   assert.equal(mapped.photoURL, "");
 });
 
-test("mapSupabaseUser resolves a migrated member's original uid", () => {
+test("mapSupabaseUser uses Supabase uid, not legacy firebase_uid", () => {
   const mapped = mapSupabaseUser({
     id: "supabase-uuid-9",
     email: "sam@example.com",
     email_confirmed_at: "2025-01-01T00:00:00Z",
     user_metadata: { name: "Sam" },
-    app_metadata: { firebase_uid: "legacy-firebase-uid" },
+    app_metadata: { firebase_uid: "ignored-legacy-uid" },
   });
-  assert.equal(mapped.uid, "legacy-firebase-uid");
+  assert.equal(mapped.uid, "supabase-uuid-9");
   assert.equal(mapped.email_verified, true);
 });
 

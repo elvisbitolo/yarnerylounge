@@ -1,10 +1,10 @@
 // Pure mapping helpers for the User storage cutover — no I/O, unit-testable.
-// Converts a Prisma `User` row back into the exact Firestore-doc shape that the
+// Converts a Prisma `User` row back into the exact doc shape that the
 // rest of the server layer expects (getCurrentUser/getUserDoc consume this).
 // All timestamps are emitted as epoch millis (like members-core.js), so
-// consumers must handle both number and Firestore Timestamp — see toMillis.
+// consumers must handle number, Date and string timestamps — see toMillis.
 
-// Normalizes any Firestore/Timestamp/Date/number/string into epoch millis.
+// Normalizes any Date/string/number into epoch millis.
 export function toMillis(value) {
   if (value == null) return 0;
   if (typeof value.toMillis === "function") return value.toMillis();
@@ -77,7 +77,7 @@ export function mapUserRow(row) {
 }
 
 // True when a paid plan's expiresAt has lapsed. Timestamp-agnostic so it works
-// for both Firestore docs (Timestamp) and Prisma-mapped rows (number ms).
+// for dates stored as Timestamps, Dates, or epoch-millis numbers.
 export function isPaidPlanExpired(
   userDoc,
   now = Date.now(),

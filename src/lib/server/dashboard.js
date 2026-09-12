@@ -59,7 +59,7 @@ export async function getCommunityActivity(uid, role, memberships, limit = 5) {
     rows = [];
   }
 
-  const firestorePosts = rows.map((r) => ({
+  const serializedPosts = rows.map((r) => ({
     id: r.id,
     authorId: r.authorId,
     authorName: r.authorName || "Member",
@@ -74,7 +74,7 @@ export async function getCommunityActivity(uid, role, memberships, limit = 5) {
   const spaceIds = new Set();
   const groupIds = new Set();
   const visible = [];
-  for (const post of firestorePosts) {
+  for (const post of serializedPosts) {
     if (!canReadPostServer(post, uid, role, memberships)) continue;
     visible.push(post);
     if (post.spaceId) spaceIds.add(post.spaceId);

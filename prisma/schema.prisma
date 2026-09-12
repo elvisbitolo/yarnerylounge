@@ -1,7 +1,5 @@
-// Prisma schema mirroring the Firestore data model of Secret Yarnery.
-// Each Firestore collection becomes a Postgres table; sub-collections become
-// top-level models with a parent FK. Maps => Json (jsonb), arrays of strings
-// => String[] (text[]), Firestore Timestamps/Date => DateTime.
+// Prisma schema for Secret Yarnery (Postgres). Maps => Json (jsonb), arrays of
+// strings => String[] (text[]), Dates => DateTime.
 
 generator client {
   provider = "prisma-client"
@@ -16,7 +14,6 @@ datasource db {
 // Identity, members & billing
 // ---------------------------------------------------------------------------
 
-// Firestore: users/{uid} (doc id = Supabase/Firebase auth uid; prepaid
 // placeholders are keyed by email and deleted after real provisioning).
 model User {
   id                     String    @id
@@ -123,7 +120,6 @@ typing                 Typing[]
   roomPresence           RoomPresence[]
 }
 
-// Firestore: subscriptions/{uid} (one active subscription per user).
 model Subscription {
   id                String    @id
   userId            String?
@@ -151,7 +147,6 @@ model Subscription {
   @@index([userId])
 }
 
-// Firestore: follows/{followerId_followingId}
 model Follow {
   id          String   @id
   followerId  String
@@ -166,7 +161,6 @@ model Follow {
   @@unique([followerId, followingId])
 }
 
-// Firestore: notifications/{id}
 model Notification {
   id        String    @id @default(cuid())
   userId    String
@@ -186,7 +180,6 @@ model Notification {
   @@index([userId, createdAt(sort: Desc)])
 }
 
-// Firestore: pushSubscriptions/{uid}
 model PushSubscription {
   id        String    @id
   userId    String
@@ -203,7 +196,6 @@ model PushSubscription {
 // Community feed (posts, comments, polls, articles)
 // ---------------------------------------------------------------------------
 
-// Firestore: posts/{id}
 model Post {
   id              String    @id @default(cuid())
   authorId        String
@@ -241,7 +233,6 @@ model Post {
   @@index([lastActivityAt(sort: Desc)])
 }
 
-// Firestore: posts/{postId}/comments (subcollection)
 model PostComment {
   id         String    @id @default(cuid())
   postId     String
@@ -257,7 +248,6 @@ model PostComment {
   @@index([postId, createdAt(sort: Asc)])
 }
 
-// Firestore: pollVotes/{postId_uid}
 model PollVote {
   id        String   @id
   postId    String
@@ -271,7 +261,6 @@ model PollVote {
   @@unique([postId, userId])
 }
 
-// Firestore: articles/{id}
 model Article {
   id          String    @id @default(cuid())
   title       String
@@ -291,7 +280,6 @@ model Article {
   @@index([authorId, createdAt(sort: Desc)])
 }
 
-// Firestore: articles/{id}/comments (subcollection)
 model ArticleComment {
   id         String    @id @default(cuid())
   articleId  String
@@ -306,7 +294,6 @@ model ArticleComment {
   @@index([articleId, createdAt(sort: Asc)])
 }
 
-// Firestore: stickers/{id}
 model Sticker {
   id        String    @id @default(cuid())
   fromUid   String
@@ -324,7 +311,6 @@ model Sticker {
   @@index([fromUid, createdAt(sort: Asc)])
 }
 
-// Firestore: recognitions/{id}
 model Recognition {
   id        String    @id @default(cuid())
   fromUid   String
@@ -345,7 +331,6 @@ model Recognition {
 // Groups, spaces & neighborhoods
 // ---------------------------------------------------------------------------
 
-// Firestore: groups/{id}
 model Group {
   id          String    @id @default(cuid())
   name        String
@@ -375,7 +360,6 @@ model Group {
   @@index([createdBy])
 }
 
-// Firestore: groupMembers/{groupId_uid}
 model GroupMember {
   id       String    @id
   groupId  String
@@ -391,7 +375,6 @@ model GroupMember {
   @@index([userId])
 }
 
-// Firestore: groupTopics/{groupId_topicKey}
 model GroupTopic {
   id              String    @id
   groupId         String
@@ -410,7 +393,6 @@ model GroupTopic {
   @@unique([groupId, key])
 }
 
-// Firestore: topicThreads/{id}
 model TopicThread {
   id              String    @id @default(cuid())
   groupId         String
@@ -433,7 +415,6 @@ model TopicThread {
   @@index([authorId])
 }
 
-// Firestore: topicReplies/{id}
 model TopicReply {
   id         String    @id @default(cuid())
   threadId   String
@@ -451,7 +432,6 @@ model TopicReply {
   @@index([groupId])
 }
 
-// Firestore: spaces/{id}
 model Space {
   id                String    @id @default(cuid())
   name              String
@@ -481,7 +461,6 @@ model Space {
   @@index([createdBy])
 }
 
-// Firestore: spaceMembers/{spaceId_uid}
 model SpaceMember {
   id        String    @id
   spaceId   String
@@ -497,7 +476,6 @@ model SpaceMember {
   @@index([userId])
 }
 
-// Firestore: collections/{id} (admin-curated bundles of spaces)
 model SpaceCollection {
   id          String    @id @default(cuid())
   name        String
@@ -516,7 +494,6 @@ model SpaceCollection {
 // Live video rooms
 // ---------------------------------------------------------------------------
 
-// Firestore: rooms/{id}
 model Room {
   id               String      @id @default(cuid())
   name             String
@@ -561,7 +538,6 @@ model Room {
   @@index([groupId])
 }
 
-// Firestore: rooms/{roomId}/messages (subcollection)
 model RoomMessage {
   id          String       @id @default(cuid())
   roomId      String
@@ -587,7 +563,6 @@ model RoomMessage {
   @@index([userId])
 }
 
-// Firestore: rooms/{roomId}/signals (subcollection)
 model RoomSignal {
   id           String    @id @default(cuid())
   roomId       String
@@ -605,7 +580,6 @@ model RoomSignal {
   @@index([roomId, createdAt(sort: Desc)])
 }
 
-// Firestore: roomEvents/{id}
 model RoomEvent {
   id        String    @id @default(cuid())
   userId    String
@@ -641,7 +615,6 @@ model RoomPresence {
 // Direct/group/space chat
 // ---------------------------------------------------------------------------
 
-// Firestore: conversations/{id}
 model Conversation {
   id             String     @id @default(cuid())
   type           String     // dm | group | space
@@ -667,7 +640,6 @@ model Conversation {
   @@index([spaceId])
 }
 
-// Firestore: conversations/{id}/messages (subcollection)
 model ConversationMessage {
   id             String    @id @default(cuid())
   conversationId String
@@ -690,7 +662,6 @@ model ConversationMessage {
   @@index([senderId])
 }
 
-// Firestore: typing/{conversationId_uid}
 model Typing {
   id             String    @id
   conversationId String
@@ -708,7 +679,6 @@ model Typing {
 // Events, calendar & availability
 // ---------------------------------------------------------------------------
 
-// Firestore: events/{id}
 model Event {
   id                 String     @id @default(cuid())
   title              String
@@ -735,7 +705,6 @@ model Event {
   @@index([spaceId])
 }
 
-// Firestore: rsvps/{eventId|occurrenceId_uid}
 model Rsvp {
   id            String    @id
   eventId       String
@@ -751,7 +720,6 @@ model Rsvp {
   @@index([userId])
 }
 
-// Firestore: availability/{id} (calendar open slots)
 model Availability {
   id          String    @id @default(cuid())
   userId      String
@@ -774,7 +742,6 @@ model Availability {
   @@index([startAt])
 }
 
-// Firestore: availabilityRsvps/{availabilityId_uid}
 model AvailabilityRsvp {
   id              String    @id
   availabilityId  String
@@ -793,7 +760,6 @@ model AvailabilityRsvp {
 // Courses, lessons, quizzes & certificates
 // ---------------------------------------------------------------------------
 
-// Firestore: courses/{id}
 model Course {
   id                 String    @id @default(cuid())
   title              String
@@ -819,7 +785,6 @@ model Course {
   @@index([spaceId])
 }
 
-// Firestore: modules/{id}
 model Module {
   id        String    @id @default(cuid())
   courseId  String
@@ -833,7 +798,6 @@ model Module {
   @@index([courseId, position])
 }
 
-// Firestore: lessons/{id}
 model Lesson {
   id         String    @id @default(cuid())
   courseId   String
@@ -855,7 +819,6 @@ model Lesson {
   @@index([moduleId, position])
 }
 
-// Firestore: quizzes/{id}
 model Quiz {
   id           String    @id @default(cuid())
   lessonId     String
@@ -874,7 +837,6 @@ model Quiz {
   @@index([lessonId])
 }
 
-// Firestore: quizResults/{id}
 model QuizResult {
   id          String    @id @default(cuid())
   userId      String
@@ -898,7 +860,6 @@ model QuizResult {
   @@index([courseId, userId])
 }
 
-// Firestore: progress/{courseId_uid}
 model Progress {
   id                String    @id
   courseId          String
@@ -912,7 +873,6 @@ model Progress {
   @@unique([courseId, userId])
 }
 
-// Firestore: certificates/{id}
 model Certificate {
   id                 String    @id @default(cuid())
   userId             String
@@ -933,7 +893,6 @@ model Certificate {
 // Challenges & gamification
 // ---------------------------------------------------------------------------
 
-// Firestore: gamification/{uid}
 model Gamification {
   id            String    @id
   userId        String
@@ -952,7 +911,6 @@ model Gamification {
   @@index([userId])
 }
 
-// Firestore: challenges/{id}
 model Challenge {
   id               String    @id @default(cuid())
   title            String
@@ -971,7 +929,6 @@ model Challenge {
   @@index([createdBy])
 }
 
-// Firestore: challengeParticipants/{challengeId_uid}
 model ChallengeParticipant {
   id          String    @id
   challengeId String
@@ -991,7 +948,6 @@ model ChallengeParticipant {
 // Questions, community content & moderation
 // ---------------------------------------------------------------------------
 
-// Firestore: questions/{id}
 model Question {
   id          String    @id @default(cuid())
   text        String
@@ -1015,7 +971,6 @@ model Question {
   @@index([spaceId])
 }
 
-// Firestore: reports/{id}
 model Report {
   id            String    @id @default(cuid())
   type          String    // post | comment | member
@@ -1036,7 +991,6 @@ model Report {
   @@index([status, createdAt(sort: Desc)])
 }
 
-// Firestore: musicFiles/{id}
 model MusicFile {
   id         String    @id @default(cuid())
   dataUrl    String
@@ -1049,7 +1003,6 @@ model MusicFile {
   @@index([uploadedBy])
 }
 
-// Firestore: hostAssignments/{scopeType_scopeId_userId}
 model HostAssignment {
   id         String    @id
   scopeType  String    // room | event | course | group | space
@@ -1071,7 +1024,6 @@ model HostAssignment {
 // Pages, settings, purchases, automations & audit
 // ---------------------------------------------------------------------------
 
-// Firestore: pages/{id}
 model SpacePage {
   id         String    @id @default(cuid())
   title      String
@@ -1090,7 +1042,6 @@ model SpacePage {
   @@unique([spaceId, slug])
 }
 
-// Firestore: settings/{community} (single doc)
 model Setting {
   id               String   @id // "community"
   welcomeChecklist Json?
@@ -1098,7 +1049,6 @@ model Setting {
   createdAt        DateTime @default(now())
 }
 
-// Firestore: purchases/{uid_targetType_targetId}
 model Purchase {
   id           String    @id
   uid          String
@@ -1114,7 +1064,6 @@ model Purchase {
   @@index([targetType, targetId])
 }
 
-// Firestore: automations/{id}
 model Automation {
   id        String    @id @default(cuid())
   name      String
@@ -1130,7 +1079,6 @@ model Automation {
   @@index([createdBy])
 }
 
-// Firestore: automationHistory/{id}
 model AutomationHistory {
   id           String    @id @default(cuid())
   automationId String
@@ -1146,7 +1094,6 @@ model AutomationHistory {
   @@index([automationId, ranAt(sort: Desc)])
 }
 
-// Firestore: auditLogs/{id}
 model AuditLog {
   id        String    @id @default(cuid())
   actorId   String
@@ -1161,7 +1108,6 @@ model AuditLog {
   @@index([actorId, createdAt(sort: Desc)])
 }
 
-// Firestore: announcements/{id}
 model Announcement {
   id          String    @id @default(cuid())
   title       String
@@ -1177,7 +1123,6 @@ model Announcement {
   @@index([authorId])
 }
 
-// Firestore: blindDates/{id} (daily member pairing with sampled profile)
 model BlindDate {
   id         String    @id
   uid        String?
@@ -1190,7 +1135,7 @@ model BlindDate {
   hobbies    String[]
   crafts     String[]
   score      Int?
-  createdAt  String? // Firestore stores a string, kept as string for parity
+  createdAt  String? // kept as string for parity
 
   @@index([uid])
   @@index([memberId])
@@ -1235,7 +1180,6 @@ model Project {
   @@index([userId, featured])
 }
 
-// Firestore: stripeEvents/{id}
 model StripeEvent {
   id          String    @id
   type        String?

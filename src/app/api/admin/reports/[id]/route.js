@@ -5,7 +5,7 @@ import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 import { deleteMemberData } from "@/lib/server/delete-member-data";
 
-// Deletes the content a moderation report points at. Firestore `targetPath`s
+// Deletes the content a moderation report points at. Paths
 // like "posts/{id}/comments/{commentId}" are resolved to the matching row.
 async function deleteReportTarget(prisma, report) {
   const type = report.type || "post";

@@ -70,7 +70,7 @@ export function parseSessionCookie(value) {
 export function mapSupabaseUser(user) {
   if (!user) return null;
   return {
-    uid: user.app_metadata?.firebase_uid || user.id || "",
+    uid: user.id || "",
     email: user.email || "",
     email_verified: !!(user.email_confirmed_at || user.phone_confirmed_at),
     name:

@@ -8,7 +8,7 @@ test("httpStatusFor: passes through valid HTTP integer statuses", () => {
   assert.equal(httpStatusFor(Object.assign(new Error("bad"), { code: 400 })), 400);
 });
 
-test("httpStatusFor: maps Firestore string codes to HTTP", () => {
+test("httpStatusFor: maps string error codes to HTTP", () => {
   assert.equal(httpStatusFor(Object.assign(new Error("n"), { code: "not-found" })), 404);
   assert.equal(httpStatusFor(Object.assign(new Error("n"), { code: "already-exists" })), 409);
   assert.equal(httpStatusFor(Object.assign(new Error("n"), { code: "permission-denied" })), 403);

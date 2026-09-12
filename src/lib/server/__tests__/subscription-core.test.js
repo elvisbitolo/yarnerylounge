@@ -8,7 +8,7 @@ test("mapSubscriptionRow: null stays null", () => {
   assert.equal(mapSubscriptionRow(undefined), null);
 });
 
-test("mapSubscriptionRow: maps a full Postgres row to the Firestore doc shape", () => {
+test("mapSubscriptionRow: maps a full Postgres row to the doc shape", () => {
   const end = new Date("2026-10-01T00:00:00Z");
   const row = {
     id: "uid-1",

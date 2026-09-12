@@ -1,8 +1,8 @@
 // Pure mapping helpers for the subscription storage cutover — no I/O so they
 // can be unit tested with node:test. See subscription.js for the storage layer.
 
-// Maps a Postgres subscription row (Prisma) into the same shape the Firestore
-// subscription doc uses, so billing/capability logic is storage-agnostic.
+// Maps a Postgres subscription row (Prisma) into the shape billing/capability
+// logic expects, so that logic stays storage-agnostic.
 export function mapSubscriptionRow(row) {
   if (!row) return null;
   return {
