@@ -89,11 +89,11 @@ export default async function RoomsPage() {
         <div className={styles.header}>
           <h1 className={styles.title}>Rooms</h1>
           {userDoc?.role === "owner" && (
-            <Link className={styles.adminLink} href="/admin/rooms">Manage rooms</Link>
+            <Link className={styles.adminLink} href="/admin/rooms">Manage lounges</Link>
           )}
         </div>
         <p className={styles.subtitle}>
-          Four always lounges — pick your vibe and join the crafters already inside.
+          Four active lounges — pick your vibe and join the crafters already inside.
         </p>
 
         {featuredRooms.length === 0 ? (
