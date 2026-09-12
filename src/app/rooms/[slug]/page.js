@@ -24,8 +24,8 @@ export default async function RoomPage({ params }) {
       <main className={styles.page}>
         <div className={styles.container}>
           <h1 className={styles.title}>Room not found</h1>
-          <p className={styles.subtitle}>This room is closed or doesn&apos;t exist.</p>
-          <Link className={styles.link} href="/rooms">Back to rooms</Link>
+          <p className={styles.subtitle}>This lounge is closed or doesn&apos;t exist.</p>
+          <Link className={styles.link} href="/rooms">Back to lounges</Link>
         </div>
       </main>
     );
