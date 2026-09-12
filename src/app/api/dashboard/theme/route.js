@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { sanitizeTheme } from "@/lib/site-theme";
+import { sanitizeTheme } from "@/lib/site-theme-core";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 

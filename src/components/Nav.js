@@ -81,27 +81,32 @@ function getAdministrationLinks(role) {
   return [];
 }
 
-const OVERVIEW_ITEMS = [
+const HOME_ITEMS = [
   { href: "/dashboard", key: "dashboard" },
-  { href: "/community", key: "community" },
-  { href: "/feed", key: "feed" },
   { href: "/dashboard/membership", key: "membership" },
 ];
 
 const COMMUNITY_ITEMS = [
   { href: "/members", key: "members" },
+  { href: "/feed", key: "feed" },
+];
+
+const LOUNGES_ITEMS = [
+  { href: "/rooms", key: "rooms" },
+  { href: "/match", key: "match" },
+  { href: "/events", key: "events" },
+  { href: "/challenges", key: "crochetAlong" },
+];
+
+const NEIGHBOURHOOD_ITEMS = [
   { href: "/neighbourhoods", key: "neighbourhoods" },
   { href: "/gallery", key: "gallery" },
   { href: "/portfolio", key: "portfolio" },
   { href: "/leaderboard", key: "leaderboard" },
 ];
 
-const CONNECT_ITEMS = [
-  { href: "/rooms", key: "rooms" },
-  { href: "/match", key: "match" },
+const CALENDAR_ITEMS = [
   { href: "/calendar", key: "calendar" },
-  { href: "/events", key: "events" },
-  { href: "/challenges", key: "crochetAlong" },
 ];
 
 const LEARN_ITEMS = [
@@ -266,8 +271,11 @@ export default function Nav({ role, children }) {
 
   useEffect(() => {
     const allGroups = [
-      { id: "overview", items: OVERVIEW_ITEMS },
-      { id: "connect", items: CONNECT_ITEMS },
+      { id: "home", items: HOME_ITEMS },
+      { id: "community", items: COMMUNITY_ITEMS },
+      { id: "lounges", items: LOUNGES_ITEMS },
+      { id: "neighbourhood", items: NEIGHBOURHOOD_ITEMS },
+      { id: "calendar", items: CALENDAR_ITEMS },
       { id: "learn", items: LEARN_ITEMS },
       { id: "administration", items: administrationLinks },
       { id: "host", items: hasHostTools && role !== "owner" ? [{ href: "/host" }] : [] },
@@ -417,9 +425,11 @@ export default function Nav({ role, children }) {
           )}
           <div className={styles.sidebarInner} data-tour="tour-sidebar">
             <nav className={styles.sidebarNav}>
-              <SidebarGroup id="overview" label={t("overview")} items={OVERVIEW_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <SidebarGroup id="home" label={t("overview")} items={HOME_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <SidebarGroup id="community" label={t("communitySection")} items={COMMUNITY_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
-              <SidebarGroup id="connect" label={t("connect")} items={CONNECT_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <SidebarGroup id="lounges" label={t("connect")} items={LOUNGES_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <SidebarGroup id="neighbourhood" label={t("neighbourhoods")} items={NEIGHBOURHOOD_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <SidebarGroup id="calendar" label={t("calendar")} items={CALENDAR_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <SidebarGroup id="learn" label={t("learn")} items={LEARN_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
 
               {collections.length > 0 && (
