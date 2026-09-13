@@ -494,6 +494,156 @@
   color: #ffffff;
 }
 
+.advancedFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.coreFilters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.coreFilters .craftRow {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabelSmall {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b6b7b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.optCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b6b7b;
+}
+
+.craftActive .optCount {
+  background: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+.filterGroup {
+  border: 1px solid rgba(107, 107, 123, 0.18);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.groupTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: #17171c;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.groupChevron {
+  color: #9b9bab;
+}
+
+.groupBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.colorSwatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  outline: 1px solid rgba(107, 107, 123, 0.35);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, outline-color 0.15s ease;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.12);
+}
+
+.colorSwatchOn {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.colorHint {
+  font-size: 12px;
+  color: #9b9bab;
+}
+
+.quizScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.resetChips {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #9b9bab;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.15s ease;
+}
+
+.resetChips:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 700px) {
+  .coreFilters {
+    grid-template-columns: 1fr;
+  }
+}
+
 .liveDot {
   position: absolute;
   top: -2px;
