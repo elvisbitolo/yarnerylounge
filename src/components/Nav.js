@@ -83,7 +83,7 @@ function getAdministrationLinks(role) {
 
 const HOME_ITEMS = [
   { href: "/dashboard", key: "dashboard" },
-  { href: "/dashboard/membership", key: "membership" },
+  { href: "/account/membership", key: "membership" },
 ];
 
 const COMMUNITY_ITEMS = [
