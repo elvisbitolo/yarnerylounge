@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const ROOM_ORDER = ["happy-hour-hub", "lo-fi-and-loops", "velvet-den", "silent-studio"];
 
 const ROOM_IMAGES = {
-  "happy-hour-hub": "/images/rooms/happy-hour-hub.jpg",
+  "happy-hour-hub": "/images/rooms/happy-hour-hub-v2.jpg",
   "lo-fi-and-loops": "/images/rooms/lofi-and-loops.jpg",
   "velvet-den": "/images/rooms/velvet-den.jpg",
   "silent-studio": "/images/rooms/silent-studio.jpg",

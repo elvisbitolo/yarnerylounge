@@ -149,7 +149,7 @@ export const ALWAYS_ON_ROOMS = [
     forceMuteOnJoin: false,
     raiseHandToTalk: false,
     disableAudio: false,
-    imageUrl: "/images/rooms/happy-hour-hub.jpg",
+    imageUrl: "/images/rooms/happy-hour-hub-v2.jpg",
   },
   {
     slug: "lo-fi-and-loops",
