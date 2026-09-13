@@ -92,7 +92,7 @@ const COMMUNITY_ITEMS = [
 ];
 
 const LOUNGES_ITEMS = [
-  { href: "/rooms", key: "rooms" },
+  { href: "/rooms", key: "allLounges" },
   { href: "/match", key: "match" },
   { href: "/events", key: "events" },
   { href: "/challenges", key: "crochetAlong" },

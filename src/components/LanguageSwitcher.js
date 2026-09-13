@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Globe } from "lucide-react";
+import styles from "./Nav.module.css";
 
 const LANGUAGES = [
   { code: "en", label: "English", flag: "🇬🇧" },
@@ -36,16 +37,7 @@ export default function LanguageSwitcher() {
       <button
         onClick={() => setOpen(!open)}
         aria-label="Switch language"
-        style={{
-          background: "none",
-          border: "none",
-          color: "#8a7c6f",
-          fontSize: 18,
-          cursor: "pointer",
-          padding: 4,
-          display: "flex",
-          alignItems: "center",
-        }}
+        className={styles.langBtn}
       >
         <Globe size={18} />
       </button>

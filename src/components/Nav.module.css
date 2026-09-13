@@ -727,6 +727,17 @@
   display: none;
 }
 
+.langBtn {
+  background: none;
+  border: none;
+  color: #8a7c6f;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
 @media (min-width: 861px) {
   .topbarSearchMobile {
     display: none;
@@ -773,6 +784,16 @@
 
   .topbarRight {
     gap: 4px;
+  }
+
+  /* Profile moves behind the hamburger drawer on small screens;
+     /account (with sign out) stays reachable from the sidebar. */
+  .profileWrap {
+    display: none;
+  }
+
+  .langBtn {
+    padding: 2px;
   }
 }
 
