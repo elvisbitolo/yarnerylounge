@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import MemberBadge from "@/components/MemberBadge";
 import { roleBadgeLabel } from "@/lib/profile/roles";
-import { countryNames } from "@/lib/profile/countries";
+import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { composeLayout } from "./avatarLayout";
 import MembersMap from "./MembersMap";
+import MemberFilters from "./MemberFilters";
 import styles from "./members.module.css";
-import { SlidersHorizontal, MapPin, MessageCircle } from "lucide-react";
+import { MapPin, MessageCircle } from "lucide-react";
 
 const TABS = [
   { key: "all", label: "All" },
@@ -30,22 +31,31 @@ const CRAFTS = [
   { value: "macrame", label: "Macrame" },
 ];
 
-const HOBBIES = [
-  { value: "cooking", label: "Cooking" },
-  { value: "baking", label: "Baking" },
-  { value: "gardening", label: "Gardening" },
-  { value: "thrifting", label: "Thrifting" },
-  { value: "yoga", label: "Yoga" },
-  { value: "pottery", label: "Pottery" },
-  { value: "painting", label: "Painting" },
-  { value: "photography", label: "Photography" },
-  { value: "reading", label: "Reading" },
-  { value: "antiquing", label: "Antiquing" },
-  { value: "sewing", label: "Sewing" },
-  { value: "woodworking", label: "Woodworking" },
-  { value: "board games", label: "Board games" },
-  { value: "card games", label: "Card games" },
-];
+const INITIAL_QUIZ = QUIZ_QUESTIONS.reduce((acc, q) => {
+  acc[q.field] = q.multiple ? [] : "";
+  return acc;
+}, {});
+
+const INITIAL_FILTERS = {
+  country: "",
+  hobby: "",
+  timezone: "",
+  craft: "",
+  skillLevel: "",
+  yearsExperience: "",
+  favoriteYarnBrand: "",
+  goToYarn: "",
+  favoriteHookSize: "",
+  learningNext: "",
+  crochetTechniques: [],
+  crochetMotivation: [],
+  favoriteColors: [],
+  quiz: INITIAL_QUIZ,
+};
+
+function anyOverlap(a, b) {
+  return Array.isArray(a) && a.length > 0 && Array.isArray(b) && b.length > 0 && a.some((v) => b.includes(v));
+}
 
 const PRESETS = {
   desktop: { width: 960, height: 560 },
@@ -98,12 +108,6 @@ function commoStrings(viewer, member) {
   return found.slice(0, 4);
 }
 
-function distinct(values) {
-  return [...new Set(values.filter((v) => v && v.trim()))].sort((a, b) =>
-    a.localeCompare(b)
-  );
-}
-
 function colorStrip(colors) {
   const list = (Array.isArray(colors) ? colors : []).filter((c) =>
     /^#[0-9a-fA-F]{6}$/.test(c)
@@ -143,14 +147,15 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
-  const [country, setCountry] = useState("");
-  const [craft, setCraft] = useState("");
-  const [hobby, setHobby] = useState("");
-  const [timezone, setTimezone] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [hover, setHover] = useState(null);
   const [matchTarget, setMatchTarget] = useState(null);
   const hideTimer = useRef(null);
+
+  const patchFilters = useCallback(
+    (patch) => setFilters((prev) => ({ ...prev, ...patch })),
+    []
+  );
 
   const viewportKey = useViewportKey();
   const frameRef = useRef(null);
@@ -198,25 +203,6 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
     return { left, top };
   })();
 
-  const countries = useMemo(() => {
-    const all = countryNames();
-    const inUse = distinct(members.map((m) => m.country));
-    return [...all, ...inUse.filter((c) => !all.includes(c))];
-  }, [members]);
-
-  const timezones = useMemo(() => distinct(members.map((m) => m.timezone)), [members]);
-
-  const hobbiesInUse = useMemo(
-    () => distinct(([]).concat(members.flatMap((m) => (Array.isArray(m.hobbies) ? m.hobbies : [])))),
-    [members]
-  );
-
-  const hobbyOptions = useMemo(() => {
-    const known = new Map(HOBBIES.map((h) => [h.value, h.label]));
-    const used = hobbiesInUse.map((h) => ({ value: h, label: known.get(h) || h }));
-    return used.sort((a, b) => a.label.localeCompare(b.label));
-  }, [hobbiesInUse]);
-
   const query = search.trim().toLowerCase();
 
   const filtered = useMemo(() => {
@@ -224,10 +210,36 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
       if (tab === "lounge" && !member.live) return false;
       if (tab === "online" && member.lastVisitDate !== todayKey) return false;
       if (tab === "hosts" && member.role !== "owner" && member.role !== "moderator") return false;
-      if (craft && !member.crafts?.includes(craft)) return false;
-      if (country && member.country !== country) return false;
-      if (timezone && member.timezone !== timezone) return false;
-      if (hobby && !(Array.isArray(member.hobbies) && member.hobbies.includes(hobby))) return false;
+      if (filters.craft && !member.crafts?.includes(filters.craft)) return false;
+      if (filters.country && member.country !== filters.country) return false;
+      if (filters.timezone && member.timezone !== filters.timezone) return false;
+      if (filters.hobby && !(Array.isArray(member.hobbies) && member.hobbies.includes(filters.hobby))) return false;
+      if (filters.skillLevel && member.skillLevel !== filters.skillLevel) return false;
+      if (filters.yearsExperience && member.yearsExperience !== filters.yearsExperience) return false;
+      if (filters.favoriteYarnBrand && member.favoriteYarnBrand !== filters.favoriteYarnBrand) return false;
+      if (filters.goToYarn && member.goToYarn !== filters.goToYarn) return false;
+      if (filters.favoriteHookSize && member.favoriteHookSize !== filters.favoriteHookSize) return false;
+      if (filters.learningNext && member.learningNext !== filters.learningNext) return false;
+      if (!anyOverlap(filters.crochetTechniques, member.crochetTechniques)) {
+        if (filters.crochetTechniques.length > 0) return false;
+      }
+      if (!anyOverlap(filters.crochetMotivation, member.crochetMotivation)) {
+        if (filters.crochetMotivation.length > 0) return false;
+      }
+      if (!anyOverlap(filters.favoriteColors, member.favoriteColors)) {
+        if (filters.favoriteColors.length > 0) return false;
+      }
+      for (const q of QUIZ_QUESTIONS) {
+        const selected = filters.quiz[q.field];
+        const memberValue = member.quiz?.[q.field];
+        if (q.multiple) {
+          if (Array.isArray(selected) && selected.length > 0 && !anyOverlap(selected, memberValue)) {
+            return false;
+          }
+        } else if (selected && memberValue !== selected) {
+          return false;
+        }
+      }
       if (!query) return true;
       return (
         member.name?.toLowerCase().includes(query) ||
@@ -246,9 +258,34 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
       return [...pool].sort((a, b) => (b.points || 0) - (a.points || 0));
     }
     return [...pool].sort((a, b) => a.name.localeCompare(b.name));
-  }, [members, tab, query, country, timezone, craft, hobby, todayKey]);
+  }, [members, tab, query, filters, todayKey]);
 
-  const activeFilterCount = [country, hobby, timezone].filter(Boolean).length;
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    for (const key of [
+      "country",
+      "hobby",
+      "timezone",
+      "craft",
+      "skillLevel",
+      "yearsExperience",
+      "favoriteYarnBrand",
+      "goToYarn",
+      "favoriteHookSize",
+      "learningNext",
+    ]) {
+      if (typeof filters[key] === "string" && filters[key]) n += 1;
+    }
+    for (const key of ["crochetTechniques", "crochetMotivation", "favoriteColors"]) {
+      if (Array.isArray(filters[key])) n += filters[key].length;
+    }
+    for (const q of QUIZ_QUESTIONS) {
+      const value = filters.quiz[q.field];
+      if (Array.isArray(value)) n += value.length;
+      else if (typeof value === "string" && value) n += 1;
+    }
+    return n;
+  }, [filters]);
 
   const DENSE_BASE = 20;
   const DENSE_STEP = Math.round((14 * 960) / preset.width);
@@ -298,87 +335,13 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
         <p className={styles.matchmakerTitle}>
           <span className={styles.matchmakerSparkle}>✦</span> Find Members
         </p>
-        <div className={styles.filterBar}>
-          <button
-            type="button"
-            className={filtersOpen ? `${styles.filtersToggle} ${styles.filtersToggleActive}` : styles.filtersToggle}
-            onClick={() => setFiltersOpen((v) => !v)}
-            aria-expanded={filtersOpen}
-            aria-haspopup="true"
-          >
-            <span className={styles.filtersToggleIcon} aria-hidden="true"><SlidersHorizontal size={14} /></span>
-            Filters
-            {activeFilterCount > 0 && <span className={styles.filtersBadge}>{activeFilterCount}</span>}
-          </button>
-        </div>
-        {filtersOpen && (
-          <div className={styles.filtersDropdown}>
-            <label className={styles.filterField}>
-              <span className={styles.filterLabel}>Location</span>
-              <select
-                className={styles.locationSelect}
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                aria-label="Filter by location"
-              >
-                <option value="">All countries</option>
-                {countries.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.filterField}>
-              <span className={styles.filterLabel}>Hobbies</span>
-              <select
-                className={styles.locationSelect}
-                value={hobby}
-                onChange={(e) => setHobby(e.target.value)}
-                aria-label="Filter by hobby"
-              >
-                <option value="">All hobbies</option>
-                {hobbyOptions.map((h) => (
-                  <option key={h.value} value={h.value}>{h.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.filterField}>
-              <span className={styles.filterLabel}>Timezone</span>
-              <select
-                className={styles.locationSelect}
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                aria-label="Filter by timezone"
-              >
-                <option value="">All timezones</option>
-                {timezones.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </label>
-          </div>
-        )}
-        <div className={styles.craftRow}>
-          <span className={styles.craftLabel}>Crafts</span>
-          <button
-            className={!craft ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
-            onClick={() => setCraft("")}
-          >
-            All
-          </button>
-          {CRAFTS.map((c) => (
-            <button
-              key={c.value}
-              className={craft === c.value ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
-              onClick={() => setCraft(craft === c.value ? "" : c.value)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+        <MemberFilters filters={filters} onChange={patchFilters} members={members} />
       </div>
       )}
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>
-          {query || tab !== "all" || country || timezone || craft || hobby
+          {query || tab !== "all" || activeFilterCount > 0
             ? "No members match this view."
             : "No members yet."}
         </p>
@@ -455,7 +418,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
         </div>
       )}
 
-      <MembersMap members={filtered} selectedCountry={country} onSelectCountry={setCountry} />
+      <MembersMap members={filtered} selectedCountry={filters.country} onSelectCountry={(c) => patchFilters({ country: c })} />
 
       {hover && tooltipPos && (
         <div

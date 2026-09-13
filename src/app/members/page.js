@@ -95,6 +95,9 @@ export default async function MembersPage() {
             : [],
         goToYarn: m.goToYarn || "",
         favoriteHookSize: m.favoriteHookSize || "",
+        favoriteYarnBrand: m.favoriteYarnBrand || "",
+        crochetMotivation: Array.isArray(m.crochetMotivation) ? m.crochetMotivation : [],
+        learningNext: m.learningNext || "",
         quiz: QUIZ_QUESTIONS.reduce((acc, q) => {
           acc[q.field] = Array.isArray(extra[q.field])
             ? extra[q.field]
