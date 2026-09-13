@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import {
   AUTH_COOKIE,
   getCurrentUser,
   getUserDoc,
 } from "@/lib/server/auth";
+import {
+  parseSessionCookie,
+  serializeSessionCookie,
+  SESSION_MAX_AGE_SECONDS,
+} from "@/lib/server/auth-core";
 import { normalizeProfile } from "@/lib/server/profile";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getGamification } from "@/lib/server/gamification";
@@ -57,6 +63,11 @@ export async function GET() {
   const userDoc = await getUserDoc(user.uid);
   const gamification = await getGamification(user.uid);
 
+  // The SPA health-checks /api/me constantly; re-issuing the cookie here with a
+  // fresh maxAge keeps the 14-day window sliding in the browser, so an active
+  // member's cookie never quietly expires while the server session is alive.
+  const sid = parseSessionCookie((await cookies()).get(AUTH_COOKIE)?.value)?.sid;
+
   const expiresAt = userDoc?.expiresAt
     ? (userDoc.expiresAt.toMillis
         ? userDoc.expiresAt.toMillis()
@@ -101,7 +112,18 @@ export async function GET() {
       : null,
   };
 
-  return NextResponse.json(payload);
+  const res = NextResponse.json(payload);
+  if (sid) {
+    res.cookies.set(AUTH_COOKIE, serializeSessionCookie(sid), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_MAX_AGE_SECONDS,
+    });
+  }
+
+  return res;
 }
 
 function splitProfilePatch(patch) {

@@ -9,6 +9,20 @@ if (!supabaseUrl || !anonKey) {
   );
 }
 
-export const supabaseBrowser = createClient(supabaseUrl, anonKey);
+// No localStorage persistence and no self-auto-refresh: the server-side Session
+// store (Postgres) is the single owner of the Supabase tokens, exposed to the
+// browser only as the httpOnly `community-auth` session cookie. If the browser
+// client also persisted + auto-rotated the refresh token, it would consume the
+// single-use refresh token the server shares — leaving the server side with a
+// burned token that logs the member out on the next real-token rotation. OAuth
+// (tokens parsed from the URL hash) and password sign-in (in-memory session)
+// still work without persistence; recovery after a reload comes from `/api/me`,
+// which the cookie authorizes.
+export const supabaseBrowser = createClient(supabaseUrl, anonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
 
 export default supabaseBrowser;

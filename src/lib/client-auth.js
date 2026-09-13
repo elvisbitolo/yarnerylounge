@@ -266,7 +266,26 @@ export async function resendSignupVerification(email) {
 }
 
 export async function refreshSupabaseSession() {
-  const res = await fetch("/api/auth/refresh", { method: "POST" });
+  // Pass along any live browser-side Supabase tokens so the server can repair
+  // its Session row when the stored refresh token was consumed by an older
+  // auto-refreshing client (instead of forcing a fresh sign-in).
+  let body = {};
+  try {
+    const { data } = await supabaseBrowser.auth.getSession();
+    if (data?.session?.access_token) {
+      body = {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token || "",
+      };
+    }
+  } catch {
+    // no browser session — the server-side session alone decides
+  }
+  const res = await fetch("/api/auth/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   return res.ok;
 }
 
