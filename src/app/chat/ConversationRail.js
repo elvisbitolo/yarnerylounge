@@ -15,7 +15,7 @@ function unread(conv) {
   return (conv.lastMessageAt || 0) > (conv.lastReadAt || 0);
 }
 
-export default function ConversationRail({ conversations, activeId, selfUid, hiddenMobile = false }) {
+export default function ConversationRail({ conversations, activeId, selfUid }) {
   const router = useRouter();
   const [convs, setConvs] = useState(conversations);
   const [prevConversations, setPrevConversations] = useState(conversations);
@@ -126,7 +126,7 @@ export default function ConversationRail({ conversations, activeId, selfUid, hid
   }, [convs, query]);
 
   return (
-    <aside className={`${styles.rail} ${hiddenMobile ? styles.railHiddenOnMobile : ""}`}>
+    <aside className={styles.rail}>
       <div className={styles.railHead}>
         <div className={styles.railTitleRow}>
           <h1 className={styles.railTitle}>Chats</h1>
@@ -218,6 +218,7 @@ export default function ConversationRail({ conversations, activeId, selfUid, hid
                       </span>
                     </span>
                     {unreadChat && <span className={styles.unreadDot} aria-label="Unread" />}
+                    <span className={styles.railChevron} aria-hidden="true">›</span>
                   </Link>
                 </li>
               );

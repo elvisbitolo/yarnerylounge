@@ -5,6 +5,7 @@ import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import ConversationRail from "../ConversationRail";
+import MobilePanels from "../MobilePanels";
 import Thread from "./Thread";
 import PresenceStatus from "../PresenceStatus";
 import styles from "../chat.module.css";
@@ -33,14 +34,17 @@ export default async function ConversationPage({ params }) {
 
   return (
     <Nav role={userDoc?.role}>
-      <div className={styles.twoPane}>
-        <ConversationRail
-          conversations={conversations}
-          activeId={id}
-          selfUid={user.uid}
-          hiddenMobile
-        />
-        <section className={styles.threadPane}>
+      <MobilePanels
+        activeId={id}
+        backHref="/chat"
+        rail={
+          <ConversationRail
+            conversations={conversations}
+            activeId={id}
+            selfUid={user.uid}
+          />
+        }
+        thread={
           <div className={styles.thread}>
             <div className={styles.threadHeader}>
               <div className={styles.threadHeaderLeft}>
@@ -63,8 +67,8 @@ export default async function ConversationPage({ params }) {
               canWriteChat={canWriteChat(caps) || userDoc?.role === "owner" || userDoc?.role === "moderator"}
             />
           </div>
-        </section>
-      </div>
+        }
+      />
     </Nav>
   );
 }

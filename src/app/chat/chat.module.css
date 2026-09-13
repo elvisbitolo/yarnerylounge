@@ -884,6 +884,12 @@
   background: var(--primary);
 }
 
+/* Desktop rows don't need the "open thread" chevron; it appears on mobile as
+   the visual affordance that tapping slides the conversation over. */
+.railChevron {
+  display: none;
+}
+
 /* Thread pane header bits */
 .threadHeaderLeft {
   display: flex;
@@ -933,9 +939,13 @@
   line-height: 1.5;
 }
 
-/* Mobile: one pane at a time */
+/* Mobile: WhatsApp/Slack-style slide-over. The thread panel animates in over
+   the rail when a conversation opens and slides back out on the back chevron.
+   Classes are always present; these rules only act on small viewports. */
 @media (max-width: 900px) {
   .twoPane {
+    position: relative;
+    overflow: hidden;
     height: calc(100dvh - 60px - 72px - env(safe-area-inset-bottom));
   }
 
@@ -945,15 +955,31 @@
     border-right: 0;
   }
 
-  .railHiddenOnMobile {
-    display: none;
+  .threadPaneSlide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2;
+    box-shadow: -12px 0 24px rgba(0, 0, 0, 0.12);
   }
 
-  .threadPaneHiddenOnMobile {
-    display: none;
+  .threadPaneOpen {
+    transform: translateX(0);
   }
 
   .threadBack {
     display: flex;
+  }
+
+  .railChevron {
+    display: inline;
+  }
+
+  .unreadDot {
+    right: 32px;
   }
 }

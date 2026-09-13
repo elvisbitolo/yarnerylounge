@@ -5,6 +5,7 @@ import { isGroupMember } from "@/lib/server/groups";
 import { isSpaceMember } from "@/lib/server/spaces";
 import Nav from "@/components/Nav";
 import ConversationRail from "./ConversationRail";
+import MobilePanels from "./MobilePanels";
 import styles from "./chat.module.css";
 
 export const dynamic = "force-dynamic";
@@ -41,13 +42,17 @@ export default async function ChatPage({ searchParams }) {
 
   return (
     <Nav role={userDoc?.role}>
-      <div className={styles.twoPane}>
-        <ConversationRail
-          conversations={conversations}
-          activeId=""
-          selfUid={user.uid}
-        />
-        <section className={`${styles.threadPane} ${styles.threadPaneHiddenOnMobile}`}>
+      <MobilePanels
+        activeId=""
+        backHref="/chat"
+        rail={
+          <ConversationRail
+            conversations={conversations}
+            activeId=""
+            selfUid={user.uid}
+          />
+        }
+        empty={
           <div className={styles.emptyThread}>
             <div className={styles.emptyThreadIcon}>💬</div>
             <h2 className={styles.emptyThreadTitle}>Select a conversation</h2>
@@ -56,8 +61,8 @@ export default async function ChatPage({ searchParams }) {
               messages arrive instantly, wherever in the world they craft.
             </p>
           </div>
-        </section>
-      </div>
+        }
+      />
     </Nav>
   );
 }
