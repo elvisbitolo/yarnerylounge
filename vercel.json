@@ -7,10 +7,6 @@
     {
       "path": "/api/cron/scheduled-questions",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/health",
-      "schedule": "*/1 * * * *"
     }
   ]
 }
