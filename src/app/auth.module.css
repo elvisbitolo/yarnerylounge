@@ -423,6 +423,32 @@
 
 /* Full-screen "Signing in / Creating account" state that replaces the form */
 
+.signingInScreen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px;
+  background: #0e0e12;
+  text-align: center;
+}
+
+.signingInScreen .signingIn {
+  padding: 0;
+}
+
+.signingInScreen .loadText {
+  color: #e9e6f2;
+}
+
+.signingInScreen .spinner {
+  border-color: rgba(255, 255, 255, 0.18);
+  border-top-color: var(--primary);
+}
+
 .signingIn {
   display: flex;
   flex-direction: column;

@@ -47,40 +47,36 @@ export default function SigningInPage() {
   }, []);
 
   return (
-    <main className={styles.page}>
-      <div className={styles.authContainer}>
-        <div className={styles.authForm}>
-          <p className={styles.brand}>
-            <a className={styles.brandLink} href={LANDING_URL}>
-              <Image
-                src="/brand/secretyarnery-logo.webp"
-                alt=""
-                width={90}
-                height={28}
-                className={styles.brandLogo}
-              />
-              <span className={styles.brandWord}>Secret Yarnery</span>
-            </a>
-          </p>
-          <div className={styles.signingIn} role="status" aria-live="polite">
-            <div className={styles.spinner} />
-            <p className={styles.loadText}>
-              {failed ? "Couldn't sign you in — returning to the form…" : "Signing you in…"}
-            </p>
-            {failed && (
-              <a
-                className={styles.linkBtn}
-                href="/login"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.location.assign("/login");
-                }}
-              >
-                Back to sign in
-              </a>
-            )}
-          </div>
-        </div>
+    <main className={styles.signingInScreen}>
+      <p className={styles.brand}>
+        <a className={styles.brandLink} href={LANDING_URL}>
+          <Image
+            src="/brand/secretyarnery-logo.webp"
+            alt=""
+            width={90}
+            height={28}
+            className={styles.brandLogo}
+          />
+          <span className={styles.brandWord}>Secret Yarnery</span>
+        </a>
+      </p>
+      <div className={styles.signingIn} role="status" aria-live="polite">
+        <div className={styles.spinner} />
+        <p className={styles.loadText}>
+          {failed ? "Couldn't sign you in — returning to the form…" : "Signing you in…"}
+        </p>
+        {failed && (
+          <a
+            className={styles.linkBtn}
+            href="/login"
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.assign("/login");
+            }}
+          >
+            Back to sign in
+          </a>
+        )}
       </div>
     </main>
   );
