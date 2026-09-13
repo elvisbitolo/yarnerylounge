@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -32,6 +32,19 @@ function BrandMark() {
   );
 }
 
+// True once we've returned from the Google OAuth redirect (the provider param).
+// Driven through useSyncExternalStore so the signing-in state renders on the
+// very first paint — no empty form flash while the session exchange runs.
+function subscribeProvider() {
+  return () => {};
+}
+function getProviderSnapshot() {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).has("provider");
+}
+function getServerProviderSnapshot() {
+  return false;
+}
+
 export default function SignupPage() {
   const t = useTranslations("auth");
   const tc = useTranslations("common");
@@ -44,6 +57,14 @@ export default function SignupPage() {
   const [resent, setResent] = useState(false);
   const [acceptedToS, setAcceptedToS] = useState(false);
   const [tosError, setTosError] = useState(false);
+
+  // True on the Google OAuth return leg, before the effect finishes exchanging
+  // the session. Renders the centered signing-in state immediately.
+  const oauthPending = useSyncExternalStore(
+    subscribeProvider,
+    getProviderSnapshot,
+    getServerProviderSnapshot
+  );
 
   // Already signed in? Bounce straight into the app instead of re-showing the
   // signup form (the "auth wall"). If the cookie's access token has expired, the
@@ -114,6 +135,9 @@ export default function SignupPage() {
           if (err.code === "not_prepaid" && err.redirect) {
             window.location.assign(err.redirect);
           } else {
+            // Release the provider param so the form shows again with the
+            // error instead of staying on the spinner forever.
+            window.history.replaceState({}, "", "/signup");
             setError(err.message || t("googleFailed"));
           }
         }
@@ -233,18 +257,15 @@ export default function SignupPage() {
     );
   }
 
-  if (busy === "email" || busy === "google") {
+  if (busy === "email" || busy === "google" || oauthPending) {
     return (
-      <main className={styles.page}>
-        <div className={styles.authContainer}>
-          <div className={styles.authForm}>
-            <BrandMark />
-            <div className={styles.signingIn} role="status" aria-live="polite">
-              <div className={styles.spinner} />
-              <p className={styles.loadText}>{busy === "google" ? t("signingIn") : t("creatingAccount")}</p>
-            </div>
-          </div>
-          <AuthAside />
+      <main className={styles.signingInScreen}>
+        <BrandMark />
+        <div className={styles.signingIn} role="status" aria-live="polite">
+          <div className={styles.spinner} />
+          <p className={styles.loadText}>
+            {busy === "email" ? t("creatingAccount") : "Preparing your sign-in…"}
+          </p>
         </div>
       </main>
     );

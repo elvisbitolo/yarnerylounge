@@ -32,6 +32,19 @@ function getServerRecoverySnapshot() {
   return false;
 }
 
+// True once we've returned from the Google OAuth redirect (the provider param).
+// Driven through useSyncExternalStore so the signing-in state renders on the
+// very first paint — no empty form flash while the session exchange runs.
+function subscribeProvider() {
+  return () => {};
+}
+function getProviderSnapshot() {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).has("provider");
+}
+function getServerProviderSnapshot() {
+  return false;
+}
+
 function BrandMark() {
   return (
     <p className={styles.brand}>
@@ -65,6 +78,16 @@ export default function LoginPage() {
     getRecoverySnapshot,
     getServerRecoverySnapshot
   );
+
+  // True on the Google OAuth return leg, before the effect finishes exchanging
+  // the session. Renders the centered signing-in state immediately.
+  const oauthPending = useSyncExternalStore(
+    subscribeProvider,
+    getProviderSnapshot,
+    getServerProviderSnapshot
+  );
+
+  const [noAccount, setNoAccount] = useState(false);
 
   // Already signed in? Bounce straight into the app instead of re-showing the
   // auth form (the "auth wall"). If the cookie's access token has expired, the
@@ -107,7 +130,9 @@ export default function LoginPage() {
     }
     if (params.has("provider")) {
       // Returned from the Google OAuth redirect; exchange the Supabase session
-      // for the httpOnly cookie and reload into the app.
+      // for the httpOnly cookie and reload into the app. The oauthPending
+      // snapshot above already shows the centered signing-in state, so this
+      // exchange runs behind an instant spinner — never a bare form.
       let cancelled = false;
       (async () => {
         try {
@@ -127,10 +152,21 @@ export default function LoginPage() {
           if (!cancelled) {
             if (err.code === "not_prepaid" && err.redirect) {
               window.location.assign(err.redirect);
+            } else if (err.code === "not_prepaid") {
+              // The Google account isn't (and can't) be registered as a member
+              // yet — say so plainly and point at sign-up instead of leaving
+              // the member guessing on a dismissed error.
+              window.history.replaceState({}, "", "/login");
+              setNoAccount(true);
             } else {
+              // Release the provider param so the form shows again with the
+              // error instead of staying on the spinner forever.
+              window.history.replaceState({}, "", "/login");
               setError(err.message || t("googleFailed"));
             }
           }
+        } finally {
+          if (!cancelled) setBusy("");
         }
       })();
       return () => {
@@ -155,6 +191,7 @@ export default function LoginPage() {
   async function handleGoogle() {
     setError("");
     setVerifyNotice("");
+    setNoAccount(false);
     setBusy("google");
     try {
       // Full-page Google OAuth redirect through Supabase; the mount-time
@@ -368,18 +405,15 @@ export default function LoginPage() {
   );
 }
 
-  if (busy === "email" || busy === "google") {
+  if (busy === "email" || busy === "google" || oauthPending) {
     return (
-      <main className={styles.page}>
-        <div className={styles.authContainer}>
-          <div className={styles.authForm}>
-            <BrandMark />
-            <div className={styles.signingIn} role="status" aria-live="polite">
-              <div className={styles.spinner} />
-              <p className={styles.loadText}>{t("signingIn")}</p>
-            </div>
-          </div>
-          <AuthAside />
+      <main className={styles.signingInScreen}>
+        <BrandMark />
+        <div className={styles.signingIn} role="status" aria-live="polite">
+          <div className={styles.spinner} />
+          <p className={styles.loadText}>
+            {busy === "email" ? t("signingIn") : "Preparing your sign-in…"}
+          </p>
         </div>
       </main>
     );
@@ -397,6 +431,25 @@ export default function LoginPage() {
           <p className={styles.subtitle}>{t("signInToJoin")}</p>
 
           {error && <p className={styles.error}>{error}</p>}
+
+          {noAccount && (
+            <div className={styles.verifyBox}>
+              <p className={styles.verifyText}>
+                There&apos;s no Secret Yarnery account linked to this Google account yet.
+                Create one to join the community.
+              </p>
+              <a
+                className={styles.linkBtn}
+                href="/signup"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.assign("/signup");
+                }}
+              >
+                Create an account
+              </a>
+            </div>
+          )}
 
           <button className={styles.googleButton} onClick={handleGoogle} disabled={!!busy}>
             <GoogleIcon /> {t("continueWithGoogle")}
