@@ -15,6 +15,7 @@ import {
 
 const POS_KEY = "yarnerylounge-theme-pos";
 const FAB_SIZE = 48;
+const FAB_COLOR = "#b6b1a4";
 
 export default function ThemePicker() {
   const { membership, refresh } = useMembership();
@@ -76,8 +77,6 @@ export default function ThemePicker() {
     }
   }
 
-  const accent = effectiveTheme().accent;
-
   return (
     <div style={{ ...drag.style, right: drag.pos.right }}>
       <button
@@ -90,13 +89,13 @@ export default function ThemePicker() {
           height: FAB_SIZE,
           borderRadius: "50%",
           border: "2px solid rgba(255,255,255,0.18)",
-          background: accent,
+          background: FAB_COLOR,
           cursor: "grab",
           touchAction: "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: `0 6px 20px ${accent}55`,
+          boxShadow: `0 6px 20px ${FAB_COLOR}55`,
           transition: "box-shadow 0.2s ease",
           userSelect: "none",
         }}
