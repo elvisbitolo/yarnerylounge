@@ -144,13 +144,13 @@ export default function AdminRoomsPage() {
   return (
       <Nav role={role}>
       <div className={styles.container}>
-        <h1 className={styles.title}>Manage rooms</h1>
+        <h1 className={styles.title}>Manage lounges</h1>
 
         <form className={styles.form} onSubmit={handleCreate}>
-          <h2 className={styles.formTitle}>Create a room</h2>
+          <h2 className={styles.formTitle}>Create a lounge</h2>
           {error && <p className={styles.error}>{error}</p>}
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="name">Room name</label>
+            <label className={styles.label} htmlFor="name">Lounge name</label>
             <input
               id="name"
               className={styles.input}
@@ -211,7 +211,7 @@ export default function AdminRoomsPage() {
             </select>
           </div>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="kind">Room type</label>
+            <label className={styles.label} htmlFor="kind">Lounge type</label>
             <select
               id="kind"
               className={styles.input}
@@ -286,7 +286,7 @@ export default function AdminRoomsPage() {
               />
               <span className={styles.checkText}>
                 <strong>Show on the public explore page</strong>
-                <small>Reveals this room (name, description) to visitors.</small>
+                <small>Reveals this lounge (name, description) to visitors.</small>
               </span>
             </label>
           </div>
@@ -295,9 +295,9 @@ export default function AdminRoomsPage() {
           </button>
         </form>
 
-        <h2 className={styles.listTitle}>Existing rooms</h2>
+<h2 className={styles.listTitle}>Existing lounges</h2>
         {rooms.length === 0 ? (
-          <p className={styles.empty}>No rooms yet.</p>
+          <p className={styles.empty}>No lounges yet.</p>
         ) : (
           <div className={styles.list}>
             {rooms.map((room) => (

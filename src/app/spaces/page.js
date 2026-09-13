@@ -48,7 +48,7 @@ export default async function SpacesPage() {
           )}
         </div>
         <p className={styles.subtitle}>
-          Spaces bring together feeds, chats, courses, events and live rooms in one place.
+          Spaces bring together feeds, chats, courses, events and live lounges in one place.
         </p>
 
         {visible.length === 0 ? (

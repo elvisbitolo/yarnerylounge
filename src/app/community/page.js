@@ -115,7 +115,7 @@ export default async function CommunityPage() {
             </div>
             <div className={styles.stat}>
               <span className={styles.statNumber}>{roomCount}</span>
-              <span className={styles.statLabel}>Live rooms</span>
+              <span className={styles.statLabel}>Live lounges</span>
             </div>
           </div>
         </header>

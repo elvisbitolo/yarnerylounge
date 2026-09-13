@@ -350,11 +350,11 @@ export default function SearchBoard({ initialQ, initialHashtag, initialType, ini
             ))}
           </Section>
 
-          <Section title="Live rooms" count={results.rooms.length}>
+          <Section title="Live lounges" count={results.rooms.length}>
             {results.rooms.map((room) => (
               <Link key={room.id} href={`/rooms/${room.slug}`} className={styles.card}>
                 <div className={styles.cardTop}>
-                  <span className={styles.typeBadge}>Room</span>
+                  <span className={styles.typeBadge}>Lounge</span>
                   {relevance(room._score) && (
                     <span className={`${styles.relevance} ${styles[`relevance_${relevance(room._score).level}`]}`}>
                       {relevance(room._score).level}

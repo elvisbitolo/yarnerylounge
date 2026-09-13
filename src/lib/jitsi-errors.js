@@ -31,20 +31,20 @@ export const JITSI_ERROR = {
 // a missed locale can never surface raw browser/Jitsi text.
 const DEFAULT_TEXT = {
   [JITSI_ERROR.JAAS_AUTH_ERROR]: {
-    title: "Unable to join room",
+    title: "Unable to join lounge",
     message: "We couldn't authenticate your connection. Please try again.",
   },
   [JITSI_ERROR.JAAS_TOKEN_ERROR]: {
-    title: "Unable to join room",
+    title: "Unable to join lounge",
     message: "We couldn't authenticate your connection. Please try again.",
   },
   [JITSI_ERROR.JAAS_CONFIG_ERROR]: {
-    title: "Unable to join room",
-    message: "This room isn't available right now. Please try again.",
+    title: "Unable to join lounge",
+    message: "This lounge isn't available right now. Please try again.",
   },
   [JITSI_ERROR.CONFERENCE_CONNECTION_ERROR]: {
-    title: "Unable to join room",
-    message: "We couldn't connect to the room. Please try again.",
+    title: "Unable to join lounge",
+    message: "We couldn't connect to the lounge. Please try again.",
   },
   [JITSI_ERROR.NETWORK_ERROR]: {
     title: "Connection lost",
@@ -52,7 +52,7 @@ const DEFAULT_TEXT = {
   },
   [JITSI_ERROR.CONNECTION_LOST]: {
     title: "Connection lost",
-    message: "We lost the connection to this room. Please try again.",
+    message: "We lost the connection to this lounge. Please try again.",
   },
   [JITSI_ERROR.RECONNECTING]: {
     title: "Reconnecting",
@@ -60,11 +60,11 @@ const DEFAULT_TEXT = {
   },
   [JITSI_ERROR.RECORDING_PERMISSION_ERROR]: {
     title: "Recording isn't available",
-    message: "Recording isn't available for this room.",
+    message: "Recording isn't available for this lounge.",
   },
   [JITSI_ERROR.UNKNOWN_ERROR]: {
     title: "Something went wrong",
-    message: "Unable to join this room. Please try again.",
+    message: "Unable to join this lounge. Please try again.",
   },
 };
 

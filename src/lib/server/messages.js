@@ -4,11 +4,11 @@ import { createNotification } from "@/lib/server/notifications";
 
 const WELCOME = {
   "hooking-up":
-    "Welcome to Hooking Up! Your lounge membership is live — join video rooms, post in the feed, and match with crafters on the calendar.",
+    "Welcome to Hooking Up! Your lounge membership is live — join video lounges, post in the feed, and match with crafters on the calendar.",
   "moving-in":
-    "Welcome to Moving In! You now have host powers — create rooms, start groups, and lead the community. Check the Host tools in your sidebar.",
+    "Welcome to Moving In! You now have host powers — create lounges, start groups, and lead the community. Check the Host tools in your sidebar.",
   flirting:
-    "Welcome to the Speakeasy, guest! Upgrade to Hooking Up to unlock live video rooms, the Match Maker, and the matching calendar.",
+    "Welcome to the Speakeasy, guest! Upgrade to Hooking Up to unlock live video lounges, the Match Maker, and the matching calendar.",
 };
 
 export async function createWelcomeMessage({ uid, plan, role }) {

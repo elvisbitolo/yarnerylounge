@@ -42,10 +42,10 @@ export async function POST(req) {
 
   const { name, description = "", maxParticipants = 20, groupId = "", spaceId = "", kind = "standard", publicPreview = false, opensAt = null, recordingAllowed = true, replayVisibility = "members" } = await req.json();
   if (!name || typeof name !== "string") {
-    return NextResponse.json({ error: "Room name required" }, { status: 400 });
+    return NextResponse.json({ error: "Lounge name required" }, { status: 400 });
   }
   if (groupId && spaceId) {
-    return NextResponse.json({ error: "A room belongs to a group OR a space, not both" }, { status: 400 });
+    return NextResponse.json({ error: "A lounge belongs to a group OR a space, not both" }, { status: 400 });
   }
   const staff = isStaff(auth);
   if (!staff && !(await canCreateInScope(auth.user.uid, groupId, spaceId))) {

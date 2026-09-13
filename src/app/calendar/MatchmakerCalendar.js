@@ -450,13 +450,13 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
             />
           </label>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>Which room?</span>
+            <span className={styles.fieldLabel}>Which lounge?</span>
             <select
               value={roomSlug}
               onChange={(e) => setRoomSlug(e.target.value)}
               className={styles.input}
             >
-              <option value="">Any 24/7 room</option>
+              <option value="">Any 24/7 lounge</option>
               {ROOMS.map((r) => (
                 <option key={r.slug} value={r.slug}>{r.name}</option>
               ))}

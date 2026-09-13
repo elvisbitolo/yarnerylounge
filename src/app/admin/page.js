@@ -42,7 +42,7 @@ export default function AdminOverviewPage() {
         { label: "Posts", value: data.counts.posts, href: "/admin/spaces" },
         { label: "Spaces", value: data.counts.spaces, href: "/admin/spaces" },
         { label: "Groups", value: data.counts.groups, href: "/admin/groups" },
-        { label: "Live rooms", value: data.counts.rooms, href: "/admin/rooms" },
+        { label: "Live lounges", value: data.counts.rooms, href: "/admin/rooms" },
         { label: "Events", value: data.counts.events, href: "/admin/events" },
         { label: "Courses", value: data.counts.courses, href: "/admin/courses" },
         { label: "RSVPs", value: data.counts.rsvps, href: "/admin/events" },
@@ -60,7 +60,7 @@ export default function AdminOverviewPage() {
         </p>
         <div className={styles.quickActions}>
           <Link className={styles.quickAction} href="/feed">Create post</Link>
-          <Link className={styles.quickAction} href="/admin/rooms">Create room</Link>
+          <Link className={styles.quickAction} href="/admin/rooms">Create lounge</Link>
           <Link className={styles.quickAction} href="/admin/events">Schedule event</Link>
           <Link className={styles.quickAction} href="/admin/courses">Create course</Link>
           <Link className={styles.quickAction} href="/admin/groups">Create group/space</Link>

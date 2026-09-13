@@ -7,7 +7,7 @@ import Nav from "@/components/Nav";
 import styles from "../rooms/admin.module.css";
 
 const SCOPE_TYPES = [
-  { value: "room", label: "Room" },
+  { value: "room", label: "Lounge" },
   { value: "event", label: "Event" },
   { value: "course", label: "Course" },
   { value: "group", label: "Group" },

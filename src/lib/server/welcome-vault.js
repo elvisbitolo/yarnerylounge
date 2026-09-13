@@ -17,7 +17,7 @@ This is a sanctuary for connection and crafting — not a marketplace or a billb
 Bullying, hate speech, body shaming, racism, sexism, personal attacks, passive-aggressive comments, and criticism of another member's skill level are strictly prohibited — in the live video lounges, chat, and community boards alike. Uninvited criticism or policing of other members inside live video streams is likewise prohibited.
 
 3. "Moving In" Host Responsibilities
-Hosts must keep their rooms safe, welcoming, and on-topic. Hosts may never use their rooms or sub-groups to promote products, run unapproved businesses, or exclude or harass other paying members. Christa and the Lounge administration reserve the right to shut down any member-created room or group at any time, for any reason.
+Hosts must keep their lounges safe, welcoming, and on-topic. Hosts may never use their lounges or sub-groups to promote products, run unapproved businesses, or exclude or harass other paying members. Christa and the Lounge administration reserve the right to shut down any member-created lounge or group at any time, for any reason.
 
 4. Enforcement: Lifetime Ban & No Refunds
 Violation of any core rule results in an immediate, permanent lifetime ban with no refunds. Your account is deleted, and you may not re-join the community under any email address or alias.

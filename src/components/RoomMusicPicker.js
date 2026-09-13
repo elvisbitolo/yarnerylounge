@@ -130,7 +130,7 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
     <>
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Manage room music"
+        title="Manage lounge music"
         style={{
           position: "fixed",
           bottom: 24,

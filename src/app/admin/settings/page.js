@@ -86,7 +86,7 @@ export default function AdminSettingsPage() {
         <p className={styles.subtitle}>
           The steps new members see until they finish onboarding. Each step uses
           its key to check completion: profile (bio/headline/location), room
-          (attended a live room), post (made a post), rsvp (RSVPed to an event).
+          (attended a live lounge), post (made a post), rsvp (RSVPed to an event).
         </p>
         {error && <p className={styles.error}>{error}</p>}
         {saved && <p className={styles.notice}>Settings saved.</p>}

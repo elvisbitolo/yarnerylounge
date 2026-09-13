@@ -8,11 +8,11 @@ import styles from "../rooms/admin.module.css";
 
 const FEATURES = [
   { key: "feed", label: "Feed", description: "Posts, polls and questions" },
-  { key: "chat", label: "Chat", description: "Space-wide chat room" },
+  { key: "chat", label: "Chat", description: "Space-wide chat lounge" },
   { key: "members", label: "Members", description: "Member directory for the space" },
   { key: "events", label: "Events", description: "Events scoped to the space" },
   { key: "courses", label: "Courses", description: "Courses scoped to the space" },
-  { key: "live", label: "Live", description: "Live video rooms scoped to the space" },
+  { key: "live", label: "Live", description: "Live video lounges scoped to the space" },
 ];
 
 const DEFAULT_FEATURES = { feed: true, chat: true, members: true, events: false, courses: false, live: false };

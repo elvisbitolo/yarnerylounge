@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
           <p className={styles.eyebrow}>Welcome to Yarnery Lounge</p>
           <h1 className={styles.title}>Tell us how you craft</h1>
           <p className={styles.intro}>
-            We use these answers to surface better rooms, courses, and member matches. You can update them from your profile later.
+            We use these answers to surface better lounges, courses, and member matches. You can update them from your profile later.
           </p>
           <OnboardingForm initial={userDoc || {}} />
         </div>

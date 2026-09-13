@@ -39,7 +39,7 @@ export default async function EventsPage() {
             <a className={styles.adminLink} href="/admin/events">Manage events</a>
           )}
         </div>
-        <p className={styles.subtitle}>Scheduled meetups for the community. RSVP and get the room link.</p>
+        <p className={styles.subtitle}>Scheduled meetups for the community. RSVP and get the lounge link.</p>
         <EventsBoard
           events={serialized}
           uid={user.uid}

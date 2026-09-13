@@ -10,7 +10,7 @@ const AUDIENCES = [
   { value: "community", label: "Entire community", needsScope: false },
   { value: "space", label: "Space members", needsScope: true },
   { value: "group", label: "Group members", needsScope: true },
-  { value: "room", label: "Room audience", needsScope: true },
+  { value: "room", label: "Lounge audience", needsScope: true },
 ];
 
 export default function AdminAnnouncementsPage() {
@@ -99,7 +99,7 @@ export default function AdminAnnouncementsPage() {
         <h1 className={styles.title}>Announcements</h1>
         <p className={styles.itemMeta}>
           Send a one-time message to the whole community or to the members of a
-          specific space, group, or room.
+          specific space, group, or lounge.
         </p>
         {error && <p className={styles.error}>{error}</p>}
         {success && <p className={styles.success}>{success}</p>}

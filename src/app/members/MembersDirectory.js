@@ -569,7 +569,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
             </button>
             <p className={styles.matchTitle}>✦ Match</p>
             <p className={styles.matchText}>
-              Meet <strong>{matchTarget.name}</strong> in a hangout room? Rooms open on your next visit to the lounge.
+              Meet <strong>{matchTarget.name}</strong> in a hangout lounge? Lounges open on your next visit to the lounge.
             </p>
             <div className={styles.matchButtons}>
               <button
@@ -580,7 +580,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
                   router.push("/rooms");
                 }}
               >
-                Meet in a room
+                Meet in a lounge
               </button>
               <button
                 type="button"

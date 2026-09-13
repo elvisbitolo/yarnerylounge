@@ -858,11 +858,11 @@ export default function RoomClient({
       <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
       <div className={styles.container}>
         <div className={styles.prejoinWrap}>
-          <BackButton fallback="/rooms" label="Back to rooms" />
+          <BackButton fallback="/rooms" label="Back to lounges" />
           <div className={styles.prejoin}>
             <h1 className={styles.title}>{roomName}</h1>
-            <p className={styles.subtitle}>This room opens at the scheduled time.</p>
-            <p className={styles.countdown} role="timer" aria-label="Time until the room opens">
+            <p className={styles.subtitle}>This lounge opens at the scheduled time.</p>
+            <p className={styles.countdown} role="timer" aria-label="Time until the lounge opens">
               {formatWait(waitSeconds)}
             </p>
             <p className={styles.waitHint}>
@@ -888,20 +888,20 @@ export default function RoomClient({
       <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
       <div className={styles.container}>
         <div className={styles.prejoinWrap}>
-          <BackButton fallback="/rooms" label="Back to rooms" />
+          <BackButton fallback="/rooms" label="Back to lounges" />
           <div className={styles.prejoin}>
             <h1 className={styles.title}>{roomName}</h1>
             <p className={styles.subtitle}>
               {viewer
                 ? "Viewing as a guest — subscriptions unlock your camera & mic."
                 : vibeMode === "silent"
-                ? "Absolute-silence focus room. Audio stays off — cameras on, microphones muted."
+                ? "Absolute-silence focus lounge. Audio stays off — cameras on, microphones muted."
                 : vibeMode === "force-mute"
                 ? "Solo-focused flow. Microphones muted by default, text chat for quick hellos."
                 : vibeMode === "raise-hand"
-                ? "Soft-spoken room. Raise your hand to talk and the host will bring you in."
+                ? "Soft-spoken lounge. Raise your hand to talk and the host will bring you in."
                 : vibeMode === "auto"
-                ? "The loud, friendly welcome room — camera and mic are on as soon as you pop in."
+                ? "The loud, friendly welcome lounge — camera and mic are on as soon as you pop in."
                 : alwaysOn
                 ? "Always open — pop in anytime. Meet new members and settle into the lounge."
                 : isBroadcast
@@ -961,7 +961,7 @@ export default function RoomClient({
             {viewer && <p className={styles.watchNote}>{t("watchingOnly")}</p>}
             {(audioLocked && !viewer) || (vibeMode === "force-mute" && !viewer) ? (
               <p className={styles.watchNote}>
-                <MicOff size={14} /> Audio is always off in this room — cameras stay on for company.
+                <MicOff size={14} /> Audio is always off in this lounge — cameras stay on for company.
               </p>
             ) : null}
             {raiseHandToTalk && !viewer && (
@@ -971,7 +971,7 @@ export default function RoomClient({
             )}
             {inlineError && <p className={styles.error}>{inlineError}</p>}
             <button className={styles.join} onClick={handleJoin} disabled={phase === "authenticating"}>
-              {phase === "authenticating" ? t("joining") : alwaysOn ? "Pop in" : isBroadcast ? "Join as viewer" : "Join room"}
+              {phase === "authenticating" ? t("joining") : alwaysOn ? "Pop in" : isBroadcast ? "Join as viewer" : "Join lounge"}
             </button>
             <p className={styles.watchNote}>
               {viewer
@@ -1113,7 +1113,7 @@ export default function RoomClient({
               <div className={styles.chatSheetHeader}>
                 <span className={styles.chatSheetTitle}>
                   <MessagesSquare size={15} />
-                  Room chat
+                  Lounge chat
                 </span>
                 <button
                   type="button"

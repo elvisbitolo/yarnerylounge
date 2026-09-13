@@ -58,7 +58,7 @@ export async function POST(req) {
       const message = room
         ? await prisma.roomMessage.findUnique({ where: { id: targetId, roomId: room.id }, select: { id: true } })
         : null;
-      if (!room || !message) return NextResponse.json({ error: "Room message not found" }, { status: 404 });
+      if (!room || !message) return NextResponse.json({ error: "Lounge message not found" }, { status: 404 });
       targetPath = `rooms/${room.slug}/messages/${targetId}`;
     }
     const created = await prisma.report.create({

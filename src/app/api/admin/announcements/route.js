@@ -28,7 +28,7 @@ export async function POST(req) {
   const { audience, scopeId, message } = await req.json();
 
   if (!AUDIENCES.includes(audience)) {
-    return NextResponse.json({ error: "Audience must be community, space, group, or room" }, { status: 400 });
+    return NextResponse.json({ error: "Audience must be community, space, group, or lounge" }, { status: 400 });
   }
   if (audience !== "community" && !scopeId) {
     return NextResponse.json({ error: "A scope is required for this audience" }, { status: 400 });

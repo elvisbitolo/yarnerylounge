@@ -6,7 +6,7 @@ export const SPACE_FEATURE_LABELS = {
   members: "Members",
   events: "Events",
   courses: "Courses",
-  live: "Live rooms",
+  live: "Live lounges",
   pages: "Pages",
 };
 

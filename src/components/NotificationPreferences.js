@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import styles from "./NotificationPreferences.module.css";
 
 const PREF_KEYS = [
-  { key: "chat", label: "Chat messages", hint: "Direct messages and room chat" },
+  { key: "chat", label: "Chat messages", hint: "Direct messages and lounge chat" },
   { key: "feed", label: "Feed activity", hint: "Comments, likes on your posts" },
   { key: "events", label: "Events", hint: "Event reminders and updates" },
   { key: "mentions", label: "Mentions", hint: "When someone @mentions you" },

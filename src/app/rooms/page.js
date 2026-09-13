@@ -87,13 +87,13 @@ export default async function RoomsPage() {
     <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Rooms</h1>
+          <h1 className={styles.title}>Lounges</h1>
           {userDoc?.role === "owner" && (
             <Link className={styles.adminLink} href="/admin/rooms">Manage lounges</Link>
           )}
         </div>
         <p className={styles.subtitle}>
-          Four active lounges — pick your vibe and join the crafters already inside.
+          Four always-on video lounges — pick your vibe and join the crafters already inside.
         </p>
 
         {featuredRooms.length === 0 ? (

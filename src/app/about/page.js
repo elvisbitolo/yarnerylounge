@@ -5,7 +5,7 @@ import styles from "./about.module.css";
 export const metadata = {
   title: "About",
   description:
-    "Learn about Secret Yarnery — a paid membership community for live video rooms, courses, events and real conversations.",
+    "Learn about Secret Yarnery — a paid membership community for live video lounges, courses, events and real conversations.",
 };
 
 export default function AboutPage() {
@@ -23,7 +23,7 @@ export default function AboutPage() {
           <h2 className={styles.heading}>What you get</h2>
           <ul className={styles.list}>
             <li>
-              <strong>Live rooms</strong> — real-time video rooms for conversations, coworking and
+              <strong>Live lounges</strong> — real-time video lounges for conversations, coworking and
               broadcasts with your community.
             </li>
             <li>

@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }) {
       <div className={styles.container}>
         <h1 className={styles.title}>Search</h1>
         <p className={styles.subtitle}>
-          Find posts, members, spaces, groups, courses, events and live rooms.
+          Find posts, members, spaces, groups, courses, events and live lounges.
         </p>
         <SearchBoard
           initialQ={q}

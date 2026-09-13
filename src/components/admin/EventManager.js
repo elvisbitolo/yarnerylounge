@@ -91,7 +91,7 @@ export default function EventManager({ hostOnly = false }) {
     e.preventDefault();
     setError("");
     if (hostOnly && !spaceId && !roomSlug) {
-      setError("Choose a space or live room you host");
+      setError("Choose a space or live lounge you host");
       return;
     }
     setBusy(true);
@@ -152,7 +152,7 @@ export default function EventManager({ hostOnly = false }) {
 
         {hostOnly && hostScopes.spaces.length === 0 && hostScopes.rooms.length === 0 ? (
           <p className={styles.empty}>
-            You don&apos;t host a space or live room yet. Ask an admin to assign you,
+            You don&apos;t host a space or live lounge yet. Ask an admin to assign you,
             or manage events you host from the host tools.
           </p>
         ) : (
@@ -203,7 +203,7 @@ export default function EventManager({ hostOnly = false }) {
             </div>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="roomSlug">
-                Live room ({hostOnly ? "" : "optional"})
+                Live lounge ({hostOnly ? "" : "optional"})
               </label>
               <select
                 id="roomSlug"
@@ -211,8 +211,8 @@ export default function EventManager({ hostOnly = false }) {
                 value={roomSlug}
                 onChange={(e) => setRoomSlug(e.target.value)}
               >
-                {!hostOnly && <option value="">No room</option>}
-                {hostOnly && <option value="">Select a room</option>}
+                {!hostOnly && <option value="">No lounge</option>}
+                {hostOnly && <option value="">Select a lounge</option>}
                 {rooms
                   .filter((room) => !hostOnly || room.status === undefined || room.status === "active")
                   .map((room) => (

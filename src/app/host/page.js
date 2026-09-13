@@ -77,7 +77,7 @@ export default function HostPage() {
       <div className={styles.container}>
         <h1 className={styles.title}>Host tools</h1>
         <p className={styles.itemMeta}>
-          Everything you host in one place. Open your rooms, create rooms in the
+          Everything you host in one place. Open your lounges, create lounges in the
           spaces and groups you host, and message the members you serve.
         </p>
         {error && <p className={styles.error}>{error}</p>}
@@ -85,7 +85,7 @@ export default function HostPage() {
 
         {scopes.length === 0 ? (
           <p className={styles.empty}>
-            You don&apos;t host anything yet. Ask an admin to assign you a room,
+            You don&apos;t host anything yet. Ask an admin to assign you a lounge,
             space, or group.
           </p>
         ) : (
@@ -121,7 +121,7 @@ export default function HostPage() {
                       className={styles.toggle}
                       href={`/host/rooms?scopeType=${scope.scopeType}&scopeId=${scope.scopeId}`}
                     >
-                      Create room
+                      Create lounge
                     </Link>
                   )}
                   {scope.scopeType === "space" && (

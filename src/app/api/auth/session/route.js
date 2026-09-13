@@ -117,7 +117,7 @@ export async function POST(req) {
             `Hi ${memberName},\n\n` +
             `Welcome to Secret Yarnery! You're now a member of the community.\n\n` +
             `Here's what's inside:\n` +
-            `- Live video rooms for real-time conversation\n` +
+            `- Live video lounges for real-time conversation\n` +
             `- Courses with lessons and progress tracking\n` +
             `- Events with RSVPs and reminders\n` +
             `- Groups, spaces, direct messages and a community feed\n\n` +

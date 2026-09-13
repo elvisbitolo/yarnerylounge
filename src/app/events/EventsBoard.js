@@ -148,7 +148,7 @@ export default function EventsBoard({ events, uid, userName }) {
           <p className={styles.eventMeta}>
             {formatDate(event.startTime)}
             {event.endTime && <> · until {new Date(event.endTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</>}
-            {event.roomSlug && <> · room open</>}
+            {event.roomSlug && <> · lounge open</>}
           </p>
           {attendees.length > 0 && (
             <p className={styles.attendees}>
@@ -198,7 +198,7 @@ export default function EventsBoard({ events, uid, userName }) {
             </a>
             <Link className={styles.calendar} href={`/events/${event.id}`}>Details</Link>
             {event.roomSlug && (
-              <Link className={styles.join} href={`/rooms/${event.roomSlug}`}>Join the room</Link>
+              <Link className={styles.join} href={`/rooms/${event.roomSlug}`}>Join the lounge</Link>
             )}
           </div>
         </div>

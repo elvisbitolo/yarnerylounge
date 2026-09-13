@@ -96,7 +96,7 @@ async function grantAccess({ data, email, order }) {
       html:
         `<p>Hi ${existing.name || email},</p>` +
         `<p>Your payment for the <strong>${variant.label}</strong> plan was successful. Your membership is now active.</p>` +
-        `<p>Enter the lounge to start matching, hopping into video rooms, and crafting together: ` +
+        `<p>Enter the lounge to start matching, hopping into video lounges, and crafting together: ` +
         `<a href="${appUrl}/login">Enter the Lounge</a></p>` +
         `<p>— The Secret Yarnery Team</p>`,
     }).catch((err) => {

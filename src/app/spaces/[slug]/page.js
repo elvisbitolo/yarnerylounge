@@ -218,9 +218,9 @@ export default async function SpacePage({ params }) {
 
         {features.live && (
           <>
-            <h2 className={styles.sectionTitle}>Live rooms</h2>
+            <h2 className={styles.sectionTitle}>Live lounges</h2>
             {spaceRooms.length === 0 ? (
-              <p className={styles.empty}>No live rooms in this space yet.</p>
+              <p className={styles.empty}>No live lounges in this space yet.</p>
             ) : (
               <div className={styles.roomGrid}>
                 {spaceRooms.map((room) => (

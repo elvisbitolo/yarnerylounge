@@ -67,7 +67,7 @@ export async function POST(req) {
       const now = Date.now();
       if (opensAtMillis && opensAtMillis > now && !isHost) {
         return NextResponse.json(
-          { error: "This room opens at the scheduled time", opensAt: opensAtMillis },
+          { error: "This lounge opens at the scheduled time", opensAt: opensAtMillis },
           { status: 423 }
         );
       }
@@ -130,7 +130,7 @@ export async function POST(req) {
         keyLength: keyV ? keyV.length : 0,
       });
       return NextResponse.json(
-        { error: "Unable to join this room. Please try again.", code: "jaas_not_configured" },
+        { error: "Unable to join this lounge. Please try again.", code: "jaas_not_configured" },
         { status: 503 }
       );
     }
@@ -194,7 +194,7 @@ export async function POST(req) {
     // Never leak internal JaaS/JWT details (kid/iss/keys) to the client.
     logError("jitsi.token.failed", { error: err?.message });
     return NextResponse.json(
-      { error: "Unable to join this room. Please try again.", code: "jaas_join_error" },
+      { error: "Unable to join this lounge. Please try again.", code: "jaas_join_error" },
       { status: 500 }
     );
   }

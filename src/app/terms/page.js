@@ -30,12 +30,12 @@ const SECTIONS = [
   {
     heading: "Zero Tolerance for Bullying, Harassment, or Negativity",
     body:
-      "We are committed to a supportive environment in every corner of the Lounge — the live video rooms, chat, and community boards alike. What is prohibited: Bullying, hate speech, body shaming, racism, sexism, personal attacks, passive-aggressive comments, and criticism of another member's skill level. Uninvited criticism or policing of other members inside live video streams is likewise strictly prohibited. Penalty: Immediate lifetime ban on the first offence.",
+      "We are committed to a supportive environment in every corner of the Lounge — the live video lounges, chat, and community boards alike. What is prohibited: Bullying, hate speech, body shaming, racism, sexism, personal attacks, passive-aggressive comments, and criticism of another member's skill level. Uninvited criticism or policing of other members inside live video streams is likewise strictly prohibited. Penalty: Immediate lifetime ban on the first offence.",
   },
   {
     heading: "“Moving In” Host Responsibilities",
     body:
-      "Moving In members have the privilege of creating and hosting live video rooms and sub-groups. With that privilege comes responsibility: hosts must keep their rooms safe, welcoming, and on-topic; they may never use their rooms or sub-groups to promote products, run unapproved businesses, or exclude or harass other paying members. Christa and the Lounge administration reserve the right to shut down any member-created room or group at any time, for any reason.",
+      "Moving In members have the privilege of creating and hosting live video lounges and sub-groups. With that privilege comes responsibility: hosts must keep their lounges safe, welcoming, and on-topic; they may never use their lounges or sub-groups to promote products, run unapproved businesses, or exclude or harass other paying members. Christa and the Lounge administration reserve the right to shut down any member-created lounge or group at any time, for any reason.",
   },
   {
     heading: "Enforcement: Lifetime Ban & No-Refund Policy",

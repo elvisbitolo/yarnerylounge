@@ -71,7 +71,7 @@ export async function touchRoomPresence({ sessionId, roomId, userId }) {
   if (!prisma) return { error: "Database unavailable" };
   try {
     const existing = await prisma.roomPresence.findUnique({ where: { id: sessionId }, select: { roomId: true, userId: true } });
-    if (existing && (existing.roomId !== roomId || existing.userId !== userId)) return { error: "Invalid room session" };
+    if (existing && (existing.roomId !== roomId || existing.userId !== userId)) return { error: "Invalid lounge session" };
     const row = await prisma.roomPresence.upsert({
       where: { id: sessionId },
       create: { id: sessionId, roomId, userId, joinedAt: new Date(), lastSeenAt: new Date(), leftAt: null },
@@ -81,7 +81,7 @@ export async function touchRoomPresence({ sessionId, roomId, userId }) {
     return { presence: row };
   } catch (err) {
     logError("room-presence.touch_failed", { error: err.message, roomId, userId });
-    return { error: "Could not update room presence" };
+    return { error: "Could not update lounge presence" };
   }
 }
 
@@ -95,6 +95,6 @@ export async function leaveRoomPresence({ sessionId, roomId, userId }) {
     return { ok: true };
   } catch (err) {
     logError("room-presence.leave_failed", { error: err.message, roomId, userId });
-    return { error: "Could not leave room presence" };
+    return { error: "Could not leave lounge presence" };
   }
 }

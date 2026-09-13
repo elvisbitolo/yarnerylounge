@@ -138,8 +138,8 @@ export default async function NeighbourhoodsPage() {
               neighbourhood surfaced first.
             </li>
             <li>
-              <strong>Their rooms</strong> — neighbourhood hangout rooms appear on the live
-              room grid.
+              <strong>Their lounges</strong> — neighbourhood hangout lounges appear on the live
+              lounge grid.
             </li>
           </ul>
         </section>

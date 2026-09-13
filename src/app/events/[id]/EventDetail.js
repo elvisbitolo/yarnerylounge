@@ -106,7 +106,7 @@ export default function EventDetail({ event, uid, userName }) {
           {event.endTime && (
             <> · until {new Date(event.endTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</>
           )}
-          {event.roomSlug && <> · room open</>}
+          {event.roomSlug && <> · lounge open</>}
         </p>
         <p className={styles.attendees}>
           {attendees.count} {attendees.count === 1 ? "member" : "members"} going
@@ -150,7 +150,7 @@ export default function EventDetail({ event, uid, userName }) {
           </a>
           {event.roomSlug && (
             <Link className={styles.join} href={`/rooms/${event.roomSlug}`}>
-              Join the room
+              Join the lounge
             </Link>
           )}
         </div>

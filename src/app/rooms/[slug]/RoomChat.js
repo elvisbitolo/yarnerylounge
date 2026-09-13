@@ -259,7 +259,7 @@ export default function RoomChat({ hostId, currentUserId, participantCount = 0, 
       if (!res.ok) throw new Error(data.error || "Could not update safety settings");
       if (action === "mute") onMuteParticipant?.(message.userId, message.userName);
       if (action === "block") hideUser?.(targetId);
-      setSafetyNotice(action === "block" ? "Member blocked and hidden from this room." : "Member muted for you.");
+      setSafetyNotice(action === "block" ? "Member blocked and hidden from this lounge." : "Member muted for you.");
     } catch (error) {
       setSafetyNotice(error.message || "Could not update safety settings");
     } finally {

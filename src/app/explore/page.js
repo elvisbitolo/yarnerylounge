@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Explore — Secret Yarnery",
   description:
-    "A preview of the Secret Yarnery community: live rooms, events, courses and spaces. Join to take part.",
+    "A preview of the Secret Yarnery community: live lounges, events, courses and spaces. Join to take part.",
 };
 
 function formatTime(millis) {
@@ -38,7 +38,7 @@ export default async function ExplorePage() {
       <div className={styles.hero}>
         <h1 className={styles.title}>Explore the community</h1>
         <p className={styles.subtitle}>
-          A glimpse of what&apos;s happening inside Secret Yarnery. Join to take part in live rooms,
+          A glimpse of what&apos;s happening inside Secret Yarnery. Join to take part in live lounges,
           events, courses and spaces.
         </p>
       </div>
@@ -46,13 +46,13 @@ export default async function ExplorePage() {
       <div className={styles.container}>
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Live rooms</h2>
+            <h2 className={styles.sectionTitle}>Live lounges</h2>
             {data.rooms.length > 0 && (
-              <Link className={styles.sectionLink} href="/rooms">See rooms</Link>
+              <Link className={styles.sectionLink} href="/rooms">See lounges</Link>
             )}
           </div>
           {data.rooms.length === 0 ? (
-            <p className={styles.empty}>No rooms previewing right now.</p>
+            <p className={styles.empty}>No lounges previewing right now.</p>
           ) : (
             <div className={styles.grid}>
               {data.rooms.map((room) => (

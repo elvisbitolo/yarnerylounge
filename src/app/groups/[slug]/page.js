@@ -120,7 +120,7 @@ export default async function GroupPage({ params }) {
 
             {activeGroupRooms.length > 0 && (
               <>
-                <h2 className={styles.sectionTitle}>Group rooms</h2>
+                <h2 className={styles.sectionTitle}>Group lounges</h2>
                 <div className={styles.roomGrid}>
                   {activeGroupRooms.map((room) => (
                     <Link key={room.id} href={`/rooms/${room.slug}`} className={styles.roomCard}>

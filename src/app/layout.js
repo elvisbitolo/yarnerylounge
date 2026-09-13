@@ -31,7 +31,7 @@ export const metadata = {
     template: "%s — Secret Yarnery",
   },
   description:
-    "Secret Yarnery is a paid membership community with live video rooms, courses, events, groups and real conversations — connect, learn and grow together in one place.",
+    "Secret Yarnery is a paid membership community with live video lounges, courses, events, groups and real conversations — connect, learn and grow together in one place.",
   manifest: "/manifest.webmanifest",
   other: {
     "google-site-verification": "EO1A_95MmyPuFD2ULeSrZ2xzliMUJEdAWtRmclDUwPo",

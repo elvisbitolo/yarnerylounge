@@ -18,7 +18,7 @@ export function roomColorFor(slug) {
 }
 
 export function roomNameFor(slug) {
-  return CALENDAR_ROOMS.find((r) => r.slug === slug)?.name || slug || "Any room";
+  return CALENDAR_ROOMS.find((r) => r.slug === slug)?.name || slug || "Any lounge";
 }
 
 function toIso(v) {

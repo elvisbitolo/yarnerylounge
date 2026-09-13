@@ -60,7 +60,7 @@ export default function HostRoomsPage() {
     e.preventDefault();
     setError("");
     if (!scopeId) {
-      setError("Choose the space or group this room belongs to.");
+      setError("Choose the space or group this lounge belongs to.");
       return;
     }
     setBusy(true);
@@ -90,7 +90,7 @@ export default function HostRoomsPage() {
   return (
     <Nav role={role}>
       <div className={styles.container}>
-        <h1 className={styles.title}>Create a room</h1>
+        <h1 className={styles.title}>Create a lounge</h1>
         <p className={styles.itemMeta}>
           Rooms you create belong to a space or group you host. Members of that
           audience can join.
@@ -126,7 +126,7 @@ export default function HostRoomsPage() {
             </select>
           </div>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="name">Room name</label>
+            <label className={styles.label} htmlFor="name">Lounge name</label>
             <input
               id="name"
               className={styles.input}
@@ -159,7 +159,7 @@ export default function HostRoomsPage() {
             />
           </div>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="kind">Room type</label>
+            <label className={styles.label} htmlFor="kind">Lounge type</label>
             <select
               id="kind"
               className={styles.input}

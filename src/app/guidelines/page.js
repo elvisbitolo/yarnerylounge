@@ -18,7 +18,7 @@ const SECTIONS = [
   },
   {
     heading: "Protect privacy",
-    body: "Do not share other members' personal information. Be respectful of others' privacy in live rooms.",
+    body: "Do not share other members' personal information. Be respectful of others' privacy in live lounges.",
   },
   {
     heading: "No harmful content",
@@ -26,7 +26,7 @@ const SECTIONS = [
   },
   {
     heading: "Respect the space you share",
-    body: "Follow room etiquette in live video: mute when you're not speaking, be mindful of background noise, and let others have the floor.",
+    body: "Follow lounge etiquette in live video: mute when you're not speaking, be mindful of background noise, and let others have the floor.",
   },
   {
     heading: "Contribute generously",

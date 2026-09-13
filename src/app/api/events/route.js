@@ -52,7 +52,7 @@ export async function POST(req) {
     }
     if (!allowed) {
       return NextResponse.json(
-        { error: "Only staff or the host of the space or room can schedule events" },
+        { error: "Only staff or the host of the space or lounge can schedule events" },
         { status: 403 }
       );
     }
