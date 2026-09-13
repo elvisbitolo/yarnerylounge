@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "../chat.module.css";
 import tStyles from "./thread.module.css";
 import { renderRichText } from "@/lib/chat-render";
+import { subscribeConversation } from "@/lib/chat-realtime";
+import { chatTimeLabel, dayDividerLabel, isSameLocalDay } from "@/lib/chat-time";
 import { Pin, Paperclip, Image as ImageIcon, Lock, Smile } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
@@ -23,16 +25,6 @@ const EMOJIS = [
   "✨", "🎉", "🎂", "🎁", "⭐", "🌈", "🌹", "🍀",
   "🍕", "☕", "🚀", "💯",
 ];
-
-function timeLabel(millis) {
-  if (!millis) return "";
-  return new Date(millis).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function formatBytes(bytes) {
   if (!bytes && bytes !== 0) return "";
@@ -116,7 +108,7 @@ function BubbleContent({ msg, searchQuery, isReply }) {
   return content ? <p className={bubbleTextClass}>{content}</p> : null;
 }
 
-export default function Thread({ conversationId, uid, initialMessages, canWriteChat = false }) {
+export default function Thread({ conversationId, uid, selfName = "You", initialMessages, canWriteChat = false }) {
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -139,52 +131,70 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
   const [typingUsers, setTypingUsers] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [reactionsOpen, setReactionsOpen] = useState(null);
+  const [pendingId, setPendingId] = useState(null);
 
-  useEffect(() => {
-    let active = true;
-    let timer;
-
-    async function load() {
-      try {
-        const res = await fetch(`/api/conversations/${conversationId}/messages`);
-        if (active && res.ok) {
-          const data = await res.json();
-          setMessages(Array.isArray(data.messages) ? data.messages : []);
-        }
-        fetch(`/api/conversations/${conversationId}/read`, { method: "POST" }).catch(() => {});
-        fetch(`/api/conversations/${conversationId}/typing`)
-          .then((r) => (r.ok ? r.json() : { typing: [] }))
-          .then((d) => active && setTypingUsers(Array.isArray(d.typing) ? d.typing : []))
-          .catch(() => {});
-        fetch(`/api/conversations/${conversationId}/pinned`)
-          .then((r) => (r.ok ? r.json() : { messages: [] }))
-          .then((d) => active && setPinnedMessages(Array.isArray(d.messages) ? d.messages : []))
-          .catch(() => {});
-      } catch {
-        // transient network error — the next poll will retry
+  // Single refresh path: messages + read + typing + pinned. Called by the
+  // realtime channel (instant) and by the polling fallback (reliability).
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(Array.isArray(data.messages) ? data.messages : []);
       }
+      fetch(`/api/conversations/${conversationId}/read`, { method: "POST" }).catch(() => {});
+      fetch(`/api/conversations/${conversationId}/typing`)
+        .then((r) => (r.ok ? r.json() : { typing: [] }))
+        .then((d) => {
+          if (Array.isArray(d.typing)) setTypingUsers(d.typing);
+        })
+        .catch(() => {});
+      fetch(`/api/conversations/${conversationId}/pinned`)
+        .then((r) => (r.ok ? r.json() : { messages: [] }))
+        .then((d) => {
+          if (Array.isArray(d.messages)) setPinnedMessages(d.messages);
+        })
+        .catch(() => {});
+    } catch {
+      // transient network error — the next poll/event retries
     }
-
-    load();
-    timer = setInterval(load, POLL_INTERVAL_MS);
-    return () => {
-      active = false;
-      clearInterval(timer);
-      if (typingRef.current) {
-        clearTimeout(typingRef.current);
-        typingRef.current = null;
-      }
-    };
   }, [conversationId]);
 
+  // Polling fallback (used when the realtime socket is briefly unavailable).
   useEffect(() => {
+    let disposed = false;
+    const timer = setInterval(() => {
+      if (!disposed && document.visibilityState !== "hidden") refresh();
+    }, POLL_INTERVAL_MS);
     return () => {
-      if (typingRef.current) {
-        clearTimeout(typingRef.current);
-        typingRef.current = null;
-      }
+      disposed = true;
+      clearInterval(timer);
     };
-  }, []);
+  }, [refresh]);
+
+  // Realtime delivery: the instant a message row lands in this conversation,
+  // refresh. The channel subscribes as this participant via RLS; revocation or
+  // token expiry just falls back to the poll above.
+  useEffect(() => {
+    let disposed = false;
+    let stop = () => {};
+
+    subscribeConversation(conversationId, {
+      onEvent: () => {
+        if (!disposed && document.visibilityState !== "hidden") refresh();
+      },
+    })
+      .then((s) => {
+        if (disposed) s();
+        else stop = s;
+      })
+      .catch(() => {});
+
+    return () => {
+      disposed = true;
+      stop();
+    };
+  }, [conversationId, refresh]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -265,6 +275,35 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
     if ((!trimmed && !attachment) || busy) return;
     setBusy(true);
     setSendError("");
+
+    // Optimistic append: the sender sees their message instantly while it
+    // persists; the realtime event + refresh() reconcile it with the saved
+    // copy (and the other member's screen updates the same moment it lands).
+    let tempId = null;
+    if (trimmed || attachment) {
+      tempId = `sending-${Date.now()}`;
+      const tempMsg = {
+        id: tempId,
+        conversationId,
+        senderId: uid,
+        senderName: selfName || "You",
+        text: trimmed,
+        createdAt: Date.now(),
+        readBy: {},
+        replies: [],
+        replyCount: 0,
+        parentId: null,
+        hasAttachment: !!attachment,
+        sending: true,
+      };
+      if (attachment) tempMsg.attachment = attachment;
+      setMessages((prev) => [...prev, tempMsg]);
+      setPendingId(tempId);
+      setText("");
+      setAttachment(null);
+      setShowEmoji(false);
+    }
+
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
@@ -278,10 +317,11 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to send");
       }
-      setText("");
-      setAttachment(null);
-      setShowEmoji(false);
+      setPendingId(null);
+      refresh();
     } catch (err) {
+      setPendingId(null);
+      if (tempId) setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setSendError(err.message || "Failed to send");
     } finally {
       setBusy(false);
@@ -458,17 +498,28 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
             {searchQuery.trim() ? "No messages match your search" : "No messages yet — say hello!"}
           </p>
         )}
-        {filteredMessages.map((msg) => {
+        {filteredMessages.map((msg, index) => {
           const isMine = msg.senderId === uid;
           const millis =
             msg.createdAt?.toMillis?.() ||
             msg.createdAt?.seconds * 1000 ||
             Number(msg.createdAt) ||
             0;
+          const prevMillis =
+            index > 0
+              ? filteredMessages[index - 1].createdAt?.toMillis?.() ||
+                filteredMessages[index - 1].createdAt?.seconds * 1000 ||
+                Number(filteredMessages[index - 1].createdAt) ||
+                0
+              : 0;
+          const showDayDivider = index === 0 || !isSameLocalDay(prevMillis, millis);
           const replies = msg.replies || [];
           const isExpanded = expandedThreads[msg.id] || false;
           return (
             <div key={msg.id} className={tStyles.threadMessage}>
+              {showDayDivider && (
+                <div className={tStyles.dayDivider}>{dayDividerLabel(millis)}</div>
+              )}
               <div
                 className={isMine ? `${styles.bubble} ${styles.mine}` : styles.bubble}
               >
@@ -499,7 +550,11 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
                     <span className={styles.fileDownload}>Download</span>
                   </a>
                 )}
-                <p className={styles.bubbleTime}>{timeLabel(millis)}</p>
+                {msg.sending ? (
+                  <p className={tStyles.sendingNote}>Sending…</p>
+                ) : (
+                  <p className={styles.bubbleTime}>{chatTimeLabel(millis)}</p>
+                )}
                 {canWriteChat && (
                 <div className={tStyles.replyActions}>
                   {replies.length > 0 && (
@@ -594,7 +649,7 @@ export default function Thread({ conversationId, uid, initialMessages, canWriteC
                         >
                           {!isReplyMine && <p className={styles.bubbleName}>{reply?.senderName || "Member"}</p>}
                           <BubbleContent msg={reply} searchQuery={searchQuery.trim()} isReply />
-                          <p className={styles.bubbleTime}>{timeLabel(replyMillis)}</p>
+                          <p className={styles.bubbleTime}>{chatTimeLabel(replyMillis)}</p>
                         </div>
                       </div>
                     );

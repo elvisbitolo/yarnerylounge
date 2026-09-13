@@ -1,4 +1,22 @@
 /* Thread reply connector */
+.dayDivider {
+  align-self: center;
+  margin: 6px 0;
+  padding: 3px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8b8b9b;
+  background: rgba(23, 23, 28, 0.04);
+  border-radius: 999px;
+}
+
+.sendingNote {
+  font-size: 11px;
+  margin: 4px 0 0;
+  opacity: 0.6;
+  font-style: italic;
+}
+
 .threadMessage {
   position: relative;
 }
