@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getRoomBySlug, seedAlwaysOnRooms } from "@/lib/server/rooms";
+import { getRoomBySlugEnsuringAlwaysOn } from "@/lib/server/rooms";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities } from "@/lib/server/capabilities";
@@ -16,9 +16,10 @@ export default async function RoomPage({ params }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
-  await seedAlwaysOnRooms();
-  const room = await getRoomBySlug(slug);
+  const [userDoc, room] = await Promise.all([
+    getUserDoc(user.uid),
+    getRoomBySlugEnsuringAlwaysOn(slug),
+  ]);
   if (!room || room.status !== "active") {
     return (
       <main className={styles.page}>
@@ -31,9 +32,11 @@ export default async function RoomPage({ params }) {
     );
   }
 
-  const opensAt = await getUpcomingRoomStart(slug);
-  const rights = await getScopedHostRights(user.uid, "room", room.id);
-  const caps = await getCapabilities(user.uid);
+  const [opensAt, rights, caps] = await Promise.all([
+    getUpcomingRoomStart(slug),
+    getScopedHostRights(user.uid, "room", room.id),
+    getCapabilities(user.uid),
+  ]);
 
   return (
     <>

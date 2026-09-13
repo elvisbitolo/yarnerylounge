@@ -65,6 +65,31 @@ export async function getRoomBySlug(slug) {
   return spec ? canonicalDefaultRoom(spec) : null;
 }
 
+// Lobby read: returns all rooms, seeding the canonical always-on rooms first
+// only when one is missing from the database. In the steady state (all four
+// present) this is a single findMany, so there is no per-request write/sync pass.
+export async function listRoomsEnsuringAlwaysOn() {
+  const rooms = await listRooms();
+  const present = new Set(rooms.map((room) => room.slug));
+  const missing = ALWAYS_ON_ROOMS.filter((spec) => !present.has(spec.slug));
+  if (missing.length === 0) return rooms;
+  await seedAlwaysOnRooms();
+  return listRooms();
+}
+
+// Detail read: seeds on demand only when a canonical always-on room is absent,
+// so the join page never pays for the sync pass on the happy path. Missing
+// non-canonical slugs return null (callers render "not found").
+export async function getRoomBySlugEnsuringAlwaysOn(slug) {
+  const room = await getRoomBySlug(slug);
+  if (room) return room;
+  if (ALWAYS_ON_ROOMS.some((spec) => spec.slug === slug)) {
+    await seedAlwaysOnRooms();
+    return getRoomBySlug(slug);
+  }
+  return null;
+}
+
 function canonicalDefaultRoom(spec) {
   return {
     id: spec.slug,

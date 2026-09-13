@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { mapUserRow } from "@/lib/server/user-core";
@@ -51,8 +52,11 @@ export async function getCurrentUser() {
 }
 
 // Read the users table (Postgres). Returns the doc shape
-// ({ id, ...fields }) so every consumer is untouched.
-export async function getUserDoc(uid) {
+// ({ id, ...fields }) so every consumer is untouched. Wrapped in React's
+// cache() so the doc is fetched at most once per request — pages that call
+// getCurrentUser() (which reads the user doc internally) and then read the
+// doc again share the same DB hit.
+export const getUserDoc = cache(async function getUserDoc(uid) {
   try {
     const prisma = getPrisma();
     if (!prisma) return null;
@@ -62,7 +66,7 @@ export async function getUserDoc(uid) {
     logError("auth.prisma_user_read_failed", { error: err.message });
     return null;
   }
-}
+});
 
 // Prisma-first user lookup by email (used by the signup wall + session
 // exchange). Returns the doc shape or null.

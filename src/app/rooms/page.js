@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Wine, Headphones, Sofa, Ban } from "lucide-react";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { loungeGate } from "@/lib/server/lounge-gate";
-import { listRooms, seedAlwaysOnRoom, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
+import { listRoomsEnsuringAlwaysOn, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
 import Nav from "@/components/Nav";
 import styles from "./rooms.module.css";
 
@@ -51,13 +51,14 @@ export default async function RoomsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
+  const [userDoc, rooms] = await Promise.all([
+    getUserDoc(user.uid),
+    listRoomsEnsuringAlwaysOn(),
+  ]);
 
   const gate = await loungeGate(user.uid, userDoc);
   if (gate) redirect(gate);
 
-  await seedAlwaysOnRoom();
-  const rooms = await listRooms();
   const activeRooms = rooms.filter((room) => room.status === "active");
 
   // Only the four signature always-on rooms, in the canonical order above.
