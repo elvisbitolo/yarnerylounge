@@ -91,6 +91,7 @@ export const QUIZ_QUESTIONS = [
     options: [
       "Single crochet",
       "Half double",
+      "Double crochet",
       "Granny clusters",
       "Shells and fans",
       "Cables and textures",
