@@ -101,6 +101,7 @@ export const QUIZ_QUESTIONS = [
   {
     field: "crochetScene",
     question: "Where do you crochet most?",
+    multiple: true,
     options: [
       "On the couch",
       "In bed",
