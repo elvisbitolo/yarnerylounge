@@ -109,7 +109,10 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  aspect-ratio: 16 / 5;
+  /* Must match COVER_RATIO (4:1) in ProfileEditor so the overlay rect lines up
+     exactly with the pixels object-fit: cover reveals. A different ratio here
+     makes the selection drift from what gets cropped. */
+  aspect-ratio: 4 / 1;
   width: 100%;
 }
 

@@ -73,6 +73,10 @@ export const CROCHET_MOTIVATIONS = [
 
 const USERNAME_RE = /^[a-z0-9._-]{3,24}$/;
 
+// Photo/cover URLs are stored in a Postgres column; oversized values would be
+// silently truncated (corrupting inline data:image/ URLs) so reject them.
+const MAX_PHOTO_URL_LENGTH = 300000;
+
 function normalizeChoices(raw, allowed, max = allowed.length) {
   if (!Array.isArray(raw)) raw = raw ? [raw] : [];
   return [...new Set(
@@ -176,21 +180,29 @@ export function normalizeProfile(body) {
     }
   });
   if ("photoURL" in body) {
-    const photoURL = typeof body.photoURL === "string" ? body.photoURL.trim().slice(0, 300000) : "";
+    const photoURL = typeof body.photoURL === "string" ? body.photoURL.trim() : "";
     if (photoURL === "") {
       patch.photoURL = "";
     } else if (/^(https?:\/\/|data:image\/)/.test(photoURL)) {
-      patch.photoURL = photoURL;
+      if (photoURL.length > MAX_PHOTO_URL_LENGTH) {
+        errors.photoURL = "Profile photo is too large to store inline";
+      } else {
+        patch.photoURL = photoURL;
+      }
     } else {
       errors.photoURL = "Profile photo must be a valid URL or image";
     }
   }
   if ("coverPhotoURL" in body) {
-    const coverPhotoURL = typeof body.coverPhotoURL === "string" ? body.coverPhotoURL.trim().slice(0, 300000) : "";
+    const coverPhotoURL = typeof body.coverPhotoURL === "string" ? body.coverPhotoURL.trim() : "";
     if (coverPhotoURL === "") {
       patch.coverPhotoURL = "";
     } else if (/^(https?:\/\/|data:image\/)/.test(coverPhotoURL)) {
-      patch.coverPhotoURL = coverPhotoURL;
+      if (coverPhotoURL.length > MAX_PHOTO_URL_LENGTH) {
+        errors.coverPhotoURL = "Cover photo is too large to store inline";
+      } else {
+        patch.coverPhotoURL = coverPhotoURL;
+      }
     } else {
       errors.coverPhotoURL = "Cover photo must be a valid URL or image";
     }

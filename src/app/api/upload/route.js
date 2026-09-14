@@ -21,9 +21,8 @@ export async function POST(req) {
   const kind = url.searchParams.get("kind");
   const isAvatar = kind === "avatar";
   const isCover = kind === "cover";
-  const isMusic = kind === "music";
   const isProject = kind === "project";
-  if (!isAvatar && !isCover && !isMusic && !isProject) {
+  if (!isAvatar && !isCover && !isProject) {
     return NextResponse.json({ error: "Unknown upload kind" }, { status: 400 });
   }
 
@@ -76,7 +75,14 @@ function isSafeImage(mime, bytes) {
   if (mime === "image/jpeg") return sig([0xff, 0xd8, 0xff]);
   if (mime === "image/gif") return sig([0x47, 0x49, 0x46, 0x38]);
   if (mime === "image/webp") return sig([0x52, 0x49, 0x46, 0x46]) && sig([0x57, 0x45, 0x42, 0x50], 8);
-  if (mime === "image/avif") return sig([0x00, 0x00, 0x00, 0x1c, 0x66, 0x74, 0x79, 0x70]);
+  if (mime === "image/avif") {
+    // AVIF: any ftyp box size, brands "avif"/"avis" at offsets 8-11 (mihe/mif1
+    // also appear in some encoders as a secondary brand).
+    return (
+      sig([0x66, 0x74, 0x79, 0x70], 4) &&
+      (sig([0x61, 0x76, 0x69, 0x66], 8) || sig([0x61, 0x76, 0x69, 0x73], 8))
+    );
+  }
   // All other image/* types (including SVG, which can carry scripts) are rejected.
   return false;
 }

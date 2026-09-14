@@ -263,17 +263,21 @@ export default function ProfileEditor({ initial }) {
       setError("Please choose an image file (JPG, PNG, etc.).");
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setError("Image must be 8 MB or smaller.");
+    if (file.size > 4 * 1024 * 1024) {
+      setError("Image must be 4 MB or smaller.");
       return;
     }
     setError("");
     setCropKind("avatar");
-    const img = await loadImage(file);
-    setCropImage(img);
-    setCropRect(initialCropRectAvatar(img.width, img.height));
-    setCropStage("adjust");
-    setCropOpen(true);
+    try {
+      const img = await loadImage(file);
+      setCropImage(img);
+      setCropRect(initialCropRectAvatar(img.width, img.height));
+      setCropStage("adjust");
+      setCropOpen(true);
+    } catch (err) {
+      setError(err.message || "Couldn't read that image");
+    }
   }
 
   async function handleRemovePhoto() {
@@ -311,11 +315,15 @@ export default function ProfileEditor({ initial }) {
     }
     setError("");
     setCropKind("cover");
-    const img = await loadImage(file);
-    setCropImage(img);
-    setCropRect(initialCropRect(img.width, img.height));
-    setCropStage("adjust");
-    setCropOpen(true);
+    try {
+      const img = await loadImage(file);
+      setCropImage(img);
+      setCropRect(initialCropRect(img.width, img.height));
+      setCropStage("adjust");
+      setCropOpen(true);
+    } catch (err) {
+      setError(err.message || "Couldn't read that image");
+    }
   }
 
   function initialCropRect(width, height) {
@@ -921,7 +929,7 @@ export default function ProfileEditor({ initial }) {
               <button
                 type="button"
                 className={`${styles.avatarButton} ${styles.avatarRemove}`}
-                disabled={busy}
+                disabled={busy || uploadingCover}
                 onClick={handleRemoveCover}
               >
                 Remove cover
@@ -964,7 +972,7 @@ export default function ProfileEditor({ initial }) {
               <button
                 type="button"
                 className={`${styles.avatarButton} ${styles.avatarRemove}`}
-                disabled={busy}
+                disabled={busy || uploading}
                 onClick={handleRemovePhoto}
               >
                 Remove photo
