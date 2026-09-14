@@ -55,8 +55,9 @@ export async function POST(req) {
     let ext = (file.name || "").split(".").pop() || "bin";
     ext = (ext.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin").toLowerCase();
     const pathname = `uploads/${kind}/${auth.user.uid}/${Date.now()}.${ext}`;
+    const freshBlob = new Blob([bytes], { type: file.type || "application/octet-stream" });
 
-    const blob = await put(pathname, file, {
+    const blob = await put(pathname, freshBlob, {
       access: "public",
       contentType: file.type || "application/octet-stream",
       addRandomSuffix: true,
