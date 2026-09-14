@@ -25,13 +25,26 @@ test("normalizeProfile: optional fields are cleaned and capped", () => {
   assert.equal(patch.bio.length, 600);
 });
 
-test("normalizeProfile: quiz fields are cleaned and capped", () => {
-  const { patch } = normalizeProfile({
+test("normalizeProfile: quiz fields are cleaned and validated", () => {
+  const { patch, errors } = normalizeProfile({
     yarnType: ["  Soft and squishy  ", "  Not an option  "],
-    idealHookBrand: "x".repeat(300),
+    idealHookBrand: "  Clover  ",
   });
+  assert.equal(errors.idealHookBrand, undefined);
   assert.deepEqual(patch.yarnType, ["Soft and squishy"]);
-  assert.equal(patch.idealHookBrand.length, 120);
+  assert.equal(patch.idealHookBrand, "Clover");
+});
+
+test("normalizeProfile: quiz single answers reject unknown values", () => {
+  const { patch, errors } = normalizeProfile({ idealHookBrand: "x".repeat(300) });
+  assert.equal(patch.idealHookBrand, undefined);
+  assert.ok(errors.idealHookBrand);
+});
+
+test("normalizeProfile: quiz single answers may be cleared", () => {
+  const { patch, errors } = normalizeProfile({ idealHookBrand: "" });
+  assert.equal(patch.idealHookBrand, "");
+  assert.deepEqual(errors, {});
 });
 
 test("normalizeProfile: unknown fields are ignored", () => {

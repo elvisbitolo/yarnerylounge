@@ -1409,7 +1409,7 @@ export default function ProfileEditor({ initial }) {
                     onChange={() =>
                       setQuiz((prev) => {
                         const current = Array.isArray(prev[q.field]) ? prev[q.field] : [];
-                        const next = quiz[q.field].includes(option)
+                        const next = current.includes(option)
                           ? current.filter((x) => x !== option)
                           : [...current, option];
                         return { ...prev, [q.field]: next };
@@ -1428,7 +1428,7 @@ export default function ProfileEditor({ initial }) {
                       : styles.quizOption
                   }
                   onClick={() =>
-                    setQuiz((prev) => ({ ...prev, [q.field]: quiz[q.field] === option ? "" : option }))
+                    setQuiz((prev) => ({ ...prev, [q.field]: prev[q.field] === option ? "" : option }))
                   }
                 >
                   <span className={styles.quizRadio}>{quiz[q.field] === option ? "●" : "○"}</span>

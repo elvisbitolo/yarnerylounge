@@ -36,8 +36,12 @@ export default async function AccountProfilePage() {
     socialLinks: Array.isArray(userDoc?.socialLinks) ? userDoc.socialLinks : [],
   };
 
+  const quizExtra =
+    userDoc && userDoc.extra && typeof userDoc.extra === "object" ? userDoc.extra : {};
   for (const q of QUIZ_QUESTIONS) {
-    initialProfile[q.field] = (userDoc || {})[q.field] ?? "";
+    // Quiz answers persist in the user's `extra` JSON (top-level fields are a
+    // legacy fallback) — read both so saved answers actually reload.
+    initialProfile[q.field] = quizExtra[q.field] ?? (userDoc || {})[q.field] ?? "";
   }
 
   return (

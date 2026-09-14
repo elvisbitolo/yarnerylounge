@@ -180,7 +180,14 @@ export function normalizeProfile(body) {
         q.options.includes(v)
       );
     } else {
-      patch[q.field] = clean(body[q.field], 120);
+      // Single-answer quiz fields must be one of the question's options
+      // (empty string is allowed so members can clear an answer).
+      const value = clean(body[q.field], 120);
+      if (value === "" || q.options.includes(value)) {
+        patch[q.field] = value;
+      } else {
+        errors[q.field] = `Please pick one of the options for "${q.question}"`;
+      }
     }
   });
   if ("photoURL" in body) {

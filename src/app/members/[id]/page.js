@@ -140,6 +140,15 @@ export default async function MemberProfilePage({ params }) {
 
   const member = mapUserRow(memberRow);
   const memberExtra = member.extra && typeof member.extra === "object" ? member.extra : {};
+  // Quiz answers live in `extra` (plus a legacy top-level fallback), so readers
+  // must see the merged shape or every saved answer reads back as empty.
+  const viewerProfile = viewerDoc
+    ? {
+        ...viewerDoc,
+        ...(viewerDoc.extra && typeof viewerDoc.extra === "object" ? viewerDoc.extra : {}),
+      }
+    : null;
+  const memberProfile = { ...member, ...memberExtra };
   const viewerRole = viewerDoc?.role || "member";
   const isPrivileged = viewerRole === "owner" || viewerRole === "moderator";
   const isPrivateProfile = memberExtra.profileVisibility === "private";
@@ -157,7 +166,7 @@ export default async function MemberProfilePage({ params }) {
       earnedAt: gami.badges[code].earnedAt,
     }))
     .sort((a, b) => new Date(b.earnedAt || 0) - new Date(a.earnedAt || 0));
-  const memberSimilarities = isSelf ? [] : commonalities(viewerDoc, member);
+  const memberSimilarities = isSelf ? [] : commonalities(viewerProfile, memberProfile);
   const posts = (postRows || [])
     .map((row) => ({
       id: row.id,
@@ -271,7 +280,7 @@ const coverUrl = member.coverPhotoURL || "";
               member.learningNext ||
               member.proudestProject ||
               member.bestGiftProject ||
-              quizHasAnswers(member)) && (
+              quizHasAnswers(memberProfile)) && (
               <div className={styles.yarnProfile}>
                 {member.favoriteColors?.length > 0 && (
                   <div className={styles.yarnRow}>
@@ -366,7 +375,7 @@ const coverUrl = member.coverPhotoURL || "";
                   </p>
                 )}
                 {QUIZ_QUESTIONS.map((q) => {
-                  const answer = quizAnswerLabel(q, member);
+                  const answer = quizAnswerLabel(q, memberProfile);
                   return answer ? (
                     <p key={q.field} className={styles.yarnRow}>
                       <span className={styles.yarnLabel}>{QUIZ_LABELS[q.field]}</span>
