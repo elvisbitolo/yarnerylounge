@@ -58,6 +58,10 @@ export const CROCHET_TECHNIQUES = [
   "home decor",
   "toys & gifts",
   "freeform / art",
+  "felting",
+  "tufting",
+  "macrame",
+  "mosaic crochet",
 ];
 
 export const CROCHET_MOTIVATIONS = [
