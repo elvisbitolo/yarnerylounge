@@ -164,6 +164,7 @@
     "reply": "Répondre",
     "replying": "Réponse…",
     "replyPlaceholder": "Répondre…",
+    "commentsCount": "{count, plural, =0 {Ajouter un commentaire} one {# commentaire} other {# commentaires}}",
     "report": "Signaler",
     "delete": "Supprimer",
     "pin": "Épingler",

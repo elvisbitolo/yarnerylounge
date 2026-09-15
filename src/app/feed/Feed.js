@@ -10,7 +10,7 @@ import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./feed.module.css";
-import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle } from "lucide-react";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle } from "lucide-react";
 
 const PAGE_SIZE = 20;
 const VIRTUALIZE_AT = 150; // window virtualizer only kicks in for long feeds
@@ -564,6 +564,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const [pollDeadline, setPollDeadline] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("newest");
+  const [openComments, setOpenComments] = useState(new Set());
   const fileInputRef = useRef(null);
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
@@ -1021,6 +1022,15 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       .catch(() => patchPost(post.id, { bookmarks }));
   }
 
+  function toggleComments(postId) {
+    setOpenComments((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+  }
+
   async function handleDelete(postId) {
     if (!window.confirm(t("deleteConfirm") || "Delete this post?")) return;
     const res = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
@@ -1148,9 +1158,20 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             <div className={styles.postActions}>
               <LikeButton likes={post.likes} uid={uid} disabled={disabledActions} onToggle={() => toggleLike(post)} />
               <BookmarkButton bookmarks={post.bookmarks} uid={uid} disabled={disabledActions} onToggle={() => toggleBookmark(post)} />
+              <button
+                type="button"
+                className={`${styles.commentToggle}${openComments.has(post.id) ? ` ${styles.commentToggleOpen}` : ""}`}
+                onClick={() => toggleComments(post.id)}
+                aria-expanded={openComments.has(post.id)}
+              >
+                <MessageCircle size={15} />
+                {t("commentsCount", { count: post.commentCount || 0 })}
+              </button>
             </div>
             <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} />
-            <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={disabledActions} />
+            {openComments.has(post.id) && (
+              <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={disabledActions} />
+            )}
           </>
         )}
       </article>
