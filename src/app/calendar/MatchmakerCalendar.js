@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Plus, Trash2, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  RECURRING_OPTIONS,
+  recurringLabel,
+  recurringDayMatches,
+  recurringWeekday,
+} from "@/lib/server/availability-core";
 import styles from "./calendar.module.css";
 
 const ROOMS = [
@@ -35,6 +41,15 @@ function addDays(d, n) {
 
 function addMinutes(d, m) {
   return new Date(d.getTime() + m * 60000);
+}
+
+function snapToWeekday(start, recurring) {
+  const wd = recurringWeekday(recurring);
+  if (wd == null) return start;
+  const d = new Date(start);
+  const shift = (wd - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + shift);
+  return d;
 }
 
 function fmtTime(iso) {
@@ -124,10 +139,8 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     const key = toLocalKey(day);
     return availability
       .filter((a) => {
-        if (a.recurring === "weekly") {
-          const d = new Date(a.startAt);
-          const diffDays = Math.round((startOfDay(day) - startOfDay(a.startAt)) / 86400000);
-          return day >= startOfDay(new Date(a.startAt)) && diffDays % 7 === 0;
+        if (a.recurring !== "none" && a.recurring) {
+          return recurringDayMatches(a, day);
         }
         return toLocalKey(new Date(a.startAt)) === key;
       })
@@ -410,7 +423,8 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
       setLocalError("Give your block a fun title.");
       return;
     }
-    const start = new Date(`${startDate}T${startTime}`);
+    const picked = new Date(`${startDate}T${startTime}`);
+    const start = snapToWeekday(picked, recurring);
     const end = addMinutes(start, Number(duration) || 90);
     setSaving(true);
     const ok = await onSave({
@@ -498,8 +512,9 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Repeat</span>
               <select value={recurring} onChange={(e) => setRecurring(e.target.value)} className={styles.input}>
-                <option value="none">Once</option>
-                <option value="weekly">Every week</option>
+                {RECURRING_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </label>
           </div>
@@ -539,7 +554,7 @@ function SelectedModal({ block, mine, userId, onClose, onDelete, onToggle, busy 
         </div>
         <p className={styles.modalSub}>
           <CalendarDays size={14} /> {fmtBlock(block.startAt)}
-          {block.recurring === "weekly" && " — every week"}
+          {String(block.recurring) !== "none" && ` — ${recurringLabel(block.recurring)}`}
           {block.endAt && ` · ${fmtTime(block.endAt)} end`}
         </p>
         {block.roomSlug && (

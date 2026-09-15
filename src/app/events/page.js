@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listEvents, expandEvents } from "@/lib/server/events";
-import { listAvailability, nextOccurrenceAt } from "@/lib/server/availability";
+import { listAvailability, nextOccurrenceAt, recurringLabel } from "@/lib/server/availability";
 import Nav from "@/components/Nav";
 import EventsBoard from "./EventsBoard";
 import styles from "./events.module.css";
@@ -80,8 +80,8 @@ export default async function EventsPage() {
                   <div className={styles.hangoutBody}>
                     <div className={styles.hangoutRow}>
                       <h3 className={styles.hangoutTitle}>{slot.title}</h3>
-                      {slot.recurring === "weekly" && (
-                        <span className={`${styles.tag} ${styles.tagRepeat}`}>Weekly</span>
+                      {String(slot.recurring) !== "none" && (
+                        <span className={`${styles.tag} ${styles.tagRepeat}`}>{recurringLabel(slot.recurring)}</span>
                       )}
                     </div>
                     <p className={styles.hangoutWhen}>{formatWhen(slot.nextAt)}</p>

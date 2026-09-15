@@ -10,6 +10,7 @@ import {
   AVAILABILITY_MAX_NOTE,
   AVAILABILITY_MAX_MINUTES,
   AVAILABILITY_MIN_MINUTES,
+  normalizeRecurring,
 } from "@/lib/server/availability";
 
 export const dynamic = "force-dynamic";
@@ -72,7 +73,7 @@ export async function POST(req) {
     roomSlug,
     startAt,
     endAt,
-    recurring: body.recurring === "weekly" ? "weekly" : "none",
+    recurring: normalizeRecurring(body.recurring),
   });
 
   return NextResponse.json({ id, subTier: sub.tier });
