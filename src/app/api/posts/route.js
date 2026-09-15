@@ -12,18 +12,85 @@ import { runAutomations } from "@/lib/server/automations";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { validatePostText, isValidImageUrl, POST_TEXT_MAX, mapPostRow, encodeCursor, decodeCursor, feedOrderBy, cursorAfter } from "@/lib/server/posts-core";
+import { idsFromExtra } from "@/lib/server/member-safety-core";
 
 export const dynamic = "force-dynamic";
 
+// Tallies the tab counts over the whole *visible* community feed — not the
+// paged/filtered/search slice — so the All / Following / Near You / Popular /
+// Mine / Saved / Unanswered labels stay stable regardless of the active tab,
+// sort, or search. Runs once per feed request and is skipped on load-more
+// pages (the client keeps the counts it already received).
+async function computeFeedCounts({ prisma, ctx, orderBy, PASS_TAKE }) {
+  const counts = {
+    total: 0,
+    following: 0,
+    near: 0,
+    mine: 0,
+    bookmarked: 0,
+    hosts: 0,
+    unanswered: 0,
+    popular: 0,
+  };
+  const uid = ctx.uid;
+  const { spaceIdParam, groupIdParam } = ctx;
+  let cursor = null;
+  let scanned = 0;
+  const COUNT_SCAN_MAX = 100_000;
+  while (scanned < COUNT_SCAN_MAX) {
+    const batch = await prisma.post.findMany({
+      where: cursorAfter(cursor),
+      orderBy,
+      take: PASS_TAKE,
+    });
+    if (!batch.length) break;
+    scanned += batch.length;
+    const last = batch[batch.length - 1];
+    cursor = { pinned: !!last.pinned, createdAt: last.createdAt, id: last.id };
+    for (const row of batch) {
+      const authorId = row.authorId;
+      if (authorId !== uid && (ctx.blockedIds.has(authorId) || ctx.mutedIds.has(authorId))) continue;
+      if (spaceIdParam && row.spaceId !== spaceIdParam) continue;
+      if (groupIdParam && row.groupId !== groupIdParam) continue;
+      if (row.spaceId && !ctx.spaceIds.has(row.spaceId) && authorId !== uid) continue;
+      if (row.groupId && !ctx.groupIds.has(row.groupId) && authorId !== uid) continue;
+      counts.total += 1;
+      if (authorId === uid || ctx.followingIds.has(authorId)) counts.following += 1;
+      if (ctx.nearIds.has(authorId)) counts.near += 1;
+      if (authorId === uid) counts.mine += 1;
+      if (row.bookmarks && row.bookmarks[uid]) counts.bookmarked += 1;
+      if (row.authorRole === "owner" || row.authorRole === "moderator") counts.hosts += 1;
+      if (row.kind === "question" && (row.commentCount || 0) === 0) counts.unanswered += 1;
+      if (row.likes && Object.keys(row.likes).length > 0) counts.popular += 1;
+    }
+  }
+  return counts;
+}
+
 function filterVisiblePosts(posts, ctx) {
-  const { followingOnly, nearOnly, spaceIdParam, groupIdParam, uid, followingIds, nearIds, spaceIds, groupIds } = ctx;
+  const {
+    followingOnly, nearOnly, spaceIdParam, groupIdParam,
+    uid, followingIds, nearIds, spaceIds, groupIds,
+    blockedIds, mutedIds, filterType, searchText,
+  } = ctx;
   return posts.filter((data) => {
+    if (data.authorId !== uid && blockedIds.has(data.authorId)) return false;
+    if (data.authorId !== uid && mutedIds.has(data.authorId)) return false;
     if (followingOnly && data.authorId !== uid && !followingIds.has(data.authorId)) return false;
     if (nearOnly && !nearIds.has(data.authorId)) return false;
     if (spaceIdParam && data.spaceId !== spaceIdParam) return false;
     if (groupIdParam && data.groupId !== groupIdParam) return false;
     if (data.spaceId && !spaceIds.has(data.spaceId) && data.authorId !== uid) return false;
     if (data.groupId && !groupIds.has(data.groupId) && data.authorId !== uid) return false;
+    if (filterType === "mine" && data.authorId !== uid) return false;
+    if (filterType === "bookmarked" && !(data.bookmarks && data.bookmarks[uid])) return false;
+    if (filterType === "hosts" && data.authorRole !== "owner" && data.authorRole !== "moderator") return false;
+    if (filterType === "unanswered" && (data.kind !== "question" || (data.commentCount || 0) > 0)) return false;
+    if (filterType === "popular" && !(data.likes && Object.keys(data.likes).length > 0)) return false;
+    if (searchText) {
+      const hay = ((data.text || "") + " " + (data.authorName || "") + " " + (data.hashtags || []).join(" ")).toLowerCase();
+      if (!hay.includes(searchText)) return false;
+    }
     return true;
   });
 }
@@ -42,11 +109,14 @@ export async function GET(req) {
   const nearOnly = url.searchParams.get("near") === "1";
   const spaceIdParam = url.searchParams.get("spaceId") || "";
   const groupIdParam = url.searchParams.get("groupId") || "";
+  const filterType = url.searchParams.get("filter") || "";
+  const sort = url.searchParams.get("sort") || "newest";
+  const q = (url.searchParams.get("q") || "").trim().toLowerCase();
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20", 10) || 20, 1), 50);
 
   const ctx = {
-    followingOnly,
-    nearOnly,
+    followingOnly: followingOnly || filterType === "following",
+    nearOnly: nearOnly || filterType === "near",
     spaceIdParam,
     groupIdParam,
     uid: user.uid,
@@ -54,23 +124,35 @@ export async function GET(req) {
     nearIds: new Set([user.uid]),
     spaceIds: new Set(),
     groupIds: new Set(),
+    blockedIds: new Set(),
+    mutedIds: new Set(),
+    filterType: ["mine", "bookmarked", "hosts", "unanswered", "popular"].includes(filterType) ? filterType : "",
+    searchText: q,
   };
 
   try {
     const prisma = getPrisma();
     const orderBy = feedOrderBy();
+
     const countryRow = await prisma.user.findUnique({
       where: { id: user.uid },
       select: { country: true },
     });
     const myCountry = countryRow?.country || "";
+
+    const userDoc = await getUserDoc(user.uid);
+    const blockedFromExtra = idsFromExtra(userDoc?.extra, "blockedMemberIds");
+    const mutedFromExtra = idsFromExtra(userDoc?.extra, "mutedMemberIds");
+    blockedFromExtra.forEach((id) => ctx.blockedIds.add(id));
+    mutedFromExtra.forEach((id) => ctx.mutedIds.add(id));
+
     const [spaceRows, groupRows, followRows, nearRows] = await Promise.all([
       prisma.spaceMember.findMany({ where: { userId: user.uid }, select: { spaceId: true } }),
       prisma.groupMember.findMany({ where: { userId: user.uid }, select: { groupId: true } }),
-      followingOnly
+      (ctx.followingOnly || filterType === "following")
         ? prisma.follow.findMany({ where: { followerId: user.uid }, select: { followingId: true } })
         : Promise.resolve([]),
-      nearOnly && myCountry
+      (ctx.nearOnly || filterType === "near") && myCountry
         ? prisma.user.findMany({ where: { country: myCountry }, select: { id: true } })
         : Promise.resolve([]),
     ]);
@@ -79,22 +161,23 @@ export async function GET(req) {
     followRows.forEach((r) => r.followingId && ctx.followingIds.add(r.followingId));
     nearRows.forEach((r) => r.id && ctx.nearIds.add(r.id));
 
-    // Keyset paginate over *visible* rows. Each pass pulls a raw batch in feed
-    // order (pinned, createdAt, id), keeps only rows the viewer may see
-    // (following/near/membership), and skips ahead past the last scanned row.
-    // The cursor carries all three sort keys so a pinned post (or a same-
-    // timestamp tie) can't make the scan skip or duplicate rows. Bounded to a
-    // handful of passes so a sparse "following" feed can't trigger runaway
-    // scans.
+    const isChronological = sort === "newest";
+    const needsOffset = !isChronological;
+    const SCAN_CAP = needsOffset ? 600 : limit * 6;
+
     let visible = [];
     let afterKey = decodeCursor(url.searchParams.get("after") || "") || null;
+    const isOffsetCursor = afterKey && typeof afterKey.o === "number";
+    let offsetStart = isOffsetCursor ? afterKey.o : 0;
     let reachedEnd = false;
     let scanned = 0;
-    const MAX_PASSES = 20;
+    const MAX_PASSES = Math.ceil(SCAN_CAP / 60) + 2;
     const PASS_TAKE = 60;
-    while (visible.length < limit + 1 && !reachedEnd && scanned < MAX_PASSES * PASS_TAKE) {
+
+    while (visible.length < SCAN_CAP && !reachedEnd && scanned < MAX_PASSES * PASS_TAKE) {
+      const cursorWhere = isChronological ? cursorAfter(isOffsetCursor ? null : afterKey) : undefined;
       const batch = await prisma.post.findMany({
-        where: cursorAfter(afterKey),
+        where: cursorWhere,
         orderBy,
         take: PASS_TAKE,
       });
@@ -103,21 +186,76 @@ export async function GET(req) {
         break;
       }
       scanned += batch.length;
-      const lastRow = batch[batch.length - 1];
-      afterKey = { pinned: !!lastRow.pinned, createdAt: lastRow.createdAt, id: lastRow.id };
+      if (isChronological && !isOffsetCursor) {
+        const lastRow = batch[batch.length - 1];
+        afterKey = { pinned: !!lastRow.pinned, createdAt: lastRow.createdAt, id: lastRow.id };
+      }
       for (const row of batch) {
         if (filterVisiblePosts([row], ctx).length) visible.push(row);
-        if (visible.length >= limit + 1) break;
+        if (visible.length >= SCAN_CAP) break;
       }
     }
-    const hasMore = visible.length >= limit + 1;
-    const lastVisible = visible[Math.min(limit, visible.length) - 1];
-    const posts = visible.slice(0, limit).map(mapPostRow);
-    return NextResponse.json({
-      posts,
-      nextCursor: hasMore && lastVisible ? encodeCursor(lastVisible) : null,
-      hasMore,
-    });
+
+    if (sort === "oldest") {
+      visible.sort((a, b) => {
+        const ap = a.pinned ? 1 : 0;
+        const bp = b.pinned ? 1 : 0;
+        if (ap !== bp) return bp - ap;
+        const at = Number(a.createdAt) || 0;
+        const bt = Number(b.createdAt) || 0;
+        return at - bt;
+      });
+    } else if (sort === "top") {
+      visible.sort((a, b) => {
+        const al = a.likes ? Object.keys(a.likes).length : 0;
+        const bl = b.likes ? Object.keys(b.likes).length : 0;
+        return bl - al;
+      });
+    } else if (sort === "activity") {
+      visible.sort((a, b) => {
+        const at = Number(a.lastActivityAt) || Number(a.createdAt) || 0;
+        const bt = Number(b.lastActivityAt) || Number(b.createdAt) || 0;
+        return bt - at;
+      });
+    } else if (sort === "popular") {
+      visible = visible.filter((p) => p.likes && Object.keys(p.likes).length > 0);
+      visible.sort((a, b) => {
+        const al = Object.keys(a.likes || {}).length;
+        const bl = Object.keys(b.likes || {}).length;
+        return bl - al;
+      });
+    }
+
+    const loadCounts = !afterKey;
+    let counts = null;
+    if (loadCounts) {
+      try {
+        counts = await computeFeedCounts({ prisma, ctx, orderBy, PASS_TAKE });
+      } catch (err) {
+        logError("posts.feed_counts_failed", { error: err.message });
+        counts = null;
+      }
+    }
+
+    const paginated = needsOffset
+      ? visible.slice(offsetStart, offsetStart + limit + 1)
+      : visible.slice(0, limit + 1);
+
+    const hasMore = paginated.length >= limit + 1;
+    const posts = paginated.slice(0, limit).map(mapPostRow);
+
+    let nextCursor = null;
+    if (hasMore) {
+      if (needsOffset) {
+        nextCursor = encodeCursor({ pinned: false, createdAt: 0, id: "", o: offsetStart + limit });
+      } else {
+        const lastVisible = posts[posts.length - 1];
+        const origLast = paginated[Math.min(limit, paginated.length) - 1];
+        nextCursor = encodeCursor({ pinned: !!origLast.pinned, createdAt: origLast.createdAt, id: origLast.id });
+      }
+    }
+
+    return NextResponse.json({ posts, nextCursor, hasMore, counts });
   } catch (err) {
     logError("posts.prisma_feed_failed", { error: err.message });
     return NextResponse.json({ error: "Failed to load posts" }, { status: 500 });

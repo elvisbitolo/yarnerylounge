@@ -112,7 +112,10 @@ export function feedOrderBy() {
 // the cursor must carry all three — an id-only cursor silently skips rows any
 // time a pinned post (or a same-timestamp post) is present.
 export function encodeCursor(key) {
-  if (!key || typeof key !== "object" || !key.id) return "";
+  if (!key || typeof key !== "object" || (!key.id && typeof key.o !== "number")) return "";
+  if (typeof key.o === "number") {
+    return Buffer.from(JSON.stringify({ o: key.o })).toString("base64url");
+  }
   const payload = JSON.stringify({
     p: key.pinned ? 1 : 0,
     c: millis(key.createdAt),
@@ -126,6 +129,7 @@ export function decodeCursor(cursor) {
   if (!/^[A-Za-z0-9_-]+$/.test(cursor)) return null;
   try {
     const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    if (parsed && typeof parsed.o === "number") return { o: parsed.o };
     if (!parsed || typeof parsed.i !== "string" || !parsed.i) return null;
     return { pinned: parsed.p === 1, createdAt: parsed.c || 0, id: parsed.i };
   } catch {

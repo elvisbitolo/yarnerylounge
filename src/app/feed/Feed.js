@@ -550,6 +550,8 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const [newPosts, setNewPosts] = useState([]);
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
+  const searchRef = useRef("");
+  const searchTimerRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -566,16 +568,29 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
 
+  // Track the current sort in a ref so URL/cache/sort helpers stay stable
+  // across renders. Must be declared before sortFeedPosts below, which reads
+  // it (the react-compiler flags a forward reference into a ref).
+  const sortRef = useRef(sort);
+  useEffect(() => {
+    sortRef.current = sort;
+  }, [sort]);
+
   const sortFeedPosts = useCallback(
-    (list) =>
-      [...list].sort((a, b) => {
+    (list) => {
+      // For non-chronological sorts the server holds the authoritative order
+      // (top by likes, latest activity, oldest). Only the default "newest"
+      // view re-sorts client-side so a fresh post can surface immediately.
+      if ((sortRef.current || "newest") !== "newest") return list;
+      return [...list].sort((a, b) => {
         const ap = a.pinned ? 1 : 0;
         const bp = b.pinned ? 1 : 0;
         if (ap !== bp) return bp - ap;
         const at = a.createdAt?.toMillis?.() || Number(a.createdAt) || 0;
         const bt = b.createdAt?.toMillis?.() || Number(b.createdAt) || 0;
         return bt - at;
-      }),
+      });
+    },
     []
   );
 
@@ -587,8 +602,22 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   }, [filter]);
 
   const cacheKeyFor = useCallback(
-    (mode) => `feed:v2:${spaceId || "home"}:${groupId || "home"}:${mode}`,
+    (mode) => `feed:v2:${spaceId || "home"}:${groupId || "home"}:${mode}:${sortRef.current || "newest"}:${searchRef.current?.trim() || ""}`,
     [spaceId, groupId]
+  );
+
+  // Real counts computed server-side over the full visible feed (not just the
+  // loaded page). Falls back to page-scoped numbers until the first response.
+  const [counts, setCounts] = useState(null);
+  const countOf = useCallback(
+    (mode) => {
+      if (counts && typeof counts.total === "number") {
+        const value = counts[mode];
+        if (typeof value === "number") return value;
+      }
+      return undefined;
+    },
+    [counts]
   );
 
   const feedUrlFor = useCallback(
@@ -598,6 +627,12 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       if (groupId) params.set("groupId", groupId);
       if (mode === "following") params.set("following", "1");
       if (mode === "near") params.set("near", "1");
+      if (["mine", "bookmarked", "hosts", "unanswered", "popular"].includes(mode)) {
+        params.set("filter", mode);
+      }
+      params.set("sort", sortRef.current || "newest");
+      const q = searchRef.current?.trim();
+      if (q) params.set("q", q);
       params.set("limit", String(PAGE_SIZE));
       if (after) params.set("after", after);
       return `/api/posts?${params.toString()}`;
@@ -656,6 +691,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         setPosts(page);
         setNextCursor(data.nextCursor || null);
         setHasMore(Boolean(data.hasMore));
+        if (data.counts) setCounts(data.counts);
         setLoadError(false);
         writeFeedCache(mode, page);
         setNewPosts([]);
@@ -689,6 +725,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       });
       setNextCursor(data.nextCursor || null);
       setHasMore(Boolean(data.hasMore));
+      if (data.counts) setCounts(data.counts);
     } catch (err) {
       console.error("Feed load more failed", err);
       setLoadMoreError(true);
@@ -699,6 +736,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
 
   const checkNewPosts = useCallback(async () => {
     if (groupId || spaceId || filterRef.current !== "all") return;
+    if ((sortRef.current || "newest") !== "newest") return;
     try {
       const res = await fetch(feedUrlFor("all"));
       if (!res.ok) return;
@@ -754,6 +792,23 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       unsubAuth();
     };
   }, [groupId, spaceId, loadFirst, checkNewPosts]);
+
+  // Sort is server-side: changing it refetches the current view rather than
+  // re-sorting just the loaded page. The reload fires from an effect below so
+  // the ref stays synced with `sort` before loadFirst reads it.
+  const changeSort = useCallback(
+    (value) => {
+      setSort(value);
+    },
+    []
+  );
+
+  useEffect(() => {
+    const reload = setTimeout(() => {
+      loadFirst(filterRef.current);
+    }, 0);
+    return () => clearTimeout(reload);
+  }, [sort, loadFirst]);
 
   // IntersectionObserver sentinel -> infinite scroll. Off the main thread, and
   // prefetches 300px before the user reaches the end.
@@ -978,8 +1033,12 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   }
 
   async function handlePin(postId) {
-    await fetch(`/api/posts/${postId}/pin`, { method: "POST" });
-    patchPost(postId, { pinned: true });
+    const res = await fetch(`/api/posts/${postId}/pin`, { method: "POST" });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => null);
+    if (data && typeof data.pinned === "boolean") {
+      patchPost(postId, { pinned: data.pinned });
+    }
   }
 
   function prependNewPosts() {
@@ -992,63 +1051,28 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   }
 
   const queryText = search.trim().toLowerCase();
-  let filtered = posts;
-  if (queryText) {
-    filtered = filtered.filter(
-      (p) =>
-        p.text?.toLowerCase().includes(queryText) ||
-        p.authorName?.toLowerCase().includes(queryText) ||
-        (p.pollOptions || []).some((opt) => opt.toLowerCase().includes(queryText))
-    );
-  }
-  if (filter === "popular") {
-    filtered = [...filtered].sort(
-      (a, b) => Object.keys(b.likes || {}).length - Object.keys(a.likes || {}).length
-    );
-  } else if (filter === "mine") {
-    filtered = filtered.filter((p) => p.authorId === uid);
-  } else if (filter === "bookmarked") {
-    filtered = filtered.filter((p) => p.bookmarks?.[uid]);
-  } else if (filter === "hosts") {
-    filtered = filtered.filter((p) => p.authorRole === "owner" || p.authorRole === "moderator");
-  } else if (filter === "unanswered") {
-    filtered = filtered.filter((p) => p.kind === "question" && (p.commentCount || 0) === 0);
-  } else if (filter === "following" || filter === "near") {
-    filtered = posts;
-  }
-  if (sort === "oldest") {
-    filtered = [...filtered].sort((a, b) => {
-      const ap = a.pinned ? 1 : 0;
-      const bp = b.pinned ? 1 : 0;
-      if (ap !== bp) return bp - ap;
-      const at = a.createdAt?.toMillis?.() || Number(a.createdAt) || 0;
-      const bt = b.createdAt?.toMillis?.() || Number(b.createdAt) || 0;
-      return at - bt;
-    });
-  } else if (sort === "top") {
-    filtered = [...filtered].sort((a, b) => {
-      const ap = a.pinned ? 1 : 0;
-      const bp = b.pinned ? 1 : 0;
-      if (ap !== bp) return bp - ap;
-      return Object.keys(b.likes || {}).length - Object.keys(a.likes || {}).length;
-    });
-  } else if (sort === "activity") {
-    filtered = [...filtered].sort((a, b) => {
-      const ap = a.pinned ? 1 : 0;
-      const bp = b.pinned ? 1 : 0;
-      if (ap !== bp) return bp - ap;
-      const at = a.lastActivityAt?.toMillis?.() || a.createdAt?.toMillis?.() || Number(a.createdAt) || 0;
-      const bt = b.lastActivityAt?.toMillis?.() || b.createdAt?.toMillis?.() || Number(b.createdAt) || 0;
-      return bt - at;
-    });
-  }
+  // All filtering, sorting and counts are now server-side. The tabs send their
+  // own mode to /api/posts; the search box is a text filter on the current view.
 
-  const postCount = posts.length;
-  const followingCount = posts.filter((p) => p.authorId !== uid).length;
-  const popularCount = posts.filter((p) => Object.keys(p.likes || {}).length > 0).length;
-  const mineCount = posts.filter((p) => p.authorId === uid).length;
-  const bookmarkedCount = posts.filter((p) => p.bookmarks?.[uid]).length;
-  const unansweredCount = posts.filter((p) => p.kind === "question" && (p.commentCount || 0) === 0).length;
+  const postCount = countOf("total") ?? posts.length;
+  const followingCount = countOf("following") ?? 0;
+  const popularCount = countOf("popular") ?? 0;
+  const mineCount = countOf("mine") ?? 0;
+  const bookmarkedCount = countOf("bookmarked") ?? 0;
+  const unansweredCount = countOf("unanswered") ?? 0;
+  const nearCount = countOf("near") ?? 0;
+
+  useEffect(() => {
+    searchRef.current = search;
+  }, [search]);
+
+  const setSearchDebounced = useCallback((value) => {
+    setSearch(value);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      loadFirst(filterRef.current);
+    }, 400);
+  }, [loadFirst]);
 
   const kindLabel =
     kind === "poll"
@@ -1062,13 +1086,10 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   function selectFilter(next) {
     const prev = filter;
     setFilter(next);
-    // Server-backed tabs (following/near) always fetch; leaving them back to
-    // the full feed also needs a fresh server page (the cached list is keyed
-    // per mode, so this is cheap and correct).
-    const serverModes = new Set(["following", "near"]);
-    if (serverModes.has(next) || serverModes.has(prev)) {
-      loadFirst(next);
-    }
+    // Every tab is a server-backed view (mine, saved, hosts, unanswered,
+    // popular, following, near) or the full community feed — so each switch
+    // fetches its own page keyed by mode. The SWR cache keeps re-selection read-refreshing.
+    loadFirst(next);
   }
 
   const disabledActions = !canWriteChat && !canModerate;
@@ -1136,9 +1157,9 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     );
   }
 
-  const virtualize = filtered.length > VIRTUALIZE_AT;
+  const virtualize = posts.length > VIRTUALIZE_AT;
   const windowVirtualizer = useWindowVirtualizer({
-    count: filtered.length,
+    count: posts.length,
     estimateSize: () => 320,
     overscan: 6,
   });
@@ -1289,7 +1310,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           type="search"
           placeholder={t("searchPosts")}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setSearchDebounced(e.target.value)}
         />
         <div className={styles.filterTabs}>
           <button
@@ -1311,36 +1332,36 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               className={filter === "near" ? styles.filterTabActive : styles.filterTab}
               onClick={() => selectFilter("near")}
             >
-              {t("nearYou", { count: nearOnlyCount(posts, uid) })}
+              {t("nearYou", { count: nearCount })}
             </button>
           )}
           <button
             className={filter === "popular" ? styles.filterTabActive : styles.filterTab}
-            onClick={() => setFilter("popular")}
+            onClick={() => selectFilter("popular")}
           >
             {t("popular", { count: popularCount })}
           </button>
           <button
             className={filter === "mine" ? styles.filterTabActive : styles.filterTab}
-            onClick={() => setFilter("mine")}
+            onClick={() => selectFilter("mine")}
           >
             {t("mine", { count: mineCount })}
           </button>
           <button
             className={filter === "bookmarked" ? styles.filterTabActive : styles.filterTab}
-            onClick={() => setFilter("bookmarked")}
+            onClick={() => selectFilter("bookmarked")}
           >
             {t("saved", { count: bookmarkedCount })}
           </button>
           <button
             className={filter === "hosts" ? styles.filterTabActive : styles.filterTab}
-            onClick={() => setFilter("hosts")}
+            onClick={() => selectFilter("hosts")}
           >
             {t("hosts")}
           </button>
           <button
             className={filter === "unanswered" ? styles.filterTabActive : styles.filterTab}
-            onClick={() => setFilter("unanswered")}
+            onClick={() => selectFilter("unanswered")}
           >
             {t("unanswered", { count: unansweredCount })}
           </button>
@@ -1349,7 +1370,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           <select
             className={styles.sortSelect}
             value={sort}
-            onChange={(e) => setSort(e.target.value)}
+            onChange={(e) => changeSort(e.target.value)}
           >
             <option value="newest">{t("sortNewest")}</option>
             <option value="oldest">{t("sortOldest")}</option>
@@ -1378,7 +1399,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             {t("retry")}
           </button>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : posts.length === 0 ? (
         <p className={styles.empty}>
           {queryText
             ? t("noPostsSearch")
@@ -1409,15 +1430,15 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
                     transform: `translateY(${vi.start}px)`,
                   }}
                 >
-                  {renderPost(filtered[vi.index])}
+                  {renderPost(posts[vi.index])}
                 </div>
               ))}
             </div>
           ) : (
-            filtered.map((post) => renderPost(post))
+            posts.map((post) => renderPost(post))
           )}
 
-          {!hasMore && posts.length > 0 && filtered.length > 0 && (
+          {!hasMore && posts.length > 0 && (
             <p className={styles.feedEnd}>{t("allCaughtUp")}</p>
           )}
 
@@ -1448,8 +1469,4 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       <p data-feed-live aria-live="polite" className={styles.liveRegion} />
     </div>
   );
-}
-
-function nearOnlyCount(posts, uid) {
-  return posts.filter((p) => p.authorId !== uid && p.authorId !== "system").length;
 }
