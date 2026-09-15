@@ -66,11 +66,7 @@ export const metadata = {
 export default async function RootLayout({ children }) {
   const cookieStore = await cookies();
   const locale = cookieStore.get("NEXT_LOCALE")?.value || "en";
-  const messages = {
-    en: (await import("../../messages/en.json")).default,
-    fr: (await import("../../messages/fr.json")).default,
-    de: (await import("../../messages/de.json")).default,
-  };
+  const messages = (await import(`../../messages/${locale}.json`)).default;
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${assistant.variable}`}>
       <body>

@@ -1,5 +1,6 @@
 import { getAccessSub, isActiveSub, isStaff } from "@/lib/server/subscription";
 import { periodEndMillis } from "@/lib/server/billing";
+import { cache } from "react";
 
 // The membership permission matrix.
 //   free  -> Flirting  (view-only lounges, read-only chat, no matchmaker, no hosting, no neighborhoods build)
@@ -38,7 +39,7 @@ export const CAPABILITIES = {
   },
 };
 
-export async function getCapabilities(uid) {
+export const getCapabilities = cache(async function getCapabilities(uid) {
   const sub = await getAccessSub(uid);
   const active = isActiveSub(sub);
   if (!active) return { ...CAPABILITIES.free };
@@ -71,7 +72,7 @@ export async function getCapabilities(uid) {
     return { ...CAPABILITIES.paid };
   }
   return { ...CAPABILITIES.free };
-}
+});
 
 export function canPublishRemote(caps) {
   return caps?.video?.canPublish !== false;

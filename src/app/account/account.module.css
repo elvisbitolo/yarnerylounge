@@ -1316,7 +1316,22 @@
 }
 
 @media (max-width: 560px) {
-  .hobbiesGrid {
+.hobbyCategory {
+  margin-bottom: 20px;
+}
+
+.hobbyCategoryTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e6e6ef;
+}
+
+.hobbiesGrid {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
 

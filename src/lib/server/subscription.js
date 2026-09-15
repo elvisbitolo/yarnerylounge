@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { cache } from "react";
 import { isActiveSub as isActiveSubLogic } from "@/lib/server/billing";
 import { mapSubscriptionRow } from "./subscription-core.js";
 import { isOpenAccess, openAccessPlan } from "@/lib/server/access-policy";
@@ -14,7 +15,9 @@ const FREE_ACCESS_SUB = {
 };
 
 // Subscriptions were the first collection cut over to Supabase (Phase 3).
-export async function getSubscription(uid) {
+// Wrapped in React's cache() so a page that checks the sub, capabilities and
+// lounge gate shares ONE DB read per request instead of one per lookup.
+export const getSubscription = cache(async function getSubscription(uid) {
   try {
     const prisma = getPrisma();
     if (!prisma) return null;
@@ -26,13 +29,13 @@ export async function getSubscription(uid) {
     logError("subscription.prisma_read_failed", { error: err.message });
     return null;
   }
-}
+});
 
 export function isStaff(userDoc) {
   return userDoc?.role === "owner" || userDoc?.role === "moderator";
 }
 
-export async function getAccessSub(uid) {
+export const getAccessSub = cache(async function getAccessSub(uid) {
   let userDoc = null;
   // Staff role lives on the users collection; read Postgres first (the ETL
   // mirrors it).
@@ -74,7 +77,7 @@ export async function getAccessSub(uid) {
   }
 
   return FREE_ACCESS_SUB;
-}
+});
 
 export function isActiveSub(sub) {
   return isActiveSubLogic(sub);

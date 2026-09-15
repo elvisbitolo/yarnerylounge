@@ -2,60 +2,171 @@
 
 import { useState } from "react";
 import {
+  AlignLeft,
+  Archive,
   Armchair,
+  Bird,
   BookOpen,
   CakeSlice,
   Camera,
   Check,
+  Cherry,
   CircleDashed,
   Clover,
+  Cloud,
   CookingPot,
   Dices,
+  Disc3,
+  Dog,
+  Dumbbell,
   Droplets,
+  Eye,
+  FileText,
   FishingHook,
   Flower2,
+  Footprints,
+  FolderOpen,
+  Gift,
+  Grid3x3,
   Hammer,
+  HandHeart,
+  Headphones,
+  Heart,
+  Home,
   Hourglass,
+  Landmark,
+  Layers,
+  Leaf,
   LoaderPinwheel,
+  Mountain,
+  Music,
+  Music2,
+  Music3,
+  Music4,
   NotebookPen,
   Palette,
+  PenLine,
   PersonStanding,
+  PieChart,
+  Play,
   Plus,
+  Puzzle,
+  RefreshCcw,
   Save,
   Scissors,
+  Search,
   ShoppingBag,
+  Shirt,
   Sparkles,
   Sprout,
   SquareScissors,
+  Store,
   Tag,
+  ThumbsUp,
+  Timer,
+  TreePine,
+  Trophy,
+  Tv,
+  UtensilsCrossed,
+  Wine,
   X,
+  Zap,
 } from "lucide-react";
-import { HOBBIES } from "@/lib/server/profile";
+import { HOBBY_CATEGORIES } from "@/lib/server/profile";
 import styles from "./account.module.css";
 
 const HOBBY_ICONS = {
   cooking: CookingPot,
   baking: CakeSlice,
+  sewing: Scissors,
+  knitting: CircleDashed,
+  crochet: FishingHook,
+  dyeing: Droplets,
+  spinning: LoaderPinwheel,
+  macrame: Layers,
+  tufting: Grid3x3,
+  "cross stitch": Scissors,
+  felting: Droplets,
+  "diy t-shirt yarn": Scissors,
+  quilting: PieChart,
+  "diamond painting": Sparkles,
+  "making my own yarn": LoaderPinwheel,
+  "buying yarn": ShoppingBag,
+  "organizing yarn": FolderOpen,
+  "starting a wip": Play,
+  upcycling: RefreshCcw,
+  "charity crafting": Heart,
+
   gardening: Sprout,
-  shopping: ShoppingBag,
-  thrifting: Tag,
-  decoupage: SquareScissors,
-  yoga: PersonStanding,
   pottery: Flower2,
   painting: Palette,
-  "card games": Clover,
   photography: Camera,
-  "board games": Dices,
-  antiquing: Hourglass,
-  reading: BookOpen,
   scrapbooking: NotebookPen,
   upholstery: Armchair,
   woodworking: Hammer,
-  sewing: Scissors,
-  dyeing: Droplets,
-  spinning: LoaderPinwheel,
-  knitting: CircleDashed,
-  crochet: FishingHook,
+  decoupage: SquareScissors,
+  organizing: FolderOpen,
+  "color coding my life": Palette,
+  "donating unused stuff": Gift,
+  "collecting stationary supplies": PenLine,
+  "redecorating my house": Home,
+  journaling: FileText,
+  fashion: Shirt,
+
+  shopping: ShoppingBag,
+  thrifting: Tag,
+  antiquing: Hourglass,
+  "card games": Clover,
+  "board games": Dices,
+  "jigsaw puzzles": Puzzle,
+  sudoku: Grid3x3,
+  "crossword puzzles": AlignLeft,
+  "word search": Search,
+  trivia: Trophy,
+
+  "trying new recipes": UtensilsCrossed,
+  "trying new high protein recipes": UtensilsCrossed,
+  margaritas: Wine,
+  wine: Wine,
+  "cake decorating": CakeSlice,
+  "jam making": Cherry,
+
+  yoga: PersonStanding,
+  "weight training": Dumbbell,
+  pilates: PersonStanding,
+  "tai chi": Zap,
+  swimming: Mountain,
+  walking: Footprints,
+  hiking: Mountain,
+  running: Zap,
+  "line dancing": Music,
+
+  reading: BookOpen,
+  "audio books": Headphones,
+  "hallmark movies": Tv,
+  "true crime": Eye,
+  museums: Landmark,
+
+  "dog training": Dog,
+  "bird watching": Bird,
+  "flower pressing": Flower2,
+
+  "craft fairs": Store,
+  volunteering: HandHeart,
+
+  "rap music": Music,
+  "country music": Music2,
+  "classical music": Music3,
+  "classic rock": Music4,
+  "jazz music": Music,
+  "hip hop music": Disc3,
+  "lo fi beats": Headphones,
+  "ambient & new age music": Cloud,
+  "motown & soul": Heart,
+  "house music": Home,
+  "indie chill music": Leaf,
+  "folk music": TreePine,
+  "classic r&b": Disc3,
 };
 
 function title(value) {
@@ -90,7 +201,7 @@ export default function HobbiesForm({ initial, username }) {
     const value = otherValue.trim().toLowerCase();
     setError("");
     if (!value) return;
-    if (HOBBIES.includes(value)) {
+    if (HOBBY_CATEGORIES.some((c) => c.hobbies.includes(value))) {
       setOtherValue("");
       if (!selected.includes(value)) setSelected((prev) => [...prev, value]);
       return;
@@ -147,29 +258,34 @@ export default function HobbiesForm({ initial, username }) {
       {saved && <p className={styles.formSaved}>Saved!</p>}
       {notice && <p className={styles.formNotice}>{notice}</p>}
 
-      <div className={styles.hobbiesGrid}>
-        {HOBBIES.map((value) => {
-          const Icon = HOBBY_ICONS[value];
-          const on = selected.includes(value);
-          return (
-            <button
-              key={value}
-              type="button"
-              className={on ? `${styles.hobbyChip} ${styles.hobbyChipOn}` : styles.hobbyChip}
-              onClick={() => togglePreset(value)}
-              aria-pressed={on}
-            >
-              <span className={styles.hobbyIcon}>
-                <Icon size={18} strokeWidth={2} aria-hidden="true" />
-              </span>
-              <span className={styles.hobbyLabel}>{title(value)}</span>
-              <span className={styles.hobbyCheck} aria-hidden="true">
-                {on && <Check size={12} strokeWidth={3} />}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {HOBBY_CATEGORIES.map((cat) => (
+        <div key={cat.label} className={styles.hobbyCategory}>
+          <h3 className={styles.hobbyCategoryTitle}>{cat.label}</h3>
+          <div className={styles.hobbiesGrid}>
+            {cat.hobbies.map((value) => {
+              const Icon = HOBBY_ICONS[value];
+              const on = selected.includes(value);
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={on ? `${styles.hobbyChip} ${styles.hobbyChipOn}` : styles.hobbyChip}
+                  onClick={() => togglePreset(value)}
+                  aria-pressed={on}
+                >
+                  <span className={styles.hobbyIcon}>
+                    {Icon ? <Icon size={18} strokeWidth={2} aria-hidden="true" /> : <ThumbsUp size={18} strokeWidth={2} aria-hidden="true" />}
+                  </span>
+                  <span className={styles.hobbyLabel}>{title(value)}</span>
+                  <span className={styles.hobbyCheck} aria-hidden="true">
+                    {on && <Check size={12} strokeWidth={3} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
 
       <div className={styles.otherField}>
         <label className={styles.fieldLabel} htmlFor="hobbies-other">
@@ -181,7 +297,7 @@ export default function HobbiesForm({ initial, username }) {
             className={styles.input}
             type="text"
             maxLength={60}
-            placeholder="e.g. calligraphy, hiking, journaling…"
+            placeholder="e.g. calligraphy, surfing, beekeeping…"
             value={otherValue}
             onChange={(e) => setOtherValue(e.target.value)}
             onKeyDown={(e) => {

@@ -384,10 +384,17 @@ function CommentList({ postId, uid, canModerate, disabled }) {
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(0);
 
+  const rootRef = useRef(null);
+  const visibleRef = useRef(true);
+
   useEffect(() => {
     let active = true;
     let timer;
+    let inFlight = false;
     const load = async () => {
+      if (inFlight) return;
+      if (!document.hidden && !visibleRef.current) return;
+      inFlight = true;
       try {
         const res = await fetch(`/api/posts/${postId}/comments`);
         if (!res.ok) return;
@@ -395,13 +402,32 @@ function CommentList({ postId, uid, canModerate, disabled }) {
         if (active) setComments(data.comments || []);
       } catch {
         /* keep polling */
+      } finally {
+        inFlight = false;
       }
     };
     load();
-    timer = setInterval(load, 20000);
+    timer = setInterval(load, 60000);
+    const onVisible = () => load();
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        visibleRef.current = entry.isIntersecting;
+        if (entry.isIntersecting) load();
+      },
+      { rootMargin: "150px 0px" }
+    );
+    const el = rootRef.current;
+    if (el) {
+      visibilityObserver.observe(el);
+      window.addEventListener("focus", onVisible);
+      document.addEventListener("visibilitychange", onVisible);
+    }
     return () => {
       active = false;
       clearInterval(timer);
+      visibilityObserver.disconnect();
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [postId, version]);
 
@@ -439,7 +465,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
   }
 
   return (
-    <div className={styles.comments}>
+    <div ref={rootRef} className={styles.comments}>
       {comments.length > 0 && (
         <div className={styles.commentList}>
           {comments.map((c) => (
@@ -712,9 +738,19 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       }
       loadFirst(groupId || spaceId ? "all" : "all");
     });
-    const interval = setInterval(checkNewPosts, 25000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      checkNewPosts();
+    }, 25000);
+    const onVisible = () => {
+      if (!document.hidden) checkNewPosts();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
       unsubAuth();
     };
   }, [groupId, spaceId, loadFirst, checkNewPosts]);
