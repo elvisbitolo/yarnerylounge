@@ -1,0 +1,370 @@
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+}
+
+.header {
+  margin-bottom: 28px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--foreground, #f5f5f5);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted, #9b9bab);
+  margin: 10px 0 0;
+  max-width: 620px;
+}
+
+.headingRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 32px 0 16px;
+}
+
+.sectionTitle {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--foreground, #f5f5f5);
+  margin: 0;
+}
+
+.count {
+  font-size: 13px;
+  color: var(--muted, #9b9bab);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  display: block;
+  background: var(--card-bg, #161616);
+  border: 1px solid var(--border, #262626);
+  border-radius: 14px;
+  padding: 20px 22px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--primary, #e91e63);
+  transform: translateY(-1px);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--foreground, #f5f5f5);
+  margin: 0;
+}
+
+.cardBody {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted, #9b9bab);
+  margin: 8px 0 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: #6f6f80;
+  margin: 0;
+}
+
+.badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #ffb3c9;
+  background: rgba(233, 30, 99, 0.16);
+  border: 1px solid rgba(233, 30, 99, 0.35);
+}
+
+.badgeResolved {
+  color: #8ee6b0;
+  background: rgba(23, 160, 84, 0.16);
+  border-color: rgba(23, 160, 84, 0.35);
+}
+
+.empty {
+  color: var(--muted, #9b9bab);
+  font-size: 14px;
+  background: var(--card-bg, #161616);
+  border: 1px dashed var(--border, #2e2e33);
+  border-radius: 14px;
+  padding: 22px;
+  margin: 0;
+}
+
+.askSection {
+  margin: 0 0 8px;
+}
+
+.askButton {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary, #e91e63);
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.askButton:hover {
+  filter: brightness(1.1);
+}
+
+.askForm,
+.answerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--card-bg, #161616);
+  border: 1px solid var(--border, #262626);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.answerForm {
+  margin-top: 28px;
+}
+
+.askTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--foreground, #f5f5f5);
+  margin: 0;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--foreground, #f5f5f5);
+  background: #101012;
+  border: 1px solid var(--border, #2e2e33);
+  border-radius: 10px;
+  padding: 10px 12px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--primary, #e91e63);
+}
+
+.textarea {
+  font-family: inherit;
+}
+
+.askActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.submitButton {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary, #e91e63);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted, #9b9bab);
+  background: transparent;
+  border: 1px solid var(--border, #2e2e33);
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.cancelButton:hover {
+  color: var(--foreground, #f5f5f5);
+}
+
+.errorText {
+  font-size: 13px;
+  color: #ff7b9c;
+  margin: 0;
+}
+
+.backLink {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted, #9b9bab);
+  text-decoration: none;
+  margin-bottom: 18px;
+}
+
+.backLink:hover {
+  color: var(--foreground, #f5f5f5);
+}
+
+.detailCard {
+  background: var(--card-bg, #161616);
+  border: 1px solid var(--border, #262626);
+  border-radius: 16px;
+  padding: 26px 28px;
+}
+
+.questionTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--foreground, #f5f5f5);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.questionMeta {
+  font-size: 13px;
+  color: #6f6f80;
+  margin: 8px 0 16px;
+}
+
+.questionBody {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--foreground, #f5f5f5);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.answerCard {
+  background: var(--card-bg, #161616);
+  border: 1px solid var(--border, #262626);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.answerCard.answerAccepted {
+  border-color: rgba(23, 160, 84, 0.45);
+}
+
+.answerTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.answerAuthor {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground, #f5f5f5);
+}
+
+.answerDate {
+  font-size: 12px;
+  color: #6f6f80;
+}
+
+.answerBody {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #d5d5dd;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.acceptButton {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8ee6b0;
+  background: rgba(23, 160, 84, 0.12);
+  border: 1px solid rgba(23, 160, 84, 0.4);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.acceptButton:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.acceptButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.controlError {
+  font-size: 12px;
+  color: #ff7b9c;
+}
+
+@media (max-width: 560px) {
+  .container {
+    padding: 32px 16px 56px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .detailCard {
+    padding: 20px;
+  }
+}

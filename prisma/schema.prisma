@@ -114,6 +114,8 @@ typing                 Typing[]
   coursesCreated         Course[]
   challengesCreated      Challenge[]
   questionsCreated       Question[]
+  communityQuestions     CommunityQuestion[] @relation("CommunityQuestionsAsked")
+  communityAnswers       CommunityAnswer[] @relation("CommunityAnswersGiven")
   pagesCreated           SpacePage[]
   projects               Project[]
   matchDecisionsMade     MatchDecision[] @relation("MatchDecisionActor")
@@ -988,6 +990,40 @@ model Question {
   space   Space? @relation(fields: [spaceId], references: [id])
 
   @@index([spaceId])
+}
+
+// Community Q&A board: members ask a question and receive written answers.
+model CommunityQuestion {
+  id          String    @id @default(cuid())
+  authorId    String
+  authorName  String
+  title       String
+  body        String    @db.Text
+  status      String    @default("open") // open | resolved
+  answerCount Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author  User              @relation("CommunityQuestionsAsked", fields: [authorId], references: [id])
+  answers CommunityAnswer[]
+
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model CommunityAnswer {
+  id         String   @id @default(cuid())
+  questionId String
+  authorId   String
+  authorName String
+  body       String   @db.Text
+  accepted   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question CommunityQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  author   User              @relation("CommunityAnswersGiven", fields: [authorId], references: [id])
+
+  @@index([questionId, createdAt(sort: Asc)])
 }
 
 model Report {

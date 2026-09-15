@@ -1,56 +1,29 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import {
+  AVAILABILITY_MAX_TITLE,
+  AVAILABILITY_MAX_NOTE,
+  AVAILABILITY_MAX_MINUTES,
+  AVAILABILITY_MIN_MINUTES,
+  CALENDAR_ROOMS,
+  roomColorFor,
+  roomNameFor,
+  serializeAvailability,
+  nextOccurrenceAt,
+  toIso,
+} from "@/lib/server/availability-core";
 
-export const AVAILABILITY_MAX_TITLE = 60;
-export const AVAILABILITY_MAX_NOTE = 300;
-export const AVAILABILITY_MAX_MINUTES = 24 * 60;
-export const AVAILABILITY_MIN_MINUTES = 15;
-
-export const CALENDAR_ROOMS = [
-  { slug: "happy-hour-hub", name: "Happy Hour Hub", color: "#e91e63" },
-  { slug: "lo-fi-and-loops", name: "Lo-Fi & Loops", color: "#2dd4bf" },
-  { slug: "velvet-den", name: "The Velvet Den", color: "#a78bfa" },
-  { slug: "silent-studio", name: "The Silent Studio", color: "#94a3b8" },
-];
-
-export function roomColorFor(slug) {
-  return CALENDAR_ROOMS.find((r) => r.slug === slug)?.color || "#a78bfa";
-}
-
-export function roomNameFor(slug) {
-  return CALENDAR_ROOMS.find((r) => r.slug === slug)?.name || slug || "Any lounge";
-}
-
-function toIso(v) {
-  if (!v) return null;
-  if (typeof v.toMillis === "function") return new Date(v.toMillis()).toISOString();
-  if (v instanceof Date) return v.toISOString();
-  if (typeof v === "number") return new Date(v).toISOString();
-  if (typeof v === "string") return v;
-  return null;
-}
-
-export function serializeAvailability(docOrRow) {
-  const isDoc = typeof docOrRow?.data === "function";
-  const data = isDoc ? docOrRow.data() : docOrRow;
-  const id = isDoc ? docOrRow.id : docOrRow.id;
-  return {
-    id,
-    userId: data.userId || "",
-    userName: data.userName || "",
-    userAvatar: data.userAvatar || "",
-    title: data.title || "",
-    note: data.note || "",
-    roomSlug: data.roomSlug || "",
-    roomName: roomNameFor(data.roomSlug),
-    color: data.color || roomColorFor(data.roomSlug),
-    startAt: toIso(data.startAt),
-    endAt: toIso(data.endAt),
-    recurring: data.recurring === "weekly" ? "weekly" : "none",
-    rsvpCount: data.rsvpCount || 0,
-    createdAt: toIso(data.createdAt),
-  };
-}
+export {
+  AVAILABILITY_MAX_TITLE,
+  AVAILABILITY_MAX_NOTE,
+  AVAILABILITY_MAX_MINUTES,
+  AVAILABILITY_MIN_MINUTES,
+  CALENDAR_ROOMS,
+  roomColorFor,
+  roomNameFor,
+  serializeAvailability,
+  nextOccurrenceAt,
+};
 
 export async function listAvailability({ from, to }) {
   const prisma = getPrisma();

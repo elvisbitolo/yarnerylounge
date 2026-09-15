@@ -64,6 +64,118 @@
   margin-bottom: 32px;
 }
 
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+}
+
+.calendarLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.calendarLink:hover {
+  opacity: 0.8;
+}
+
+.hangoutCard {
+  display: flex;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e6e6ef;
+  border-left-width: 5px;
+  border-radius: 12px;
+  padding: 18px 22px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hangoutCard:hover {
+  border-color: #d8d8e3;
+  box-shadow: 0 6px 20px rgba(23, 23, 28, 0.05);
+}
+
+.hangoutBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.hangoutRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hangoutTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #17171c;
+  margin: 0;
+}
+
+.hangoutWhen {
+  font-size: 13px;
+  color: #6b6b7b;
+  margin: 5px 0 10px;
+}
+
+.hangoutNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #34344a;
+  margin: 0 0 8px;
+}
+
+.hangoutNoteText {
+  font-size: 13px;
+  color: #6b6b7b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.hangoutAvatar,
+.hangoutAvatarFallback {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.hangoutAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #000000, #e91e63);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hangoutDot {
+  color: #c4c4d2;
+}
+
+.hangoutRoom {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.hangoutRoom:hover {
+  text-decoration: underline;
+}
+
 .sectionTitle {
   font-size: 14px;
   font-weight: 700;

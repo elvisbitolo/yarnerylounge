@@ -13,9 +13,9 @@
     "or": "ou"
   },
   "nav": {
-    "overview": "Accueil",
+    "overview": "Tableau de bord",
     "connect": "Salons",
-    "learn": "The Guest Book",
+    "learn": "Apprendre",
     "community": "The Lounge",
     "communitySection": "Communauté",
     "footerCommunity": "Communauté",
@@ -65,7 +65,15 @@
     "content": "Contenu",
     "searchPlaceholder": "Rechercher…",
     "logout": "Déconnexion",
-    "viewProfile": "Voir le profil"
+    "viewProfile": "Voir le profil",
+    "profile": "Profil",
+    "roomHappyHour": "Happy Hour Hub",
+    "roomLofi": "Lo-Fi & Loops",
+    "roomVelvetDen": "The Velvet Den",
+    "roomSilentStudio": "The Silent Studio",
+    "crochetAlongs": "Crochet et compagnie",
+    "quizzes": "Quiz",
+    "resources": "Ressources"
   },
   "dashboard": {
     "title": "Tableau de bord",

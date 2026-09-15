@@ -13,9 +13,9 @@
     "or": "or"
   },
   "nav": {
-    "overview": "Home",
+    "overview": "Dashboard",
     "connect": "Lounges",
-    "learn": "The Guest Book",
+    "learn": "Learning",
     "community": "The Lounge",
     "communitySection": "Community",
     "footerCommunity": "Community",
@@ -65,7 +65,15 @@
     "content": "Content",
     "searchPlaceholder": "Search…",
     "logout": "Sign out",
-    "viewProfile": "View profile"
+    "viewProfile": "View profile",
+    "profile": "Profile",
+    "roomHappyHour": "Happy Hour Hub",
+    "roomLofi": "Lo-Fi & Loops",
+    "roomVelvetDen": "The Velvet Den",
+    "roomSilentStudio": "The Silent Studio",
+    "crochetAlongs": "Crochet Alongs",
+    "quizzes": "Quizzes",
+    "resources": "Resources"
   },
   "dashboard": {
     "title": "Dashboard",

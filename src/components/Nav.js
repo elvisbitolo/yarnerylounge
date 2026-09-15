@@ -82,36 +82,33 @@ function getAdministrationLinks(role) {
 }
 
 const HOME_ITEMS = [
-  { href: "/dashboard", key: "dashboard" },
+  { href: "/account/profile", key: "profile" },
   { href: "/account/membership", key: "membership" },
 ];
 
 const COMMUNITY_ITEMS = [
-  { href: "/members", key: "members" },
-  { href: "/feed", key: "feed" },
-];
-
-const LOUNGES_ITEMS = [
-  { href: "/rooms", key: "allLounges" },
-  { href: "/match", key: "match" },
-  { href: "/events", key: "events" },
-  { href: "/challenges", key: "crochetAlong" },
-];
-
-const NEIGHBOURHOOD_ITEMS = [
   { href: "/neighbourhoods", key: "neighbourhoods" },
+  { href: "/members", key: "members" },
+  { href: "/match", key: "match" },
+  { href: "/feed", key: "feed" },
+  { href: "/events", key: "events" },
   { href: "/gallery", key: "gallery" },
   { href: "/portfolio", key: "portfolio" },
   { href: "/leaderboard", key: "leaderboard" },
 ];
 
-const CALENDAR_ITEMS = [
-  { href: "/calendar", key: "calendar" },
+const LOUNGE_ITEMS = [
+  { href: "/rooms/happy-hour-hub", key: "roomHappyHour" },
+  { href: "/rooms/lo-fi-and-loops", key: "roomLofi" },
+  { href: "/rooms/velvet-den", key: "roomVelvetDen" },
+  { href: "/rooms/silent-studio", key: "roomSilentStudio" },
 ];
 
 const LEARN_ITEMS = [
   { href: "/courses", key: "courses" },
-  { href: "/articles", key: "articles" },
+  { href: "/challenges", key: "crochetAlongs" },
+  { href: "/quizzes", key: "quizzes" },
+  { href: "/resources", key: "resources" },
 ];
 
 function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) {
@@ -273,9 +270,7 @@ export default function Nav({ role, children }) {
     const allGroups = [
       { id: "home", items: HOME_ITEMS },
       { id: "community", items: COMMUNITY_ITEMS },
-      { id: "lounges", items: LOUNGES_ITEMS },
-      { id: "neighbourhood", items: NEIGHBOURHOOD_ITEMS },
-      { id: "calendar", items: CALENDAR_ITEMS },
+      { id: "lounges", items: LOUNGE_ITEMS },
       { id: "learn", items: LEARN_ITEMS },
       { id: "administration", items: administrationLinks },
       { id: "host", items: hasHostTools && role !== "owner" ? [{ href: "/host" }] : [] },
@@ -427,10 +422,9 @@ export default function Nav({ role, children }) {
             <nav className={styles.sidebarNav}>
               <SidebarGroup id="home" label={t("overview")} items={HOME_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <SidebarGroup id="community" label={t("communitySection")} items={COMMUNITY_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
-              <SidebarGroup id="lounges" label={t("connect")} items={LOUNGES_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
-              <SidebarGroup id="neighbourhood" label={t("neighbourhoods")} items={NEIGHBOURHOOD_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
-              <SidebarGroup id="calendar" label={t("calendar")} items={CALENDAR_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <SidebarGroup id="lounges" label={t("connect")} items={LOUNGE_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <SidebarGroup id="learn" label={t("learn")} items={LEARN_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <Link className={styles.sidebarLink} href="/calendar" onClick={close}>{t("calendar")}</Link>
 
               {collections.length > 0 && (
                 <SidebarGroup id="collections" label={t("collections")} open={openGroups} onToggle={toggleGroup} t={t} close={close}>
