@@ -101,3 +101,62 @@ export function nextLikeState(likes, uid) {
   const count = Object.keys(current).length + (already ? -1 : 1);
   return { already, liked: !already, count };
 }
+
+// Ordering shared by the feed route. pinned stays on top, then newest first,
+// with id as the deterministic tiebreaker so cursor pagination is stable.
+export function feedOrderBy() {
+  return [{ pinned: "desc" }, { createdAt: "desc" }, { id: "desc" }];
+}
+
+// Compound keyset cursor. Because the feed orders by (pinned, createdAt, id),
+// the cursor must carry all three — an id-only cursor silently skips rows any
+// time a pinned post (or a same-timestamp post) is present.
+export function encodeCursor(key) {
+  if (!key || typeof key !== "object" || !key.id) return "";
+  const payload = JSON.stringify({
+    p: key.pinned ? 1 : 0,
+    c: millis(key.createdAt),
+    i: key.id,
+  });
+  return Buffer.from(payload).toString("base64url");
+}
+
+export function decodeCursor(cursor) {
+  if (!cursor) return null;
+  if (!/^[A-Za-z0-9_-]+$/.test(cursor)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    if (!parsed || typeof parsed.i !== "string" || !parsed.i) return null;
+    return { pinned: parsed.p === 1, createdAt: parsed.c || 0, id: parsed.i };
+  } catch {
+    return null;
+  }
+}
+
+// Prisma `where` that selects every row strictly after `key` in the feed order
+// (pinned desc, createdAt desc, id desc) — the keyset equivalent of
+// `WHERE (sortKeys) AFTER (:key)`.
+export function cursorAfter(key) {
+  if (!key || !key.id) return undefined;
+  const samePinned = [
+    { createdAt: { lt: new Date(key.createdAt) } },
+    { createdAt: new Date(key.createdAt), id: { lt: key.id } },
+  ];
+  return {
+    OR: [
+      ...(key.pinned ? [{ pinned: false }] : []),
+      { pinned: key.pinned, OR: samePinned },
+    ],
+  };
+}
+
+export function paginatePostRows(rows, limit) {
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const last = page[page.length - 1];
+  return {
+    posts: page.map(mapPostRow),
+    nextCursor: hasMore ? encodeCursor(last) : null,
+    hasMore,
+  };
+}

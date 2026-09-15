@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import { UPGRADE_URL } from "@/lib/upgrade-url";
 import ReportModal from "./ReportModal";
@@ -10,6 +11,9 @@ import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./feed.module.css";
 import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle } from "lucide-react";
+
+const PAGE_SIZE = 20;
+const VIRTUALIZE_AT = 150; // window virtualizer only kicks in for long feeds
 
 function resizeImage(file, maxSize = 1600) {
   return new Promise((resolve, reject) => {
@@ -98,32 +102,16 @@ function postCardStyle(kind) {
   return cardThemeVars(POST_KIND_THEMES[kind] || POST_KIND_THEMES.default, { light: true });
 }
 
-function LikeButton({ postId, likes, uid, disabled }) {
+function LikeButton({ likes, uid, disabled, onToggle }) {
   const t = useTranslations("feed");
-  const [count, setCount] = useState(Object.keys(likes || {}).length);
-  const [liked, setLiked] = useState(!!likes?.[uid]);
-  const [busy, setBusy] = useState(false);
-
-  async function toggle() {
-    if (busy || disabled) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        setCount(data.count);
-        setLiked(data.liked);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
+  const liked = Boolean(likes?.[uid]);
+  const count = Object.keys(likes || {}).length;
 
   return (
     <button
       className={`${styles.like} ${liked ? styles.likeActive : ""}`}
-      onClick={toggle}
-      disabled={busy || disabled}
+      onClick={onToggle}
+      disabled={disabled}
       title={liked ? t("unlikePost") : t("likePost")}
       aria-pressed={liked}
     >
@@ -230,30 +218,15 @@ function EmojiReactionBar({ postId, commentId, reactions, uid, disabled }) {
   );
 }
 
-function BookmarkButton({ postId, bookmarks, uid, disabled }) {
+function BookmarkButton({ bookmarks, uid, disabled, onToggle }) {
   const t = useTranslations("feed");
-  const [bookmarked, setBookmarked] = useState(!!bookmarks?.[uid]);
-  const [busy, setBusy] = useState(false);
-
-  async function toggle() {
-    if (busy || disabled) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/posts/${postId}/bookmark`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        setBookmarked(data.bookmarked);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
+  const bookmarked = Boolean(bookmarks?.[uid]);
 
   return (
     <button
       className={`${styles.bookmark} ${bookmarked ? styles.bookmarkActive : ""}`}
-      onClick={toggle}
-      disabled={busy || disabled}
+      onClick={onToggle}
+      disabled={disabled}
       title={bookmarked ? t("removeBookmark") : t("bookmarkPost")}
       aria-pressed={bookmarked}
     >
@@ -519,11 +492,36 @@ function CommentList({ postId, uid, canModerate, disabled }) {
 
 const EMPTY_POLL = ["", ""];
 
+function PostSkeleton({ showActions = false }) {
+  return (
+    <div className={styles.skeletonCard} aria-hidden="true">
+      <div className={styles.skeletonHeader}>
+        <span className={styles.skeletonAvatar} />
+        <span className={styles.skeletonLine} style={{ width: "45%" }} />
+      </div>
+      <span className={styles.skeletonLine} style={{ width: "100%" }} />
+      <span className={styles.skeletonLine} style={{ width: "80%" }} />
+      {showActions && (
+        <div className={styles.skeletonActions}>
+          <span className={styles.skeletonChip} />
+          <span className={styles.skeletonChip} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Feed({ uid, userName, role, groupId, spaceId, initialKind, canWriteChat = false }) {
   const t = useTranslations("feed");
   const canModerate = role === "owner" || role === "moderator";
   const [posts, setPosts] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const [newPosts, setNewPosts] = useState([]);
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
@@ -538,9 +536,9 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const [pollDeadline, setPollDeadline] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("newest");
-  const [followingCount, setFollowingCount] = useState(0);
-  const [nearCount, setNearCount] = useState(0);
   const fileInputRef = useRef(null);
+  const sentinelRef = useRef(null);
+  const scrollKeyRef = useRef(null);
 
   const sortFeedPosts = useCallback(
     (list) =>
@@ -555,70 +553,214 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     []
   );
 
-  const loadCommunityPosts = useCallback(async (modeOverride) => {
-    const mode = typeof modeOverride === "string" ? modeOverride : filter;
-    let query = "";
-    if (mode === "following") query = "?following=1";
-    else if (mode === "near") query = "?near=1";
-    try {
-      const res = await fetch(`/api/posts${query}`);
-      if (!res.ok) throw new Error("Feed read failed");
-      const data = await res.json();
-      setPosts(sortFeedPosts(data.posts || []));
-      setLoadError(false);
-      if (mode === "following") setFollowingCount(sortFeedPosts(data.posts || []).filter((p) => p.authorId !== uid).length);
-      if (mode === "near") setNearCount(sortFeedPosts(data.posts || []).filter((p) => p.authorId !== uid).length);
-    } catch (err) {
-      console.error("Feed read failed", err);
-      setLoadError(true);
-    }
-  }, [sortFeedPosts, filter, uid]);
-
-  function selectFilter(next) {
-    const prev = filter;
-    setFilter(next);
-    if (!groupId && !spaceId && next !== prev) {
-      loadCommunityPosts(next);
-    }
-  }
-
+  // Track the current filter in a ref so loaders capture it without forcing
+  // the mount effect (or each other) to re-run on filter changes.
+  const filterRef = useRef(filter);
   useEffect(() => {
-    const isCommunity = !groupId && !spaceId;
-    const load = async () => {
-      if (isCommunity) {
-        loadCommunityPosts();
-        return;
-      }
+    filterRef.current = filter;
+  }, [filter]);
+
+  const cacheKeyFor = useCallback(
+    (mode) => `feed:v2:${spaceId || "home"}:${groupId || "home"}:${mode}`,
+    [spaceId, groupId]
+  );
+
+  const feedUrlFor = useCallback(
+    (mode, after) => {
       const params = new URLSearchParams();
       if (spaceId) params.set("spaceId", spaceId);
       if (groupId) params.set("groupId", groupId);
+      if (mode === "following") params.set("following", "1");
+      if (mode === "near") params.set("near", "1");
+      params.set("limit", String(PAGE_SIZE));
+      if (after) params.set("after", after);
+      return `/api/posts?${params.toString()}`;
+    },
+    [spaceId, groupId]
+  );
+
+  const patchPost = useCallback((id, patch) => {
+    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }, []);
+
+  // Session-scoped SWR-ish cache: render the last page instantly, refresh in
+  // the background, and (thanks to the union below) never show a blank screen
+  // when the network is slow or briefly offline.
+  const readFeedCache = useCallback(
+    (mode) => {
       try {
-        const res = await fetch(`/api/posts?${params.toString()}`);
+        const raw = sessionStorage.getItem(cacheKeyFor(mode));
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data?.posts || Date.now() - data.at > 90_000) return null;
+        return data.posts;
+      } catch {
+        return null;
+      }
+    },
+    [cacheKeyFor]
+  );
+  const writeFeedCache = useCallback(
+    (mode, list) => {
+      try {
+        sessionStorage.setItem(cacheKeyFor(mode), JSON.stringify({ at: Date.now(), posts: sortFeedPosts(list) }));
+      } catch {
+        /* storage unavailable */
+      }
+    },
+    [cacheKeyFor, sortFeedPosts]
+  );
+
+  const loadFirst = useCallback(
+    async (modeOverride) => {
+      const mode = typeof modeOverride === "string" ? modeOverride : filterRef.current;
+      const cached = readFeedCache(mode);
+      if (cached && cached.length) {
+        setPosts(sortFeedPosts(cached));
+        setInitialLoading(false);
+        setLoadError(false);
+      } else {
+        setInitialLoading(true);
+      }
+      try {
+        const res = await fetch(feedUrlFor(mode));
         if (!res.ok) throw new Error("Feed read failed");
         const data = await res.json();
-        setPosts(sortFeedPosts(data.posts || []));
+        const page = sortFeedPosts(data.posts || []);
+        setPosts(page);
+        setNextCursor(data.nextCursor || null);
+        setHasMore(Boolean(data.hasMore));
         setLoadError(false);
+        writeFeedCache(mode, page);
+        setNewPosts([]);
       } catch (err) {
         console.error("Feed read failed", err);
-        setLoadError(true);
+        if (cached && cached.length) {
+          setLoadError(false);
+        } else {
+          setLoadError(true);
+        }
+      } finally {
+        setInitialLoading(false);
       }
-    };
+    },
+    [readFeedCache, writeFeedCache, feedUrlFor, sortFeedPosts]
+  );
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || initialLoading) return;
+    setLoadingMore(true);
+    setLoadMoreError(false);
+    const after = nextCursor;
+    try {
+      const res = await fetch(feedUrlFor(filterRef.current, after));
+      if (!res.ok) throw new Error("Feed load more failed");
+      const data = await res.json();
+      setPosts((prev) => {
+        const seen = new Set(prev.map((p) => p.id));
+        const fresh = (data.posts || []).filter((p) => !seen.has(p.id));
+        return sortFeedPosts([...prev, ...fresh]);
+      });
+      setNextCursor(data.nextCursor || null);
+      setHasMore(Boolean(data.hasMore));
+    } catch (err) {
+      console.error("Feed load more failed", err);
+      setLoadMoreError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, initialLoading, nextCursor, feedUrlFor, sortFeedPosts]);
+
+  const checkNewPosts = useCallback(async () => {
+    if (groupId || spaceId || filterRef.current !== "all") return;
+    try {
+      const res = await fetch(feedUrlFor("all"));
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.posts || !data.posts.length) return;
+      setPosts((prev) => {
+        const knownIds = new Set(prev.map((p) => p.id));
+        const newestKnown = prev.reduce((max, p) => (!p.pinned ? Math.max(max, Number(p.createdAt) || 0) : max), 0);
+        const unseen = data.posts.filter((p) => !p.pinned && !knownIds.has(p.id) && Number(p.createdAt) > newestKnown);
+        if (unseen.length) {
+          setNewPosts((existing) => {
+            const merged = sortFeedPosts([...existing, ...unseen]);
+            return merged.slice(0, PAGE_SIZE);
+          });
+          try {
+            const sr = document.querySelector('[aria-live="polite"][data-feed-live]');
+            if (sr) sr.textContent = t("newPosts", { count: unseen.length });
+          } catch {}
+        }
+        return prev;
+      });
+    } catch {
+      /* transient poll failure — next tick retries */
+    }
+  }, [groupId, spaceId, feedUrlFor, sortFeedPosts, t]);
+
+  // Initial load + light polling for the "N new posts" banner. Runs once per
+  // environment change (not per filter click) — the tab buttons below trigger
+  // their own loads for the communities feed.
+  useEffect(() => {
+    loadFirst(groupId || spaceId ? "all" : "all");
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (!user) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
         window.location.assign("/login");
         return;
       }
-      load();
+      loadFirst(groupId || spaceId ? "all" : "all");
     });
-
-    load();
-    const interval = setInterval(load, 25000);
+    const interval = setInterval(checkNewPosts, 25000);
     return () => {
       clearInterval(interval);
       unsubAuth();
     };
-  }, [groupId, spaceId, loadCommunityPosts, sortFeedPosts]);
+  }, [groupId, spaceId, loadFirst, checkNewPosts]);
+
+  // IntersectionObserver sentinel -> infinite scroll. Off the main thread, and
+  // prefetches 300px before the user reaches the end.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasMore && !loadingMore && !initialLoading) {
+          loadMore();
+        }
+      },
+      { rootMargin: "300px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, initialLoading, loadMore]);
+
+  // Scroll restoration on back-navigation / tab regain.
+  useEffect(() => {
+    const key = `feed:scroll:${spaceId || groupId || "home"}`;
+    scrollKeyRef.current = key;
+    try {
+      const saved = sessionStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Date.now() - parsed.t < 5 * 60_000 && typeof parsed.y === "number") {
+          requestAnimationFrame(() => window.scrollTo(0, parsed.y));
+        }
+      }
+    } catch {}
+    const persist = () => {
+      try {
+        sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), y: window.scrollY }));
+      } catch {}
+    };
+    window.addEventListener("pagehide", persist);
+    window.addEventListener("beforeunload", persist);
+    return () => {
+      window.removeEventListener("pagehide", persist);
+      window.removeEventListener("beforeunload", persist);
+    };
+  }, [spaceId, groupId]);
 
   async function handleImageUpload(e) {
     const file = e.target.files?.[0];
@@ -648,7 +790,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const handlePost = useCallback(
     async (e) => {
       e.preventDefault();
-const trimmed = text.trim();
+      const trimmed = text.trim();
       const tag = /\b#win\b/i.test(trimmed) ? "" : "#win";
       const payloadText = kind === "win" && trimmed ? `${trimmed} ${tag}`.trim() : trimmed;
       const cleanPoll = pollOptions
@@ -675,12 +817,39 @@ const trimmed = text.trim();
           }),
         });
         if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Post failed");
+        const data = await res.json().catch(() => ({}));
+        const optimisticPost = {
+          id: data.id || `local-${Date.now()}`,
+          authorId: uid,
+          authorName: userName,
+          authorRole: role || "member",
+          text: payloadText,
+          kind,
+          imageUrl: imageUrl || "",
+          likes: {},
+          bookmarks: {},
+          reactions: {},
+          pinned: false,
+          pinnedAt: 0,
+          hashtags: [],
+          commentCount: 0,
+          lastActivityAt: Date.now(),
+          createdAt: Date.now(),
+          spaceId: spaceId || "",
+          groupId: groupId || "",
+          pollOptions: kind === "poll" ? cleanPoll : [],
+          pollCounts: {},
+          pollTotal: 0,
+          pollDeadline: 0,
+          pollStatus: "",
+        };
+        setPosts((prev) => sortFeedPosts([optimisticPost, ...prev]));
         setText("");
         setImageUrl("");
         setKind("post");
         setPollOptions(EMPTY_POLL);
         setPollDeadline("");
-        if (!spaceId && !groupId) loadCommunityPosts();
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
         console.error(err);
         alert(err.message || "Post failed. Try again.");
@@ -688,7 +857,7 @@ const trimmed = text.trim();
         setBusy(false);
       }
     },
-    [text, imageUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, loadCommunityPosts]
+    [text, imageUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, uid, userName, role, sortFeedPosts]
   );
 
   function setPollOption(index, value) {
@@ -705,16 +874,85 @@ const trimmed = text.trim();
     setPollOptions((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function toggleLike(post) {
+    const likes = post.likes || {};
+    const already = Object.prototype.hasOwnProperty.call(likes, uid);
+    const optimisticLikes = { ...likes };
+    if (already) delete optimisticLikes[uid];
+    else optimisticLikes[uid] = true;
+    patchPost(post.id, { likes: optimisticLikes });
+    fetch(`/api/posts/${post.id}/like`, { method: "POST" })
+      .then((res) => {
+        if (!res.ok) throw new Error("like failed");
+        return res.json().catch(() => null);
+      })
+      .then((data) => {
+        if (data && typeof data.liked === "boolean") {
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p.id !== post.id) return p;
+              const next = { ...(p.likes || {}) };
+              if (data.liked) next[uid] = true;
+              else delete next[uid];
+              return { ...p, likes: next };
+            })
+          );
+        }
+      })
+      .catch(() => patchPost(post.id, { likes }));
+  }
+
+  function toggleBookmark(post) {
+    const bookmarks = post.bookmarks || {};
+    const already = Boolean(bookmarks[uid]);
+    const optimistic = { ...bookmarks };
+    if (already) delete optimistic[uid];
+    else optimistic[uid] = true;
+    patchPost(post.id, { bookmarks: optimistic });
+    fetch(`/api/posts/${post.id}/bookmark`, { method: "POST" })
+      .then((res) => {
+        if (!res.ok) throw new Error("bookmark failed");
+        return res.json().catch(() => null);
+      })
+      .then((data) => {
+        if (data && typeof data.bookmarked === "boolean") {
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p.id !== post.id) return p;
+              const next = { ...(p.bookmarks || {}) };
+              if (data.bookmarked) next[uid] = true;
+              else delete next[uid];
+              return { ...p, bookmarks: next };
+            })
+          );
+        }
+      })
+      .catch(() => patchPost(post.id, { bookmarks }));
+  }
+
   async function handleDelete(postId) {
+    if (!window.confirm(t("deleteConfirm") || "Delete this post?")) return;
     const res = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || "Failed to delete post");
+      return;
     }
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
   }
 
   async function handlePin(postId) {
     await fetch(`/api/posts/${postId}/pin`, { method: "POST" });
+    patchPost(postId, { pinned: true });
+  }
+
+  function prependNewPosts() {
+    if (!newPosts.length) return;
+    setPosts((prev) => {
+      const seen = new Set(prev.map((p) => p.id));
+      return sortFeedPosts([...newPosts.filter((p) => !seen.has(p.id)), ...prev]);
+    });
+    setNewPosts([]);
   }
 
   const queryText = search.trim().toLowerCase();
@@ -767,18 +1005,10 @@ const trimmed = text.trim();
       const bt = b.lastActivityAt?.toMillis?.() || b.createdAt?.toMillis?.() || Number(b.createdAt) || 0;
       return bt - at;
     });
-  } else {
-    filtered = [...filtered].sort((a, b) => {
-      const ap = a.pinned ? 1 : 0;
-      const bp = b.pinned ? 1 : 0;
-      if (ap !== bp) return bp - ap;
-      const at = a.createdAt?.toMillis?.() || Number(a.createdAt) || 0;
-      const bt = b.createdAt?.toMillis?.() || Number(b.createdAt) || 0;
-      return bt - at;
-    });
   }
 
   const postCount = posts.length;
+  const followingCount = posts.filter((p) => p.authorId !== uid).length;
   const popularCount = posts.filter((p) => Object.keys(p.likes || {}).length > 0).length;
   const mineCount = posts.filter((p) => p.authorId === uid).length;
   const bookmarkedCount = posts.filter((p) => p.bookmarks?.[uid]).length;
@@ -792,6 +1022,90 @@ const trimmed = text.trim();
         : kind === "win"
           ? t("askAWin")
           : t("newPost");
+
+  function selectFilter(next) {
+    const prev = filter;
+    setFilter(next);
+    // Server-backed tabs (following/near) always fetch; leaving them back to
+    // the full feed also needs a fresh server page (the cached list is keyed
+    // per mode, so this is cheap and correct).
+    const serverModes = new Set(["following", "near"]);
+    if (serverModes.has(next) || serverModes.has(prev)) {
+      loadFirst(next);
+    }
+  }
+
+  const disabledActions = !canWriteChat && !canModerate;
+
+  function renderPost(post) {
+    return (
+      <article key={post.id} className={styles.post} style={postCardStyle(post.kind)}>
+        <div className={styles.postHeader}>
+          <div className={styles.avatar}>
+            {(post.authorName || "?").slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <p className={styles.postAuthor}>
+              {post.authorName}
+              {post.kind === "announcement" && <span className={styles.kindBadge}><ScrollText size={13} /> {t("announcement")}</span>}
+              {post.kind === "poll" && <span className={styles.kindBadge}><BarChart3 size={13} /> {t("tabPoll")}</span>}
+              {post.kind === "question" && <span className={styles.kindBadge}><HelpCircle size={13} /> {t("tabQuestion")}</span>}
+              {post.kind === "win" && <span className={styles.kindBadge}><Trophy size={13} /> {t("tabWin")}</span>}
+              {post.pinned && <span className={styles.pinnedBadge}><Pin size={13} /> {t("pinned")}</span>}
+            </p>
+            <p className={styles.postTime}>{timeAgo(post.createdAt)}</p>
+          </div>
+          {canModerate && (
+            <button
+              className={styles.pinBtn}
+              onClick={() => handlePin(post.id)}
+              title={post.pinned ? t("unpinPost") : t("pinPost")}
+            >
+              {post.pinned ? t("unpin") : t("pin")}
+            </button>
+          )}
+          {(post.authorId === uid || (canModerate && post.authorId !== "system")) && (
+            <button
+              className={styles.deletePost}
+              onClick={() => handleDelete(post.id)}
+              title={t("deletePost")}
+            >
+              {t("delete")}
+            </button>
+          )}
+          {post.authorId !== uid && post.authorId !== "system" && (
+            <ReportButton type="post" targetId={post.id} />
+          )}
+        </div>
+        {post.text && <p className={styles.postText}>{renderMentions(post.text)}</p>}
+        {post.kind === "poll" && (
+          <PollBlock postId={post.id} post={post} uid={uid} disabled={disabledActions} />
+        )}
+        {post.imageUrl && (
+          <img src={post.imageUrl} alt="" className={styles.postImage} loading="lazy" decoding="async" />
+        )}
+        {post.kind === "announcement" && post.authorId === "system" ? (
+          <p className={styles.readOnlyNote}>{t("readOnlyNote")}</p>
+        ) : (
+          <>
+            <div className={styles.postActions}>
+              <LikeButton likes={post.likes} uid={uid} disabled={disabledActions} onToggle={() => toggleLike(post)} />
+              <BookmarkButton bookmarks={post.bookmarks} uid={uid} disabled={disabledActions} onToggle={() => toggleBookmark(post)} />
+            </div>
+            <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} />
+            <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={disabledActions} />
+          </>
+        )}
+      </article>
+    );
+  }
+
+  const virtualize = filtered.length > VIRTUALIZE_AT;
+  const windowVirtualizer = useWindowVirtualizer({
+    count: filtered.length,
+    estimateSize: () => 320,
+    overscan: 6,
+  });
 
   return (
     <div className={styles.feed}>
@@ -961,7 +1275,7 @@ const trimmed = text.trim();
               className={filter === "near" ? styles.filterTabActive : styles.filterTab}
               onClick={() => selectFilter("near")}
             >
-              {t("nearYou", { count: nearCount })}
+              {t("nearYou", { count: nearOnlyCount(posts, uid) })}
             </button>
           )}
           <button
@@ -1009,8 +1323,25 @@ const trimmed = text.trim();
         </div>
       </div>
 
-      {loadError ? (
-        <p className={styles.empty}>{t("loadError")}</p>
+      {newPosts.length > 0 && (
+        <button className={styles.newPostsBanner} type="button" onClick={prependNewPosts}>
+          {t("newPosts", { count: newPosts.length })}
+        </button>
+      )}
+
+      {initialLoading ? (
+        <div className={styles.postList} aria-busy="true">
+          <PostSkeleton showActions />
+          <PostSkeleton showActions />
+          <PostSkeleton showActions />
+        </div>
+      ) : loadError && posts.length === 0 ? (
+        <div className={styles.feedError} role="alert">
+          <p>{t("loadError")}</p>
+          <button className={styles.retryBtn} type="button" onClick={() => loadFirst()}>
+            {t("retry")}
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <p className={styles.empty}>
           {queryText
@@ -1026,69 +1357,63 @@ const trimmed = text.trim();
             : t("noPosts")}
         </p>
       ) : (
-        <div className={styles.postList}>
-          {filtered.map((post) => (
-            <article key={post.id} className={styles.post} style={postCardStyle(post.kind)}>
-              <div className={styles.postHeader}>
-                <div className={styles.avatar}>
-                  {(post.authorName || "?").slice(0, 1).toUpperCase()}
+        <div className={styles.postList} role="feed" aria-busy={loadingMore} aria-label={t("title")}>
+          {virtualize ? (
+            <div style={{ height: windowVirtualizer.getTotalSize(), position: "relative" }}>
+              {windowVirtualizer.getVirtualItems().map((vi) => (
+                <div
+                  key={vi.key}
+                  data-index={vi.index}
+                  ref={windowVirtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${vi.start}px)`,
+                  }}
+                >
+                  {renderPost(filtered[vi.index])}
                 </div>
-                <div>
-                  <p className={styles.postAuthor}>
-                    {post.authorName}
-                    {post.kind === "announcement" && <span className={styles.kindBadge}><ScrollText size={13} /> {t("announcement")}</span>}
-                    {post.kind === "poll" && <span className={styles.kindBadge}><BarChart3 size={13} /> {t("tabPoll")}</span>}
-                    {post.kind === "question" && <span className={styles.kindBadge}><HelpCircle size={13} /> {t("tabQuestion")}</span>}
-                    {post.kind === "win" && <span className={styles.kindBadge}><Trophy size={13} /> {t("tabWin")}</span>}
-                    {post.pinned && <span className={styles.pinnedBadge}><Pin size={13} /> {t("pinned")}</span>}
-                  </p>
-                  <p className={styles.postTime}>{timeAgo(post.createdAt)}</p>
-                </div>
-                {canModerate && (
-                  <button
-                    className={styles.pinBtn}
-                    onClick={() => handlePin(post.id)}
-                    title={post.pinned ? t("unpinPost") : t("pinPost")}
-                  >
-                    {post.pinned ? t("unpin") : t("pin")}
-                  </button>
-                )}
-                {(post.authorId === uid || (canModerate && post.authorId !== "system")) && (
-                  <button
-                    className={styles.deletePost}
-                    onClick={() => handleDelete(post.id)}
-                    title={t("deletePost")}
-                  >
-                    {t("delete")}
-                  </button>
-                )}
-                {post.authorId !== uid && post.authorId !== "system" && (
-                  <ReportButton type="post" targetId={post.id} />
-                )}
-              </div>
-              {post.text && <p className={styles.postText}>{renderMentions(post.text)}</p>}
-              {post.kind === "poll" && (
-                <PollBlock postId={post.id} post={post} uid={uid} disabled={!canWriteChat && !canModerate} />
-              )}
-              {post.imageUrl && (
-                <img src={post.imageUrl} alt="" className={styles.postImage} />
-              )}
-              {post.kind === "announcement" && post.authorId === "system" ? (
-                <p className={styles.readOnlyNote}>{t("readOnlyNote")}</p>
-              ) : (
-                <>
-                  <div className={styles.postActions}>
-                    <LikeButton postId={post.id} likes={post.likes} uid={uid} disabled={!canWriteChat && !canModerate} />
-                    <BookmarkButton postId={post.id} bookmarks={post.bookmarks} uid={uid} disabled={!canWriteChat && !canModerate} />
-                  </div>
-                  <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={!canWriteChat && !canModerate} />
-                  <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={!canWriteChat && !canModerate} />
-                </>
-              )}
-            </article>
-          ))}
+              ))}
+            </div>
+          ) : (
+            filtered.map((post) => renderPost(post))
+          )}
+
+          {!hasMore && posts.length > 0 && filtered.length > 0 && (
+            <p className={styles.feedEnd}>{t("allCaughtUp")}</p>
+          )}
+
+          {loadMoreError && (
+            <div className={styles.feedMoreError} role="alert">
+              <span>{t("couldNotLoadMore")}</span>
+              <button className={styles.retryBtn} type="button" onClick={loadMore}>
+                {t("retry")}
+              </button>
+            </div>
+          )}
+
+          {hasMore && (
+            <button className={styles.loadMoreBtn} type="button" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? t("loadingMore") : t("loadMore")}
+            </button>
+          )}
+
+          <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
+          {loadingMore && (
+            <div className={styles.postList}>
+              <PostSkeleton showActions />
+            </div>
+          )}
         </div>
       )}
+
+      <p data-feed-live aria-live="polite" className={styles.liveRegion} />
     </div>
   );
+}
+
+function nearOnlyCount(posts, uid) {
+  return posts.filter((p) => p.authorId !== uid && p.authorId !== "system").length;
 }

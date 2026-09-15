@@ -210,7 +210,12 @@
     "pinPost": "Pin post",
     "unpinPost": "Unpin post",
     "deletePost": "Delete post",
-    "pinned": "Pinned"
+    "pinned": "Pinned",
+    "newPosts": "{count, plural, =0 {No new posts} one {# new post} other {# new posts}}",
+    "loadMore": "Load more",
+    "loadingMore": "Loading more…",
+    "couldNotLoadMore": "Couldn't load more posts.",
+    "deleteConfirm": "Delete this post?"
   },
   "onboarding": {
     "stepOf": "Step {current} of {total}",

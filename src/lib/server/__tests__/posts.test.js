@@ -7,6 +7,10 @@ import {
   validateCommentText,
   isValidImageUrl,
   POST_TEXT_MAX,
+  encodeCursor,
+  decodeCursor,
+  feedOrderBy,
+  paginatePostRows,
 } from "../posts-core.js";
 
 const post = { authorId: "u1", spaceId: "s1", groupId: "" };
@@ -157,4 +161,59 @@ test("isValidImageUrl: accepts data:image URLs within size limit", () => {
     false
   );
   assert.equal(isValidImageUrl("data:video/mp4;base64,AAAA"), false);
+});
+
+test("encodeCursor/decodeCursor: round-trips compound keys", () => {
+  const keys = [
+    { pinned: false, createdAt: 1_700_000_000_000, id: "cmu123" },
+    { pinned: true, createdAt: 0, id: "welcome-vault" },
+    { pinned: false, createdAt: 123, id: "a/b+c=d" },
+    { pinned: true, createdAt: 9_999_999_999_999, id: "1234567890" },
+  ];
+  for (const key of keys) {
+    assert.deepEqual(decodeCursor(encodeCursor(key)), {
+      pinned: key.pinned,
+      createdAt: key.createdAt,
+      id: key.id,
+    });
+  }
+});
+
+test("decodeCursor: tolerates junk and empty values", () => {
+  assert.equal(decodeCursor(""), null);
+  assert.equal(decodeCursor(null), null);
+  assert.equal(decodeCursor("!!not-base64!!"), null);
+  assert.equal(decodeCursor("bm90LWEtalNvbg"), null);
+  assert.equal(encodeCursor({ id: "" }), "");
+  assert.equal(encodeCursor(null), "");
+  assert.equal(encodeCursor(""), "");
+});
+
+test("feedOrderBy: pinned first, newest, then id tiebreak", () => {
+  assert.deepEqual(feedOrderBy(), [
+    { pinned: "desc" },
+    { createdAt: "desc" },
+    { id: "desc" },
+  ]);
+});
+
+test("paginatePostRows: slices page and exposes opaque nextCursor", () => {
+  const rows = [
+    { id: "p1", pinned: false, createdAt: 3_000 },
+    { id: "p2", pinned: false, createdAt: 2_000 },
+    { id: "p3", pinned: false, createdAt: 1_000 },
+  ];
+  const page = paginatePostRows(rows, 2);
+  assert.equal(page.posts.length, 2);
+  assert.equal(page.posts[0].id, "p1");
+  assert.equal(page.hasMore, true);
+  assert.deepEqual(decodeCursor(page.nextCursor), {
+    pinned: false,
+    createdAt: 2_000,
+    id: "p2",
+  });
+
+  const end = paginatePostRows(rows.slice(0, 2), 2);
+  assert.equal(end.hasMore, false);
+  assert.equal(end.nextCursor, null);
 });

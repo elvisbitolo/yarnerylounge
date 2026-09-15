@@ -210,7 +210,12 @@
     "pinPost": "Beitrag anheften",
     "unpinPost": "Beitrag lösen",
     "deletePost": "Beitrag löschen",
-    "pinned": "Angeheftet"
+    "pinned": "Angeheftet",
+    "newPosts": "{count, plural, =0 {Keine neuen Beiträge} one {# neuer Beitrag} other {# neue Beiträge}}",
+    "loadMore": "Mehr laden",
+    "loadingMore": "Lade mehr…",
+    "couldNotLoadMore": "Weitere Beiträge konnten nicht geladen werden.",
+    "deleteConfirm": "Diesen Beitrag löschen?"
   },
   "onboarding": {
     "stepOf": "Schritt {current} von {total}",

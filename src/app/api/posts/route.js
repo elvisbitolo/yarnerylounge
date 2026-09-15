@@ -11,7 +11,7 @@ import { createNotification } from "@/lib/server/notifications";
 import { runAutomations } from "@/lib/server/automations";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { validatePostText, isValidImageUrl, POST_TEXT_MAX, mapPostRow } from "@/lib/server/posts-core";
+import { validatePostText, isValidImageUrl, POST_TEXT_MAX, mapPostRow, encodeCursor, decodeCursor, feedOrderBy, cursorAfter } from "@/lib/server/posts-core";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +42,7 @@ export async function GET(req) {
   const nearOnly = url.searchParams.get("near") === "1";
   const spaceIdParam = url.searchParams.get("spaceId") || "";
   const groupIdParam = url.searchParams.get("groupId") || "";
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20", 10) || 20, 1), 50);
 
   const ctx = {
     followingOnly,
@@ -57,15 +58,15 @@ export async function GET(req) {
 
   try {
     const prisma = getPrisma();
+    const orderBy = feedOrderBy();
     const countryRow = await prisma.user.findUnique({
       where: { id: user.uid },
       select: { country: true },
     });
     const myCountry = countryRow?.country || "";
-    const [spaceRows, groupRows, postRows, followRows, nearRows] = await Promise.all([
+    const [spaceRows, groupRows, followRows, nearRows] = await Promise.all([
       prisma.spaceMember.findMany({ where: { userId: user.uid }, select: { spaceId: true } }),
       prisma.groupMember.findMany({ where: { userId: user.uid }, select: { groupId: true } }),
-      prisma.post.findMany({ orderBy: { createdAt: "desc" }, take: 300 }),
       followingOnly
         ? prisma.follow.findMany({ where: { followerId: user.uid }, select: { followingId: true } })
         : Promise.resolve([]),
@@ -77,8 +78,46 @@ export async function GET(req) {
     groupRows.forEach((r) => r.groupId && ctx.groupIds.add(r.groupId));
     followRows.forEach((r) => r.followingId && ctx.followingIds.add(r.followingId));
     nearRows.forEach((r) => r.id && ctx.nearIds.add(r.id));
-    const posts = postRows.map(mapPostRow);
-    return NextResponse.json({ posts: filterVisiblePosts(posts, ctx) });
+
+    // Keyset paginate over *visible* rows. Each pass pulls a raw batch in feed
+    // order (pinned, createdAt, id), keeps only rows the viewer may see
+    // (following/near/membership), and skips ahead past the last scanned row.
+    // The cursor carries all three sort keys so a pinned post (or a same-
+    // timestamp tie) can't make the scan skip or duplicate rows. Bounded to a
+    // handful of passes so a sparse "following" feed can't trigger runaway
+    // scans.
+    let visible = [];
+    let afterKey = decodeCursor(url.searchParams.get("after") || "") || null;
+    let reachedEnd = false;
+    let scanned = 0;
+    const MAX_PASSES = 20;
+    const PASS_TAKE = 60;
+    while (visible.length < limit + 1 && !reachedEnd && scanned < MAX_PASSES * PASS_TAKE) {
+      const batch = await prisma.post.findMany({
+        where: cursorAfter(afterKey),
+        orderBy,
+        take: PASS_TAKE,
+      });
+      if (!batch.length) {
+        reachedEnd = true;
+        break;
+      }
+      scanned += batch.length;
+      const lastRow = batch[batch.length - 1];
+      afterKey = { pinned: !!lastRow.pinned, createdAt: lastRow.createdAt, id: lastRow.id };
+      for (const row of batch) {
+        if (filterVisiblePosts([row], ctx).length) visible.push(row);
+        if (visible.length >= limit + 1) break;
+      }
+    }
+    const hasMore = visible.length >= limit + 1;
+    const lastVisible = visible[Math.min(limit, visible.length) - 1];
+    const posts = visible.slice(0, limit).map(mapPostRow);
+    return NextResponse.json({
+      posts,
+      nextCursor: hasMore && lastVisible ? encodeCursor(lastVisible) : null,
+      hasMore,
+    });
   } catch (err) {
     logError("posts.prisma_feed_failed", { error: err.message });
     return NextResponse.json({ error: "Failed to load posts" }, { status: 500 });

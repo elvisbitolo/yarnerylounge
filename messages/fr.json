@@ -210,7 +210,12 @@
     "pinPost": "Épingler le post",
     "unpinPost": "Désépingler le post",
     "deletePost": "Supprimer le post",
-    "pinned": "Épinglé"
+    "pinned": "Épinglé",
+    "newPosts": "{count, plural, =0 {Aucun nouveau post} one {# nouveau post} other {# nouveaux posts}}",
+    "loadMore": "Charger plus",
+    "loadingMore": "Chargement…",
+    "couldNotLoadMore": "Impossible de charger plus de posts.",
+    "deleteConfirm": "Supprimer ce post ?"
   },
   "onboarding": {
     "stepOf": "Étape {current} sur {total}",
