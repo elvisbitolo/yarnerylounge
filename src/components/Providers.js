@@ -40,7 +40,7 @@ export default function Providers({ messages, locale: serverLocale, children }) 
   }, []);
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages[locale] || messages.en} timeZone="UTC">
+    <NextIntlClientProvider locale={locale} messages={messages[locale] || messages} timeZone="UTC">
       <MembershipProvider>{children}</MembershipProvider>
     </NextIntlClientProvider>
   );
