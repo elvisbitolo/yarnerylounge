@@ -22,12 +22,12 @@ export default async function CoursesPage() {
       <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Courses</h1>
+          <h1 className={styles.title}>Beginner Crochet Series</h1>
           {userDoc?.role === "owner" && (
             <Link className={styles.adminLink} href="/admin/courses">Manage courses</Link>
           )}
         </div>
-        <p className={styles.subtitle}>Structured learning for the community. Go at your own pace.</p>
+        <p className={styles.subtitle}>Start from the very first stitch and build your skills step by step with structured, self-paced lessons.</p>
 
         {courses.length === 0 ? (
           <p className={styles.empty}>No courses yet — check back soon.</p>

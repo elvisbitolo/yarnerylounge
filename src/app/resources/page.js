@@ -1,42 +1,11 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { FileDown, FolderDown } from "lucide-react";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { BookOpen, GraduationCap, ListChecks, MessageCircleQuestion } from "lucide-react";
+import { PRINTABLES } from "@/lib/printables";
 import Nav from "@/components/Nav";
 import styles from "./resources.module.css";
 
 export const dynamic = "force-dynamic";
-
-const RESOURCE_AREAS = [
-  {
-    href: "/articles",
-    icon: BookOpen,
-    title: "Tutorials & Patterns",
-    description: "Step-by-step guides, patterns, and stories written by the community.",
-    cta: "Browse articles",
-  },
-  {
-    href: "/courses",
-    icon: GraduationCap,
-    title: "Courses",
-    description: "Structured lessons with quizzes and certificates — learn at your own pace.",
-    cta: "Explore courses",
-  },
-  {
-    href: "/challenges",
-    icon: ListChecks,
-    title: "Crochet Alongs",
-    description: "Join community-wide challenges and track your progress together.",
-    cta: "See challenges",
-  },
-  {
-    href: "/quizzes",
-    icon: MessageCircleQuestion,
-    title: "Community Q&A",
-    description: "Ask the community for help and get answers from fellow crocheters.",
-    cta: "Ask a question",
-  },
-];
 
 export default async function ResourcesPage() {
   const user = await getCurrentUser();
@@ -49,24 +18,53 @@ export default async function ResourcesPage() {
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Resources</h1>
+          <span className={styles.badge}>
+            <FolderDown size={12} />
+            Printable files
+          </span>
         </header>
         <p className={styles.subtitle}>
-          Everything you need to grow your craft — tutorials, courses, challenges, and help from the community.
+          Download, print, and keep by your side — stitch charts, pattern sheets, planners and more, ready for your next
+          project.
         </p>
+
         <div className={styles.grid}>
-          {RESOURCE_AREAS.map((area) => {
-            const Icon = area.icon;
-            return (
-              <Link key={area.href} href={area.href} className={styles.card}>
+          {PRINTABLES.length === 0 ? (
+            <div className={styles.comingSoon}>
+              <div className={styles.comingSoonTitle}>Printables are on the way</div>
+              <p className={styles.comingSoonText}>
+                The first printable patterns and planners are being prepared. Check back soon to download them.
+              </p>
+              <ul className={styles.categoryList}>
+                <li className={styles.categoryItem}>Stitch &amp; symbol charts</li>
+                <li className={styles.categoryItem}>Printable patterns</li>
+                <li className={styles.categoryItem}>Project planners &amp; trackers</li>
+                <li className={styles.categoryItem}>Gift tags &amp; labels</li>
+              </ul>
+            </div>
+          ) : (
+            PRINTABLES.map((item) => (
+              <a
+                key={item.slug}
+                href={item.file}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.card}
+              >
                 <span className={styles.cardIcon}>
-                  <Icon size={22} />
+                  <FileDown size={22} />
                 </span>
-                <h2 className={styles.cardTitle}>{area.title}</h2>
-                <p className={styles.cardDesc}>{area.description}</p>
-                <span className={styles.cardCta}>{area.cta} →</span>
-              </Link>
-            );
-          })}
+                <h2 className={styles.cardTitle}>{item.title}</h2>
+                <p className={styles.cardDesc}>{item.description}</p>
+                <div className={styles.cardMetaRow}>
+                  <span className={styles.cardMeta}>{item.sizeLabel}</span>
+                  {item.pages ? <span className={styles.cardMeta}>{item.pages} pages</span> : null}
+                  <span className={styles.cardCta}>Download →</span>
+                </div>
+              </a>
+            ))
+          )}
         </div>
       </div>
     </Nav>

@@ -1,67 +1,53 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { listCommunityQuestions } from "@/lib/server/community-questions";
+import { Sparkles, MessageCircleQuestion } from "lucide-react";
 import Nav from "@/components/Nav";
-import AskQuestionForm from "./AskQuestionForm";
 import styles from "./quizzes.module.css";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
-}
-
-export default async function CommunityQAPage() {
+export default async function QuizzesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
-  const questions = await listCommunityQuestions();
-
-  const openCount = questions.filter((q) => q.status === "open").length;
 
   return (
     <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
-          <div>
-            <h1 className={styles.title}>Community Q&A</h1>
-            <p className={styles.subtitle}>
-              Stuck on a pattern, hook, or stitch? Ask the community and get real answers from fellow crocheters.
-            </p>
-          </div>
+          <h1 className={styles.title}>Quizzes</h1>
+          <span className={styles.badge}>
+            <Sparkles size={12} />
+            Coming soon
+          </span>
         </header>
+        <p className={styles.subtitle}>
+          Put your yarn knowledge to the test — stitch recognition, pattern puzzles, yarn-weight guessing and loads of
+          fun.
+        </p>
 
-        <AskQuestionForm />
-
-        <div className={styles.headingRow}>
-          <h2 className={styles.sectionTitle}>Questions</h2>
-          <span className={styles.count}>{openCount} open · {questions.length} total</span>
+        <div className={styles.comingSoon}>
+          <div className={styles.comingSoonTitle}>What&apos;s coming</div>
+          <ul className={styles.featureList}>
+            <li className={styles.featureItem}>Stitch &amp; symbol identification quizzes</li>
+            <li className={styles.featureItem}>Yarn-weight and gauge guessers</li>
+            <li className={styles.featureItem}>Pattern-reading riddle of the week</li>
+            <li className={styles.featureItem}>Score tracking and friendly leaderboards</li>
+          </ul>
         </div>
 
-        <div className={styles.list}>
-          {questions.length === 0 ? (
-            <p className={styles.empty}>
-              No questions yet — be the first to ask something.
-            </p>
-          ) : (
-            questions.map((q) => (
-              <Link key={q.id} href={`/quizzes/${q.id}`} className={styles.card}>
-                <div className={styles.cardTop}>
-                  <h3 className={styles.cardTitle}>{q.title}</h3>
-                  <span className={q.status === "resolved" ? `${styles.badge} ${styles.badgeResolved}` : styles.badge}>
-                    {q.status === "resolved" ? "Resolved" : "Open"}
-                  </span>
-                </div>
-                <p className={styles.cardBody}>{q.body}</p>
-                <p className={styles.cardMeta}>
-                  {q.answerCount} {q.answerCount === 1 ? "answer" : "answers"} · {q.authorName} · {formatDate(q.createdAt)}
-                </p>
-              </Link>
-            ))
-          )}
-        </div>
+        <Link href="/quizzes/questions" className={styles.qaCard}>
+          <span className={styles.qaIcon}>
+            <MessageCircleQuestion size={20} />
+          </span>
+          <div>
+            <div className={styles.qaTitle}>Need help right now?</div>
+            <p className={styles.qaDesc}>Ask the community and get answers from fellow crocheters while the quizzes are being built.</p>
+          </div>
+          <span className={styles.qaCta}>Open community Q&amp;A →</span>
+        </Link>
       </div>
     </Nav>
   );

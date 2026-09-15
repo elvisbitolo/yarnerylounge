@@ -27,7 +27,7 @@ export default async function QuestionDetailPage({ params }) {
   return (
     <Nav role={userDoc?.role}>
       <div className={styles.container}>
-        <Link href="/quizzes" className={styles.backLink}>← Back to all questions</Link>
+        <Link href="/quizzes/questions" className={styles.backLink}>← Back to all questions</Link>
 
         <article className={styles.detailCard}>
           <div className={styles.cardTop}>
