@@ -63,7 +63,7 @@
   background: #c2185b;
 }
 
-.composerInput {
+.composer .composerInput {
   width: 100%;
   border: none;
   outline: none;
@@ -72,6 +72,10 @@
   font-family: inherit;
   color: #17171c;
   background: transparent;
+}
+
+.composer .composerInput::placeholder {
+  color: #9b9bab;
 }
 
 .composerRow {
@@ -152,6 +156,7 @@
   font-family: inherit;
   outline: none;
   background: #ffffff;
+  color: #17171c;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -490,6 +495,8 @@
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
+  color: #17171c;
+  background: #ffffff;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -577,6 +584,8 @@
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
+  color: #17171c;
+  background: #ffffff;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -778,6 +787,8 @@
   padding: 10px 12px;
   font-size: 14px;
   font-family: inherit;
+  color: #17171c;
+  background: #ffffff;
   border: 1px solid #d8d8e3;
   border-radius: 10px;
   outline: none;

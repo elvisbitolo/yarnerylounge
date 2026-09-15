@@ -71,6 +71,7 @@ export async function searchMembersForMention(query, limit = 8) {
     try {
       const rows = await prisma.user.findMany({
         take: 100,
+        where: { suspended: { not: true } },
         select: { id: true, name: true, username: true, photoURL: true },
       });
       const matches = [];

@@ -48,7 +48,7 @@ export default async function MembersPage() {
   })();
 
   const members = userRows
-    .filter((m) => m.name && m.id !== user.uid)
+    .filter((m) => m.name && !m.suspended && m.id !== user.uid)
     .filter((m) => {
       const memberExtra = m.extra && typeof m.extra === "object" ? m.extra : {};
       if (memberExtra.profileVisibility === "private") {
