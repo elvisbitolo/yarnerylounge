@@ -191,10 +191,10 @@ export default function ThemePanel() {
   }
 
   function applyFont(percent) {
-    // Text-only scaling. Setting html{font-size} affects rem/em text without
-    // zooming the whole page — zooming <html> shrinks the layout width too,
-    // which made the site look 3/4 in Firefox when A- was pressed.
-    document.documentElement.style.fontSize = percent === 100 ? "" : `${percent}%`;
+    // Site-wide text scaling. `zoom` scales px + rem + layout uniformly in all
+    // modern browsers (Firefox shipped zoom in v126, so the old html{font-size}
+    // % trick — which only touched rem-based text — is no longer needed).
+    document.documentElement.style.zoom = percent === 100 ? "" : String(percent / 100);
     try {
       if (percent === 100) localStorage.removeItem(FONT_KEY);
       else localStorage.setItem(FONT_KEY, percent.toString());
