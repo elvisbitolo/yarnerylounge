@@ -171,6 +171,17 @@ function cropRatioFor(kind) {
   return kind === "avatar" ? 1 : COVER_RATIO;
 }
 
+function dataUrlToBlob(dataUrl) {
+  const comma = dataUrl.indexOf(",");
+  const meta = dataUrl.slice(0, comma);
+  const base64 = dataUrl.slice(comma + 1);
+  const mime = /data:(.*?);base64/.exec(meta)?.[1] || "image/jpeg";
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 function toHandledLinks(links) {  if (!Array.isArray(links) || links.length === 0) return [];
   return links
     .map((l) => {
@@ -550,7 +561,7 @@ export default function ProfileEditor({ initial }) {
     try {
       const dataUrl = previewCover || cropImageToBanner(img, cropRect);
       const fd = new FormData();
-      const blob = await (await fetch(dataUrl)).blob();
+      const blob = dataUrlToBlob(dataUrl);
       fd.append("file", blob, "cover.jpg");
       const up = await fetch("/api/upload?kind=cover", {
         method: "POST",
@@ -592,7 +603,7 @@ export default function ProfileEditor({ initial }) {
     try {
       const dataUrl = cropImageToAvatar(img, cropRect);
       const fd = new FormData();
-      const blob = await (await fetch(dataUrl)).blob();
+      const blob = dataUrlToBlob(dataUrl);
       fd.append("file", blob, "avatar.jpg");
       const up = await fetch("/api/upload?kind=avatar", {
         method: "POST",
