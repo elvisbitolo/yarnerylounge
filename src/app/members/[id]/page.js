@@ -178,9 +178,7 @@ export default async function MemberProfilePage({ params }) {
   const projects = projectRows || [];
 
 const coverUrl = member.coverPhotoURL || "";
-  const bannerBackground = coverUrl
-    ? `url(${coverUrl}) center / cover no-repeat`
-    : "linear-gradient(135deg, #fdf1f3, #fbe3ec, #efd9d6)";
+  const bannerFallback = "linear-gradient(135deg, #fdf1f3, #fbe3ec, #efd9d6)";
 
   if (!canViewProfile) {
     return (
@@ -214,7 +212,15 @@ const coverUrl = member.coverPhotoURL || "";
         <BackButton fallback="/members" label="All members" />
 
         <div className={styles.profileCard}>
-          {bannerBackground && <div className={styles.banner} style={{ background: bannerBackground }} />}
+          <div className={styles.banner} style={!coverUrl ? { background: bannerFallback } : undefined}>
+          {coverUrl && (
+            <>
+              <div className={styles.bannerBackdrop} style={{ backgroundImage: `url(${coverUrl})` }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={styles.bannerImg} src={coverUrl} alt="" />
+            </>
+          )}
+        </div>
           <div className={styles.header}>
           <div className={styles.avatar}>
             {member.photoURL ? (

@@ -167,6 +167,29 @@ function cropImageToAvatar(img, rect) {
   return canvas.toDataURL("image/jpeg", 0.85);
 }
 
+// Encodes the FULL image (aspect ratio preserved, nothing cropped) for the
+// cover slot. Shrinks / drops quality only when needed so the inline data-URL
+// fallback stays under the server's photo URL cap.
+const COVER_MAX_WIDTH = 1600;
+const COVER_INLINE_LIMIT = 290000;
+function encodeFullCover(img) {
+  let scale = Math.min(1, COVER_MAX_WIDTH / img.naturalWidth);
+  let canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.naturalWidth * scale);
+  canvas.height = Math.round(img.naturalHeight * scale);
+  canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+  let dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  while (dataUrl.length > COVER_INLINE_LIMIT && canvas.width > 640) {
+    scale *= 0.8;
+    canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+  }
+  return dataUrl;
+}
+
 function cropRatioFor(kind) {
   return kind === "avatar" ? 1 : COVER_RATIO;
 }
@@ -331,23 +354,12 @@ export default function ProfileEditor({ initial }) {
       return;
     }
     setError("");
-    setCropKind("cover");
     try {
       const img = await loadImage(file);
-      setCropImage(img);
-      setCropRect(initialCropRect(img.width, img.height));
-      setCropStage("adjust");
-      setCropOpen(true);
+      await saveCoverUpload(encodeFullCover(img.element));
     } catch (err) {
       setError(err.message || "Couldn't read that image");
     }
-  }
-
-  function initialCropRect(width, height) {
-    const { winW, winH, offX, offY } = coverWindow(width, height, COVER_RATIO);
-    const w = winW * 0.96;
-    const h = w / COVER_RATIO;
-    return { x: offX + (winW - w) / 2, y: offY + (winH - h) / 2, w, h };
   }
 
   function initialCropRectAvatar(width, height) {
@@ -568,12 +580,9 @@ export default function ProfileEditor({ initial }) {
     }
   }
 
-  async function applyCoverCropSave() {
-    const img = cropImage?.element;
-    if (!img || !cropRect) return;
+  async function saveCoverUpload(dataUrl) {
     setUploadingCover(true);
     try {
-      const dataUrl = previewCover || cropImageToBanner(img, cropRect);
       const fd = new FormData();
       const blob = dataUrlToBlob(dataUrl);
       fd.append("file", blob, "cover.jpg");
@@ -598,15 +607,27 @@ export default function ProfileEditor({ initial }) {
       setCoverPhotoURL(coverPhotoURL);
       setSaved(true);
       setNotice("Cover photo saved.");
+      return true;
+    } catch (err) {
+      setError(err.message || "Failed to upload cover photo");
+      return false;
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+  async function applyCoverCropSave() {
+    const img = cropImage?.element;
+    if (!img || !cropRect) return;
+    const dataUrl = previewCover || cropImageToBanner(img, cropRect);
+    const ok = await saveCoverUpload(dataUrl);
+    if (ok) {
       setCropOpen(false);
       setCropImage(null);
       setCropRect(null);
       setCropStage("adjust");
-    } catch (err) {
-      setError(err.message || "Failed to upload cover photo");
+    } else {
       setCropStage("confirm");
-    } finally {
-      setUploadingCover(false);
     }
   }
 
@@ -943,8 +964,14 @@ export default function ProfileEditor({ initial }) {
       <div className={styles.stepPane}>
       <div className={coverStyles.coverRow}>
         {coverPhotoURL ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className={coverStyles.coverImg} src={coverPhotoURL} alt="Cover" />
+          <div className={coverStyles.coverPreview}>
+            <div
+              className={coverStyles.coverBackdrop}
+              style={{ backgroundImage: `url(${coverPhotoURL})` }}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className={coverStyles.coverImg} src={coverPhotoURL} alt="Cover" />
+          </div>
         ) : (
           <span className={coverStyles.coverPlaceholder}>
             <span className={coverStyles.coverPlaceholderIcon}><ImageIcon size={20} /></span>
@@ -1539,7 +1566,7 @@ export default function ProfileEditor({ initial }) {
         onClick={cancelCoverCrop}
         role="dialog"
         aria-modal="true"
-        aria-label="Crop cover photo"
+        aria-label="Crop photo"
       >
         <div
           className={coverStyles.cropModal}
