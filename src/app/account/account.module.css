@@ -1385,7 +1385,7 @@
 .hobbyCategoryTitle {
   font-size: 14px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--primary, #e91e63);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 10px;

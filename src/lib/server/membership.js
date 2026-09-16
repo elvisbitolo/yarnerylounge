@@ -1,11 +1,12 @@
 import { CAPABILITIES } from "@/lib/server/capabilities";
+import { isOpenAccess, openAccessPlan } from "@/lib/server/access-policy";
 import { toMillis } from "@/lib/server/user-core";
 
 const PAID_PLANS = new Set(["hooking-up", "moving-in"]);
 
 // Derives a cheap, read-efficient membership snapshot from the user doc only.
-// This mirrors getCapabilities (subscription doc) with a single read, so global
-// providers/badges never fan out queries per component.
+// This mirrors getAccessSub/getCapabilities (subscription doc) with a single
+// read, so global providers/badges never fan out queries per component.
 export function deriveMembership(userDoc, now = Date.now()) {
   const plan = userDoc?.plan || "flirting";
   const role = userDoc?.role || "member";
@@ -16,6 +17,10 @@ export function deriveMembership(userDoc, now = Date.now()) {
 
   let planKey = "flirting";
   if (role === "owner" || role === "moderator") planKey = "moving-in";
+  // Open-access mode: every signed-in member is admitted at the top tier until
+  // the gate is flipped on — mirrors getAccessSub so badges/CTAs match the
+  // server capability grants (no upgrade prompts while the community ramps up).
+  else if (userDoc && isOpenAccess()) planKey = openAccessPlan();
   else if (!expired && plan === "moving-in") planKey = "moving-in";
   else if (!expired && plan === "hooking-up") planKey = "hooking-up";
 
