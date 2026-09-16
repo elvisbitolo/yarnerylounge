@@ -72,8 +72,10 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { HOBBY_CATEGORIES } from "@/lib/server/profile";
+import { HOBBY_CATEGORIES, HOBBIES } from "@/lib/server/profile";
 import styles from "./account.module.css";
+
+const MAX_HOBBIES = 30;
 
 const HOBBY_ICONS = {
   cooking: CookingPot,
@@ -179,10 +181,14 @@ function title(value) {
 export default function HobbiesForm({ initial, username }) {
   const [selected, setSelected] = useState(() =>
     Array.isArray(initial)
-      ? [...new Set(initial.map((h) => String(h || "").trim().toLowerCase()).filter(Boolean))]
+      ? [...new Set(initial.filter((h) => HOBBIES.includes(h)))]
       : []
   );
-  const [custom, setCustom] = useState([]);
+  const [custom, setCustom] = useState(() =>
+    Array.isArray(initial)
+      ? [...new Set(initial.filter((h) => !HOBBIES.includes(h)))]
+      : []
+  );
   const [otherValue, setOtherValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -194,21 +200,45 @@ export default function HobbiesForm({ initial, username }) {
   function togglePreset(value) {
     setSaved(false);
     setNotice("");
+    if (!selected.includes(value) && allHobbies.length >= MAX_HOBBIES) {
+      setError(`You can pick up to ${MAX_HOBBIES} hobbies.`);
+      return;
+    }
+    setError("");
     setSelected((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   }
 
   function addCustom() {
     const value = otherValue.trim().toLowerCase();
-    setError("");
     if (!value) return;
     if (HOBBY_CATEGORIES.some((c) => c.hobbies.includes(value))) {
+      if (allHobbies.length >= MAX_HOBBIES && !selected.includes(value)) {
+        setError(`You can pick up to ${MAX_HOBBIES} hobbies.`);
+        return;
+      }
+      setError("");
       setOtherValue("");
-      if (!selected.includes(value)) setSelected((prev) => [...prev, value]);
+      if (selected.includes(value)) {
+        setNotice("That hobby is already added.");
+        return;
+      }
+      setNotice("");
+      setSelected((prev) => [...prev, value]);
       return;
     }
-    if (allHobbies.includes(value)) return;
+    if (allHobbies.includes(value)) {
+      setError("");
+      setNotice("That hobby is already added.");
+      setOtherValue("");
+      return;
+    }
+    if (allHobbies.length >= MAX_HOBBIES) {
+      setError(`You can pick up to ${MAX_HOBBIES} hobbies.`);
+      return;
+    }
     setCustom((prev) => [...prev, value]);
     setOtherValue("");
+    setError("");
   }
 
   function removeCustom(value) {
