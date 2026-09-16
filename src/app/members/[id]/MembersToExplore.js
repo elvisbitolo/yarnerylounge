@@ -9,14 +9,15 @@ export default function MembersToExplore() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const url = "/api/members/similar";
-    fetch(url)
+    let active = true;
+    fetch("/api/members/similar")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setMembers(data.members || []);
+        if (active && data) setMembers(data.members || []);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   if (loading) {
@@ -27,7 +28,7 @@ export default function MembersToExplore() {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.title}>Members to explore</h2>
+      <h2 className={styles.title}>Members you may like</h2>
       <div className={styles.grid}>
         {members.map((member) => (
           <Link

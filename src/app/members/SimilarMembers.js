@@ -26,13 +26,15 @@ export default function SimilarMembers() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     fetch("/api/members/similar")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setMembers(data.members || []);
+        if (active && data) setMembers(data.members || []);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   const placed = useMemo(

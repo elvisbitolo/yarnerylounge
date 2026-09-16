@@ -41,10 +41,15 @@ export async function GET(req) {
     createdAt: s.createdAt ? new Date(s.createdAt).getTime() : 0,
   }));
 
-  const summary = {};
-  stickers.forEach((s) => {
-    summary[s.type] = (summary[s.type] || 0) + 1;
+  const summaryRows = await prisma.sticker.groupBy({
+    by: ["type"],
+    where: { toUid },
+    _count: { _all: true },
   });
+  const summary = {};
+  for (const row of summaryRows) {
+    summary[row.type] = row._count._all;
+  }
 
   return NextResponse.json({ stickers, summary, types: STICKER_TYPES });
 }

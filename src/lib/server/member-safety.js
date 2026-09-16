@@ -11,8 +11,12 @@ export async function getMemberSafety(uid, targetId) {
   const byId = new Map(rows.map((row) => [row.id, row.extra]));
   const mine = byId.get(uid);
   const theirs = byId.get(targetId);
+  const iBlocked = isSafetyId(mine, BLOCKED_KEY, targetId);
+  const theyBlocked = isSafetyId(theirs, BLOCKED_KEY, uid);
   return {
-    blocked: isSafetyId(mine, BLOCKED_KEY, targetId) || isSafetyId(theirs, BLOCKED_KEY, uid),
+    blocked: iBlocked || theyBlocked,
+    iBlocked,
+    theyBlocked,
     muted: isSafetyId(mine, MUTED_KEY, targetId),
   };
 }

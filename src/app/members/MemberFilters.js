@@ -7,7 +7,7 @@ import {
   CRAFT_OPTIONS,
   CROCHET_TECHNIQUES,
   CROCHET_MOTIVATIONS,
-} from "@/lib/server/profile";
+} from "@/lib/profile/craft-options";
 import styles from "./members.module.css";
 
 const COLOR_WATCHES = [
@@ -217,6 +217,10 @@ export default function MemberFilters({ filters, onChange, members }) {
 
   function clearAll() {
     onChange({
+      country: "",
+      hobby: "",
+      timezone: "",
+      craft: "",
       skillLevel: "",
       yearsExperience: "",
       favoriteYarnBrand: "",

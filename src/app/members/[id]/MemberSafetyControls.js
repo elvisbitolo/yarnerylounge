@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 
 export default function MemberSafetyControls({ targetId, targetName }) {
-  const [blocked, setBlocked] = useState(false);
+  const [iBlocked, setIBlocked] = useState(false);
+  const [theyBlocked, setTheyBlocked] = useState(false);
   const [muted, setMuted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -14,7 +15,11 @@ export default function MemberSafetyControls({ targetId, targetName }) {
     fetch(`/api/members/safety?targetId=${encodeURIComponent(targetId)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data) { setBlocked(Boolean(data.blocked)); setMuted(Boolean(data.muted)); }
+        if (data) {
+          setIBlocked(Boolean(data.iBlocked));
+          setTheyBlocked(Boolean(data.theyBlocked));
+          setMuted(Boolean(data.muted));
+        }
       })
       .catch(() => {});
   }, [targetId]);
@@ -30,8 +35,10 @@ export default function MemberSafetyControls({ targetId, targetName }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not update preference");
-      setBlocked(Boolean(data.blocked)); setMuted(Boolean(data.muted));
-      setMessage(action.startsWith("block") ? (data.blocked ? "Member blocked" : "Member unblocked") : (data.muted ? "Member muted" : "Member unmuted"));
+      setIBlocked(Boolean(data.iBlocked));
+      setTheyBlocked(Boolean(data.theyBlocked));
+      setMuted(Boolean(data.muted));
+      setMessage(action.startsWith("block") ? (data.iBlocked ? "Member blocked" : "Member unblocked") : (data.muted ? "Member muted" : "Member unmuted"));
     } catch (err) { setMessage(err.message); }
     finally { setBusy(false); }
   }
@@ -55,13 +62,18 @@ export default function MemberSafetyControls({ targetId, targetName }) {
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 12 }}>
-      <button type="button" onClick={() => change(blocked ? "unblock" : "block")} disabled={busy} style={buttonStyle(blocked)}>
-        {blocked ? "Unblock" : "Block"}
+      <button type="button" onClick={() => change(iBlocked ? "unblock" : "block")} disabled={busy} style={buttonStyle(iBlocked)}>
+        {iBlocked ? "Unblock" : "Block"}
       </button>
       <button type="button" onClick={() => change(muted ? "unmute" : "mute")} disabled={busy} style={buttonStyle(muted)}>
         {muted ? "Unmute" : "Mute"}
       </button>
       <button type="button" onClick={() => setReportOpen((open) => !open)} disabled={busy} style={buttonStyle(false)}>Report</button>
+      {theyBlocked && (
+        <span role="status" style={{ flexBasis: "100%", color: "#9e1654", fontSize: 12, fontWeight: 700 }}>
+          This member blocked you, so they can&apos;t see your messages.
+        </span>
+      )}
       {reportOpen && (
         <form onSubmit={report} style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "flex-start", marginTop: 4 }}>
           <label style={{ flex: 1 }}>

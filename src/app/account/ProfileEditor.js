@@ -14,7 +14,7 @@ import {
   CRAFT_OPTIONS,
   CROCHET_TECHNIQUES,
   CROCHET_MOTIVATIONS,
-} from "@/lib/server/profile";
+} from "@/lib/profile/craft-options";
 import styles from "./account.module.css";
 import coverStyles from "./cover.module.css";
 import { Image as ImageIcon } from "lucide-react";

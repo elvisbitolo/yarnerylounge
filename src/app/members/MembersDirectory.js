@@ -209,7 +209,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
     const pool = members.filter((member) => {
       if (tab === "lounge" && !member.live) return false;
       if (tab === "online" && member.lastVisitDate !== todayKey) return false;
-      if (tab === "hosts" && member.role !== "owner" && member.role !== "moderator") return false;
+      if (tab === "hosts" && member.role !== "owner" && member.role !== "moderator" && member.role !== "host") return false;
       if (filters.craft && !member.crafts?.includes(filters.craft)) return false;
       if (filters.country && member.country !== filters.country) return false;
       if (filters.timezone && member.timezone !== filters.timezone) return false;
@@ -292,7 +292,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
   const virtualHeight =
     preset.height +
     Math.max(0, filtered.length - DENSE_BASE) * DENSE_STEP;
-  const frameHeight = Math.round(virtualHeight * Math.max(scale, 1));
+  const frameHeight = Math.round(virtualHeight * (scale > 0 ? scale : 1));
 
   const placed = useMemo(
     () =>
@@ -351,7 +351,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
           {scale > 0 && (
             <div
               className={styles.canvasLayer}
-              style={{ width: preset.width, height: preset.height, transform: `scale(${scale})` }}
+              style={{ width: preset.width, height: virtualHeight, transform: `scale(${scale})` }}
             >
               {placed.map((slot) => {
                 const member = memberById.get(slot.id);
@@ -376,7 +376,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
                     aria-label={`View ${member.name}`}
                   >
                     <span
-                      className={ring ? `${styles.ring} ${styles.ringActive}` : styles.ring}
+                      className={styles.ring}
                       style={ring ? { background: ring, padding: 3 } : undefined}
                     >
                       <span
@@ -396,6 +396,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
                           <span className={styles.hostDot}>{roleBadgeLabel(member.role, member.roleLabel)}</span>
                         )}
                         {member.role === "moderator" && <span className={styles.hostDot}>Mod</span>}
+                        {member.role === "host" && <span className={styles.hostDot}>Host</span>}
                         {member.foundingMember && (
                           <span className={`${styles.hostDot} ${styles.foundDot}`} title="Founding Yarnie">🧶</span>
                         )}
@@ -532,7 +533,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
             </button>
             <p className={styles.matchTitle}>✦ Match</p>
             <p className={styles.matchText}>
-              Meet <strong>{matchTarget.name}</strong> in a hangout lounge? Lounges open on your next visit to the lounge.
+              Say hello to <strong>{matchTarget.name}</strong> and start a conversation.
             </p>
             <div className={styles.matchButtons}>
               <button
@@ -540,10 +541,10 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
                 className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
                 onClick={() => {
                   setMatchTarget(null);
-                  router.push("/rooms");
+                  router.push(`/chat?with=${matchTarget.id}`);
                 }}
               >
-                Meet in a lounge
+                <MessageCircle size={13} /> Say hello
               </button>
               <button
                 type="button"

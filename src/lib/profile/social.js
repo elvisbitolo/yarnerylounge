@@ -60,14 +60,23 @@ export const SOCIAL_PLATFORMS = [
     label: "Website",
     placeholder: "yourdomain.com",
     hint: "Domain or full link — no ‘https://’ needed",
-    buildUrl: (handle) => /^[a-z0-9.-]+\.[a-z]{2,}([/:].*)?$/i.test(handle) ? `https://${handle}` : handle,
+    buildUrl: (handle) => {
+      const value = String(handle || "").trim();
+      if (!value) return "";
+      if (/^https?:\/\//i.test(value)) return value;
+      return `https://${value.replace(/^\/+/, "")}`;
+    },
   },
   {
     value: "other",
     label: "Other",
     placeholder: "yourhandle or url",
     hint: "Username or link — protocol optional",
-    buildUrl: (handle) => /^https?:\/\//i.test(handle) ? handle : `https://${handle}`,
+    buildUrl: (handle) => {
+      const value = String(handle || "").trim();
+      if (!value) return "";
+      return /^https?:\/\//i.test(value) ? value : `https://${value.replace(/^\/+/, "")}`;
+    },
   },
 ];
 

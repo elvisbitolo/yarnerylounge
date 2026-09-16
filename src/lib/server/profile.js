@@ -1,20 +1,17 @@
 import { QUIZ_QUESTIONS } from "../profile/questions.js";
 import { isValidCountry } from "../profile/countries.js";
 import { buildSocialUrl } from "../profile/social.js";
+import {
+  CRAFT_OPTIONS,
+  CROCHET_TECHNIQUES,
+  CROCHET_MOTIVATIONS,
+} from "../profile/craft-options.js";
+
+export { CRAFT_OPTIONS, CROCHET_TECHNIQUES, CROCHET_MOTIVATIONS };
 
 function clean(value, max) {
   return (typeof value === "string" ? value : "").trim().slice(0, max);
 }
-
-export const CRAFT_OPTIONS = [
-  "crochet",
-  "knitting",
-  "weaving",
-  "spinning",
-  "dyeing",
-  "embroidery",
-  "macrame",
-];
 
 export const HOBBY_CATEGORIES = [
   {
@@ -148,40 +145,6 @@ export const HOBBY_CATEGORIES = [
 ];
 
 export const HOBBIES = HOBBY_CATEGORIES.flatMap((c) => c.hobbies);
-
-export const CROCHET_TECHNIQUES = [
-  "amigurumi",
-  "blankets & afghans",
-  "garments & sweaters",
-  "shawls & wraps",
-  "granny squares",
-  "doilies & lace",
-  "filet crochet",
-  "Tunisian crochet",
-  "waffle, puff & bobble stitches",
-  "basket weave & braided cables",
-  "chunky & oversized makes",
-  "gradient & self-striping yarns",
-  "wearables",
-  "home decor",
-  "toys & gifts",
-  "freeform / art",
-  "felting",
-  "tufting",
-  "macrame",
-  "mosaic crochet",
-];
-
-export const CROCHET_MOTIVATIONS = [
-  "relaxation & stress relief",
-  "gifts for loved ones",
-  "making my own clothes",
-  "home decor",
-  "charity / community projects",
-  "selling my makes",
-  "learning & mastering skills",
-  "meeting other makers",
-];
 
 const USERNAME_RE = /^[a-z0-9._-]{3,24}$/;
 

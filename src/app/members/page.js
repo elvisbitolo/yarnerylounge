@@ -22,10 +22,12 @@ export default async function MembersPage() {
 
   const prisma = getPrisma();
 
-  const [userRows, gamiRows] = await Promise.all([
-    prisma.user.findMany({ orderBy: { name: "asc" } }),
-    prisma.gamification.findMany(),
+  const [userSettled, gamiSettled] = await Promise.allSettled([
+    prisma.user.findMany({ orderBy: { name: "asc" }, take: 5000 }),
+    prisma.gamification.findMany({ take: 5000 }),
   ]);
+  const userRows = userSettled.status === "fulfilled" ? userSettled.value : [];
+  const gamiRows = gamiSettled.status === "fulfilled" ? gamiSettled.value : [];
 
   const gami = new Map();
   for (const g of gamiRows) {
@@ -35,7 +37,12 @@ export default async function MembersPage() {
     });
   }
 
-  const liveUids = new Set(await listActiveRoomMemberIds());
+  let liveUids = new Set();
+  try {
+    liveUids = new Set(await listActiveRoomMemberIds());
+  } catch {
+    liveUids = new Set();
+  }
   const caps = await getCapabilities(user.uid);
   const matchmakerEnabled = canUseMatchmaker(caps);
   const gate = await loungeGate(user.uid, userDoc, { matchmaker: true });
@@ -46,6 +53,7 @@ export default async function MembersPage() {
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   })();
+  const nowMs = (() => new Date().getTime())();
 
   const members = userRows
     .filter((m) => m.name && !m.suspended && m.id !== user.uid)
@@ -108,7 +116,7 @@ export default async function MembersPage() {
         }, {}),
         role: m.role || "member",
         roleLabel: m.roleLabel || "",
-        plan: m.plan || "flirting",
+        plan: (m.expiresAt && m.expiresAt.getTime() && m.expiresAt.getTime() < nowMs) ? "flirting" : (m.plan || "flirting"),
         expiresAt: m.expiresAt ? m.expiresAt.getTime() : 0,
         foundingMember: !!m.foundingMember,
         live: liveUids.has(m.id),

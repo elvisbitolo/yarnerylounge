@@ -28,6 +28,14 @@ function toSerializable(value) {
   return value;
 }
 
+async function safe(promise, fallback) {
+  try {
+    return await promise;
+  } catch {
+    return fallback;
+  }
+}
+
 const CRAFT_LABELS = {
   crochet: "Crochet",
   knitting: "Knitting",
@@ -101,13 +109,13 @@ export default async function MemberProfilePage({ params }) {
   const prisma = getPrisma();
 
   const [memberRow, postRows, projectRows, recognitionCount, recognitions, stickerRows, gamiRow, followData, safetyData] = await Promise.all([
-    prisma.user.findUnique({ where: { id } }),
-    prisma.post.findMany({ where: { authorId: id } }),
+    safe(prisma.user.findUnique({ where: { id } }), null),
+    safe(prisma.post.findMany({ where: { authorId: id } }), []),
     listProjects(id),
-    getRecognitionCount(id),
-    listRecognitions(id, 10),
-    prisma.sticker.findMany({ where: { toUid: id } }),
-    prisma.gamification.findUnique({ where: { id } }),
+    safe(getRecognitionCount(id), 0),
+    safe(listRecognitions(id, 10), []),
+    safe(prisma.sticker.findMany({ where: { toUid: id } }), []),
+    safe(prisma.gamification.findUnique({ where: { id } }), null),
     (async () => {
       if (isSelf) return { following: false, followerCount: 0, followingCount: 0 };
       const { isFollowing, getFollowerCount, getFollowingCount } = await import("@/lib/server/follows");
@@ -149,6 +157,9 @@ export default async function MemberProfilePage({ params }) {
       }
     : null;
   const memberProfile = { ...member, ...memberExtra };
+  const socialLinks = (Array.isArray(member.socialLinks) ? member.socialLinks : []).filter(
+    (link) => link && typeof link.url === "string" && /^https?:\/\//i.test(link.url)
+  );
   const viewerRole = viewerDoc?.role || "member";
   const isPrivileged = viewerRole === "owner" || viewerRole === "moderator";
   const isPrivateProfile = memberExtra.profileVisibility === "private";
@@ -206,6 +217,37 @@ const coverUrl = member.coverPhotoURL || "";
     );
   }
 
+  if (!isSelf && safetyData.blocked) {
+    return (
+      <Nav role={viewerDoc?.role}>
+        <div className={styles.container}>
+          <BackButton fallback="/members" label="All members" />
+          <div className={styles.profileCard}>
+            <div className={styles.header}>
+              <div className={styles.avatar}>
+                {(member.name || "?").slice(0, 1).toUpperCase()}
+              </div>
+              <div className={styles.headerBody}>
+                <h1 className={styles.title}>{member.name}</h1>
+                <p className={styles.subtitle}>
+                  {member.username && <span>@{member.username}</span>}
+                </p>
+              </div>
+            </div>
+          </div>
+          <p className={styles.subtitle}>
+            {safetyData.theyBlocked
+              ? "This member has blocked you, so their profile isn't available."
+              : "You blocked this member. Unblock them to see their profile again."}
+          </p>
+          {safetyData.iBlocked && (
+            <MemberSafetyControls targetId={id} targetName={member.name} />
+          )}
+        </div>
+      </Nav>
+    );
+  }
+
   return (
       <Nav role={viewerDoc?.role}>
       <div className={styles.container}>
@@ -245,9 +287,9 @@ const coverUrl = member.coverPhotoURL || "";
             {member.location && <p className={styles.location}>{member.location}</p>}
             {member.country && <p className={styles.location}>{member.country}</p>}
             {member.bio && <p className={styles.bio}>{member.bio}</p>}
-            {Array.isArray(member.socialLinks) && member.socialLinks.length > 0 && (
+            {socialLinks.length > 0 && (
               <div className={styles.socialLinks}>
-                {member.socialLinks.map((link, i) => (
+                {socialLinks.map((link, i) => (
                   <a
                     key={i}
                     className={styles.socialLink}
@@ -524,7 +566,7 @@ const coverUrl = member.coverPhotoURL || "";
           </>
         )}
 
-        <MembersToExplore forUid={id} />
+        <MembersToExplore />
 
         <h2 className={styles.sectionTitle}>Recent posts</h2>
         {posts.length === 0 ? (

@@ -74,7 +74,7 @@ export async function pickDailyBlindDate(uid) {
   if (stored?.memberId) {
     try {
       const member = await prisma.user.findUnique({ where: { id: stored.memberId } });
-      if (member && !member.suspended && !isSafetyId(me?.extra, BLOCKED_KEY, member.id) && !isSafetyId(member.extra, BLOCKED_KEY, uid)) {
+      if (member && !member.suspended && !(member.extra && typeof member.extra === "object" && member.extra.profileVisibility === "private") && !isSafetyId(me?.extra, BLOCKED_KEY, member.id) && !isSafetyId(member.extra, BLOCKED_KEY, uid)) {
         return { ...stored, member };
       }
       await clearDailyBlindDate(uid, today);
