@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NavigationSlideContext } from "@/lib/navigation-slide";
 import styles from "./chat.module.css";
@@ -35,16 +35,28 @@ export default function MobilePanels({ activeId, backHref, rail, thread, empty }
     return () => cancelAnimationFrame(raf);
   }, [activeId, isMobile]);
 
+  const timerRef = useRef(null);
+
   const slideBack = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     if (!isMobile) {
       router.push(backHref);
       return;
     }
     setOpen(false);
-    window.setTimeout(() => router.push(backHref), 280);
+    timerRef.current = window.setTimeout(() => router.push(backHref), 280);
   }, [backHref, isMobile, router]);
 
   const contextValue = useMemo(() => ({ slideBack }), [slideBack]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const threadPaneClass = `${styles.threadPane} ${activeId ? styles.threadPaneSlide : ""} ${open && activeId ? styles.threadPaneOpen : ""}`;
 

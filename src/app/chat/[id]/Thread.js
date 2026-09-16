@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "../chat.module.css";
 import tStyles from "./thread.module.css";
@@ -68,19 +68,6 @@ function fileToDataUrl(file) {
   });
 }
 
-function highlightMatch(text, query) {
-  if (!query || !text) return text;
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
-  return parts.map((part, i) =>
-    part.toLowerCase() === query.toLowerCase() ? (
-      <mark key={i} className={tStyles.highlight}>{part}</mark>
-    ) : (
-      part
-    )
-  );
-}
-
 function BubbleContent({ msg, searchQuery, isReply }) {
   const bubbleTextClass = isReply ? tStyles.replyBubbleText : styles.bubbleText;
 
@@ -91,17 +78,41 @@ function BubbleContent({ msg, searchQuery, isReply }) {
   if (searchQuery) {
     const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     content = content.map((node, i) => {
-      if (typeof node !== "string") return node;
-      const parts = node.split(new RegExp(`(${escaped})`, "gi"));
-      return parts.length === 1
-        ? node
-        : <span key={`hl-${i}`}>{parts.map((part, j) =>
-            part.toLowerCase() === searchQuery.toLowerCase() ? (
-              <mark key={j} className={tStyles.highlight}>{part}</mark>
-            ) : (
-              part
-            )
-          )}</span>;
+      if (typeof node === "string") {
+        const parts = node.split(new RegExp(`(${escaped})`, "gi"));
+        return parts.length === 1
+          ? node
+          : <span key={`hl-${i}`}>{parts.map((part, j) =>
+              part.toLowerCase() === searchQuery.toLowerCase() ? (
+                <mark key={`hl-${i}-${j}`} className={tStyles.highlight}>{part}</mark>
+              ) : (
+                part
+              )
+            )}</span>;
+      }
+      if (node?.props?.children) {
+        const NodeType = node.type;
+        return (
+          <NodeType key={i} {...node.props}>
+            {React.Children.map(node.props.children, (child, j) => {
+              if (typeof child === "string") {
+                const parts = child.split(new RegExp(`(${escaped})`, "gi"));
+                return parts.length === 1
+                  ? child
+                  : <span key={`hl-${i}-${j}`}>{parts.map((part, k) =>
+                      part.toLowerCase() === searchQuery.toLowerCase() ? (
+                        <mark key={`hl-${i}-${j}-${k}`} className={tStyles.highlight}>{part}</mark>
+                      ) : (
+                        part
+                      )
+                    )}</span>;
+              }
+              return child;
+            })}
+          </NodeType>
+        );
+      }
+      return node;
     });
   }
 
@@ -345,6 +356,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       setReplyText("");
       setReplyingTo(null);
       setExpandedThreads((prev) => ({ ...prev, [parentId]: true }));
+      refresh();
     } catch {
       // transient — next poll picks it up
     } finally {

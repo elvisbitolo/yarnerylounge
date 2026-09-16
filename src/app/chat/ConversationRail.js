@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { subscribeInbox } from "@/lib/chat-realtime";
@@ -18,7 +18,7 @@ function unread(conv) {
 export default function ConversationRail({ conversations, activeId, selfUid }) {
   const router = useRouter();
   const [convs, setConvs] = useState(conversations);
-  const [prevConversations, setPrevConversations] = useState(conversations);
+  const prevConversationsRef = useRef(conversations);
   const [query, setQuery] = useState("");
   const [showNewChat, setShowNewChat] = useState(false);
   const [memberQuery, setMemberQuery] = useState("");
@@ -26,12 +26,11 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
   const [searching, setSearching] = useState(false);
   const [startError, setStartError] = useState("");
 
-  // Keep the list in sync with fresh server props from navigation without
-  // triggering cascading renders (state adjusted during render).
-  if (conversations !== prevConversations) {
-    setPrevConversations(conversations);
+  useEffect(() => {
+    if (conversations === prevConversationsRef.current) return;
+    prevConversationsRef.current = conversations;
     setConvs(conversations);
-  }
+  }, [conversations]);
 
   // Live inbox: when any of the member's conversations changes (a message
   // lands, read state moves), refresh the list so previews and order stay
