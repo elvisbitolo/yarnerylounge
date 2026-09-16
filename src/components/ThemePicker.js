@@ -6,6 +6,7 @@ import ThemePanel from "@/components/ThemePanel";
 
 const POS_KEY = "yarnerylounge-theme-pos";
 const FAB_SIZE = 48;
+const FAB_COLOR = "#b6b1a4";
 
 const V = {
   text: "var(--text, #f2f2f2)",
@@ -53,13 +54,13 @@ export default function ThemePicker() {
           height: FAB_SIZE,
           borderRadius: "50%",
           border: `2px solid ${V.border}`,
-          background: V.primary,
+          background: FAB_COLOR,
           cursor: "grab",
           touchAction: "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: "0 6px 20px color-mix(in srgb, var(--primary, #e91e63) 40%, transparent)",
+          boxShadow: `0 6px 20px ${FAB_COLOR}55`,
           transition: "box-shadow 0.2s ease",
           userSelect: "none",
         }}
