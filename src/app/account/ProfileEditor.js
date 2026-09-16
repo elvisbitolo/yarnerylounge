@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { COUNTRIES, countryByCode } from "@/lib/profile/countries";
@@ -218,7 +218,7 @@ function toHandledLinks(links) {  if (!Array.isArray(links) || links.length === 
     .filter((l) => l.handle);
 }
 
-export default function ProfileEditor({ initial }) {
+export default function ProfileEditor({ initial, memberId }) {
   const [name, setName] = useState(initial.name || "");
   const [headline, setHeadline] = useState(initial.headline || "");
   const [location, setLocation] = useState(initial.location || "");
@@ -296,6 +296,105 @@ export default function ProfileEditor({ initial }) {
   const cropImgRef = useRef(null);
   const cropDragRef = useRef(null);
 
+  function normQuizList(value) {
+    return Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
+  }
+
+  // Last-persisted values for every editable field. The form diffs against this
+  // (not the one-shot `initial` prop) so re-saving an unchanged profile sends no
+  // patches and the dirty indicator stays honest after a save or photo upload.
+  function makeInitialSnapshot(init) {
+    const snap = {
+      name: normalize(init.name || ""),
+      headline: normalize(init.headline || ""),
+      location: normalize(init.location || ""),
+      country: normalize(init.country || ""),
+      bio: normalize(init.bio || ""),
+      favoriteColors: (Array.isArray(init.favoriteColors) && init.favoriteColors.length
+        ? init.favoriteColors
+        : ["#2563eb", "#7c3aed", "#06b6d4"]).slice(0, 3),
+      goToYarn: normalize(init.goToYarn || ""),
+      favoriteHookSize: normalize(init.favoriteHookSize || ""),
+      crafts: Array.isArray(init.crafts) ? init.crafts.filter((c) => CRAFT_OPTIONS.includes(c)) : [],
+      yearsExperience: normalize(init.yearsExperience || ""),
+      favoriteYarnBrand: normalize(init.favoriteYarnBrand || ""),
+      crochetTechniques: Array.isArray(init.crochetTechniques)
+        ? init.crochetTechniques.filter((t) => CROCHET_TECHNIQUES.includes(t))
+        : [],
+      crochetMotivation: Array.isArray(init.crochetMotivation)
+        ? init.crochetMotivation.filter((m) => CROCHET_MOTIVATIONS.includes(m))
+        : [],
+      learningNext: normalize(init.learningNext || ""),
+      proudestProject: normalize(init.proudestProject || ""),
+      bestGiftProject: normalize(init.bestGiftProject || ""),
+      socialLinks: toHandledLinks(init.socialLinks),
+      photoURL: init.photoURL || "",
+      coverPhotoURL: init.coverPhotoURL || "",
+    };
+    for (const q of QUIZ_QUESTIONS) {
+      snap[q.field] = q.multiple
+        ? normQuizList(init[q.field])
+        : String(init[q.field] || "").trim();
+    }
+    return snap;
+  }
+
+  const [savedSnapshot, setSavedSnapshot] = useState(() => makeInitialSnapshot(initial));
+
+  function liveSnapshot() {
+    const snap = {
+      name: normalize(name),
+      headline: normalize(headline),
+      location: normalize(location),
+      country: normalize(country),
+      bio: normalize(bio),
+      favoriteColors: favoriteColors.slice(0, 3),
+      goToYarn: normalize(goToYarn),
+      favoriteHookSize: normalize(favoriteHookSize),
+      crafts,
+      yearsExperience: normalize(yearsExperience),
+      favoriteYarnBrand: normalize(favoriteYarnBrand),
+      crochetTechniques,
+      crochetMotivation,
+      learningNext: normalize(learningNext),
+      proudestProject: normalize(proudestProject),
+      bestGiftProject: normalize(bestGiftProject),
+      socialLinks: toHandledLinks(socialLinks),
+      photoURL,
+      coverPhotoURL,
+    };
+    for (const q of QUIZ_QUESTIONS) {
+      snap[q.field] = q.multiple
+        ? normQuizList(quiz[q.field])
+        : String(quiz[q.field] || "").trim();
+    }
+    return snap;
+  }
+
+  const dirty = JSON.stringify(liveSnapshot()) !== JSON.stringify(savedSnapshot);
+
+  useEffect(() => {
+    if (!dirty) return;
+    function onBeforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 2500);
+    return () => clearTimeout(t);
+  }, [saved]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
   async function handlePhoto(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -334,6 +433,7 @@ export default function ProfileEditor({ initial }) {
         throw new Error(data.error || "Failed to remove photo");
       }
       setPhotoURL("");
+      setSavedSnapshot((prev) => ({ ...prev, photoURL: "" }));
       setNotice("Profile photo removed.");
     } catch (err) {
       setError(err.message || "Failed to remove photo");
@@ -605,6 +705,7 @@ export default function ProfileEditor({ initial }) {
         throw new Error(data.error || "Failed to save cover photo");
       }
       setCoverPhotoURL(coverPhotoURL);
+      setSavedSnapshot((prev) => ({ ...prev, coverPhotoURL }));
       setSaved(true);
       setNotice("Cover photo saved.");
       return true;
@@ -659,6 +760,7 @@ export default function ProfileEditor({ initial }) {
         throw new Error(data.error || "Failed to save photo");
       }
       setPhotoURL(photoURL);
+      setSavedSnapshot((prev) => ({ ...prev, photoURL }));
       setSaved(true);
       setNotice("Profile photo saved.");
       setCropOpen(false);
@@ -694,6 +796,7 @@ export default function ProfileEditor({ initial }) {
         throw new Error(data.error || "Failed to remove cover photo");
       }
       setCoverPhotoURL("");
+      setSavedSnapshot((prev) => ({ ...prev, coverPhotoURL: "" }));
       setNotice("Cover photo removed.");
     } catch (err) {
       setError(err.message || "Failed to remove cover photo");
@@ -727,8 +830,8 @@ export default function ProfileEditor({ initial }) {
       const countryChanged = detectedCountry && detectedCountry !== normalize(country);
       const locationChanged = detectedLocation && detectedLocation !== normalize(location);
 
-      if (detectedCountry) setCountry(detectedCountry);
-      if (detectedLocation) setLocation(detectedLocation);
+      if (countryChanged) setCountry(detectedCountry);
+      if (locationChanged) setLocation(detectedLocation);
 
       // Persist right away so the member's location always belongs to them,
       // even if they leave the editor before pressing Save.
@@ -745,6 +848,8 @@ export default function ProfileEditor({ initial }) {
         if (!saveRes.ok) {
           throw new Error((await saveRes.json()).error || "Failed to save your location");
         }
+        if (countryChanged) setSavedSnapshot((prev) => ({ ...prev, country: detectedCountry }));
+        if (locationChanged) setSavedSnapshot((prev) => ({ ...prev, location: detectedLocation }));
         setNotice("Location detected and saved — update it any time.");
       } else if (detectedCountry || detectedLocation) {
         setNotice("Your location is already set.");
@@ -774,7 +879,7 @@ export default function ProfileEditor({ initial }) {
     setNotice("");
 
     const cleanName = normalize(name);
-    if (!cleanName && step === 0) {
+    if (!cleanName && (step === 0 || cleanName !== savedSnapshot.name)) {
       setError("Name is required.");
       return;
     }
@@ -820,47 +925,47 @@ export default function ProfileEditor({ initial }) {
     }
 
     const patch = {};
-    if (cleanName !== normalize(initial.name)) patch.name = cleanName;
+    if (cleanName !== savedSnapshot.name) patch.name = cleanName;
     const cleanHeadline = normalize(headline);
-    if (cleanHeadline !== normalize(initial.headline)) patch.headline = cleanHeadline;
+    if (cleanHeadline !== savedSnapshot.headline) patch.headline = cleanHeadline;
     const cleanLocation = normalize(location);
-    if (cleanLocation !== normalize(initial.location)) patch.location = cleanLocation;
+    if (cleanLocation !== savedSnapshot.location) patch.location = cleanLocation;
     const cleanCountry = normalize(country);
-    if (cleanCountry !== normalize(initial.country)) patch.country = cleanCountry;
+    if (cleanCountry !== savedSnapshot.country) patch.country = cleanCountry;
     const cleanBio = normalize(bio);
-    if (cleanBio !== normalize(initial.bio)) patch.bio = cleanBio;
+    if (cleanBio !== savedSnapshot.bio) patch.bio = cleanBio;
 
     const cleanColors = favoriteColors.slice(0, 3);
-    if (JSON.stringify(cleanColors) !== JSON.stringify(initial.favoriteColors || [])) {
+    if (JSON.stringify(cleanColors) !== JSON.stringify(savedSnapshot.favoriteColors || [])) {
       patch.favoriteColors = cleanColors;
     }
     const cleanYarn = normalize(goToYarn);
-    if (cleanYarn !== normalize(initial.goToYarn)) patch.goToYarn = cleanYarn;
+    if (cleanYarn !== savedSnapshot.goToYarn) patch.goToYarn = cleanYarn;
     const cleanHook = normalize(favoriteHookSize);
-    if (cleanHook !== normalize(initial.favoriteHookSize)) patch.favoriteHookSize = cleanHook;
-    if (JSON.stringify(crafts) !== JSON.stringify(initial.crafts || [])) patch.crafts = crafts;
+    if (cleanHook !== savedSnapshot.favoriteHookSize) patch.favoriteHookSize = cleanHook;
+    if (JSON.stringify(crafts) !== JSON.stringify(savedSnapshot.crafts || [])) patch.crafts = crafts;
 
     const cleanYears = normalize(yearsExperience);
-    if (cleanYears !== normalize(initial.yearsExperience)) patch.yearsExperience = cleanYears;
+    if (cleanYears !== savedSnapshot.yearsExperience) patch.yearsExperience = cleanYears;
     const cleanBrand = normalize(favoriteYarnBrand);
-    if (cleanBrand !== normalize(initial.favoriteYarnBrand)) patch.favoriteYarnBrand = cleanBrand;
-    if (JSON.stringify(crochetTechniques) !== JSON.stringify(initial.crochetTechniques || [])) {
+    if (cleanBrand !== savedSnapshot.favoriteYarnBrand) patch.favoriteYarnBrand = cleanBrand;
+    if (JSON.stringify(crochetTechniques) !== JSON.stringify(savedSnapshot.crochetTechniques || [])) {
       patch.crochetTechniques = crochetTechniques;
     }
-    if (JSON.stringify(crochetMotivation) !== JSON.stringify(initial.crochetMotivation || [])) {
+    if (JSON.stringify(crochetMotivation) !== JSON.stringify(savedSnapshot.crochetMotivation || [])) {
       patch.crochetMotivation = crochetMotivation;
     }
     const cleanLearning = normalize(learningNext);
-    if (cleanLearning !== normalize(initial.learningNext)) patch.learningNext = cleanLearning;
+    if (cleanLearning !== savedSnapshot.learningNext) patch.learningNext = cleanLearning;
 
     const cleanProud = normalize(proudestProject);
-    if (cleanProud !== normalize(initial.proudestProject)) patch.proudestProject = cleanProud;
+    if (cleanProud !== savedSnapshot.proudestProject) patch.proudestProject = cleanProud;
     const cleanGift = normalize(bestGiftProject);
-    if (cleanGift !== normalize(initial.bestGiftProject)) patch.bestGiftProject = cleanGift;
+    if (cleanGift !== savedSnapshot.bestGiftProject) patch.bestGiftProject = cleanGift;
 
     for (const q of QUIZ_QUESTIONS) {
       const current = quiz[q.field];
-      const prev = initial[q.field];
+      const prev = savedSnapshot[q.field];
       const normCur = q.multiple
         ? Array.isArray(current)
           ? current
@@ -881,7 +986,7 @@ export default function ProfileEditor({ initial }) {
     const cleanSocial = socialLinks
       .filter((l) => normalize(l.handle))
       .map((l) => ({ platform: normalize(l.platform) || "other", handle: normalize(l.handle) }));
-    if (JSON.stringify(cleanSocial) !== JSON.stringify(toHandledLinks(initial.socialLinks))) {
+    if (JSON.stringify(cleanSocial) !== JSON.stringify(toHandledLinks(savedSnapshot.socialLinks))) {
       patch.socialLinks = cleanSocial;
     }
 
@@ -902,6 +1007,7 @@ export default function ProfileEditor({ initial }) {
         throw new Error(data.error || "Failed to save profile");
       }
       setSaved(true);
+      setSavedSnapshot(liveSnapshot());
       setSocialLinks(
         cleanSocial.length > 0
           ? cleanSocial.map((l) => ({ platform: l.platform, handle: l.handle }))
@@ -930,6 +1036,24 @@ export default function ProfileEditor({ initial }) {
     return `conic-gradient(${segments.join(", ")})`;
   }
 
+  const stepComplete = [
+    normalize(name).length > 0,
+    toHandledLinks(socialLinks).length > 0,
+    [goToYarn, favoriteHookSize, favoriteYarnBrand, yearsExperience].some(
+      (v) => normalize(v).length > 0
+    ) ||
+      crochetTechniques.length > 0 ||
+      crochetMotivation.length > 0,
+    [learningNext, proudestProject, bestGiftProject].some((v) => normalize(v).length > 0),
+    QUIZ_QUESTIONS.every((q) =>
+      q.multiple
+        ? normQuizList(quiz[q.field]).length > 0
+        : String(quiz[q.field] || "").trim().length > 0
+    ),
+  ];
+  const completeCount = stepComplete.filter(Boolean).length;
+  const progressPct = Math.round((completeCount / STEP_LABELS.length) * 100);
+
   return (
     <>
       <form className={styles.card} id="profile" onSubmit={handleSave}>
@@ -941,10 +1065,32 @@ export default function ProfileEditor({ initial }) {
         <Link className={styles.identityLink} href="/account/settings">
           {initial.username ? "Change" : "Choose one"}
         </Link>
+        {memberId && (
+          <Link className={styles.viewProfileLink} href={`/members/${memberId}`}>
+            View public profile
+          </Link>
+        )}
       </div>
+      {dirty && <p className={styles.dirtyNote}>You have unsaved changes.</p>}
       {error && <p className={styles.formError}>{error}</p>}
       {saved && <p className={styles.formSaved}>Profile saved.</p>}
       {notice && <p className={styles.formNotice}>{notice}</p>}
+
+      <div className={styles.progressRow}>
+        <div
+          className={styles.progressBar}
+          role="progressbar"
+          aria-valuenow={progressPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Profile completion"
+        >
+          <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
+        </div>
+        <span className={styles.progressLabel}>
+          {completeCount}/{STEP_LABELS.length} sections · {progressPct}% complete
+        </span>
+      </div>
 
       <nav className={styles.stepTabs} aria-label="Profile sections">
         {STEP_LABELS.map((label, i) => (
@@ -954,7 +1100,11 @@ export default function ProfileEditor({ initial }) {
             className={i === step ? `${styles.stepTab} ${styles.stepTabActive}` : styles.stepTab}
             onClick={() => goStep(i)}
           >
-            <span className={styles.stepTabNum}>{i + 1}</span>
+            {stepComplete[i] ? (
+              <span className={styles.stepTabCheck} aria-hidden="true">✓</span>
+            ) : (
+              <span className={styles.stepTabNum}>{i + 1}</span>
+            )}
             {label}
           </button>
         ))}

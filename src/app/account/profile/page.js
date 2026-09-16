@@ -51,7 +51,7 @@ export default async function AccountProfilePage() {
           <h1 className={styles.title}>Your profile</h1>
         </header>
         <AccountTabs />
-        <ProfileEditor initial={initialProfile} />
+        <ProfileEditor initial={initialProfile} memberId={user.uid} />
       </div>
     </Nav>
   );

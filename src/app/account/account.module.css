@@ -741,6 +741,68 @@
   text-decoration: underline;
 }
 
+.viewProfileLink {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b6b7b;
+  text-decoration: none;
+}
+
+.viewProfileLink:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.dirtyNote {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 6px 0;
+}
+
+.progressBar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: #eceaf2;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary, #e91e63);
+  transition: width 0.25s ease;
+}
+
+.progressLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b6b7b;
+  white-space: nowrap;
+}
+
+.stepTabCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary, #e91e63);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .quizOptions {
   display: flex;
   flex-direction: column;
