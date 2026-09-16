@@ -208,14 +208,20 @@ export default function ProfileEditor({ initial }) {
   );
   const [goToYarn, setGoToYarn] = useState(initial.goToYarn || "");
   const [favoriteHookSize, setFavoriteHookSize] = useState(initial.favoriteHookSize || "");
-  const [crafts, setCrafts] = useState(Array.isArray(initial.crafts) ? initial.crafts : []);
+  const [crafts, setCrafts] = useState(
+    Array.isArray(initial.crafts) ? initial.crafts.filter((c) => CRAFT_OPTIONS.includes(c)) : []
+  );
   const [yearsExperience, setYearsExperience] = useState(initial.yearsExperience || "");
   const [favoriteYarnBrand, setFavoriteYarnBrand] = useState(initial.favoriteYarnBrand || "");
   const [crochetTechniques, setCrochetTechniques] = useState(
-    Array.isArray(initial.crochetTechniques) ? initial.crochetTechniques : []
+    Array.isArray(initial.crochetTechniques)
+      ? initial.crochetTechniques.filter((t) => CROCHET_TECHNIQUES.includes(t))
+      : []
   );
   const [crochetMotivation, setCrochetMotivation] = useState(
-    Array.isArray(initial.crochetMotivation) ? initial.crochetMotivation : []
+    Array.isArray(initial.crochetMotivation)
+      ? initial.crochetMotivation.filter((m) => CROCHET_MOTIVATIONS.includes(m))
+      : []
   );
   const [learningNext, setLearningNext] = useState(initial.learningNext || "");
   const [proudestProject, setProudestProject] = useState(initial.proudestProject || "");
@@ -515,10 +521,18 @@ export default function ProfileEditor({ initial }) {
       else nx = anchorX - finalW / 2;
     }
     if (nx + finalW > offX + winW) {
-      nx = usesLeft ? right - finalW : Math.max(offX, offX + winW - finalW);
+      finalW = Math.max(minW, offX + winW - nx);
+      finalH = finalW / ratio;
+      if (usesRight) nx = anchorX;
+      else if (usesLeft) nx = right - finalW;
+      else nx = anchorX - finalW / 2;
     }
     if (ny + finalH > offY + winH) {
-      ny = usesTop ? bottom - finalH : Math.max(offY, offY + winH - finalH);
+      finalH = Math.max(minW / ratio, offY + winH - ny);
+      finalW = finalH * ratio;
+      if (usesBottom) ny = anchorY;
+      else if (usesTop) ny = bottom - finalH;
+      else ny = anchorY - finalH / 2;
     }
     if (nx < offX) nx = offX;
     if (ny < offY) ny = offY;
@@ -689,29 +703,30 @@ export default function ProfileEditor({ initial }) {
       const city = normalize(data.city || data.locality || data.principalSubdivision || "");
       const detectedLocation = city || normalize(location);
 
+      const countryChanged = detectedCountry && detectedCountry !== normalize(country);
+      const locationChanged = detectedLocation && detectedLocation !== normalize(location);
+
       if (detectedCountry) setCountry(detectedCountry);
       if (detectedLocation) setLocation(detectedLocation);
 
       // Persist right away so the member's location always belongs to them,
       // even if they leave the editor before pressing Save.
       const patch = {};
-      if (detectedCountry && detectedCountry !== normalize(initial.country)) {
-        patch.country = detectedCountry;
-      }
-      if (detectedLocation && detectedLocation !== normalize(initial.location)) {
-        patch.location = detectedLocation;
-      }
-      const saveRes = await fetch("/api/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (Object.keys(patch).length && !saveRes.ok) {
-        throw new Error((await saveRes.json()).error || "Failed to save your location");
-      }
+      if (countryChanged) patch.country = detectedCountry;
+      if (locationChanged) patch.location = detectedLocation;
 
-      if (detectedCountry || detectedLocation) {
+      if (Object.keys(patch).length) {
+        const saveRes = await fetch("/api/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (!saveRes.ok) {
+          throw new Error((await saveRes.json()).error || "Failed to save your location");
+        }
         setNotice("Location detected and saved — update it any time.");
+      } else if (detectedCountry || detectedLocation) {
+        setNotice("Your location is already set.");
       } else {
         setNotice("We couldn't work out your exact country — pick it from the list instead.");
       }
@@ -726,6 +741,11 @@ export default function ProfileEditor({ initial }) {
     setter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   }
 
+  function goStep(next) {
+    setQuizPage(0);
+    setStep(Math.max(0, Math.min(STEP_LABELS.length - 1, next)));
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setError("");
@@ -733,7 +753,7 @@ export default function ProfileEditor({ initial }) {
     setNotice("");
 
     const cleanName = normalize(name);
-    if (!cleanName) {
+    if (!cleanName && step === 0) {
       setError("Name is required.");
       return;
     }
@@ -861,6 +881,11 @@ export default function ProfileEditor({ initial }) {
         throw new Error(data.error || "Failed to save profile");
       }
       setSaved(true);
+      setSocialLinks(
+        cleanSocial.length > 0
+          ? cleanSocial.map((l) => ({ platform: l.platform, handle: l.handle }))
+          : [{ platform: "website", handle: "" }]
+      );
     } catch (err) {
       setError(err.message || "Failed to save profile");
     } finally {
@@ -906,7 +931,7 @@ export default function ProfileEditor({ initial }) {
             key={label}
             type="button"
             className={i === step ? `${styles.stepTab} ${styles.stepTabActive}` : styles.stepTab}
-            onClick={() => setStep(i)}
+            onClick={() => goStep(i)}
           >
             <span className={styles.stepTabNum}>{i + 1}</span>
             {label}
@@ -1014,7 +1039,6 @@ export default function ProfileEditor({ initial }) {
           id="profile-name"
           className={styles.input}
           type="text"
-          required
           maxLength={LIMITS.name}
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -1261,6 +1285,32 @@ export default function ProfileEditor({ initial }) {
       </div>
 
       <div className={styles.field}>
+        <label className={styles.fieldLabel} htmlFor="profile-yarn">Go-to yarn choice</label>
+        <input
+          id="profile-yarn"
+          className={styles.input}
+          type="text"
+          maxLength={LIMITS.yarn}
+          placeholder="e.g. Cascade 220, merino worsted…"
+          value={goToYarn}
+          onChange={(e) => setGoToYarn(e.target.value)}
+        />
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.fieldLabel} htmlFor="profile-hook">Favorite hook size</label>
+        <input
+          id="profile-hook"
+          className={styles.input}
+          type="text"
+          maxLength={LIMITS.hook}
+          placeholder="e.g. 5.0mm (H)"
+          value={favoriteHookSize}
+          onChange={(e) => setFavoriteHookSize(e.target.value)}
+        />
+      </div>
+
+      <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor="profile-brand">Favorite yarn brand</label>
         <input
           id="profile-brand"
@@ -1321,32 +1371,6 @@ export default function ProfileEditor({ initial }) {
 
       {step === 3 && (
       <div className={styles.stepPane}>
-      <div className={styles.field}>
-        <label className={styles.fieldLabel} htmlFor="profile-yarn">Go-to yarn choice</label>
-        <input
-          id="profile-yarn"
-          className={styles.input}
-          type="text"
-          maxLength={LIMITS.yarn}
-          placeholder="e.g. Cascade 220, merino worsted…"
-          value={goToYarn}
-          onChange={(e) => setGoToYarn(e.target.value)}
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label className={styles.fieldLabel} htmlFor="profile-hook">Favorite hook size</label>
-        <input
-          id="profile-hook"
-          className={styles.input}
-          type="text"
-          maxLength={LIMITS.hook}
-          placeholder="e.g. 5.0mm (H)"
-          value={favoriteHookSize}
-          onChange={(e) => setFavoriteHookSize(e.target.value)}
-        />
-      </div>
-
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor="profile-learning">
           What do you want to learn next?
@@ -1480,7 +1504,7 @@ export default function ProfileEditor({ initial }) {
           type="button"
           className={styles.quizNavBtn}
           disabled={step === 0}
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          onClick={() => goStep(step - 1)}
         >
           ‹ Back
         </button>
@@ -1492,7 +1516,7 @@ export default function ProfileEditor({ initial }) {
             <button
               type="button"
               className={styles.quizNavBtn}
-              onClick={() => setStep((s) => Math.min(STEP_LABELS.length - 1, s + 1))}
+              onClick={() => goStep(step + 1)}
             >
               Next ›
             </button>
