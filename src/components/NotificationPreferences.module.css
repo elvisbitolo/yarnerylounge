@@ -4,18 +4,18 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #e6e6ef;
 }
 
 .label {
   font-weight: 600;
-  color: #e2e8f0;
+  color: #000;
   display: block;
 }
 
 .hint {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: #6b6b7b;
   margin: 0.25rem 0 0;
 }
 

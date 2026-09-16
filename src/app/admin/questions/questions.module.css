@@ -22,6 +22,10 @@
   margin: -16px 0 24px;
 }
 
+.pinkTitle {
+  color: var(--primary);
+}
+
 .form {
   background: #ffffff;
   border: 1px solid #e6e6ef;

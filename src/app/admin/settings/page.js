@@ -82,7 +82,7 @@ export default function AdminSettingsPage() {
   return (
     <Nav role={role}>
       <div className={styles.container}>
-        <h1 className={styles.title}>Welcome Checklist</h1>
+        <h1 className={`${styles.title} ${styles.pinkTitle}`}>Welcome Checklist</h1>
         <p className={styles.subtitle}>
           The steps new members see until they finish onboarding. Each step uses
           its key to check completion: profile (bio/headline/location), room
