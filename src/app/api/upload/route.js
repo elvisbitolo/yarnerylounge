@@ -68,6 +68,45 @@ export async function POST(req) {
   return NextResponse.json({ error: "Unsupported upload kind" }, { status: 400 });
 }
 
+export async function DELETE(req) {
+  const auth = await requireUser();
+  const denied = guardJson(auth);
+  if (denied) return denied;
+
+  const limited = rateLimitGuard(`upload-delete:${auth.user.uid}`, { limit: 40 });
+  if (limited) return limited;
+
+  let url = "";
+  try {
+    const body = await req.json();
+    url = typeof body?.url === "string" ? body.url : "";
+  } catch {
+    /* no body */
+  }
+
+  // Only allow deleting an avatar blob the caller owns. The upload route
+  // writes to uploads/avatar/<uid>/..., so the uid is part of the path.
+  const marker = `/uploads/avatar/${auth.user.uid}/`;
+  if (
+    !/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(url) ||
+    !url.includes(marker)
+  ) {
+    return NextResponse.json({ error: "Not an owned avatar blob" }, { status: 400 });
+  }
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json({ ok: true });
+  }
+
+  const { del } = await import("@vercel/blob");
+  try {
+    await del(url);
+  } catch {
+    return NextResponse.json({ error: "Failed to delete blob" }, { status: 502 });
+  }
+  return NextResponse.json({ ok: true });
+}
+
 function isSafeImage(mime, bytes) {
   const sig = (expected, offset = 0) =>
     expected.every((b, i) => bytes.length > offset + i && bytes[offset + i] === b);

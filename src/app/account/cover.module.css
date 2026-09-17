@@ -371,3 +371,24 @@
   align-items: center;
   justify-content: center;
 }
+
+.zoomLabel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 380px);
+  margin: 12px auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.zoomLabel span {
+  flex-shrink: 0;
+}
+
+.zoomLabel input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: #2563eb;
+}

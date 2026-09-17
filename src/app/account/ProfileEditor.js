@@ -18,6 +18,7 @@ import {
 import styles from "./account.module.css";
 import coverStyles from "./cover.module.css";
 import { Image as ImageIcon } from "lucide-react";
+import Cropper from "react-easy-crop";
 
 const QUESTIONS_PER_PAGE = 3;
 const QUIZ_PAGE_COUNT = Math.ceil(QUIZ_QUESTIONS.length / QUESTIONS_PER_PAGE);
@@ -276,6 +277,7 @@ export default function ProfileEditor({ initial, memberId }) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [repositioning, setRepositioning] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
   const [cropOpen, setCropOpen] = useState(false);
@@ -283,6 +285,9 @@ export default function ProfileEditor({ initial, memberId }) {
   const [cropRect, setCropRect] = useState(null);
   const [cropStage, setCropStage] = useState("adjust");
   const [cropKind, setCropKind] = useState("cover");
+  const [avatarCrop, setAvatarCrop] = useState({ x: 0, y: 0 });
+  const [avatarZoom, setAvatarZoom] = useState(1);
+  const [avatarPixels, setAvatarPixels] = useState(null);
   const previewCover = useMemo(() => {
     if (cropStage !== "confirm" && cropStage !== "save") return "";
     if (!cropImage?.element || !cropRect) return "";
@@ -410,12 +415,60 @@ export default function ProfileEditor({ initial, memberId }) {
     setCropKind("avatar");
     try {
       const img = await loadImage(file);
-      setCropImage(img);
-      setCropRect(initialCropRectAvatar(img.width, img.height));
-      setCropStage("adjust");
-      setCropOpen(true);
+      openAvatarCrop(img);
     } catch (err) {
       setError(err.message || "Couldn't read that image");
+    }
+  }
+
+  function openAvatarCrop(img) {
+    setCropImage(img);
+    setAvatarCrop({ x: 0, y: 0 });
+    setAvatarZoom(1);
+    setAvatarPixels(null);
+    setCropStage("adjust");
+    setCropOpen(true);
+  }
+
+  async function handleRepositionPhoto() {
+    if (!photoURL) return;
+    setError("");
+    setRepositioning(true);
+    setCropKind("avatar");
+    try {
+      const res = await fetch(photoURL);
+      if (!res.ok) throw new Error("Couldn't load your current photo");
+      const blob = await res.blob();
+      if (!blob.type.startsWith("image/")) {
+        throw new Error("That photo format can't be re-cropped");
+      }
+      const file = new File([blob], "avatar.jpg", {
+        type: blob.type || "image/jpeg",
+      });
+      const img = await loadImage(file);
+      openAvatarCrop(img);
+    } catch (err) {
+      setError(err.message || "Couldn't load your current photo");
+    } finally {
+      setRepositioning(false);
+    }
+  }
+
+  async function deleteBlobIfOwned(url) {
+    if (
+      !url ||
+      !/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(url)
+    ) {
+      return;
+    }
+    try {
+      await fetch("/api/upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+    } catch {
+      // Best-effort cleanup of the superseded avatar blob.
     }
   }
 
@@ -460,12 +513,6 @@ export default function ProfileEditor({ initial, memberId }) {
     } catch (err) {
       setError(err.message || "Couldn't read that image");
     }
-  }
-
-  function initialCropRectAvatar(width, height) {
-    const { winW, winH, offX, offY } = coverWindow(width, height, 1);
-    const side = Math.min(winW, winH) * 0.94;
-    return { x: offX + (winW - side) / 2, y: offY + (winH - side) / 2, w: side, h: side };
   }
 
   function getResizeMode(x, y, rect, img, tolerance) {
@@ -734,10 +781,17 @@ export default function ProfileEditor({ initial, memberId }) {
 
   async function applyAvatarCropSave() {
     const img = cropImage?.element;
-    if (!img || !cropRect) return;
+    if (!img || !avatarPixels) return;
+    const previousPhotoURL = photoURL;
     setUploading(true);
     try {
-      const dataUrl = cropImageToAvatar(img, cropRect);
+      const rect = {
+        x: avatarPixels.x,
+        y: avatarPixels.y,
+        w: avatarPixels.width,
+        h: avatarPixels.height,
+      };
+      const dataUrl = cropImageToAvatar(img, rect);
       const fd = new FormData();
       const blob = dataUrlToBlob(dataUrl);
       fd.append("file", blob, "avatar.jpg");
@@ -749,27 +803,30 @@ export default function ProfileEditor({ initial, memberId }) {
       if (!up.ok || (!upData.url && !upData.dataUrl)) {
         throw new Error(upData.error || "Failed to upload photo");
       }
-      const photoURL = upData.url || upData.dataUrl;
+      const nextPhotoURL = upData.url || upData.dataUrl;
       const res = await fetch("/api/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photoURL }),
+        body: JSON.stringify({ photoURL: nextPhotoURL }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to save photo");
       }
-      setPhotoURL(photoURL);
-      setSavedSnapshot((prev) => ({ ...prev, photoURL }));
+      setPhotoURL(nextPhotoURL);
+      setSavedSnapshot((prev) => ({ ...prev, photoURL: nextPhotoURL }));
       setSaved(true);
       setNotice("Profile photo saved.");
+      setAvatarCrop({ x: 0, y: 0 });
+      setAvatarZoom(1);
+      setAvatarPixels(null);
       setCropOpen(false);
       setCropImage(null);
-      setCropRect(null);
       setCropStage("adjust");
+      deleteBlobIfOwned(previousPhotoURL);
     } catch (err) {
       setError(err.message || "Failed to save photo");
-      setCropStage("confirm");
+      setCropStage("adjust");
     } finally {
       setUploading(false);
     }
@@ -1181,6 +1238,16 @@ export default function ProfileEditor({ initial, memberId }) {
             >
               {uploading ? "Uploading…" : "Upload photo"}
             </button>
+            {photoURL && (
+              <button
+                type="button"
+                className={styles.avatarButton}
+                disabled={busy || uploading || repositioning}
+                onClick={handleRepositionPhoto}
+              >
+                {repositioning ? "Loading…" : "Reposition photo"}
+              </button>
+            )}
             {photoURL && (
               <button
                 type="button"
@@ -1722,24 +1789,66 @@ export default function ProfileEditor({ initial, memberId }) {
           className={coverStyles.cropModal}
           onClick={(e) => e.stopPropagation()}
         >
-          {cropStage === "adjust" ? (
+          {cropKind === "avatar" ? (
             <>
-              <h3 className={coverStyles.cropTitle}>
-                {cropKind === "avatar"
-                  ? "Crop your profile photo"
-                  : "Crop your cover photo"}
-              </h3>
+              <h3 className={coverStyles.cropTitle}>Crop your profile photo</h3>
               <p className={coverStyles.cropHint}>
-                {cropKind === "avatar"
-                  ? "Keep your face centered near the middle so it stays visible when the photo is shown as a small circle. Drag to move, drag a corner or edge to resize, then press Next."
-                  : "This banner shows full-width on desktop but gets cropped on mobile, and your profile photo overlaps the bottom-left corner. Keep important content near the middle and out of the bottom-left and far-right edges."}
+                Drag to move the frame, and pinch, scroll, or use the slider to
+                zoom. The circle shows exactly what will be saved.
               </p>
               <div
-                className={
-                  cropKind === "avatar"
-                    ? `${coverStyles.cropWrap} ${coverStyles.cropWrapAvatar}`
-                    : coverStyles.cropWrap
-                }
+                className={`${coverStyles.cropWrap} ${coverStyles.cropWrapAvatar}`}
+              >
+                <Cropper
+                  image={cropImage?.dataUrl}
+                  crop={avatarCrop}
+                  zoom={avatarZoom}
+                  aspect={1}
+                  cropShape="round"
+                  showGrid={false}
+                  onCropChange={setAvatarCrop}
+                  onZoomChange={setAvatarZoom}
+                  onCropComplete={(_, pixels) => setAvatarPixels(pixels)}
+                />
+              </div>
+              <label className={coverStyles.zoomLabel}>
+                <span>Zoom</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  value={avatarZoom}
+                  onChange={(e) => setAvatarZoom(Number(e.target.value))}
+                  aria-label="Zoom"
+                />
+              </label>
+              <div className={coverStyles.cropActions}>
+                <button
+                  type="button"
+                  className={coverStyles.coverButton}
+                  onClick={cancelCoverCrop}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={coverStyles.cropApply}
+                  disabled={uploading || cropStage === "save"}
+                  onClick={applyCoverCrop}
+                >
+                  {uploading || cropStage === "save" ? "Saving…" : "Save photo"}
+                </button>
+              </div>
+            </>
+          ) : cropStage === "adjust" ? (
+            <>
+              <h3 className={coverStyles.cropTitle}>Crop your cover photo</h3>
+              <p className={coverStyles.cropHint}>
+                This banner shows full-width on desktop but gets cropped on mobile, and your profile photo overlaps the bottom-left corner. Keep important content near the middle and out of the bottom-left and far-right edges.
+              </p>
+              <div
+                className={coverStyles.cropWrap}
                 onPointerDown={handleCropPointerDown}
                 onPointerMove={handleCropPointerMove}
                 onPointerUp={handleCropPointerUp}
@@ -1749,32 +1858,17 @@ export default function ProfileEditor({ initial, memberId }) {
                   ref={cropImgRef}
                   className={coverStyles.cropImage}
                   src={cropImage?.dataUrl}
-                  alt={
-                    cropKind === "avatar"
-                      ? "Profile photo preview"
-                      : "Cover preview"
-                  }
+                  alt="Cover preview"
                   draggable={false}
                 />
-                {cropKind === "avatar" && (
-                  <span className={coverStyles.cropCircleMask} />
-                )}
-                {cropKind === "cover" && (
-                  <>
-                    <span className={coverStyles.safeZoneNote}>
-                      <span className={coverStyles.safeZoneAvatar} />
-                      profile photo covers this corner
-                    </span>
-                    <span className={coverStyles.safeZoneSkirt} />
-                  </>
-                )}
+                <span className={coverStyles.safeZoneNote}>
+                  <span className={coverStyles.safeZoneAvatar} />
+                  profile photo covers this corner
+                </span>
+                <span className={coverStyles.safeZoneSkirt} />
                 {cropRect && (
                   <span
-                    className={
-                      cropKind === "avatar"
-                        ? `${coverStyles.cropRect} ${coverStyles.cropRectAvatar}`
-                        : coverStyles.cropRect
-                    }
+                    className={coverStyles.cropRect}
                     style={{
                       left: `${((cropRect.x - coverWin.offX) / coverWin.winW) * 100}%`,
                       top: `${((cropRect.y - coverWin.offY) / coverWin.winH) * 100}%`,
@@ -1782,28 +1876,14 @@ export default function ProfileEditor({ initial, memberId }) {
                       height: `${(cropRect.h / coverWin.winH) * 100}%`,
                     }}
                   >
-                    {cropKind === "avatar" && (
-                      <svg
-                        className={coverStyles.safeRings}
-                        viewBox="0 0 100 100"
-                        aria-hidden="true"
-                      >
-                        <circle cx="50" cy="50" r="46" />
-                        <circle cx="50" cy="50" r="30" />
-                      </svg>
-                    )}
                     <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleNw}`} />
                     <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleNe}`} />
                     <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleSw}`} />
                     <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleSe}`} />
-                    {cropKind === "cover" && (
-                      <>
-                        <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleN}`} />
-                        <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleS}`} />
-                        <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleW}`} />
-                        <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleE}`} />
-                      </>
-                    )}
+                    <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleN}`} />
+                    <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleS}`} />
+                    <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleW}`} />
+                    <span className={`${coverStyles.cropHandle} ${coverStyles.cropHandleE}`} />
                   </span>
                 )}
               </div>
@@ -1826,38 +1906,21 @@ export default function ProfileEditor({ initial, memberId }) {
             </>
           ) : (
             <>
-              <h3 className={coverStyles.cropTitle}>
-                {cropKind === "avatar"
-                  ? "Preview your profile photo"
-                  : "Preview your cover"}
-              </h3>
+              <h3 className={coverStyles.cropTitle}>Preview your cover</h3>
               <p className={coverStyles.cropHint}>
-                {cropKind === "avatar"
-                  ? "Your photo is shown as a circle. When you&apos;re happy, select &quot;Done&quot; to save it."
-                  : "Keep the bottom-left corner clear so it isn&apos;t hidden by your profile photo. When you&apos;re happy, select &quot;Done&quot; to save it."}
+                Keep the bottom-left corner clear so it isn&apos;t hidden by your profile photo. When you&apos;re happy, select &quot;Done&quot; to save it.
               </p>
-              {cropKind === "avatar" ? (
-                <div className={coverStyles.previewAvatar}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={previewCover}
-                    alt="Profile photo preview"
-                    draggable={false}
-                  />
-                </div>
-              ) : (
-                <div className={coverStyles.previewBanner}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={previewCover}
-                    alt="Cover photo preview"
-                    draggable={false}
-                  />
-                  <span className={coverStyles.previewOverlayAvatar}>
-                    {initials(name || initial.name)}
-                  </span>
-                </div>
-              )}
+              <div className={coverStyles.previewBanner}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewCover}
+                  alt="Cover photo preview"
+                  draggable={false}
+                />
+                <span className={coverStyles.previewOverlayAvatar}>
+                  {initials(name || initial.name)}
+                </span>
+              </div>
               <div className={coverStyles.cropActions}>
                 <button
                   type="button"
@@ -1869,15 +1932,10 @@ export default function ProfileEditor({ initial, memberId }) {
                 <button
                   type="button"
                   className={coverStyles.cropApply}
-                  disabled={
-                    (cropKind === "cover" && (uploadingCover || cropStage === "save")) ||
-                    (cropKind === "avatar" && (uploading || cropStage === "save"))
-                  }
+                  disabled={uploadingCover || cropStage === "save"}
                   onClick={applyCoverCrop}
                 >
-                  {cropStage === "save" || (cropKind === "cover" && uploadingCover) || (cropKind === "avatar" && uploading)
-                    ? "Saving…"
-                    : "Done"}
+                  {cropStage === "save" || uploadingCover ? "Saving…" : "Done"}
                 </button>
               </div>
             </>
