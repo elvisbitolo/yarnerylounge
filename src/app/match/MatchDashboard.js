@@ -1,33 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import styles from "./match.module.css";
-import { Lock } from "lucide-react";
 import DailyMatchCard from "./DailyMatchCard";
 import SimilarMembersCard from "./SimilarMembersCard";
 import SkillLevelCard from "./SkillLevelCard";
 
-export default function MatchDashboard({ matchmakerEnabled }) {
+export default function MatchDashboard() {
   const [dailyMatch, setDailyMatch] = useState(null);
   const [dailyDecision, setDailyDecision] = useState(null);
   const [similarMembers, setSimilarMembers] = useState([]);
-  const [dailyLoading, setDailyLoading] = useState(matchmakerEnabled);
-  const [similarLoading, setSimilarLoading] = useState(matchmakerEnabled);
+  const [dailyLoading, setDailyLoading] = useState(true);
+  const [similarLoading, setSimilarLoading] = useState(true);
   const [dailyError, setDailyError] = useState("");
   const [similarError, setSimilarError] = useState("");
 
   useEffect(() => {
-    if (!matchmakerEnabled) {
-      return;
-    }
     let cancelled = false;
     async function loadMatches() {
       const blindPromise = (async () => {
         try {
           const blindRes = await fetch("/api/members/blind-date");
           if (!blindRes.ok) {
-            if (blindRes.status === 403) return;
             throw new Error("blind date failed");
           }
           const blindData = await blindRes.json();
@@ -59,26 +53,9 @@ export default function MatchDashboard({ matchmakerEnabled }) {
     return () => {
       cancelled = true;
     };
-  }, [matchmakerEnabled]);
+  }, []);
 
   const topMatches = useMemo(() => similarMembers.slice(0, 8), [similarMembers]);
-
-
-  if (!matchmakerEnabled) {
-    return (
-      <div className={styles.lockState}>
-        <div className={styles.lockIcon}><Lock size={22} /></div>
-        <h2 className={styles.lockTitle}>Matchmaker is for premium members</h2>
-        <p className={styles.lockDesc}>
-          Upgrade to Hooking Up or Moving In to unlock fiber matchmaking,
-          daily blind dates, and similar member discovery.
-        </p>
-        <Link href="/membership" className={styles.upgradeBtn}>
-          Explore membership tiers
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className={styles.dashboard}>

@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
-import { loungeGate } from "@/lib/server/lounge-gate";
 import Nav from "@/components/Nav";
 import MatchDashboard from "./MatchDashboard";
 import styles from "./match.module.css";
@@ -14,11 +12,6 @@ export default async function MatchPage() {
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
-  const caps = await getCapabilities(user.uid);
-  const matchmakerEnabled = canUseMatchmaker(caps);
-
-  const gate = await loungeGate(user.uid, userDoc);
-  if (gate) redirect(gate);
 
   return (
     <Nav role={userDoc?.role}>
@@ -50,7 +43,7 @@ export default async function MatchPage() {
             </div>
           </div>
         </div>
-        <MatchDashboard matchmakerEnabled={matchmakerEnabled} />
+        <MatchDashboard />
       </div>
     </Nav>
   );
