@@ -267,6 +267,7 @@
   height: 72px;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center top;
   display: block;
 }
 
@@ -323,6 +324,7 @@
   height: 64px;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center top;
   flex-shrink: 0;
 }
 
