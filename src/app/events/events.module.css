@@ -20,7 +20,7 @@
 .title {
   font-size: 32px;
   font-weight: 800;
-  color: #17171c;
+  color: var(--primary);
   margin: 0;
 }
 

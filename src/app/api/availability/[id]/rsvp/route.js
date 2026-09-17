@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
-import { canModerate } from "@/lib/server/auth";
-import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
-import { toggleAvailabilityRsvp, getAvailability } from "@/lib/server/availability";
+import { toggleAvailabilityRsvp } from "@/lib/server/availability";
 import { createNotification } from "@/lib/server/notifications";
 
 export const dynamic = "force-dynamic";
@@ -11,11 +9,6 @@ export async function POST(req, { params }) {
   const auth = await requireActiveMember();
   const denied = guardJson(auth);
   if (denied) return denied;
-
-  const caps = await getCapabilities(auth.user.uid);
-  if (!canUseMatchmaker(caps) && !canModerate(auth.userDoc)) {
-    return NextResponse.json({ error: "The matchmaker calendar is a Hooking Up + perk" }, { status: 403 });
-  }
 
   const { id } = await params;
   const result = await toggleAvailabilityRsvp(id, {

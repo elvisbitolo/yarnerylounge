@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { loungeGate } from "@/lib/server/lounge-gate";
 import Nav from "@/components/Nav";
 import MatchmakerCalendar from "./MatchmakerCalendar";
 import styles from "./calendar.module.css";
@@ -12,9 +11,6 @@ export default async function CalendarPage() {
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
-
-  const gate = await loungeGate(user.uid, userDoc, { matchmaker: true });
-  if (gate) redirect(gate);
 
   return (
     <Nav role={userDoc?.role}>
