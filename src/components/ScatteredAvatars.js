@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { roleBadgeLabel } from "@/lib/profile/roles";
 
 const CARD_W = 244;
 const CARD_H = 200;
@@ -27,10 +28,9 @@ function seededRandom(seed) {
   };
 }
 
-function roleLabel(role) {
-  if (role === "owner") return "Owner";
-  if (role === "moderator") return "Moderator";
-  return null;
+function roleLabel(member) {
+  if (member.role !== "owner" && member.role !== "moderator") return null;
+  return roleBadgeLabel(member.role, member.roleLabel);
 }
 
 function hueOf(name) {
@@ -148,7 +148,7 @@ export default function ScatteredAvatars({ members = [], meId, limit = 16 }) {
         {items.map((item, i) => {
           const m = item.m;
           const active = hovered === m.id;
-          const role = roleLabel(m.role);
+          const role = roleLabel(m);
           const hue = hueOf(m.name);
           return (
             <Link
@@ -226,8 +226,8 @@ export default function ScatteredAvatars({ members = [], meId, limit = 16 }) {
         >
           <p className="card-name">
             {card.member.name}
-            {roleLabel(card.member.role) && (
-              <span className="card-role">{roleLabel(card.member.role)}</span>
+            {roleLabel(card.member) && (
+              <span className="card-role">{roleLabel(card.member)}</span>
             )}
           </p>
           {card.member.live && <p className="card-live">● In the lounge now</p>}
