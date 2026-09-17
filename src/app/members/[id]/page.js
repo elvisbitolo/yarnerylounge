@@ -7,12 +7,14 @@ import { getRecognitionCount, listRecognitions } from "@/lib/server/recognition"
 import { RECOGNITION_VALUES, recognitionCountLabel } from "@/lib/server/recognition-core";
 import { BADGES } from "@/lib/server/gamification";
 import { QUIZ_QUESTIONS, QUIZ_LABELS, quizHasAnswers, quizAnswerLabel } from "@/lib/profile/questions";
+import { CRAFT_LABELS } from "@/lib/profile/crafts";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import FollowButton from "@/components/FollowButton";
 import RecognitionForm from "./RecognitionForm";
 import StickerDisplay from "./StickerDisplay";
+import YarnProfile from "./YarnProfile";
 import MembersToExplore from "./MembersToExplore";
 import MemberSafetyControls from "./MemberSafetyControls";
 import { getMemberSafety } from "@/lib/server/member-safety";
@@ -35,16 +37,6 @@ async function safe(promise, fallback) {
     return fallback;
   }
 }
-
-const CRAFT_LABELS = {
-  crochet: "Crochet",
-  knitting: "Knitting",
-  weaving: "Weaving",
-  spinning: "Spinning",
-  dyeing: "Dyeing",
-  embroidery: "Embroidery",
-  macrame: "Macrame",
-};
 
 function formatJoined(value) {
   if (!value) return "";
@@ -317,122 +309,7 @@ const coverUrl = member.coverPhotoURL || "";
                 ))}
               </div>
             )}
-            {(member.favoriteColors?.length > 0 ||
-              member.crafts?.length > 0 ||
-              member.goToYarn ||
-              member.favoriteHookSize ||
-              member.yearsExperience ||
-              member.favoriteYarnBrand ||
-              member.crochetTechniques?.length > 0 ||
-              member.crochetMotivation?.length > 0 ||
-              member.learningNext ||
-              member.proudestProject ||
-              member.bestGiftProject ||
-              quizHasAnswers(memberProfile)) && (
-              <div className={styles.yarnProfile}>
-                {member.favoriteColors?.length > 0 && (
-                  <div className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Favorite colors</span>
-                    <span className={styles.colorDots}>
-                      {member.favoriteColors.map((color, i) => (
-                        <span
-                          key={i}
-                          className={styles.colorDot}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </span>
-                  </div>
-                )}
-                {Array.isArray(member.crafts) && member.crafts.length > 0 && (
-                  <div className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Crafts</span>
-                    <span className={styles.craftTags}>
-                      {member.crafts.map((craft) => (
-                        <span key={craft} className={styles.craftTag}>
-                          {CRAFT_LABELS[craft] || craft}
-                        </span>
-                      ))}
-                    </span>
-                  </div>
-                )}
-                {member.goToYarn && (
-                  <p className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Go-to yarn</span>
-                    <span className={styles.yarnValue}>{member.goToYarn}</span>
-                  </p>
-                )}
-                {member.favoriteHookSize && (
-                  <p className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Favorite hook</span>
-                    <span className={styles.yarnValue}>{member.favoriteHookSize}</span>
-                  </p>
-                )}
-                {member.yearsExperience && (
-                  <p className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Crocheting for</span>
-                    <span className={styles.yarnValue}>{member.yearsExperience}</span>
-                  </p>
-                )}
-                {member.favoriteYarnBrand && (
-                  <p className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Favorite yarn brand</span>
-                    <span className={styles.yarnValue}>{member.favoriteYarnBrand}</span>
-                  </p>
-                )}
-                {Array.isArray(member.crochetTechniques) && member.crochetTechniques.length > 0 && (
-                  <div className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Techniques</span>
-                    <span className={styles.craftTags}>
-                      {member.crochetTechniques.map((technique) => (
-                        <span key={technique} className={styles.craftTag}>
-                          {technique.charAt(0).toUpperCase() + technique.slice(1)}
-                        </span>
-                      ))}
-                    </span>
-                  </div>
-                )}
-                {Array.isArray(member.crochetMotivation) && member.crochetMotivation.length > 0 && (
-                  <div className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Why I crochet</span>
-                    <span className={styles.craftTags}>
-                      {member.crochetMotivation.map((motive) => (
-                        <span key={motive} className={styles.craftTag}>
-                          {motive.charAt(0).toUpperCase() + motive.slice(1)}
-                        </span>
-                      ))}
-                    </span>
-                  </div>
-                )}
-                {member.learningNext && (
-                  <p className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Learning next</span>
-                    <span className={styles.yarnValue}>{member.learningNext}</span>
-                  </p>
-                )}
-                {member.proudestProject && (
-                  <p className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Proudest project</span>
-                    <span className={styles.yarnValue}>{member.proudestProject}</span>
-                  </p>
-                )}
-                {member.bestGiftProject && (
-                  <p className={styles.yarnRow}>
-                    <span className={styles.yarnLabel}>Best for gifting</span>
-                    <span className={styles.yarnValue}>{member.bestGiftProject}</span>
-                  </p>
-                )}
-                {QUIZ_QUESTIONS.map((q) => {
-                  const answer = quizAnswerLabel(q, memberProfile);
-                  return answer ? (
-                    <p key={q.field} className={styles.yarnRow}>
-                      <span className={styles.yarnLabel}>{QUIZ_LABELS[q.field]}</span>
-                      <span className={styles.yarnValue}>{answer}</span>
-                    </p>
-                  ) : null;
-                })}
-              </div>
-            )}
+            <YarnProfile member={memberProfile} />
             {recognitionCount > 0 && (
               <p className={styles.recognitionCount}>{recognitionCountLabel(recognitionCount)}</p>
             )}

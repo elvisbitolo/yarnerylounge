@@ -206,6 +206,24 @@
   margin: 0;
 }
 
+.yarnMoreBtn {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 6px 14px;
+  border: 1px solid #f0c7d5;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yarnMoreBtn:hover {
+  background: rgba(244, 46, 121, 0.08);
+}
+
 .yarnLabel {
   font-size: 12px;
   font-weight: 700;
