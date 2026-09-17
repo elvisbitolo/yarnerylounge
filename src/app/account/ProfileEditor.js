@@ -436,9 +436,19 @@ export default function ProfileEditor({ initial, memberId }) {
     setRepositioning(true);
     setCropKind("avatar");
     try {
-      const res = await fetch(photoURL);
-      if (!res.ok) throw new Error("Couldn't load your current photo");
-      const blob = await res.blob();
+      // The browser CSP only allows same-origin fetch(), so the avatar source
+      // (Vercel Blob, Google/GitHub picture, or an inline data URL) is fetched
+      // server-side and returned as a data URL.
+      const res = await fetch("/api/avatar-source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: photoURL }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.dataUrl) {
+        throw new Error(data.error || "Couldn't load your current photo");
+      }
+      const blob = dataUrlToBlob(data.dataUrl);
       if (!blob.type.startsWith("image/")) {
         throw new Error("That photo format can't be re-cropped");
       }
