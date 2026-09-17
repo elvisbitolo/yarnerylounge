@@ -173,6 +173,7 @@
   display: inline-flex;
   align-items: center;
   height: 40px;
+  margin-top: 10px;
   padding: 0 20px;
   background: var(--primary);
   color: #ffffff;
@@ -252,7 +253,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 0 0 24px;
+  margin: 28px 0 24px;
 }
 
 .statItem {
@@ -476,6 +477,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  margin-bottom: 28px;
 }
 
 .post {
@@ -515,6 +517,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .projectsHeader .sectionTitle {
