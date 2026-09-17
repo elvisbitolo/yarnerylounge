@@ -1920,13 +1920,15 @@ export default function ProfileEditor({ initial, memberId }) {
               <p className={coverStyles.cropHint}>
                 Keep the bottom-left corner clear so it isn&apos;t hidden by your profile photo. When you&apos;re happy, select &quot;Done&quot; to save it.
               </p>
-              <div className={coverStyles.previewBanner}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewCover}
-                  alt="Cover photo preview"
-                  draggable={false}
-                />
+              <div className={coverStyles.previewProfile}>
+                <div className={coverStyles.previewBanner}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewCover}
+                    alt="Cover photo preview"
+                    draggable={false}
+                  />
+                </div>
                 <span className={coverStyles.previewOverlayAvatar}>
                   {initials(name || initial.name)}
                 </span>

@@ -45,8 +45,8 @@
   display: flex;
   gap: 20px;
   align-items: flex-start;
-  padding: 0 28px 28px;
-  margin-top: -44px;
+  padding: 20px 28px 28px;
+  margin-top: 0;
 }
 
 .avatar {

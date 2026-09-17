@@ -219,10 +219,15 @@
   cursor: ew-resize;
 }
 
+.previewProfile {
+  position: relative;
+  margin: 0 0 12px;
+}
+
 .previewBanner {
   position: relative;
   display: block;
-  margin: 0 0 12px;
+  margin: 0;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #e6e6ef;
@@ -356,20 +361,18 @@
 }
 
 .previewOverlayAvatar {
-  position: absolute;
-  left: 16px;
-  bottom: -18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 48px;
   height: 48px;
+  margin: 12px 0 0 24px;
   border-radius: 50%;
   border: 3px solid #ffffff;
   background: linear-gradient(135deg, #090c26, #f42e79);
   color: #ffffff;
   font-size: 16px;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .zoomLabel {
