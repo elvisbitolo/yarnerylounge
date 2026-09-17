@@ -33,14 +33,22 @@ export async function GET(req, { params }) {
       orderBy: { createdAt: "asc" },
       take: Math.min(limit, 500),
     });
-    const comments = rows.map((r) => ({
-      id: r.id,
-      authorId: r.authorId,
-      authorName: r.authorName,
-      text: r.text,
-      reactions: r.reactions,
-      createdAt: r.createdAt,
-    }));
+    const comments = rows.map((r) => {
+      const createdAt =
+        r.createdAt && typeof r.createdAt.toMillis === "function"
+          ? r.createdAt.toMillis()
+          : r.createdAt instanceof Date
+            ? r.createdAt.getTime()
+            : Number(r.createdAt) || 0;
+      return {
+        id: r.id,
+        authorId: r.authorId,
+        authorName: r.authorName,
+        text: r.text,
+        reactions: r.reactions,
+        createdAt,
+      };
+    });
     return NextResponse.json({ comments });
   } catch (err) {
     logError("posts.comments.prisma_read_failed", { error: err.message });

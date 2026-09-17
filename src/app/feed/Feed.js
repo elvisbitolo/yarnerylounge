@@ -43,7 +43,9 @@ function resizeImage(file, maxSize = 1600) {
 
 function timeAgo(ts) {
   if (!ts) return "";
-  const millis = typeof ts.toMillis === "function" ? ts.toMillis() : Number(ts);
+  const parsed = typeof ts.toMillis === "function" ? ts.toMillis() : Number(ts) || Date.parse(ts);
+  const millis = Number.isFinite(parsed) ? parsed : 0;
+  if (!millis) return "";
   const seconds = Math.floor((Date.now() - millis) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
