@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import MemberBadge from "@/components/MemberBadge";
@@ -143,7 +143,7 @@ const TOOLTIP_W = 300;
 const TOOLTIP_H = 400;
 const HIDE_DELAY = 220;
 
-export default function MembersDirectory({ members, viewer, role, todayKey, matchmakerEnabled = true }) {
+export default function MembersDirectory({ members, viewer, role, todayKey }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
@@ -330,14 +330,12 @@ export default function MembersDirectory({ members, viewer, role, todayKey, matc
           ))}
         </div>
       </div>
-      {matchmakerEnabled && (
       <div className={styles.matchmakerPanel}>
         <p className={styles.matchmakerTitle}>
           <span className={styles.matchmakerSparkle}>✦</span> Find Members
         </p>
         <MemberFilters filters={filters} onChange={patchFilters} members={members} />
       </div>
-      )}
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>

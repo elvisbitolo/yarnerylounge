@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
-import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
@@ -11,9 +10,6 @@ export async function GET() {
   const auth = await requireActiveMember();
   const denied = guardJson(auth);
   if (denied) return denied;
-
-  const caps = await getCapabilities(auth.user.uid);
-  if (!canUseMatchmaker(caps)) return NextResponse.json({ members: [] });
 
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ members: [], skillLevel: "" });

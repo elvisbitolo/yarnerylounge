@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
-import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { pickDailyBlindDate } from "@/lib/server/blind-date";
 import { getMatchDecision } from "@/lib/server/match-decisions";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
@@ -11,14 +10,6 @@ export async function GET(req) {
   const auth = await requireActiveMember();
   const denied = guardJson(auth);
   if (denied) return denied;
-
-  const caps = await getCapabilities(auth.user.uid);
-  if (!canUseMatchmaker(caps)) {
-    return NextResponse.json(
-      { error: "Matchmaker is for premium members" },
-      { status: 403 }
-    );
-  }
 
   const limited = rateLimitGuard(`blind-date:${auth.user.uid}`, { limit: 20 });
   if (limited) return limited;

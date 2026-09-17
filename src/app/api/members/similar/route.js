@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
@@ -84,11 +83,6 @@ export async function GET(req) {
   const auth = await requireUser();
   const denied = guardJson(auth);
   if (denied) return denied;
-
-  const caps = await getCapabilities(auth.user.uid);
-  if (!canUseMatchmaker(caps)) {
-    return NextResponse.json({ members: [] });
-  }
 
   // Similarity is a member-facing endpoint. Never allow a caller to choose
   // another user's profile as the scoring baseline; doing so can disclose

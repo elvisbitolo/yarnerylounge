@@ -466,7 +466,10 @@ const coverUrl = member.coverPhotoURL || "";
             <div className={styles.projectGrid}>
               {projects.map((project) => (
                 <article key={project.id} className={styles.projectCard}>
-                  {project.imageUrls?.[0] && <img src={project.imageUrls[0]} alt="" className={styles.projectImage} />}
+                  {project.imageUrls?.[0] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={project.imageUrls[0]} alt="" className={styles.projectImage} />
+                  )}
                   <div className={styles.projectBody}>
                     <div className={styles.projectTitleRow}>
                       <h3>{project.title}</h3>

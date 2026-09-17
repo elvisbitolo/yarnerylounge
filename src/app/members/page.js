@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
-import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
-import { loungeGate } from "@/lib/server/lounge-gate";
 import { listActiveRoomMemberIds } from "@/lib/server/room-presence";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
@@ -43,11 +41,6 @@ export default async function MembersPage() {
   } catch {
     liveUids = new Set();
   }
-  const caps = await getCapabilities(user.uid);
-  const matchmakerEnabled = canUseMatchmaker(caps);
-  const gate = await loungeGate(user.uid, userDoc, { matchmaker: true });
-  if (gate) redirect(gate);
-
   const todayKey = (() => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
@@ -162,10 +155,9 @@ export default async function MembersPage() {
           }}
           role={userDoc?.role}
           todayKey={todayKey}
-          matchmakerEnabled={matchmakerEnabled}
         />
-        {matchmakerEnabled && <BlindDateCard />}
-        {matchmakerEnabled && <SimilarMembers />}
+        <BlindDateCard />
+        <SimilarMembers />
       </div>
 </Nav>
   );
