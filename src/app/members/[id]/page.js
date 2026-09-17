@@ -278,6 +278,23 @@ const coverUrl = member.coverPhotoURL || "";
             {member.headline && <p className={styles.headline}>{member.headline}</p>}
             {member.location && <p className={styles.location}>{member.location}</p>}
             {member.country && <p className={styles.location}>{member.country}</p>}
+            {!isSelf && (
+              <div className={styles.headerActions}>
+                <FollowButton
+                  targetUserId={id}
+                  initialFollowing={Boolean(followData.following)}
+                  initialFollowerCount={Number(followData.followerCount) || 0}
+                  initialFollowingCount={Number(followData.followingCount) || 0}
+                  isSelf={isSelf}
+                />
+                {!safetyData.blocked && (
+                  <Link className={styles.messageBtn} href={`/chat?with=${id}`}>
+                    Message
+                  </Link>
+                )}
+              </div>
+            )}
+            {!isSelf && <MemberSafetyControls targetId={id} targetName={member.name} />}
             {member.bio && <p className={styles.bio}>{member.bio}</p>}
             {socialLinks.length > 0 && (
               <div className={styles.socialLinks}>
@@ -313,21 +330,6 @@ const coverUrl = member.coverPhotoURL || "";
             {recognitionCount > 0 && (
               <p className={styles.recognitionCount}>{recognitionCountLabel(recognitionCount)}</p>
             )}
-            {!isSelf && (
-              <FollowButton
-                targetUserId={id}
-                initialFollowing={Boolean(followData.following)}
-                initialFollowerCount={Number(followData.followerCount) || 0}
-                initialFollowingCount={Number(followData.followingCount) || 0}
-                isSelf={isSelf}
-              />
-            )}
-            {!isSelf && !safetyData.blocked && (
-              <Link className={styles.messageBtn} href={`/chat?with=${id}`}>
-                Message
-              </Link>
-            )}
-            {!isSelf && <MemberSafetyControls targetId={id} targetName={member.name} />}
           </div>
           </div>
         </div>
