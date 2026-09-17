@@ -5,13 +5,13 @@ import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "../chat.module.css";
 import tStyles from "./thread.module.css";
 import { renderRichText } from "@/lib/chat-render";
-import { subscribeConversation } from "@/lib/chat-realtime";
+import { subscribeConversation, subscribeTyping } from "@/lib/chat-realtime";
 import { chatTimeLabel, dayDividerLabel, isSameLocalDay } from "@/lib/chat-time";
 import { Pin, Paperclip, Image as ImageIcon, Lock, Smile } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
 
-const MAX_FILE_RAW = 450 * 1024;
+const MAX_FILE_RAW = 10 * 1024 * 1024;
 const MAX_IMAGE_RAW = 8 * 1024 * 1024;
 const MAX_DATA_URL = 700_000;
 
@@ -68,12 +68,12 @@ function fileToDataUrl(file) {
   });
 }
 
-function BubbleContent({ msg, searchQuery, isReply }) {
+function BubbleContent({ msg, searchQuery, isReply, onTag }) {
   const bubbleTextClass = isReply ? tStyles.replyBubbleText : styles.bubbleText;
 
   if (!msg.text) return null;
 
-  let content = renderRichText(msg.text);
+  let content = renderRichText(msg.text, onTag ? { onTag } : undefined);
 
   if (searchQuery) {
     const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -119,8 +119,10 @@ function BubbleContent({ msg, searchQuery, isReply }) {
   return content ? <p className={bubbleTextClass}>{content}</p> : null;
 }
 
-export default function Thread({ conversationId, uid, selfName = "You", initialMessages, canWriteChat = false }) {
+export default function Thread({ conversationId, uid, selfName = "You", initialMessages, initialHasMore = false, canWriteChat = false }) {
   const [messages, setMessages] = useState(initialMessages);
+  const [hasOlder, setHasOlder] = useState(initialHasMore);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -143,6 +145,31 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [reactionsOpen, setReactionsOpen] = useState(null);
   const [pendingId, setPendingId] = useState(null);
+  const pendingIdRef = useRef(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [mentionQuery, setMentionQuery] = useState(null);
+  const [mentionIndex, setMentionIndex] = useState(-1);
+  const mentionFetchRef = useRef(null);
+  const mentionDropdownRef = useRef(null);
+  const lastMsgIdRef = useRef(initialMessages[initialMessages.length - 1]?.id);
+
+  // Merges the freshest page into the loaded history, keeping any older
+// messages the user has paginated in. Sorted ascending by timestamp.
+  const mergeMessages = useCallback((existing, incoming) => {
+    const map = new Map();
+    for (const m of existing) if (m.id && m.id !== pendingIdRef.current) map.set(m.id, m);
+    for (const m of incoming) map.set(m.id, m);
+    return [...map.values()].sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
+  }, []);
+
+  const refreshTyping = useCallback(() => {
+    fetch(`/api/conversations/${conversationId}/typing`)
+      .then((r) => (r.ok ? r.json() : { typing: [] }))
+      .then((d) => {
+        if (Array.isArray(d.typing)) setTypingUsers(d.typing);
+      })
+      .catch(() => {});
+  }, [conversationId]);
 
   // Single refresh path: messages + read + typing + pinned. Called by the
   // realtime channel (instant) and by the polling fallback (reliability).
@@ -151,15 +178,10 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       const res = await fetch(`/api/conversations/${conversationId}/messages`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(Array.isArray(data.messages) ? data.messages : []);
+        setMessages((prev) => mergeMessages(prev, Array.isArray(data.messages) ? data.messages : []));
       }
       fetch(`/api/conversations/${conversationId}/read`, { method: "POST" }).catch(() => {});
-      fetch(`/api/conversations/${conversationId}/typing`)
-        .then((r) => (r.ok ? r.json() : { typing: [] }))
-        .then((d) => {
-          if (Array.isArray(d.typing)) setTypingUsers(d.typing);
-        })
-        .catch(() => {});
+      refreshTyping();
       fetch(`/api/conversations/${conversationId}/pinned`)
         .then((r) => (r.ok ? r.json() : { messages: [] }))
         .then((d) => {
@@ -169,7 +191,29 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     } catch {
       // transient network error — the next poll/event retries
     }
-  }, [conversationId]);
+  }, [conversationId, mergeMessages, refreshTyping]);
+
+  // Loads one more page of history BEFORE the oldest loaded message. Prepend
+  // via the timestamp-ordered merge so existing/newer messages stay put.
+  const loadOlder = useCallback(async () => {
+    if (loadingOlder || !hasOlder) return;
+    const first = messages[0];
+    const before = Number(first?.createdAt) || 0;
+    if (!before) return;
+    setLoadingOlder(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages?before=${before}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => mergeMessages(prev, Array.isArray(data.messages) ? data.messages : []));
+        setHasOlder(!!data.hasMore);
+      }
+    } catch {
+      // transient — the button stays available for another attempt
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [conversationId, messages, hasOlder, loadingOlder, mergeMessages]);
 
   // Polling fallback (used when the realtime socket is briefly unavailable).
   useEffect(() => {
@@ -207,9 +251,38 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     };
   }, [conversationId, refresh]);
 
+  // Realtime typing: the moment anyone's typing row lands, refresh the typing
+  // indicator instead of waiting for the 4s poll. Falls back to the poll.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    let disposed = false;
+    let stop = () => {};
+
+    subscribeTyping(conversationId, {
+      onEvent: () => {
+        if (!disposed && document.visibilityState !== "hidden") refreshTyping();
+      },
+    })
+      .then((s) => {
+        if (disposed) s();
+        else stop = s;
+      })
+      .catch(() => {});
+
+    return () => {
+      disposed = true;
+      stop();
+    };
+  }, [conversationId, refreshTyping]);
+
+  // Auto-scroll only when a NEW message lands at the end of the history
+  // (loading older pages changes the front, and must not yank the view).
+  useEffect(() => {
+    const lastId = messages[messages.length - 1]?.id;
+    if (lastId && lastId !== lastMsgIdRef.current) {
+      lastMsgIdRef.current = lastId;
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   useEffect(() => {
     function onPointerDown(e) {
@@ -227,6 +300,20 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     }
   }, [replyingTo]);
 
+  // Uploads a large attachment to Blob storage (server route falls back to a
+  // data URL when no BLOB token is configured). Returns the storage URL.
+  async function uploadToBlob(file) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload?kind=chat", { method: "POST", body: fd });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Couldn't upload that file");
+    }
+    const data = await res.json();
+    return data.url || data.dataUrl || "";
+  }
+
   async function handleFile(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -242,10 +329,18 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
         dataUrl = await resizeImage(file);
       } else {
         if (file.size > MAX_FILE_RAW) {
-          setAttachError("Documents must be 450 KB or smaller right now (storage is being set up).");
+          setAttachError("Documents must be 10 MB or smaller.");
           return;
         }
-        dataUrl = await fileToDataUrl(file);
+        if (file.size > MAX_DATA_URL && file.size <= MAX_FILE_RAW) {
+          dataUrl = await uploadToBlob(file);
+        } else {
+          dataUrl = await fileToDataUrl(file);
+        }
+      }
+      if (!dataUrl && dataUrl !== "") {
+        setAttachError("Couldn't attach that file.");
+        return;
       }
       if (dataUrl.length > MAX_DATA_URL) {
         setAttachError("That file is too large to attach yet — try a smaller photo or file.");
@@ -310,6 +405,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       if (attachment) tempMsg.attachment = attachment;
       setMessages((prev) => [...prev, tempMsg]);
       setPendingId(tempId);
+      pendingIdRef.current = tempId;
       setText("");
       setAttachment(null);
       setShowEmoji(false);
@@ -329,9 +425,11 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
         throw new Error(data.error || "Failed to send");
       }
       setPendingId(null);
+      pendingIdRef.current = null;
       refresh();
     } catch (err) {
       setPendingId(null);
+      pendingIdRef.current = null;
       if (tempId) setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setSendError(err.message || "Failed to send");
     } finally {
@@ -365,6 +463,31 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   }
 
   function handleKeyDown(e) {
+    if (mentionQuery && mentionSuggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev + 1) % mentionSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        if (mentionIndex >= 0 && mentionIndex < mentionSuggestions.length) {
+          e.preventDefault();
+          insertMention(mentionSuggestions[mentionIndex]);
+          return;
+        }
+        if (e.key === "Tab") return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMentions();
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend(e);
@@ -388,6 +511,77 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       fetch(`/api/conversations/${conversationId}/typing`, { method: "POST" }).catch(() => {});
     }, 400);
   }
+
+  function closeMentions() {
+    setMentionQuery(null);
+    setMentionSuggestions([]);
+    setMentionIndex(-1);
+  }
+
+  function detectMention(value, caret) {
+    if (caret == null) return null;
+    const before = value.slice(0, caret);
+    const match = before.match(/@([a-zA-Z0-9_.]{1,30})$/);
+    return match ? { start: match.index + 1, query: match[1] } : null;
+  }
+
+  function fetchMentions(q) {
+    if (mentionFetchRef.current) clearTimeout(mentionFetchRef.current);
+    mentionFetchRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/members/mention?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMentionSuggestions(Array.isArray(data.members) ? data.members : []);
+          setMentionIndex(-1);
+        } else {
+          setMentionSuggestions([]);
+        }
+      } catch {
+        setMentionSuggestions([]);
+      }
+    }, 200);
+  }
+
+  function handleComposerChange(e) {
+    const value = e.target.value;
+    setText(value);
+    handleTyping();
+    const mention = detectMention(value, e.target.selectionStart ?? value.length);
+    if (mention) {
+      setMentionQuery(mention);
+      fetchMentions(mention.query);
+    } else {
+      closeMentions();
+    }
+  }
+
+  function insertMention(member) {
+    if (!mentionQuery) return;
+    const before = text.slice(0, mentionQuery.start - 1);
+    const after = text.slice(mentionQuery.start + mentionQuery.query.length);
+    const insert = member.username || member.name || member.uid;
+    setText(`${before}@${insert} ${after}`);
+    closeMentions();
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      const pos = before.length + insert.length + 2;
+      inputRef.current?.setSelectionRange(pos, pos);
+    });
+  }
+
+  useEffect(() => {
+    function onPointerDown(e) {
+      if (mentionDropdownRef.current && !mentionDropdownRef.current.contains(e.target)) {
+        closeMentions();
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      if (mentionFetchRef.current) clearTimeout(mentionFetchRef.current);
+    };
+  }, []);
 
   async function toggleReaction(msg, emoji, e) {
     e?.stopPropagation();
@@ -498,13 +692,23 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
           <span className={tStyles.pinnedLabel}><Pin size={12} /> Pinned</span>
           {pinnedMessages.slice(0, 3).map((p) => (
             <span key={p.id} className={tStyles.pinnedChip}>
-              {(p?.senderName || "Member")}: …
+              {p?.senderName || "Member"}: <span className={tStyles.pinnedText}>{p?.text || (p?.hasAttachment ? "Photo" : "…")}</span>
             </span>
           ))}
         </div>
       )}
 
       <div className={styles.messages}>
+        {hasOlder && (
+          <button
+            type="button"
+            className={tStyles.loadOlder}
+            onClick={loadOlder}
+            disabled={loadingOlder}
+          >
+            {loadingOlder ? "Loading earlier messages…" : "Load earlier messages"}
+          </button>
+        )}
         {filteredMessages.length === 0 && (
           <p className={styles.empty}>
             {searchQuery.trim() ? "No messages match your search" : "No messages yet — say hello!"}
@@ -536,7 +740,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
                 className={isMine ? `${styles.bubble} ${styles.mine}` : styles.bubble}
               >
                 {!isMine && <p className={styles.bubbleName}>{msg?.senderName || "Member"}</p>}
-                <BubbleContent msg={msg} searchQuery={searchQuery.trim()} />
+                <BubbleContent msg={msg} searchQuery={searchQuery.trim()} onTag={(tag) => setSearchQuery(tag)} />
                 {msg.attachment?.kind === "image" && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -660,7 +864,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
                           className={`${tStyles.replyBubble} ${isReplyMine ? tStyles.replyMine : ""}`}
                         >
                           {!isReplyMine && <p className={styles.bubbleName}>{reply?.senderName || "Member"}</p>}
-                          <BubbleContent msg={reply} searchQuery={searchQuery.trim()} isReply />
+                          <BubbleContent msg={reply} searchQuery={searchQuery.trim()} isReply onTag={(tag) => setSearchQuery(tag)} />
                           <p className={styles.bubbleTime}>{chatTimeLabel(replyMillis)}</p>
                         </div>
                       </div>
@@ -752,6 +956,35 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       </div>
 
       {canWriteChat ? (
+      <div className={styles.mentionWrap}>
+        {mentionQuery && mentionSuggestions.length > 0 && (
+          <div ref={mentionDropdownRef} className={styles.mentionDropdown} role="listbox" aria-label="Mention a member">
+            {mentionSuggestions.map((member, index) => (
+              <button
+                key={member.uid}
+                type="button"
+                role="option"
+                aria-selected={index === mentionIndex}
+                className={`${styles.mentionItem} ${index === mentionIndex ? styles.mentionItemActive : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  insertMention(member);
+                }}
+                onMouseEnter={() => setMentionIndex(index)}
+              >
+                <span className={styles.mentionAvatar}>
+                  {(member.name || "?").slice(0, 1).toUpperCase()}
+                </span>
+                <span className={styles.mentionInfo}>
+                  <span className={styles.mentionName}>{member.name || member.username}</span>
+                  {member.username && (
+                    <span className={styles.mentionUsername}>@{member.username}</span>
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       <form className={styles.composer} onSubmit={handleSend}>
         <button
           type="button"
@@ -775,10 +1008,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
           rows={1}
           placeholder="Type a message…"
           value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            handleTyping();
-          }}
+          onChange={handleComposerChange}
           onKeyDown={handleKeyDown}
           maxLength={2000}
         />
@@ -796,6 +1026,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
           onChange={handleFile}
         />
       </form>
+      </div>
       ) : (
         <div className={styles.upgradePrompt}>
           <span><Lock size={16} /></span>

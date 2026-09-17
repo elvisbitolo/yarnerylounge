@@ -12,11 +12,12 @@ import styles from "./members.module.css";
 
 export const dynamic = "force-dynamic";
 
-export default async function MembersPage() {
+export default async function MembersPage({ searchParams }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
+  const params = await searchParams;
 
   const prisma = getPrisma();
 
@@ -155,6 +156,7 @@ export default async function MembersPage() {
           }}
           role={userDoc?.role}
           todayKey={todayKey}
+          initialSearch={typeof params?.q === "string" ? params.q : ""}
         />
         <BlindDateCard />
         <SimilarMembers />

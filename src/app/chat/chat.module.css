@@ -972,3 +972,96 @@
     right: 32px;
   }
 }
+
+.chatMention {
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.chatMention:hover {
+  text-decoration: underline;
+}
+
+.chatHash {
+  font-weight: 600;
+  color: #d97706;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.chatHash:hover {
+  text-decoration: underline;
+}
+
+.mentionWrap {
+  position: relative;
+}
+
+.mentionDropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 16px;
+  right: 16px;
+  z-index: 30;
+  background: #ffffff;
+  border: 1px solid #e6e6ef;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(23, 23, 28, 0.14);
+  max-height: 210px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.mentionItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.mentionItemActive {
+  background: #f4f1ff;
+}
+
+.mentionAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e8e5f5;
+  color: #5b4a9e;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mentionInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mentionName {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.mentionUsername {
+  font-size: 12px;
+  color: #8a8a98;
+}

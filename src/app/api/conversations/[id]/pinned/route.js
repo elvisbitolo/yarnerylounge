@@ -4,6 +4,7 @@ import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getConversation } from "@/lib/server/chat";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getPrisma } from "@/lib/db/prisma";
+import { decryptText } from "@/lib/server/crypto";
 import { logError } from "@/lib/server/log";
 
 export async function GET(req, { params }) {
@@ -32,6 +33,8 @@ export async function GET(req, { params }) {
       id: r.id,
       senderId: r.senderId,
       senderName: r.senderName,
+      text: typeof r.text === "string" ? decryptText(r.text) || "" : "",
+      hasAttachment: !!r.hasAttachment,
       pinnedAt: r.pinnedAt ? new Date(r.pinnedAt).getTime() : 0,
     }));
     return NextResponse.json({ messages });

@@ -143,9 +143,9 @@ const TOOLTIP_W = 300;
 const TOOLTIP_H = 400;
 const HIDE_DELAY = 220;
 
-export default function MembersDirectory({ members, viewer, role, todayKey }) {
+export default function MembersDirectory({ members, viewer, role, todayKey, initialSearch = "" }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [tab, setTab] = useState("all");
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [hover, setHover] = useState(null);

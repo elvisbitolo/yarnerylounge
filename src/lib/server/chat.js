@@ -322,6 +322,33 @@ export async function getConversation(id, uid) {
   return null;
 }
 
+function mapMessageRow(row) {
+  const rawReadBy = row.readBy && typeof row.readBy === "object" ? row.readBy : {};
+  const readBy = {};
+  for (const [k, v] of Object.entries(rawReadBy)) {
+    readBy[k] = toMillisValue(v) ?? (Number(v) || 0);
+  }
+  const msg = {
+    id: row.id,
+    conversationId: row.conversationId,
+    senderId: row.senderId,
+    senderName: row.senderName || "Member",
+    text: decryptText(row.text),
+    createdAt: toMillisValue(row.createdAt) || 0,
+    readBy,
+    parentId: row.parentId || null,
+    replyCount: row.replyCount || 0,
+    hasAttachment: !!row.hasAttachment,
+  };
+  if (row.attachment && typeof row.attachment === "object") {
+    msg.attachment = {
+      ...row.attachment,
+      dataUrl: typeof row.attachment.dataUrl === "string" ? decryptText(row.attachment.dataUrl) : row.attachment.dataUrl,
+    };
+  }
+  return msg;
+}
+
 export async function listMessages(conversationId, limitCount = 200) {
   const prisma = getPrisma();
   if (prisma) {
@@ -332,40 +359,64 @@ export async function listMessages(conversationId, limitCount = 200) {
         take: limitCount,
       });
       if (rows.length) {
-        return rows
-          .map((row) => {
-            const rawReadBy = row.readBy && typeof row.readBy === "object" ? row.readBy : {};
-            const readBy = {};
-            for (const [k, v] of Object.entries(rawReadBy)) {
-              readBy[k] = toMillisValue(v) ?? (Number(v) || 0);
-            }
-            const msg = {
-              id: row.id,
-              conversationId: row.conversationId,
-              senderId: row.senderId,
-              senderName: row.senderName || "Member",
-              text: decryptText(row.text),
-              createdAt: toMillisValue(row.createdAt) || 0,
-              readBy,
-              parentId: row.parentId || null,
-              replyCount: row.replyCount || 0,
-              hasAttachment: !!row.hasAttachment,
-            };
-            if (row.attachment && typeof row.attachment === "object") {
-              msg.attachment = {
-                ...row.attachment,
-                dataUrl: typeof row.attachment.dataUrl === "string" ? decryptText(row.attachment.dataUrl) : row.attachment.dataUrl,
-              };
-            }
-            return msg;
-          })
-          .reverse();
+        return rows.map(mapMessageRow).reverse();
       }
     } catch (err) {
       logError("chat.prisma_list_msgs_failed", { error: err.message });
     }
   }
   return [];
+}
+
+// Loads a page of top-level messages (with their replies nested) strictly
+// older than `beforeMillis`. `hasMore` reports whether even older top-level
+// messages exist, so the client can show/discover a "load earlier" affordance.
+export async function listMessagesBefore(conversationId, beforeMillis = null, limitCount = 200) {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const where = { conversationId, parentId: null };
+      if (beforeMillis) where.createdAt = { lt: new Date(beforeMillis) };
+      const parents = await prisma.conversationMessage.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limitCount,
+      });
+      const rows = parents.map(mapMessageRow).reverse();
+      if (!rows.length) return { messages: [], hasMore: false };
+
+      const parentIds = rows.map((m) => m.id);
+      const replyRows = await prisma.conversationMessage.findMany({
+        where: { conversationId, parentId: { in: parentIds } },
+        orderBy: { createdAt: "asc" },
+      });
+      const replyMap = {};
+      for (const r of replyRows) {
+        const parentId = r.parentId;
+        if (!replyMap[parentId]) replyMap[parentId] = [];
+        replyMap[parentId].push(mapMessageRow(r));
+      }
+
+      const earliest = rows[0].createdAt || 0;
+      let hasMore = false;
+      if (earliest) {
+        hasMore =
+          (await prisma.conversationMessage.count({
+            where: { conversationId, parentId: null, createdAt: { lt: new Date(earliest) } },
+          })) > 0;
+      }
+
+      const messages = rows.map((m) => ({
+        ...m,
+        replies: replyMap[m.id] || [],
+        replyCount: replyMap[m.id]?.length || m.replyCount || 0,
+      }));
+      return { messages, hasMore };
+    } catch (err) {
+      logError("chat.prisma_before_msgs_failed", { error: err.message });
+    }
+  }
+  return { messages: [], hasMore: false };
 }
 
 export async function addMessage(conversationId, sender, text, attachment = null, parentId = null) {

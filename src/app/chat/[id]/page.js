@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getConversation, listMessages, listConversations } from "@/lib/server/chat";
+import { getConversation, listMessagesBefore, listConversations } from "@/lib/server/chat";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
@@ -24,8 +24,8 @@ export default async function ConversationPage({ params }) {
     redirect("/chat");
   }
 
-  const [messages, conversations, caps] = await Promise.all([
-    listMessages(id),
+  const [messagePage, conversations, caps] = await Promise.all([
+    listMessagesBefore(id),
     listConversations(user.uid),
     getCapabilities(user.uid),
   ]);
@@ -63,7 +63,8 @@ export default async function ConversationPage({ params }) {
               conversationId={id}
               uid={user.uid}
               selfName={selfName}
-              initialMessages={messages}
+              initialMessages={messagePage.messages}
+              initialHasMore={!!messagePage.hasMore}
               canWriteChat={canWriteChat(caps) || userDoc?.role === "owner" || userDoc?.role === "moderator"}
             />
           </div>

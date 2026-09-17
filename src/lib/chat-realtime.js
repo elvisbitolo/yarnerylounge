@@ -131,3 +131,41 @@ export async function subscribeInbox({ onEvent }) {
     if (channel) channel.unsubscribe().catch(() => {});
   };
 }
+
+// Streams typing rows for one conversation so the "is typing…" indicator
+// appears the moment a member's keystroke lands, instead of on the 4s poll.
+// Typing rows hold only display data (no ciphertext), so the event payload is
+// safe to stream; callers still re-query to keep the 5s freshness window.
+export async function subscribeTyping(conversationId, { onEvent }) {
+  const token = await fetchRealtimeToken(conversationId);
+  const client = getSupabaseClient();
+
+  try {
+    await setAuthToken(client, token);
+  } catch {
+    // fall back to polling
+  }
+
+  let disposed = false;
+  const channel = client
+    .channel(`typing:${conversationId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "Typing",
+        filter: `conversationId=eq.${conversationId}`,
+        columns: ["id", "conversationId", "userId", "userName", "lastTypedAt"],
+      },
+      (payload) => {
+        if (!disposed) onEvent(payload);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    disposed = true;
+    if (channel) channel.unsubscribe().catch(() => {});
+  };
+}

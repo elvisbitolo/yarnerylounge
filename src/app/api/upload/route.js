@@ -8,6 +8,27 @@ export const maxDuration = 30;
 const AVATAR_MAX_BYTES = 4 * 1024 * 1024;
 const COVER_MAX_BYTES = 8 * 1024 * 1024;
 const PROJECT_MAX_BYTES = 10 * 1024 * 1024;
+const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
+
+const CHAT_FILE_MIME = new Set([
+  "application/octet-stream",
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/zip",
+  "application/gzip",
+  "application/json",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "video/mp4",
+  "video/webm",
+]);
 
 export async function POST(req) {
   const auth = await requireUser();
@@ -22,7 +43,8 @@ export async function POST(req) {
   const isAvatar = kind === "avatar";
   const isCover = kind === "cover";
   const isProject = kind === "project";
-  if (!isAvatar && !isCover && !isProject) {
+  const isChat = kind === "chat";
+  if (!isAvatar && !isCover && !isProject && !isChat) {
     return NextResponse.json({ error: "Unknown upload kind" }, { status: 400 });
   }
 
@@ -32,40 +54,58 @@ export async function POST(req) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const maxBytes = isProject ? PROJECT_MAX_BYTES : isCover ? COVER_MAX_BYTES : AVATAR_MAX_BYTES;
-  if ((isAvatar || isCover || isProject) && !file.type.startsWith("image/")) {
+  const isChatImage = isChat && file.type.startsWith("image/");
+  const maxBytes = isProject
+    ? PROJECT_MAX_BYTES
+    : isCover
+      ? COVER_MAX_BYTES
+      : isAvatar
+        ? AVATAR_MAX_BYTES
+        : isChatImage
+          ? CHAT_IMAGE_MAX_BYTES
+          : CHAT_FILE_MAX_BYTES;
+
+  if (isChatImage) {
+    if (file.size > CHAT_IMAGE_MAX_BYTES) {
+      return NextResponse.json({ error: `Image too large (max 8 MB)` }, { status: 400 });
+    }
+  } else if (isChat) {
+    if (!CHAT_FILE_MIME.has(file.type || "application/octet-stream")) {
+      return NextResponse.json({ error: "That file type isn't allowed yet" }, { status: 400 });
+    }
+    if (file.size > CHAT_FILE_MAX_BYTES) {
+      return NextResponse.json({ error: `File too large (max 10 MB)` }, { status: 400 });
+    }
+  } else if (!file.type.startsWith("image/")) {
     return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
   }
   if (file.size > maxBytes) {
     return NextResponse.json({ error: `File too large (max ${maxBytes / 1024 / 1024} MB)` }, { status: 400 });
   }
 
-  if (isAvatar || isCover || isProject) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    if (!isSafeImage(file.type, bytes)) {
-      return NextResponse.json({ error: "Image file could not be verified" }, { status: 400 });
-    }
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      const mime = file.type || "application/octet-stream";
-      const dataUrl = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
-      return NextResponse.json({ dataUrl });
-    }
-    const { put } = await import("@vercel/blob");
-    let ext = (file.name || "").split(".").pop() || "bin";
-    ext = (ext.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin").toLowerCase();
-    const pathname = `uploads/${kind}/${auth.user.uid}/${Date.now()}.${ext}`;
-    const freshBlob = new Blob([bytes], { type: file.type || "application/octet-stream" });
-
-    const blob = await put(pathname, freshBlob, {
-      access: "public",
-      contentType: file.type || "application/octet-stream",
-      addRandomSuffix: true,
-    });
-
-    return NextResponse.json({ url: blob.url });
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (file.type.startsWith("image/") && !isSafeImage(file.type, bytes)) {
+    return NextResponse.json({ error: "Image file could not be verified" }, { status: 400 });
+  }
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    const mime = file.type || "application/octet-stream";
+    const dataUrl = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+    return NextResponse.json({ dataUrl });
   }
 
-  return NextResponse.json({ error: "Unsupported upload kind" }, { status: 400 });
+  const { put } = await import("@vercel/blob");
+  let ext = (file.name || "").split(".").pop() || "bin";
+  ext = (ext.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin").toLowerCase();
+  const pathname = `uploads/${kind}/${auth.user.uid}/${Date.now()}.${ext}`;
+  const freshBlob = new Blob([bytes], { type: file.type || "application/octet-stream" });
+
+  const blob = await put(pathname, freshBlob, {
+    access: "public",
+    contentType: file.type || "application/octet-stream",
+    addRandomSuffix: true,
+  });
+
+  return NextResponse.json({ url: blob.url });
 }
 
 export async function DELETE(req) {

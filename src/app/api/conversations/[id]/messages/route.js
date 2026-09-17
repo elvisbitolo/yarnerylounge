@@ -35,7 +35,11 @@ function validateAttachment(attachment) {
   if (typeof dataUrl !== "string" || !dataUrl) {
     return { error: "Invalid attachment" };
   }
-  if (dataUrl.length > MAX_ATTACHMENT_LENGTH) {
+  // Large attachments are stored on Vercel Blob (uploads/chat/...) and the
+  // message only carries the public URL — still encrypted at rest like any
+  // other message field.
+  const isBlobUrl = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(dataUrl);
+  if (!isBlobUrl && dataUrl.length > MAX_ATTACHMENT_LENGTH) {
     return {
       error: "Attachment too large (max ~500 KB). Compress the file and try again.",
     };
@@ -49,12 +53,13 @@ function validateAttachment(attachment) {
     if (!IMAGE_MIME.test(cleanMime)) {
       return { error: "Only PNG, JPEG, GIF, WEBP or AVIF images are allowed" };
     }
-  } else if (kind !== "file" || !ALLOWED_FILE_MIME.has(cleanMime)) {
+  } else if (kind !== "file" || (!isBlobUrl && !ALLOWED_FILE_MIME.has(cleanMime))) {
     return { error: "That file type isn't allowed yet" };
   }
   // The payload must actually match the declared type — blocks MIME smuggling
-  // and non-data payloads (e.g. javascript: URLs).
-  if (!dataUrl.startsWith(`data:${cleanMime};base64,`)) {
+  // and non-data payloads (e.g. javascript: URLs). Blob URLs are already
+  // validated by the server-side upload route.
+  if (!isBlobUrl && !dataUrl.startsWith(`data:${cleanMime};base64,`)) {
     return { error: "Attachment payload doesn't match its file type" };
   }
   return {
@@ -87,30 +92,13 @@ export async function GET(req, { params }) {
   if (!conv) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
-  const { listMessages } = await import("@/lib/server/chat");
-  const allMessages = await listMessages(conversationId);
+  const pathUrl = new URL(req.url);
+  const beforeRaw = pathUrl.searchParams.get("before");
+  const before = beforeRaw && Number(beforeRaw) > 0 ? Number(beforeRaw) : null;
+  const { listMessagesBefore } = await import("@/lib/server/chat");
+  const { messages, hasMore } = await listMessagesBefore(conversationId, before, 200);
 
-  const topLevel = [];
-  const replyMap = {};
-
-  for (const msg of allMessages) {
-    if (msg.parentId) {
-      if (!replyMap[msg.parentId]) replyMap[msg.parentId] = [];
-      replyMap[msg.parentId].push(msg);
-    }
-  }
-
-  for (const msg of allMessages) {
-    if (!msg.parentId) {
-      topLevel.push({
-        ...msg,
-        replies: replyMap[msg.id] || [],
-        replyCount: replyMap[msg.id]?.length || msg.replyCount || 0,
-      });
-    }
-  }
-
-  return NextResponse.json({ messages: topLevel });
+  return NextResponse.json({ messages, hasMore: !!hasMore });
 }
 
 export async function POST(req, { params }) {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MessageCircle, Search, X } from "lucide-react";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
+import { subscribeInbox } from "@/lib/chat-realtime";
 import styles from "./ChatInboxButton.module.css";
 
 function timeLabel(millis) {
@@ -34,6 +35,7 @@ export default function ChatInboxButton() {
       }
       let active = true;
       let timer = null;
+      let stopInbox = () => {};
       const load = async () => {
         try {
           const response = await fetch("/api/chat/summary", { cache: "no-store" });
@@ -50,8 +52,17 @@ export default function ChatInboxButton() {
       document.addEventListener("visibilitychange", onVisible);
       load();
       timer = setInterval(load, 20_000);
+      // Instant badge updates via Realtime whenever any of the member's
+      // conversations change; the poll above is the fallback.
+      subscribeInbox({ onEvent: () => load() })
+        .then((stop) => {
+          if (!active) stop();
+          else stopInbox = stop;
+        })
+        .catch(() => {});
       cleanup = () => {
         active = false;
+        stopInbox();
         if (timer) clearInterval(timer);
         document.removeEventListener("visibilitychange", onVisible);
       };
