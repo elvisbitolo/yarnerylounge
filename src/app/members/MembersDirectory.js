@@ -157,6 +157,26 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
     []
   );
 
+  const clearAllFilters = useCallback(() => {
+    setSearch("");
+    setFilters({
+      country: "",
+      hobby: "",
+      timezone: "",
+      craft: "",
+      skillLevel: "",
+      yearsExperience: "",
+      favoriteYarnBrand: "",
+      goToYarn: "",
+      favoriteHookSize: "",
+      learningNext: "",
+      crochetTechniques: [],
+      crochetMotivation: [],
+      favoriteColors: [],
+      quiz: { ...INITIAL_QUIZ },
+    });
+  }, []);
+
   const viewportKey = useViewportKey();
   const frameRef = useRef(null);
   const [frameWidth, setFrameWidth] = useState(0);
@@ -334,7 +354,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey }) {
         <p className={styles.matchmakerTitle}>
           <span className={styles.matchmakerSparkle}>✦</span> Find Members
         </p>
-        <MemberFilters filters={filters} onChange={patchFilters} members={members} />
+        <MemberFilters filters={filters} onChange={patchFilters} onReset={clearAllFilters} members={members} />
       </div>
 
       {filtered.length === 0 ? (

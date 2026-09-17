@@ -146,7 +146,7 @@ function MultiChip({ label, count, active, onClick }) {
   );
 }
 
-export default function MemberFilters({ filters, onChange, members }) {
+export default function MemberFilters({ filters, onChange, onReset, members }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const counts = useMemo(() => {
@@ -216,6 +216,10 @@ export default function MemberFilters({ filters, onChange, members }) {
   }
 
   function clearAll() {
+    if (typeof onReset === "function") {
+      onReset();
+      return;
+    }
     onChange({
       country: "",
       hobby: "",
