@@ -10,7 +10,7 @@ const VALID_CRAFTS = ["crochet", "knitting", "weaving", "spinning", "dyeing", "e
 const VALID_PROJECTS = ["amigurumi", "garments", "blankets", "accessories", "home-decor", "baby-items", "jewelry"];
 const VALID_YARNS = ["lace-fingering", "sport-dk", "worsted-aran", "bulky-super", "no-preference"];
 const VALID_HOOKS = ["small", "medium", "large", "mixed"];
-const VALID_GOALS = ["learn", "share", "patterns", "connect", "marketplace", "challenges", "courses"];
+const VALID_GOALS = ["learn", "share", "patterns", "connect", "marketplace", "courses"];
 
 function validate(body) {
   const errors = [];

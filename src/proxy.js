@@ -24,7 +24,6 @@ const AUTH_ROUTES = [
   "/chat",
   "/host",
   "/leaderboard",
-  "/challenges",
   "/spaces",
   "/discovery",
   "/dashboard",

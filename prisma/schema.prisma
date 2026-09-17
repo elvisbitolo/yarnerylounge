@@ -97,7 +97,6 @@ typing                 Typing[]
   quizResults            QuizResult[]
   progress               Progress[]
   certificates           Certificate[]
-  challengeParticipants  ChallengeParticipant[]
   recognitionsSent       Recognition[] @relation("RecognitionFrom")
   recognitionsReceived   Recognition[] @relation("RecognitionTo")
   stickersSent           Sticker[] @relation("StickerFrom")
@@ -112,7 +111,6 @@ typing                 Typing[]
   roomsCreated           Room[]
   eventsCreated          Event[]
   coursesCreated         Course[]
-  challengesCreated      Challenge[]
   questionsCreated       Question[]
   communityQuestions     CommunityQuestion[] @relation("CommunityQuestionsAsked")
   communityAnswers       CommunityAnswer[] @relation("CommunityAnswersGiven")
@@ -911,7 +909,7 @@ model Certificate {
 }
 
 // ---------------------------------------------------------------------------
-// Challenges & gamification
+// Gamification
 // ---------------------------------------------------------------------------
 
 model Gamification {
@@ -929,39 +927,6 @@ model Gamification {
 
   user User @relation(fields: [id], references: [id])
 
-  @@index([userId])
-}
-
-model Challenge {
-  id               String    @id @default(cuid())
-  title            String
-  description      String?
-  emoji            String?
-  goal             Int?
-  startDate        DateTime?
-  endDate          DateTime?
-  participantCount Int?      @default(0)
-  createdBy        String
-  createdAt        DateTime  @default(now())
-
-  creator      User                  @relation(fields: [createdBy], references: [id])
-  participants ChallengeParticipant[]
-
-  @@index([createdBy])
-}
-
-model ChallengeParticipant {
-  id          String    @id
-  challengeId String
-  userId      String
-  userName    String?
-  progress    Int?      @default(0)
-  joinedAt    DateTime  @default(now())
-
-  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id])
-
-  @@index([challengeId])
   @@index([userId])
 }
 

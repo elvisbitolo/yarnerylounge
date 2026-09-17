@@ -123,7 +123,6 @@ export async function deleteMemberData(prisma, memberId) {
     prisma.quizResult.deleteMany({ where: { userId: memberId } }),
     prisma.progress.deleteMany({ where: { userId: memberId } }),
     prisma.certificate.deleteMany({ where: { userId: memberId } }),
-    prisma.challengeParticipant.deleteMany({ where: { userId: memberId } }),
     prisma.report.deleteMany({
       where: { OR: [{ reporterId: memberId }, { handledBy: memberId }] },
     }),
@@ -131,7 +130,6 @@ export async function deleteMemberData(prisma, memberId) {
     prisma.purchase.deleteMany({ where: { uid: memberId } }),
     prisma.spacePage.deleteMany({ where: { createdBy: memberId } }),
     prisma.question.deleteMany({ where: { createdBy: memberId } }),
-    prisma.challenge.deleteMany({ where: { createdBy: memberId } }),
     prisma.course.deleteMany({ where: { createdBy: memberId } }),
     prisma.event.deleteMany({ where: { createdBy: memberId } }),
     prisma.conversation.deleteMany({ where: { createdBy: memberId } }),

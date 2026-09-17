@@ -9,7 +9,7 @@ const CRAFTS = ["crochet", "knitting", "weaving", "spinning", "dyeing", "embroid
 const PROJECTS = ["amigurumi", "garments", "blankets", "accessories", "home-decor", "baby-items", "jewelry"];
 const YARNS = ["lace-fingering", "sport-dk", "worsted-aran", "bulky-super", "no-preference"];
 const HOOKS = ["small", "medium", "large", "mixed"];
-const GOALS = ["learn", "share", "patterns", "connect", "marketplace", "challenges", "courses"];
+const GOALS = ["learn", "share", "patterns", "connect", "marketplace", "courses"];
 
 const labels = (value) => value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
