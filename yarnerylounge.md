@@ -89,8 +89,9 @@ LiveKit surface is now gone:
   `membersOnly` (`toBool`) and `perks.listMembersOnlySessions` filters on it.
 ## Verification Commands
 
-- Lint: `npx eslint <files>` (0 errors; 1 pre-existing `<img>` warning)
-- Tests: `npm test` (221 tests — node:test on `*-core.js` mappers)
+- Lint: `npx eslint <files>` (0 errors on changed files; pre-existing warnings:
+  `window.location.assign` in `src/app/login/page.js`)
+- Tests: `npm test` (250 tests — node:test on `*-core.js` mappers)
 - Build: `npm run build`
 - Smoke test: `npm run smoke` (needs a running `next dev`; creates + cleans up a
   throwaway Supabase user; asserts session, protected reads, write/delete cycle,
@@ -120,3 +121,55 @@ LiveKit surface is now gone:
   messages into the existing moderation queue; blocked authors are filtered
   from room chat history and future loads.
 - Migration `6_match_presence_projects` is applied to production.
+
+## Phase 9 — Reliability, room chat gating & legal (September 2026)
+
+- **Supabase client dedup**: a single shared browser client (`src/lib/supabase.js`,
+  `persistSession:false`, `autoRefreshToken:false`) is re-exported by
+  `src/lib/supabase/browser.js` and used by `chat-realtime`, `auth-client` and
+  `client-auth`; `service.js` remains the server-only admin client. Kills the
+  duplicate `GoTrueClient` warning. Only two `createClient()` calls remain.
+- **Chat mobile compaction**: `--topbar-h` CSS var (60px → 48px ≤480px) plus
+  compacted header/rail/composer/search at mobile widths; desktop untouched;
+  touch targets kept ≥40px.
+- **Room event FK fix**: `mapRoomRow` adds `persisted`; canonical rooms are
+  `persisted:false`; `getRoomBySlugEnsuringAlwaysOn` treats only persisted rooms
+  as present and seeds on demand; the Jitsi token route guards
+  `roomEvent.create` behind `room.persisted` (kills the
+  `RoomEvent_roomId_fkey` join error).
+- **Lounge seeding fix ("Failed to load chat")**: `seedAlwaysOnRooms` now uses a
+  real owner/moderator `createdBy` and `null` group/space FKs (the old
+  `createdBy:"system"` / `""` values failed FK constraints, so `Room` stayed
+  empty); `listRoomsEnsuringAlwaysOn` counts only persisted rooms; new
+  `getActiveRoomEnsuring(roomKey)` seeds canonical lounges on demand and is used
+  by room chat/signals resolvers. All four lounges (Happy Hour Hub, Lo-Fi &
+  Loops, Velvet Den, Silent Studio) are seeded in production; room chat read +
+  send verified.
+- **Room chat membership gating**: single authorization choke point
+  (`requireRoomAccess` / `resolveRoomAccess` in `src/lib/server/room-access.js`)
+  wired into every room-chat surface (messages, signals, presence, reactions,
+  pins, deletes) and the room page. Always-on lounges stay public to active
+  members; staff (owner/moderator) and room host/co-host bypass; any other room
+  requires Space, then Group membership; every denial collapses to `404`
+  "Room not found" so private rooms cannot be probed. (Jitsi's own in-call chat
+  is unrelated and runs entirely on Jitsi's servers.)
+- **Room chat text color**: `.chatBubble` got an explicit near-black
+  `color:#252329` so sent and received messages are readable on the white
+  bubble (they previously inherited the shell's white); the transient
+  "sending…" bubble keeps white-on-magenta.
+- **Terms of Service placement**: `/terms` rewritten with the approved document
+  (No Self-Promotion / Zero-Tolerance / Moving-In Host Responsibilities /
+  Lifetime Ban / Platform Rights); the signup checkbox label now wraps the words
+  "Terms of Service" in the `/terms` link (en/de/fr) — the bare `{terms}` tag
+  previously rendered an empty anchor ("the of Service"); the Welcome Vault
+  pinned feed post mirrors the full Terms and self-updates existing posts when
+  the copy changes; a login/signup legal footer was added then removed per
+  product direction (final state: no footer bar — Terms stays linked from the
+  signup checkbox and the Welcome Vault).
+
+## Housekeeping
+
+- Logged-in/meetings review on the marketing page (`secretyarnery.com/pages/speakeasy`)
+  vs. the app found the feature set implemented (lounges, presence, matchmaker,
+  daily blind date, neighborhoods, mute/block, moderation, portfolio, room
+  music); branded neighborhood names and messaging live on the Shopify page.
