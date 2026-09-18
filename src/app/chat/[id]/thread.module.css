@@ -310,11 +310,21 @@
 
 @media (max-width: 560px) {
   .searchBar {
-    padding: 10px 16px;
+    padding: 8px 12px;
+  }
+
+  .searchInput {
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .searchClear {
+    height: 36px;
+    font-size: 13px;
   }
 
   .searchCount {
-    padding: 0 16px;
+    padding: 0 12px;
   }
 
   .replyInputWrap {

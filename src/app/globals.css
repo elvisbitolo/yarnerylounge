@@ -92,6 +92,16 @@
   --dash-warning: #ffc81e;
   --dash-info: #f06292;
   --dash-highlight: #ffc81e;
+
+  /* Top app bar height (shaved down on small phones). Consumed by the Nav
+     bar and by full-height layouts that must sit just below it (chat panes). */
+  --topbar-h: 60px;
+}
+
+@media (max-width: 480px) {
+  :root {
+    --topbar-h: 48px;
+  }
 }
 
 html {

@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  height: var(--topbar-h, 60px);
   padding: 0 16px;
   background: var(--dash-surface, #0d0d0d);
   border-bottom: 1px solid var(--border, #242424);
@@ -799,18 +799,23 @@
 
 @media (max-width: 480px) {
   .topbar {
-    height: 56px;
+    gap: 6px;
     padding: 0 8px;
   }
 
-  /* Drawer + backdrop sit flush under the 56px topbar on small screens. */
+  /* Drawer + backdrop sit flush under the (now 48px) topbar on small screens. */
   .sidebar,
   .backdrop {
-    top: 56px;
+    top: var(--topbar-h, 48px);
   }
 
   .brand {
     font-size: 13px;
+  }
+
+  .brandLogo {
+    width: 72px;
+    height: 22px;
   }
 
   .burger {

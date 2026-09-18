@@ -24,3 +24,12 @@
   font-size: 15px;
   line-height: 1;
 }
+
+@media (max-width: 560px) {
+  .back {
+    height: 32px;
+    padding: 0 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+}

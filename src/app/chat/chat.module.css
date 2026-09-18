@@ -488,20 +488,62 @@
     padding: 16px;
   }
 
+  /* Compact top bar: thread header (back + name + status) */
+  .threadHeader {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .threadTitle {
+    font-size: 15px;
+  }
+
+  .presenceStatus {
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  /* Compact rail head (conversation list) */
+  .railHead {
+    padding: 10px 12px 8px;
+    gap: 8px;
+  }
+
+  .railTitle {
+    font-size: 16px;
+  }
+
+  /* Compact composer: keeps every control at a 40px touch target */
   .composer {
     flex-wrap: wrap;
-    padding: 12px 16px;
+    gap: 8px;
+    padding: 10px 12px;
   }
 
   .input {
     order: -1;
     flex-basis: 100%;
+    min-height: 40px;
+    max-height: 100px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .iconBtn {
+    width: 40px;
+    height: 40px;
   }
 
   .send {
     margin-left: auto;
-    padding: 0 18px;
+    height: 40px;
+    padding: 0 16px;
+    font-size: 13px;
     white-space: nowrap;
+  }
+
+  .emojiPicker {
+    bottom: 52px;
   }
 
   .bubble {
@@ -626,7 +668,7 @@
 /* Two-pane inbox */
 .twoPane {
   display: flex;
-  height: calc(100dvh - 60px);
+  height: calc(100dvh - var(--topbar-h, 60px));
   background: #1a1a1a;
 }
 
@@ -947,7 +989,7 @@
   .twoPane {
     position: relative;
     overflow: hidden;
-    height: calc(100dvh - 60px - 72px - env(safe-area-inset-bottom));
+    height: calc(100dvh - var(--topbar-h, 60px) - 72px - env(safe-area-inset-bottom));
   }
 
   .rail {
