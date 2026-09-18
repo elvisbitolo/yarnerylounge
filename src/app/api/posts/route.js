@@ -69,24 +69,25 @@ async function computeFeedCounts({ prisma, ctx, orderBy, PASS_TAKE }) {
 
 function filterVisiblePosts(posts, ctx) {
   const {
-    followingOnly, nearOnly, spaceIdParam, groupIdParam,
+    views, spaceIdParam, groupIdParam,
     uid, followingIds, nearIds, spaceIds, groupIds,
-    blockedIds, mutedIds, filterType, searchText,
+    blockedIds, mutedIds, searchText,
   } = ctx;
   return posts.filter((data) => {
     if (data.authorId !== uid && blockedIds.has(data.authorId)) return false;
     if (data.authorId !== uid && mutedIds.has(data.authorId)) return false;
-    if (followingOnly && data.authorId !== uid && !followingIds.has(data.authorId)) return false;
-    if (nearOnly && !nearIds.has(data.authorId)) return false;
+    // Every active view must match (combined A1/AND filters).
+    if (views.has("following") && data.authorId !== uid && !followingIds.has(data.authorId)) return false;
+    if (views.has("near") && !nearIds.has(data.authorId)) return false;
+    if (views.has("mine") && data.authorId !== uid) return false;
+    if (views.has("bookmarked") && !(data.bookmarks && data.bookmarks[uid])) return false;
+    if (views.has("hosts") && data.authorRole !== "owner" && data.authorRole !== "moderator") return false;
+    if (views.has("unanswered") && (data.kind !== "question" || (data.commentCount || 0) > 0)) return false;
+    if (views.has("popular") && !(data.likes && Object.keys(data.likes).length > 0)) return false;
     if (spaceIdParam && data.spaceId !== spaceIdParam) return false;
     if (groupIdParam && data.groupId !== groupIdParam) return false;
     if (data.spaceId && !spaceIds.has(data.spaceId) && data.authorId !== uid) return false;
     if (data.groupId && !groupIds.has(data.groupId) && data.authorId !== uid) return false;
-    if (filterType === "mine" && data.authorId !== uid) return false;
-    if (filterType === "bookmarked" && !(data.bookmarks && data.bookmarks[uid])) return false;
-    if (filterType === "hosts" && data.authorRole !== "owner" && data.authorRole !== "moderator") return false;
-    if (filterType === "unanswered" && (data.kind !== "question" || (data.commentCount || 0) > 0)) return false;
-    if (filterType === "popular" && !(data.likes && Object.keys(data.likes).length > 0)) return false;
     if (searchText) {
       const hay = ((data.text || "") + " " + (data.authorName || "") + " " + (data.hashtags || []).join(" ")).toLowerCase();
       if (!hay.includes(searchText)) return false;
@@ -213,18 +214,26 @@ export async function GET(req) {
     return NextResponse.json({ error: "Active membership required" }, { status: 403 });
   }
   const url = new URL(req.url);
-  const followingOnly = url.searchParams.get("following") === "1";
-  const nearOnly = url.searchParams.get("near") === "1";
   const spaceIdParam = url.searchParams.get("spaceId") || "";
   const groupIdParam = url.searchParams.get("groupId") || "";
-  const filterType = url.searchParams.get("filter") || "";
+  // Filter views combine with AND (e.g. ?filter=hosts&filter=unanswered shows
+  // moderator posts without replies). Repeated `filter` params, plus the
+  // legacy ?following=1 / ?near=1 flags, all feed the same set.
+  const ALL_VIEWS = ["following", "near", "popular", "mine", "bookmarked", "hosts", "unanswered"];
+  const views = new Set(
+    url
+      .searchParams
+      .getAll("filter")
+      .filter((v) => ALL_VIEWS.includes(v))
+  );
+  if (url.searchParams.get("following") === "1") views.add("following");
+  if (url.searchParams.get("near") === "1") views.add("near");
   const sort = url.searchParams.get("sort") || "newest";
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20", 10) || 20, 1), 50);
 
   const ctx = {
-    followingOnly: followingOnly || filterType === "following",
-    nearOnly: nearOnly || filterType === "near",
+    views,
     spaceIdParam,
     groupIdParam,
     uid: user.uid,
@@ -234,7 +243,6 @@ export async function GET(req) {
     groupIds: new Set(),
     blockedIds: new Set(),
     mutedIds: new Set(),
-    filterType: ["mine", "bookmarked", "hosts", "unanswered", "popular"].includes(filterType) ? filterType : "",
     searchText: q,
   };
 
@@ -257,10 +265,10 @@ export async function GET(req) {
     const [spaceRows, groupRows, followRows, nearRows] = await Promise.all([
       prisma.spaceMember.findMany({ where: { userId: user.uid }, select: { spaceId: true } }),
       prisma.groupMember.findMany({ where: { userId: user.uid }, select: { groupId: true } }),
-      (ctx.followingOnly || filterType === "following")
+      (ctx.views.has("following"))
         ? prisma.follow.findMany({ where: { followerId: user.uid }, select: { followingId: true } })
         : Promise.resolve([]),
-      (ctx.nearOnly || filterType === "near") && myCountry
+      (ctx.views.has("near")) && myCountry
         ? prisma.user.findMany({ where: { country: myCountry }, select: { id: true } })
         : Promise.resolve([]),
     ]);

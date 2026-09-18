@@ -14,6 +14,8 @@ import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, 
 
 const PAGE_SIZE = 20;
 const VIRTUALIZE_AT = 150; // window virtualizer only kicks in for long feeds
+// Combinable view pills — any non-empty subset is ANDed server-side.
+const FILTER_VIEWS = ["following", "near", "popular", "mine", "bookmarked", "hosts", "unanswered"];
 
 function resizeImage(file, maxSize = 1600) {
   return new Promise((resolve, reject) => {
@@ -579,7 +581,9 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   );
   const [pollOptions, setPollOptions] = useState(EMPTY_POLL);
   const [pollDeadline, setPollDeadline] = useState("");
-  const [filter, setFilter] = useState("all");
+  // Active view pills, combinable with AND (following + unanswered, etc).
+  // Empty array means the full community feed ("all").
+  const [views, setViews] = useState([]);
   const [sort, setSort] = useState("newest");
   const [openComments, setOpenComments] = useState(new Set());
   const fileInputRef = useRef(null);
@@ -612,12 +616,12 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     []
   );
 
-  // Track the current filter in a ref so loaders capture it without forcing
+  // Track the active views in a ref so loaders capture them without forcing
   // the mount effect (or each other) to re-run on filter changes.
-  const filterRef = useRef(filter);
+  const filterRef = useRef(views);
   useEffect(() => {
-    filterRef.current = filter;
-  }, [filter]);
+    filterRef.current = views;
+  }, [views]);
 
   const cacheKeyFor = useCallback(
     (mode) => `feed:v2:${spaceId || "home"}:${groupId || "home"}:${mode}:${sortRef.current || "newest"}:${searchRef.current?.trim() || ""}`,
@@ -644,10 +648,15 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       const params = new URLSearchParams();
       if (spaceId) params.set("spaceId", spaceId);
       if (groupId) params.set("groupId", groupId);
-      if (mode === "following") params.set("following", "1");
-      if (mode === "near") params.set("near", "1");
-      if (["mine", "bookmarked", "hosts", "unanswered", "popular"].includes(mode)) {
-        params.set("filter", mode);
+      // mode is either an array of active views, or legacy strings like
+      // "all" / a single view name.
+      const viewList = Array.isArray(mode)
+        ? mode
+        : mode && mode !== "all"
+          ? [mode]
+          : [];
+      for (const v of viewList) {
+        if (FILTER_VIEWS.includes(v)) params.append("filter", v);
       }
       params.set("sort", sortRef.current || "newest");
       const q = searchRef.current?.trim();
@@ -764,7 +773,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   }, [loadingMore, hasMore, initialLoading, nextCursor, feedUrlFor, sortFeedPosts]);
 
   const checkNewPosts = useCallback(async () => {
-    if (groupId || spaceId || filterRef.current !== "all") return;
+    if (groupId || spaceId || filterRef.current.length > 0) return;
     if ((sortRef.current || "newest") !== "newest") return;
     try {
       const res = await fetch(feedUrlFor("all"));
@@ -1122,12 +1131,22 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           : t("newPost");
 
   function selectFilter(next) {
-    const prev = filter;
-    setFilter(next);
-    // Every tab is a server-backed view (mine, saved, hosts, unanswered,
-    // popular, following, near) or the full community feed — so each switch
-    // fetches its own page keyed by mode. The SWR cache keeps re-selection read-refreshing.
-    loadFirst(next);
+    let nextViews;
+    if (next === "all") {
+      nextViews = [];
+    } else {
+      nextViews = views.includes(next)
+        ? views.filter((v) => v !== next)
+        : [...views, next];
+    }
+    setViews(nextViews);
+    // Sync the ref synchronously so loadFirst picks up the new view set
+    // without waiting for the state effect.
+    filterRef.current = nextViews;
+    // Every view pill is a server-backed filter (following, near, popular,
+    // mine, saved, hosts, unanswered); pills combine with AND and each change
+    // fetches its own page keyed by the active set.
+    loadFirst(nextViews);
   }
 
   const disabledActions = !canWriteChat && !canModerate;
@@ -1391,54 +1410,62 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         />
         <div className={styles.filterTabs}>
           <button
-            className={filter === "all" ? styles.filterTabActive : styles.filterTab}
+            className={views.length === 0 ? styles.filterTabActive : styles.filterTab}
             onClick={() => selectFilter("all")}
+            aria-pressed={views.length === 0}
           >
             {t("all", { count: postCount })}
           </button>
           {!groupId && !spaceId && (
             <button
-              className={filter === "following" ? styles.filterTabActive : styles.filterTab}
+              className={views.includes("following") ? styles.filterTabActive : styles.filterTab}
               onClick={() => selectFilter("following")}
+              aria-pressed={views.includes("following")}
             >
               {t("following", { count: followingCount })}
             </button>
           )}
           {!groupId && !spaceId && (
             <button
-              className={filter === "near" ? styles.filterTabActive : styles.filterTab}
+              className={views.includes("near") ? styles.filterTabActive : styles.filterTab}
               onClick={() => selectFilter("near")}
+              aria-pressed={views.includes("near")}
             >
               {t("nearYou", { count: nearCount })}
             </button>
           )}
           <button
-            className={filter === "popular" ? styles.filterTabActive : styles.filterTab}
+            className={views.includes("popular") ? styles.filterTabActive : styles.filterTab}
             onClick={() => selectFilter("popular")}
+            aria-pressed={views.includes("popular")}
           >
             {t("popular", { count: popularCount })}
           </button>
           <button
-            className={filter === "mine" ? styles.filterTabActive : styles.filterTab}
+            className={views.includes("mine") ? styles.filterTabActive : styles.filterTab}
             onClick={() => selectFilter("mine")}
+            aria-pressed={views.includes("mine")}
           >
             {t("mine", { count: mineCount })}
           </button>
           <button
-            className={filter === "bookmarked" ? styles.filterTabActive : styles.filterTab}
+            className={views.includes("bookmarked") ? styles.filterTabActive : styles.filterTab}
             onClick={() => selectFilter("bookmarked")}
+            aria-pressed={views.includes("bookmarked")}
           >
             {t("saved", { count: bookmarkedCount })}
           </button>
           <button
-            className={filter === "hosts" ? styles.filterTabActive : styles.filterTab}
+            className={views.includes("hosts") ? styles.filterTabActive : styles.filterTab}
             onClick={() => selectFilter("hosts")}
+            aria-pressed={views.includes("hosts")}
           >
             {t("hosts")}
           </button>
           <button
-            className={filter === "unanswered" ? styles.filterTabActive : styles.filterTab}
+            className={views.includes("unanswered") ? styles.filterTabActive : styles.filterTab}
             onClick={() => selectFilter("unanswered")}
+            aria-pressed={views.includes("unanswered")}
           >
             {t("unanswered", { count: unansweredCount })}
           </button>
@@ -1480,9 +1507,9 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         <p className={styles.empty}>
           {queryText
             ? t("noPostsSearch")
-            : filter === "following"
+            : views.includes("following")
             ? t("noPostsFollowing")
-            : filter === "near"
+            : views.includes("near")
             ? t("noPostsNear")
             : spaceId
             ? t("noPostsSpace")
