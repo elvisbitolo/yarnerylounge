@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { getRoomBySlug } from "@/lib/server/rooms";
+import { getRoomBySlugEnsuringAlwaysOn } from "@/lib/server/rooms";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import {
@@ -49,7 +49,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Room required" }, { status: 400 });
     }
 
-    const room = await getRoomBySlug(slug);
+    const room = await getRoomBySlugEnsuringAlwaysOn(slug);
     if (!room || room.status !== "active") {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
@@ -168,17 +168,22 @@ export async function POST(req) {
     }
     logJwtDiagnostics(token);
 
-    const prisma = getPrisma();
-    prisma.roomEvent
-      .create({
-        data: {
-          userId: auth.user.uid,
-          roomId: room.id,
-          roomName: room.name,
-          joinedAt: new Date(),
-        },
-      })
-      .catch((err) => console.error("roomEvent.record_failed", err));
+    // Only DB-backed rooms carry a stable roomId — the canonical always-on
+    // fallback (persisted:false) has a synthetic id (the slug) that would
+    // violate RoomEvent_roomId_fkey, so joins are recorded for real rooms.
+    if (room.persisted) {
+      const prisma = getPrisma();
+      prisma.roomEvent
+        .create({
+          data: {
+            userId: auth.user.uid,
+            roomId: room.id,
+            roomName: room.name,
+            joinedAt: new Date(),
+          },
+        })
+        .catch((err) => console.error("roomEvent.record_failed", err));
+    }
 
     return NextResponse.json({
       token,

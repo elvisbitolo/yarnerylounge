@@ -5,6 +5,7 @@ export function mapRoomRow(row) {
   if (!row) return null;
   return {
     id: row.id,
+    persisted: true,
     name: row.name || "",
     slug: row.slug || row.id,
     description: row.description || "",

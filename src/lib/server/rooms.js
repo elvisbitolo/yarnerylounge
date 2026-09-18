@@ -79,10 +79,13 @@ export async function listRoomsEnsuringAlwaysOn() {
 
 // Detail read: seeds on demand only when a canonical always-on room is absent,
 // so the join page never pays for the sync pass on the happy path. Missing
-// non-canonical slugs return null (callers render "not found").
+// non-canonical slugs return null (callers render "not found"). A fallback
+// (in-memory, persisted:false) is never treated as "present" — the canonical
+// slug is seeded into Postgres so DB-backed behaviour (join events, presence,
+// the larger participant cap) works for concurrent members.
 export async function getRoomBySlugEnsuringAlwaysOn(slug) {
   const room = await getRoomBySlug(slug);
-  if (room) return room;
+  if (room?.persisted) return room;
   if (ALWAYS_ON_ROOMS.some((spec) => spec.slug === slug)) {
     await seedAlwaysOnRooms();
     return getRoomBySlug(slug);
@@ -93,6 +96,7 @@ export async function getRoomBySlugEnsuringAlwaysOn(slug) {
 function canonicalDefaultRoom(spec) {
   return {
     id: spec.slug,
+    persisted: false,
     slug: spec.slug,
     name: spec.name,
     description: spec.description,
@@ -292,6 +296,7 @@ export async function seedAlwaysOnRooms() {
   } catch {
     return ALWAYS_ON_ROOMS.map((spec) => ({
       id: spec.slug,
+      persisted: false,
       slug: spec.slug,
       name: spec.name,
       alwaysOn: true,
