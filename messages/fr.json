@@ -215,7 +215,11 @@
     "loadMore": "Charger plus",
     "loadingMore": "Chargement…",
     "couldNotLoadMore": "Impossible de charger plus de posts.",
-    "deleteConfirm": "Supprimer ce post ?"
+    "deleteConfirm": "Supprimer ce post ?",
+    "featured": "À la une",
+    "featuredEmpty": "Les posts qui reçoivent de l'amour cette semaine apparaîtront ici.",
+    "featuredReactions": "{count, plural, one {# réaction cette semaine} other {# réactions cette semaine}}",
+    "featuredReadOnly": "Annonce en lecture seule"
   },
   "onboarding": {
     "stepOf": "Étape {current} sur {total}",

@@ -95,6 +95,114 @@ function filterVisiblePosts(posts, ctx) {
   });
 }
 
+// Auto-populated "Featured" rail for the feed: moderator-pinned posts always
+// show, then the hottest recent posts (likes + reactions + 2x comments + 3x
+// poll votes, decayed by age) fill the rest.
+const FEATURED_MIN_ENGAGEMENT = 8;
+const FEATURED_HOT_WINDOW_MS = 7 * 86400000;
+const FEATURED_CANDIDATE_CAP = 400;
+const FEATURED_MAX = 5;
+
+function engagementRaw(row) {
+  return (
+    Object.keys(row.likes || {}).length +
+    Object.keys(row.reactions || {}).length +
+    2 * (row.commentCount || 0) +
+    (row.pollTotal || 0)
+  );
+}
+
+// Visibility for the rail is deliberately community-wide: blocked/muted members
+// and space/group membership still apply, but the active filter tab doesn't.
+function isFeaturedVisible(row, ctx) {
+  const uid = ctx.uid;
+  if (row.authorId !== uid && ctx.blockedIds.has(row.authorId)) return false;
+  if (row.authorId !== uid && ctx.mutedIds.has(row.authorId)) return false;
+  if (row.spaceId && !ctx.spaceIds.has(row.spaceId) && row.authorId !== uid) return false;
+  if (row.groupId && !ctx.groupIds.has(row.groupId) && row.authorId !== uid) return false;
+  return true;
+}
+
+async function computeFeatured({ prisma, ctx }) {
+  const { spaceIdParam, groupIdParam } = ctx;
+  const scope = {};
+  if (spaceIdParam) scope.spaceId = spaceIdParam;
+  if (groupIdParam) scope.groupId = groupIdParam;
+
+  // Curated: everything a moderator pinned (pinnedAt desc keeps the newest first).
+  const curated = await prisma.post.findMany({
+    where: { ...scope, pinned: true },
+    orderBy: [{ pinnedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    take: 3,
+  });
+
+  // Automatic: engagement-weighted "hot" posts from the last 7 days.
+  const since = new Date(Date.now() - FEATURED_HOT_WINDOW_MS);
+  const candidates = await prisma.post.findMany({
+    where: { ...scope, pinned: false, createdAt: { gte: since } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: FEATURED_CANDIDATE_CAP,
+  });
+
+  const now = Date.now();
+  const hot = candidates
+    .map((row) => ({ row, raw: engagementRaw(row) }))
+    .filter(({ raw }) => raw >= FEATURED_MIN_ENGAGEMENT)
+    .map(({ row, raw }) => {
+      const createdAt = row.createdAt?.getTime?.() || Number(row.createdAt) || 0;
+      const ageHours = Math.max(0, (now - createdAt) / 3600000);
+      return { row, hot: raw / Math.pow(ageHours + 2, 0.9) };
+    })
+    .sort((a, b) => b.hot - a.hot)
+    .slice(0, FEATURED_MAX);
+
+  const rows = [...curated];
+  const seen = new Set(rows.map((row) => row.id));
+  for (const { row } of hot) {
+    if (seen.has(row.id)) continue;
+    rows.push(row);
+    seen.add(row.id);
+    if (rows.length >= FEATURED_MAX) break;
+  }
+
+  return rows.filter((row) => isFeaturedVisible(row, ctx)).map(mapPostRow);
+}
+
+// Attach space/group display names to mapped posts in a couple of batched
+// queries so the client can render "in {SpaceName}" attribution without
+// denormalizing columns onto Post.
+async function attachAttribution({ prisma, posts }) {
+  if (!posts || posts.length === 0) return posts;
+  const spaceIds = [...new Set(posts.map((p) => p.spaceId).filter(Boolean))];
+  const groupIds = [...new Set(posts.map((p) => p.groupId).filter(Boolean))];
+
+  const [spaces, groups] = await Promise.all([
+    spaceIds.length
+      ? prisma.space.findMany({ where: { id: { in: spaceIds } }, select: { id: true, name: true, slug: true } })
+      : [],
+    groupIds.length
+      ? prisma.group.findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true, slug: true } })
+      : [],
+  ]);
+
+  const spaceMap = new Map(spaces.map((s) => [s.id, s]));
+  const groupMap = new Map(groups.map((g) => [g.id, g]));
+
+  for (const post of posts) {
+    const space = post.spaceId ? spaceMap.get(post.spaceId) : null;
+    const group = post.groupId ? groupMap.get(post.groupId) : null;
+    if (space) {
+      post.spaceName = space.name;
+      post.spaceSlug = space.slug;
+    }
+    if (group) {
+      post.groupName = group.name;
+      post.groupSlug = group.slug;
+    }
+  }
+  return posts;
+}
+
 export async function GET(req) {
   const user = await getCurrentUser();
   if (!user) {
@@ -228,12 +336,19 @@ export async function GET(req) {
 
     const loadCounts = !afterKey;
     let counts = null;
+    let featured = [];
     if (loadCounts) {
       try {
         counts = await computeFeedCounts({ prisma, ctx, orderBy, PASS_TAKE });
       } catch (err) {
         logError("posts.feed_counts_failed", { error: err.message });
         counts = null;
+      }
+      try {
+        featured = await computeFeatured({ prisma, ctx });
+      } catch (err) {
+        logError("posts.feed_featured_failed", { error: err.message });
+        featured = [];
       }
     }
 
@@ -242,7 +357,10 @@ export async function GET(req) {
       : visible.slice(0, limit + 1);
 
     const hasMore = paginated.length >= limit + 1;
-    const posts = paginated.slice(0, limit).map(mapPostRow);
+    const posts = await attachAttribution({
+      prisma,
+      posts: paginated.slice(0, limit).map(mapPostRow),
+    });
 
     let nextCursor = null;
     if (hasMore) {
@@ -255,7 +373,7 @@ export async function GET(req) {
       }
     }
 
-    return NextResponse.json({ posts, nextCursor, hasMore, counts });
+    return NextResponse.json({ posts, nextCursor, hasMore, counts, featured });
   } catch (err) {
     logError("posts.prisma_feed_failed", { error: err.message });
     return NextResponse.json({ error: "Failed to load posts" }, { status: 500 });

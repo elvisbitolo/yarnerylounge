@@ -627,6 +627,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   // Real counts computed server-side over the full visible feed (not just the
   // loaded page). Falls back to page-scoped numbers until the first response.
   const [counts, setCounts] = useState(null);
+  const [featured, setFeatured] = useState([]);
   const countOf = useCallback(
     (mode) => {
       if (counts && typeof counts.total === "number") {
@@ -718,6 +719,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         setNextCursor(data.nextCursor || null);
         setHasMore(Boolean(data.hasMore));
         if (data.counts) setCounts(data.counts);
+        if (data.featured) setFeatured(data.featured);
         setLoadError(false);
         writeFeedCache(mode, page);
         setNewPosts([]);
@@ -752,6 +754,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       setNextCursor(data.nextCursor || null);
       setHasMore(Boolean(data.hasMore));
       if (data.counts) setCounts(data.counts);
+      if (data.featured) setFeatured(data.featured);
     } catch (err) {
       console.error("Feed load more failed", err);
       setLoadMoreError(true);
@@ -1130,6 +1133,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const disabledActions = !canWriteChat && !canModerate;
 
   function renderPost(post) {
+    const attribution = post.spaceName ? post.spaceName : post.groupName ? post.groupName : null;
     return (
       <article key={post.id} className={styles.post} style={postCardStyle(post.kind)}>
         <div className={styles.postHeader}>
@@ -1145,7 +1149,10 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               {post.kind === "win" && <span className={styles.kindBadge}><Trophy size={13} /> {t("tabWin")}</span>}
               {post.pinned && <span className={styles.pinnedBadge}><Pin size={13} /> {t("pinned")}</span>}
             </p>
-            <p className={styles.postTime}>{timeAgo(post.createdAt)}</p>
+            <p className={styles.postTime}>
+              {timeAgo(post.createdAt)}
+              {attribution && <span className={styles.postPlace}> · {attribution}</span>}
+            </p>
           </div>
           {canModerate && (
             <button
@@ -1203,6 +1210,29 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     );
   }
 
+  function renderFeaturedPost(post) {
+    const isSystemPin = post.pinned && post.authorId === "system";
+    const engagement =
+      Object.keys(post.likes || {}).length +
+      Object.keys(post.reactions || {}).length +
+      (post.commentCount || 0) +
+      (post.pollTotal || 0);
+    return (
+      <article key={post.id} className={styles.featuredCard}>
+        <p className={styles.featuredHead}>
+          <span className={styles.featuredName}>{post.authorName || "Member"}</span>
+          {post.pinned && <span className={styles.featuredPin}>{t("pinned")}</span>}
+        </p>
+        {post.text && <p className={styles.featuredText}>{post.text}</p>}
+        <p className={styles.featuredMeta}>
+          {isSystemPin
+            ? t("featuredReadOnly")
+            : t("featuredReactions", { count: engagement })}
+        </p>
+      </article>
+    );
+  }
+
   const virtualize = posts.length > VIRTUALIZE_AT;
   const windowVirtualizer = useWindowVirtualizer({
     count: posts.length,
@@ -1211,7 +1241,8 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   });
 
   return (
-    <div className={styles.feed}>
+    <div className={styles.feedLayout}>
+      <div className={styles.feed}>
       {!canWriteChat && !canModerate ? (
         <div className={styles.upgradePrompt}>
           <svg className={styles.upgradePromptIcon} viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -1513,6 +1544,17 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       )}
 
       <p data-feed-live aria-live="polite" className={styles.liveRegion} />
+      </div>
+      {!groupId && !spaceId && (
+        <aside className={styles.rail} aria-label={t("featured")}>
+          <h2 className={styles.railTitle}>{t("featured")}</h2>
+          {featured.length === 0 ? (
+            <p className={styles.railEmpty}>{t("featuredEmpty")}</p>
+          ) : (
+            featured.map((post) => renderFeaturedPost(post))
+          )}
+        </aside>
+      )}
     </div>
   );
 }

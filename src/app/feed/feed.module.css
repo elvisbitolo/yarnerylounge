@@ -4,7 +4,7 @@
 }
 
 .container {
-  max-width: 720px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 48px 24px;
 }
@@ -381,6 +381,11 @@
   font-size: 12px;
   color: #9b9bab;
   margin: 0;
+}
+
+.postPlace {
+  color: #e91e63;
+  font-weight: 600;
 }
 
 .deletePost {
@@ -1073,6 +1078,107 @@
 .reactionPick:hover {
   background: #f0eaff;
   transform: scale(1.15);
+}
+
+.feedLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 28px;
+  align-items: start;
+}
+
+.rail {
+  position: sticky;
+  top: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.railTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9b9bab;
+}
+
+.featuredCard {
+  background: #ffffff;
+  border: 1px solid #e6e6ef;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.featuredHead {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.featuredName {
+  font-size: 13px;
+  font-weight: 800;
+  color: #17171c;
+}
+
+.featuredPin {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #b45309;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.featuredText {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #17171c;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.featuredMeta {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #9b9bab;
+}
+
+.railEmpty {
+  margin: 0;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px dashed #d8d8e3;
+  border-radius: 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #9b9bab;
+}
+
+@media (max-width: 900px) {
+  .feedLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail {
+    position: static;
+    order: -1;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 16px;
+  }
 }
 
 .feed {

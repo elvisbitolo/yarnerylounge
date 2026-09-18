@@ -215,7 +215,11 @@
     "loadMore": "Mehr laden",
     "loadingMore": "Lade mehr…",
     "couldNotLoadMore": "Weitere Beiträge konnten nicht geladen werden.",
-    "deleteConfirm": "Diesen Beitrag löschen?"
+    "deleteConfirm": "Diesen Beitrag löschen?",
+    "featured": "Hervorgehoben",
+    "featuredEmpty": "Beiträge, die diese Woche viel Liebe bekommen, erscheinen hier.",
+    "featuredReactions": "{count, plural, one {# Reaktion diese Woche} other {# Reaktionen diese Woche}}",
+    "featuredReadOnly": "Nur-Lese-Ankündigung"
   },
   "onboarding": {
     "stepOf": "Schritt {current} von {total}",

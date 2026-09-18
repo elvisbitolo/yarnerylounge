@@ -215,7 +215,11 @@
     "loadMore": "Load more",
     "loadingMore": "Loading more…",
     "couldNotLoadMore": "Couldn't load more posts.",
-    "deleteConfirm": "Delete this post?"
+    "deleteConfirm": "Delete this post?",
+    "featured": "Featured",
+    "featuredEmpty": "Posts that are getting love this week will show up here.",
+    "featuredReactions": "{count, plural, one {# reaction this week} other {# reactions this week}}",
+    "featuredReadOnly": "Read-only announcement"
   },
   "onboarding": {
     "stepOf": "Step {current} of {total}",
