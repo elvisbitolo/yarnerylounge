@@ -322,6 +322,13 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--dash-text, #f5f5f5);
+  min-width: 0;
+}
+
+.itemText {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .itemBody {

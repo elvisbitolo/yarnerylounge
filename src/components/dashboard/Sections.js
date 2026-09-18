@@ -209,7 +209,7 @@ export function RecentActivity({ data }) {
                 <span className={styles.itemSplit}>
                   <span className={styles.itemTitle}>
                     {item.actor}
-                    <span className={styles.itemMeta}> · {item.text}</span>
+                    <span className={styles.itemMeta}> · <span className={styles.itemText}>{item.text}</span></span>
                   </span>
                   <span className={styles.itemMeta}>{timeAgo(item.createdAt)}</span>
                 </span>
