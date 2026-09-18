@@ -1,0 +1,47 @@
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.brandLogo {
+  height: auto;
+  width: auto;
+  max-width: 90px;
+}
+
+.brandWord {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.link {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}

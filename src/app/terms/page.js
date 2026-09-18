@@ -3,9 +3,9 @@ import Link from "next/link";
 import styles from "./terms.module.css";
 
 export const metadata = {
-  title: "Terms of Service — Secret Yarnery",
+  title: "Terms of Service — Christa's Secret Swipe Speakeasy",
   description:
-    "The official Terms of Service for Secret Yarnery, covering membership plans, acceptable use, billing, and your rights as a member.",
+    "The official Terms of Service for Christa's Secret Speakeasy, covering the Zero-Tolerance Policy, acceptable use, host responsibilities, enforcement, and platform rights.",
 };
 
 const LANDING_URL =
@@ -13,39 +13,29 @@ const LANDING_URL =
 
 const SECTIONS = [
   {
-    heading: "Membership Tiers & Billing",
-    body:
-      "The Lounge offers three membership tiers: Flirting (free), Hooking Up, and Moving In. Paid plans are billed monthly or annually on the cycle selected at checkout and renew automatically on that plan until cancelled. You may upgrade, downgrade, or cancel your subscription at any time from Account → Membership. If a payment cannot be collected, access pauses automatically until the next successful payment.",
-  },
-  {
-    heading: "Our Community Standard: The Zero-Tolerance Policy",
-    body:
-      "Christa's Secret Yarnery Lounge is built to be a fun, high-energy, and welcoming space for every member. To protect that space, we enforce a strict Zero-Tolerance Policy: the rules in Sections 3 and 4 carry an immediate, permanent lifetime ban with no refunds. Membership is a privilege, not a right, and every member — regardless of tier — is held to the same standard of conduct.",
-  },
-  {
     heading: "No Self-Promotion, Advertising, or Selling",
     body:
-      "This community is a sanctuary for connection and crafting — not a marketplace or a billboard. What is prohibited: You may not sell patterns, finished objects, yarn, courses, or services; you may not post affiliate links or links to your own commercial shops (on Etsy, Shopify, or elsewhere); and you may not promote external Facebook groups, Discord servers, or subscription platforms. What is welcome: Sharing your personal, non-commercial works-in-progress to celebrate your progress with the community. Penalty: Immediate lifetime ban on the first offence.",
+      "This community is a sanctuary for connection and crafting, not a marketplace or billboard. What is banned: you may not sell patterns, finished objects, yarn, courses, or services; you may not post affiliate links, link to your own commercial shops (Etsy, Shopify, etc.), or promote external Facebook groups, Discord servers, or subscription platforms. What is allowed: sharing your personal, non-commercial works-in-progress (WIPs) to celebrate your progress with the group. Penalty: Immediate lifetime ban on the first offense.",
   },
   {
     heading: "Zero Tolerance for Bullying, Harassment, or Negativity",
     body:
-      "We are committed to a supportive environment in every corner of the Lounge — the live video lounges, chat, and community boards alike. What is prohibited: Bullying, hate speech, body shaming, racism, sexism, personal attacks, passive-aggressive comments, and criticism of another member's skill level. Uninvited criticism or policing of other members inside live video streams is likewise strictly prohibited. Penalty: Immediate lifetime ban on the first offence.",
+      "We are dedicated to a welcoming and supportive environment. What is banned: any form of bullying, hate speech, body shaming, racism, sexism, or personal attacks will not be tolerated. This includes passive-aggressive comments, criticizing another member's skill level, or bringing toxic drama into the live video lounges and chat boards. Live Lounge Safety: uninvited criticism or policing of other members while inside live video streams is strictly prohibited. Penalty: Immediate lifetime ban on the first offense.",
   },
   {
-    heading: "“Moving In” Host Responsibilities",
+    heading: "“Moving In” Host Responsibilities & Abuse of Power",
     body:
-      "Moving In members have the privilege of creating and hosting live video lounges and sub-groups. With that privilege comes responsibility: hosts must keep their lounges safe, welcoming, and on-topic; they may never use their lounges or sub-groups to promote products, run unapproved businesses, or exclude or harass other paying members. Christa and the Lounge administration reserve the right to shut down any member-created lounge or group at any time, for any reason.",
+      "Members of the Moving In tier have the privilege to create and host their own live video rooms and sub-groups. With this power comes strict responsibility. Hosts must keep their rooms safe, welcoming, and on-topic. Hosts may never use their live rooms or sub-groups to promote products, run unapproved businesses, or exclude/harass other paying members. Christa and the Lounge administration reserve the right to shut down any member-created room or group at any time, for any reason.",
   },
   {
-    heading: "Enforcement: Lifetime Ban & No-Refund Policy",
+    heading: "Direct Enforcement: The Lifetime Ban & No-Refund Policy",
     body:
-      "We protect our culture fiercely. If the moderation team determines that you have violated these Terms, your account will be deleted immediately. You will be banned for life and will not be allowed to re-join the community under any email address or alias. No refunds will be issued: by breaking the community contract, you forfeit any remaining time on your monthly or annual subscription.",
+      "To keep the lounge crowded with the best people, we protect our culture fiercely. If the moderation team determines that you have violated these Terms of Service, your account will be deleted immediately. You will be banned for life. You will never be allowed to re-join the community under any email address or alias. Absolutely no refunds will be issued: by breaking the community contract, you forfeit any remaining time on your monthly or annual subscription fee.",
   },
   {
     heading: "Platform Rights & Changes",
     body:
-      "Christa's Lounge reserves the right to modify these Terms or adjust subscription structures at any time to ensure the safety and longevity of the community. Material changes will be announced inside the Lounge. Continued use of the platform after changes are posted constitutes acceptance of the new Terms.",
+      "Christa's Lounge reserves the right to modify these rules or adjust subscription structures at any time to ensure the safety and longevity of the community. Continued use of the platform after changes are posted constitutes acceptance of the new terms.",
   },
 ];
 
@@ -73,23 +63,20 @@ export default function TermsPage() {
       <div className={styles.card}>
         <p className={styles.kicker}>Legal</p>
         <h1 className={styles.title}>Terms of Service</h1>
-        <p className={styles.updated}>Effective date: September 1, 2026 · Last updated: September 2026</p>
+        <p className={styles.updated}>Effective date: September 18, 2026 · Last updated: September 2026</p>
 
         <div className={styles.intro}>
           <p>
-            Welcome to Christa&apos;s Secret Yarnery Lounge — a private, members-only
-            sanctuary built for crafters. These Terms of Service (“Terms”) govern
-            your access to the Lounge and everything in it, including the
-            Flirting, Hooking Up, and Moving In membership tiers, the 24/7 live
-            video lounges, community groups, the matching calendar, courses, and
-            events. By creating an account, ticking the “I agree” box, or
-            purchasing a membership, you confirm that you have read, understood,
-            and agree to be bound by these Terms.
+            Welcome to the Lounge! By subscribing to or entering Christa&apos;s
+            Secret Speakeasy — including the Flirting, Hooking Up, and Moving In
+            tiers — you explicitly agree to follow these Terms of Service.
           </p>
-          <p className={styles.confirmation}>
-            These Terms apply to all members — the free Flirting tier included —
-            from the moment you enter the Lounge. If you do not agree, please do
-            not create an account or use the platform.
+          <p>
+            Our goal is to maintain a fun, high-energy, and welcoming environment
+            for all members. To protect this space, we enforce a strict
+            Zero-Tolerance Policy. Violation of any of the core rules below will
+            result in an immediate, permanent lifetime ban with absolutely no
+            refunds.
           </p>
         </div>
 
@@ -105,8 +92,8 @@ export default function TermsPage() {
 
         <p className={styles.footer}>
           Questions about these Terms? Contact{" "}
-          <a className={styles.link} href="mailto:hello@christa-patel.com">
-            hello@christa-patel.com
+          <a className={styles.link} href="mailto:christa@secretyarnery.com">
+            christa@secretyarnery.com
           </a>
         </p>
 

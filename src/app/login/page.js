@@ -17,6 +17,7 @@ import {
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
+import LegalFooter from "@/components/LegalFooter";
 import styles from "../auth.module.css";
 
 const LANDING_URL =
@@ -326,6 +327,7 @@ export default function LoginPage() {
             <p className={styles.loadText}>{t("signingIn")}</p>
           </div>
         )}
+        <LegalFooter />
       </main>
     );
   }
@@ -401,6 +403,7 @@ export default function LoginPage() {
           <p className={styles.loadText}>{busy === "verify" ? t("resending") : t("sendResetLink")}</p>
         </div>
       )}
+      <LegalFooter />
     </main>
   );
 }
@@ -495,6 +498,7 @@ export default function LoginPage() {
         </div>
         <AuthAside />
       </div>
+      <LegalFooter />
     </main>
   );
 }
