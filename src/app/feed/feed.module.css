@@ -267,7 +267,6 @@
 }
 
 .pinBtn {
-  margin-left: auto;
   padding: 6px 12px;
   background: #ffffff;
   border: 1px solid #e6e6ef;
@@ -351,9 +350,23 @@
 
 .postHeader {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.postHeaderInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.postHeaderActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .avatar {
@@ -375,6 +388,10 @@
   font-weight: 700;
   color: #17171c;
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
 .postTime {
@@ -389,7 +406,6 @@
 }
 
 .deletePost {
-  margin-left: auto;
   padding: 6px 12px;
   background: #ffffff;
   border: 1px solid #fecaca;
@@ -1171,6 +1187,17 @@
 
   .post {
     padding: 16px;
+  }
+
+  .pinBtn,
+  .deletePost,
+  .report {
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .postHeaderActions {
+    gap: 5px;
   }
 }
 

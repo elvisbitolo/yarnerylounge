@@ -1377,7 +1377,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           <div className={styles.avatar}>
             {(post.authorName || "?").slice(0, 1).toUpperCase()}
           </div>
-          <div>
+          <div className={styles.postHeaderInfo}>
             <p className={styles.postAuthor}>
               {post.authorName}
               {post.kind === "announcement" && <span className={styles.kindBadge}><ScrollText size={13} /> {t("announcement")}</span>}
@@ -1391,27 +1391,29 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               {attribution && <span className={styles.postPlace}> · {attribution}</span>}
             </p>
           </div>
-          {canModerate && (
-            <button
-              className={styles.pinBtn}
-              onClick={() => handlePin(post.id)}
-              title={post.pinned ? t("unpinPost") : t("pinPost")}
-            >
-              {post.pinned ? t("unpin") : t("pin")}
-            </button>
-          )}
-          {(post.authorId === uid || (canModerate && post.authorId !== "system")) && (
-            <button
-              className={styles.deletePost}
-              onClick={() => handleDelete(post.id)}
-              title={t("deletePost")}
-            >
-              {t("delete")}
-            </button>
-          )}
-          {post.authorId !== uid && post.authorId !== "system" && (
-            <ReportButton type="post" targetId={post.id} />
-          )}
+          <div className={styles.postHeaderActions}>
+            {canModerate && (
+              <button
+                className={styles.pinBtn}
+                onClick={() => handlePin(post.id)}
+                title={post.pinned ? t("unpinPost") : t("pinPost")}
+              >
+                {post.pinned ? t("unpin") : t("pin")}
+              </button>
+            )}
+            {(post.authorId === uid || (canModerate && post.authorId !== "system")) && (
+              <button
+                className={styles.deletePost}
+                onClick={() => handleDelete(post.id)}
+                title={t("deletePost")}
+              >
+                {t("delete")}
+              </button>
+            )}
+            {post.authorId !== uid && post.authorId !== "system" && (
+              <ReportButton type="post" targetId={post.id} />
+            )}
+          </div>
         </div>
         {post.text && <p className={styles.postText}>{renderMentions(post.text)}</p>}
         {post.kind === "poll" && (
