@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v8";
+const VERSION = "v9";
 
 // NEVER touch API requests: a cached /api/me JSON that carries a uid replays
 // long after the session cookie is gone, which makes reconcileSessionCookie()
