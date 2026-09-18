@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 // Real-time chat: streams Postgres changes for a conversation over Supabase
 // Realtime (WebSockets). Writes stay on the normal API -> Postgres path (the
@@ -22,20 +22,8 @@ const EVENT_COLUMNS = [
 // Conversation rows stream with only ordering-safe columns (no ciphertext).
 const CONVERSATION_COLUMNS = ["id", "updatedAt", "lastMessageAt"];
 
-let cachedClient = null;
-
 function getSupabaseClient() {
-  if (cachedClient) return cachedClient;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  cachedClient = createClient(url || "", anon || "", {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  });
-  return cachedClient;
+  return supabase;
 }
 
 async function fetchRealtimeToken(conversationId) {

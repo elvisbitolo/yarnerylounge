@@ -1,4 +1,4 @@
-import { supabaseBrowser } from "@/lib/supabase/browser";
+import { supabase } from "@/lib/supabase";
 import { forgetCachedMembership } from "@/lib/membership";
 import { beginExplicitLogout } from "@/lib/auth-client";
 
@@ -97,7 +97,7 @@ export async function checkPaidSignup(email) {
 }
 
 export async function loginWithSupabaseEmail(email, password) {
-  const { data, error } = await supabaseBrowser.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -124,7 +124,7 @@ export async function loginWithSupabaseEmail(email, password) {
 }
 
 export async function loginWithGoogle() {
-  await supabaseBrowser.auth.signInWithOAuth({
+  await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       scopes: "profile email openid",
@@ -136,7 +136,7 @@ export async function loginWithGoogle() {
 }
 
 export async function loginWithSupabaseGoogle() {
-  const { error } = await supabaseBrowser.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       scopes: "profile email openid",
@@ -149,7 +149,7 @@ export async function loginWithSupabaseGoogle() {
 }
 
 export async function signupWithSupabaseEmail(name, email, password) {
-  const { data, error } = await supabaseBrowser.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -171,7 +171,7 @@ export async function signupWithSupabaseEmail(name, email, password) {
 export async function signupWithEmail(name, email, password) {
   await checkPaidSignup(email);
   await signupWithSupabaseEmail(name, email, password);
-  const { data } = supabaseBrowser.auth.getSession();
+  const { data } = supabase.auth.getSession();
   if (data?.session?.access_token) {
     try {
       await createSession({
@@ -187,7 +187,7 @@ export async function signupWithEmail(name, email, password) {
 }
 
 export async function signupWithGoogle() {
-  await supabaseBrowser.auth.signInWithOAuth({
+  await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       scopes: "profile email openid",
@@ -199,7 +199,7 @@ export async function signupWithGoogle() {
 }
 
 export async function completeSupabaseGoogle() {
-  const { data } = supabaseBrowser.auth.getSession();
+  const { data } = supabase.auth.getSession();
   let session = data?.session;
   // Supabase parses the OAuth URL fragment asynchronously after the redirect
   // returns, so getSession() can be empty on first read even though the tokens
@@ -207,7 +207,7 @@ export async function completeSupabaseGoogle() {
   if (!session?.access_token) {
     for (let attempt = 0; attempt < 30 && !session?.access_token; attempt++) {
       await new Promise((r) => setTimeout(r, 100));
-      session = (await supabaseBrowser.auth.getSession()).data?.session;
+      session = (await supabase.auth.getSession()).data?.session;
     }
   }
   if (!session?.access_token) {
@@ -223,7 +223,7 @@ export async function completeSupabaseGoogle() {
 export async function sendPasswordReset(email) {
   const clean = String(email || "").trim();
   if (!clean) throw new Error("Enter your email address");
-  const { error } = await supabaseBrowser.auth.resetPasswordForEmail(clean, {
+  const { error } = await supabase.auth.resetPasswordForEmail(clean, {
     redirectTo: `${APP_URL}/login`,
   });
   if (error) throw supabaseError(error);
@@ -241,10 +241,10 @@ export function isPasswordRecovery() {
 // then exchanges the Supabase session for the httpOnly cookie so the member
 // lands straight inside the app without signing in again.
 export async function completePasswordRecovery(newPassword) {
-  const { error } = await supabaseBrowser.auth.updateUser({ password: newPassword });
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw supabaseError(error);
 
-  const { data } = await supabaseBrowser.auth.getSession();
+  const { data } = await supabase.auth.getSession();
   const session = data?.session;
   if (!session?.access_token) return false;
 
@@ -256,7 +256,7 @@ export async function completePasswordRecovery(newPassword) {
 }
 
 export async function resendSignupVerification(email) {
-  const { error } = await supabaseBrowser.auth.resend({
+  const { error } = await supabase.auth.resend({
     type: "signup",
     email,
     options: { emailRedirectTo: `${APP_URL}/login` },
@@ -271,7 +271,7 @@ export async function refreshSupabaseSession() {
   // auto-refreshing client (instead of forcing a fresh sign-in).
   let body = {};
   try {
-    const { data } = await supabaseBrowser.auth.getSession();
+    const { data } = await supabase.auth.getSession();
     if (data?.session?.access_token) {
       body = {
         accessToken: data.session.access_token,
@@ -290,13 +290,13 @@ export async function refreshSupabaseSession() {
 }
 
 export async function logout() {
-  forgetCachedMembership(supabaseBrowser.auth.getUser()?.user?.id);
+  forgetCachedMembership(supabase.auth.getUser()?.user?.id);
   // Tell the auth shim this is a deliberate sign-out BEFORE signOut() fires the
   // null-session event, so it doesn't race /api/me and keep the SPA signed in
   // while the cookie is still being cleared.
   beginExplicitLogout();
   try {
-    await supabaseBrowser.auth.signOut();
+    await supabase.auth.signOut();
   } catch {
     // best-effort
   }
@@ -304,9 +304,9 @@ export async function logout() {
 }
 
 export async function refreshSession() {
-  const { data } = await supabaseBrowser.auth.getSession();
+  const { data } = await supabase.auth.getSession();
   if (!data?.session?.access_token) {
-    const user = supabaseBrowser.auth.getUser()?.user;
+    const user = supabase.auth.getUser()?.user;
     if (!user) return false;
     forgetCachedMembership(user.id);
     return false;

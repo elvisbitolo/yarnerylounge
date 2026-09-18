@@ -4,7 +4,7 @@
 // the httpOnly session cookie as the ultimate source of truth.
 "use client";
 
-import { supabaseBrowser } from "@/lib/supabase/browser";
+import { supabase } from "@/lib/supabase";
 
 function toAuthUser(sbUser) {
   if (!sbUser) return null;
@@ -68,7 +68,7 @@ async function serverSessionUser() {
 // with the recovered session (INITIAL_SESSION), then on every change. Returns
 // an unsubscribe function.
 export function onAuthStateChanged(_auth, callback) {
-  const { data } = supabaseBrowser.auth.onAuthStateChange(async (_event, session) => {
+  const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
     const user = toAuthUser(session?.user || null);
     const gen = ++emitGen;
     if (user) {
