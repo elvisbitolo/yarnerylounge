@@ -5,8 +5,8 @@
   padding: 3px 14px;
   font-size: 11px;
   font-weight: 600;
-  color: #8b8b9b;
-  background: rgba(23, 23, 28, 0.04);
+  color: #9a9aa8;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
 }
 
@@ -25,7 +25,7 @@
   position: relative;
   margin-left: 28px;
   padding-left: 18px;
-  border-left: 2px solid #e6e6ef;
+  border-left: 2px solid #2b2b33;
 }
 
 @media (max-width: 560px) {
@@ -39,10 +39,10 @@
   max-width: 75%;
   padding: 8px 12px;
   border-radius: 12px;
-  background: #f3f3f8;
+  background: #26262e;
   align-self: flex-start;
   font-size: 13px;
-  color: #17171c;
+  color: #f2f2f2;
 }
 
 .replyMine {
@@ -57,7 +57,7 @@
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
-  color: #17171c;
+  color: #f2f2f2;
 }
 
 .replyBubbleText strong {
@@ -66,7 +66,7 @@
 
 .replyBubbleText em {
   font-style: italic;
-  color: #17171c;
+  color: #f2f2f2;
 }
 
 .replyBubbleText a {
@@ -105,7 +105,7 @@
 
 .replyBtn:hover {
   color: var(--primary);
-  background: #f0eaff;
+  background: #2b2b35;
 }
 
 .mine .replyBtn {
@@ -125,7 +125,7 @@
   margin-top: 4px;
   padding: 2px 8px;
   border: none;
-  background: #f0eaff;
+  background: rgba(233, 30, 99, 0.18);
   color: var(--primary);
   font-size: 12px;
   font-weight: 600;
@@ -135,7 +135,7 @@
 }
 
 .replyCountBadge:hover {
-  background: #ede9fe;
+  background: rgba(233, 30, 99, 0.28);
 }
 
 /* Reply input */
@@ -151,12 +151,12 @@
   min-height: 36px;
   max-height: 90px;
   padding: 7px 12px;
-  border: 1px solid #d8d8e3;
+  border: 1px solid #3a3a45;
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.4;
   color: #f5f5f5;
-  background: #2a2a2a;
+  background: #24242b;
   outline: none;
   font-family: inherit;
   resize: none;
@@ -194,8 +194,8 @@
   height: 36px;
   padding: 0 12px;
   background: none;
-  color: #9b9bab;
-  border: 1px solid #d8d8e3;
+  color: #9a9aa8;
+  border: 1px solid #3a3a45;
   border-radius: 8px;
   font-size: 13px;
   cursor: pointer;
@@ -204,8 +204,8 @@
 }
 
 .replyCancel:hover {
-  color: #17171c;
-  border-color: #9b9bab;
+  color: #f2f2f2;
+  border-color: #9a9aa8;
 }
 
 /* Search bar */
@@ -213,18 +213,18 @@
   display: flex;
   gap: 8px;
   padding: 12px 24px;
-  border-bottom: 1px solid #e6e6ef;
+  border-bottom: 1px solid #27272a;
 }
 
 .searchInput {
   flex: 1;
   height: 38px;
   padding: 0 12px;
-  border: 1px solid #d8d8e3;
+  border: 1px solid #3a3a45;
   border-radius: 10px;
   font-size: 13px;
   color: #f5f5f5;
-  background: #2a2a2a;
+  background: #24242b;
   outline: none;
   transition: border-color 0.15s ease;
 }
@@ -236,19 +236,19 @@
 .searchClear {
   height: 38px;
   padding: 0 12px;
-  border: 1px solid #d8d8e3;
+  border: 1px solid #3a3a45;
   background: none;
   border-radius: 10px;
   font-size: 13px;
-  color: #9b9bab;
+  color: #9a9aa8;
   cursor: pointer;
   flex-shrink: 0;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .searchClear:hover {
-  color: #17171c;
-  border-color: #9b9bab;
+  color: #f2f2f2;
+  border-color: #9a9aa8;
 }
 
 .searchCount {
@@ -264,12 +264,12 @@
 /* Rich text in bubbles */
 .bubbleText strong {
   font-weight: 700;
-  color: #17171c;
+  color: #f2f2f2;
 }
 
 .bubbleText em {
   font-style: italic;
-  color: #17171c;
+  color: #f2f2f2;
 }
 
 .bubbleText a {
@@ -340,17 +340,17 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border: 1px solid #e0e0ea;
+  border: 1px solid #3a3a45;
   border-radius: 999px;
-  background: #fff;
-  color: #555;
+  background: #1f1f26;
+  color: #d7d7dd;
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
 }
 
 .reactionChip:hover {
-  background: #f6f6fb;
+  background: #2b2b35;
   transform: translateY(-1px);
 }
 
@@ -361,7 +361,7 @@
   padding: 2px 8px;
   border: 1px solid var(--primary);
   border-radius: 999px;
-  background: #f0eaff;
+  background: rgba(233, 30, 99, 0.2);
   color: var(--primary);
   font-size: 12px;
   font-weight: 600;
@@ -381,10 +381,10 @@
   gap: 4px;
   margin-top: 6px;
   padding: 6px;
-  border: 1px solid #e6e6ef;
+  border: 1px solid #2b2b33;
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 8px 20px rgba(9, 12, 38, 0.08);
+  background: #1f1f26;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
 .reactionPick {
@@ -399,7 +399,7 @@
 }
 
 .reactionPick:hover {
-  background: #f0eaff;
+  background: #2b2b35;
   transform: scale(1.15);
 }
 
@@ -411,8 +411,8 @@
   margin-top: 4px;
   padding: 2px 8px;
   border: none;
-  background: #fff7e6;
-  color: #d97706;
+  background: #33291a;
+  color: #ffb24d;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -438,8 +438,8 @@
   align-items: center;
   gap: 10px;
   padding: 8px 24px;
-  border-bottom: 1px solid #e6e6ef;
-  background: #fffdf5;
+  border-bottom: 1px solid #2b2b33;
+  background: #241f16;
   overflow-x: auto;
   white-space: nowrap;
 }
@@ -447,14 +447,14 @@
 .pinnedLabel {
   font-size: 12px;
   font-weight: 700;
-  color: #d97706;
+  color: #ffb24d;
   flex-shrink: 0;
 }
 
 .pinnedChip {
   font-size: 12px;
-  color: #8a6d3b;
-  background: #fff3d6;
+  color: #e2b356;
+  background: #33291a;
   padding: 3px 10px;
   border-radius: 999px;
   flex-shrink: 0;
@@ -473,10 +473,10 @@
   display: block;
   margin: 10px auto 4px;
   padding: 7px 16px;
-  border: 1px solid #d8d8e3;
+  border: 1px solid #3a3a45;
   border-radius: 999px;
-  background: #ffffff;
-  color: #5b4a9e;
+  background: #1f1f26;
+  color: #b79bff;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -484,7 +484,7 @@
 
 .loadOlder:hover:not(:disabled) {
   border-color: var(--primary);
-  background: #f4f1ff;
+  background: #2b2b35;
 }
 
 .loadOlder:disabled {
