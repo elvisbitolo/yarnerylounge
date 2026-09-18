@@ -136,6 +136,7 @@
   flex-direction: column;
   gap: 4px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   min-height: 0;
   -webkit-overflow-scrolling: touch;
 }
