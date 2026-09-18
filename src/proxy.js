@@ -46,7 +46,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline';
   img-src 'self' blob: data: https:;
   font-src 'self';
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.bigdatacloud.net;
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.bigdatacloud.net https://api-bdc.io;
   frame-src 'self' https://8x8.vc https://*.8x8.vc https://www.youtube.com https://youtube.com;
   object-src 'none';
   base-uri 'self';

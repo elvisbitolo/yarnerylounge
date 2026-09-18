@@ -924,7 +924,11 @@ export default function ProfileEditor({ initial, memberId }) {
         setNotice("We couldn't work out your exact country — pick it from the list instead.");
       }
     } catch (err) {
-      setError(err.message || "Couldn't detect your location.");
+      if (err instanceof TypeError) {
+        setError("Location lookup failed — please check your connection and try again.");
+      } else {
+        setError(err.message || "Couldn't detect your location.");
+      }
     } finally {
       setLocating(false);
     }
