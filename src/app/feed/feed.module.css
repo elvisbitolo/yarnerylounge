@@ -1502,7 +1502,7 @@
   text-align: center;
   font-size: 13px;
   font-weight: 600;
-  color: #9b9bab;
+  color: rgba(255, 255, 255, 0.6);
   padding: 8px 0 4px;
   margin: 0;
 }
