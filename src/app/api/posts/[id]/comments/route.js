@@ -33,6 +33,13 @@ export async function GET(req, { params }) {
       orderBy: { createdAt: "asc" },
       take: Math.min(limit, 500),
     });
+    const authorIds = [...new Set(rows.map((r) => r.authorId).filter(Boolean))];
+    const [authorRows] = await Promise.all([
+      authorIds.length
+        ? prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, role: true } })
+        : Promise.resolve([]),
+    ]);
+    const roles = new Map(authorRows.map((a) => [a.id, a.role]));
     const comments = rows.map((r) => {
       const createdAt =
         r.createdAt && typeof r.createdAt.toMillis === "function"
@@ -46,6 +53,7 @@ export async function GET(req, { params }) {
         authorName: r.authorName,
         text: r.text,
         reactions: r.reactions,
+        authorRole: roles.get(r.authorId) || "",
         createdAt,
       };
     });

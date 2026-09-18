@@ -71,7 +71,7 @@ function filterVisiblePosts(posts, ctx) {
   const {
     views, spaceIdParam, groupIdParam,
     uid, followingIds, nearIds, spaceIds, groupIds,
-    blockedIds, mutedIds, searchText,
+    blockedIds, mutedIds, searchText, commentMatchPostIds,
   } = ctx;
   return posts.filter((data) => {
     if (data.authorId !== uid && blockedIds.has(data.authorId)) return false;
@@ -90,7 +90,9 @@ function filterVisiblePosts(posts, ctx) {
     if (data.groupId && !groupIds.has(data.groupId) && data.authorId !== uid) return false;
     if (searchText) {
       const hay = ((data.text || "") + " " + (data.authorName || "") + " " + (data.hashtags || []).join(" ")).toLowerCase();
-      if (!hay.includes(searchText)) return false;
+      const matchesOwn = hay.includes(searchText);
+      const matchesComment = commentMatchPostIds.has(data.id);
+      if (!matchesOwn && !matchesComment) return false;
     }
     return true;
   });
@@ -204,6 +206,87 @@ async function attachAttribution({ prisma, posts }) {
   return posts;
 }
 
+// Interleave the latest articles and upcoming events into the home timeline's
+// first page (default newest view only) as hybrid feed items, matching the
+// design mock. Load-more continues over posts alone.
+const TIMELINE_ARTICLES = 3;
+const TIMELINE_EVENTS = 3;
+
+function toMillis(v) {
+  if (!v) return 0;
+  if (typeof v.toMillis === "function") return v.toMillis();
+  return v instanceof Date ? v.getTime() : Number(v) || 0;
+}
+
+async function attachTimelineItems({ prisma, posts, opts }) {
+  const { sort, afterKey, spaceIdParam, groupIdParam, views } = opts;
+  if (afterKey || sort !== "newest" || spaceIdParam || groupIdParam || views.size > 0) {
+    return posts;
+  }
+
+  const [articles, events] = await Promise.all([
+    prisma.article.findMany({ orderBy: { createdAt: "desc" }, take: TIMELINE_ARTICLES }),
+    prisma.event.findMany({
+      where: { startTime: { gte: new Date() } },
+      orderBy: { startTime: "asc" },
+      take: TIMELINE_EVENTS,
+    }),
+  ]);
+
+  const hostIds = [...new Set(events.map((e) => e.createdBy).filter(Boolean))];
+  const hosts = hostIds.length
+    ? await prisma.user.findMany({ where: { id: { in: hostIds } }, select: { id: true, name: true } })
+    : [];
+  const hostNames = new Map(hosts.map((h) => [h.id, h.name]));
+
+  const now = Date.now();
+  const articleItems = articles.map((row) => ({
+    id: `article:${row.id}`,
+    kind: "article",
+    title: row.title || "",
+    authorId: row.authorId,
+    authorName: row.authorName || "Member",
+    coverImage: row.coverImage || "",
+    readTime: row.readTime || 1,
+    text: row.excerpt || "",
+    likes: row.likes || {},
+    reactions: {},
+    commentCount: 0,
+    pinned: false,
+    createdAt: toMillis(row.createdAt) || now,
+  }));
+
+  const eventItems = events.map((row) => {
+    const startTime = toMillis(row.startTime);
+    return {
+      id: `event:${row.id}`,
+      kind: "event",
+      title: row.title || "",
+      authorId: row.createdBy,
+      authorName: hostNames.get(row.createdBy) || "Member",
+      roomSlug: row.roomSlug || "",
+      startTime,
+      endTime: toMillis(row.endTime) || 0,
+      text: "",
+      reactions: {},
+      commentCount: 0,
+      pinned: false,
+      createdAt: startTime || now,
+    };
+  });
+
+  const mixed = [...posts, ...articleItems, ...eventItems];
+  mixed.sort((a, b) => {
+    const ap = a.pinned ? 1 : 0;
+    const bp = b.pinned ? 1 : 0;
+    if (ap !== bp) return bp - ap;
+    const at = a.kind === "event" ? Number(a.startTime) || 0 : Number(a.createdAt) || 0;
+    const bt = b.kind === "event" ? Number(b.startTime) || 0 : Number(b.createdAt) || 0;
+    return bt - at;
+  });
+  return mixed;
+}
+
 export async function GET(req) {
   const user = await getCurrentUser();
   if (!user) {
@@ -244,11 +327,28 @@ export async function GET(req) {
     blockedIds: new Set(),
     mutedIds: new Set(),
     searchText: q,
+    commentMatchPostIds: new Set(),
   };
 
   try {
     const prisma = getPrisma();
     const orderBy = feedOrderBy();
+
+    // Search spans post text + comments: gather post ids holding a matching
+    // comment so filterVisiblePosts can accept those rows too.
+    if (q) {
+      try {
+        const commentRows = await prisma.postComment.findMany({
+          where: { text: { contains: q, mode: "insensitive" } },
+          select: { postId: true },
+          take: 500,
+          distinct: ["postId"],
+        });
+        for (const r of commentRows) ctx.commentMatchPostIds.add(r.postId);
+      } catch (err) {
+        logError("posts.feed_comment_search_failed", { error: err.message });
+      }
+    }
 
     const countryRow = await prisma.user.findUnique({
       where: { id: user.uid },
@@ -365,9 +465,14 @@ export async function GET(req) {
       : visible.slice(0, limit + 1);
 
     const hasMore = paginated.length >= limit + 1;
-    const posts = await attachAttribution({
+    let posts = await attachAttribution({
       prisma,
       posts: paginated.slice(0, limit).map(mapPostRow),
+    });
+    posts = await attachTimelineItems({
+      prisma,
+      posts,
+      opts: { sort, afterKey, spaceIdParam, groupIdParam, views: ctx.views },
     });
 
     let nextCursor = null;

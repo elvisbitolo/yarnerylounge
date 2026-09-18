@@ -460,9 +460,72 @@
   word-break: break-word;
 }
 
+.cardTitle {
+  margin: 4px 0 8px;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--card-title, #17171c);
+}
+
+.cardMeta {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9b9bab;
+}
+
+.cardLink {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--card-accent, #e91e63);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: filter 0.15s ease;
+}
+
+.cardLink:hover {
+  filter: brightness(1.08);
+}
+
 .comments {
   border-top: 1px solid #f0f0f5;
   padding-top: 12px;
+  animation: fadeIn 0.18s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.commentListBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.commentListLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: #17171c;
+}
+
+.commentSort {
+  border: 1px solid #d8d8e3;
+  border-radius: 8px;
+  background: #fff;
+  color: #34344a;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
 }
 
 .commentList {
@@ -473,9 +536,29 @@
 }
 
 .comment {
+  display: flex;
+  gap: 10px;
   background: #f7f7fb;
   border-radius: 10px;
   padding: 10px 14px;
+}
+
+.commentAvatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.commentBody {
+  flex: 1;
+  min-width: 0;
 }
 
 .commentHeader {
@@ -489,6 +572,12 @@
   font-size: 13px;
   font-weight: 700;
   color: #17171c;
+}
+
+.commentCrown {
+  display: inline-flex;
+  align-items: center;
+  color: #b45309;
 }
 
 .commentTime {

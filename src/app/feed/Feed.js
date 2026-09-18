@@ -10,7 +10,7 @@ import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./feed.module.css";
-import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle } from "lucide-react";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays } from "lucide-react";
 
 const PAGE_SIZE = 20;
 const VIRTUALIZE_AT = 150; // window virtualizer only kicks in for long feeds
@@ -104,6 +104,25 @@ const POST_KIND_THEMES = {
 
 function postCardStyle(kind) {
   return cardThemeVars(POST_KIND_THEMES[kind] || POST_KIND_THEMES.default, { light: true });
+}
+
+// Deterministic pastel gradient for comment avatars (mock: violet/green/teal).
+const AVATAR_GRADIENTS = [
+  "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)",
+  "linear-gradient(135deg, #10b981 0%, #14b8a6 100%)",
+  "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
+  "linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)",
+  "linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)",
+  "linear-gradient(135deg, #f43f5e 0%, #fb7185 100%)",
+];
+
+function avatarGradient(name) {
+  let hash = 0;
+  const s = name || "?";
+  for (let i = 0; i < s.length; i += 1) {
+    hash = (hash * 31 + s.charCodeAt(i)) | 0;
+  }
+  return AVATAR_GRADIENTS[(hash & 0x7fffffff) % AVATAR_GRADIENTS.length];
 }
 
 function LikeButton({ likes, uid, disabled, onToggle }) {
@@ -395,6 +414,7 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(0);
+  const [commentSort, setCommentSort] = useState("newest");
 
   const rootRef = useRef(null);
   const visibleRef = useRef(true);
@@ -478,44 +498,87 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
     }
   }
 
+  const sortedComments = (() => {
+    if (commentSort === "oldest") {
+      return [...comments].sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
+    }
+    if (commentSort === "top") {
+      return [...comments].sort(
+        (a, b) =>
+          Object.values(b.reactions || {}).reduce((s, v) => s + v, 0) -
+          Object.values(a.reactions || {}).reduce((s, v) => s + v, 0)
+      );
+    }
+    return [...comments].sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+  })();
+
   return (
     <div ref={rootRef} className={styles.comments}>
       {comments.length > 0 && (
-        <div className={styles.commentList}>
-          {comments.map((c) => (
-            <div key={c.id} className={styles.comment}>
-              <div className={styles.commentHeader}>
-                <span className={styles.commentName}>{c.authorName}</span>
-                <span className={styles.commentTime}>{timeAgo(c.createdAt)}</span>
-                {(c.authorId === uid || canModerate) && (
-                  <button
-                    className={styles.deleteSmall}
-                    onClick={() => handleDelete(c.id)}
-                    title={t("deleteComment")}
-                  >
-                    ×
-                  </button>
-                )}
-                {c.authorId !== uid && (
-                  <ReportButton type="comment" targetId={c.id} commentPostId={postId} small />
-                )}
+        <>
+          <div className={styles.commentListBar}>
+            <span className={styles.commentListLabel}>{t("commentsLabel")}</span>
+            <select
+              className={styles.commentSort}
+              value={commentSort}
+              onChange={(e) => setCommentSort(e.target.value)}
+              aria-label={t("sortComments")}
+            >
+              <option value="newest">{t("sortNewest")}</option>
+              <option value="oldest">{t("sortOldest")}</option>
+              <option value="top">{t("sortTop")}</option>
+            </select>
+          </div>
+          <div className={styles.commentList}>
+            {sortedComments.map((c) => (
+              <div key={c.id} className={styles.comment}>
+                <div
+                  className={styles.commentAvatar}
+                  style={{ background: avatarGradient(c.authorName) }}
+                  aria-hidden="true"
+                >
+                  {(c.authorName || "?").slice(0, 1).toUpperCase()}
+                </div>
+                <div className={styles.commentBody}>
+                  <div className={styles.commentHeader}>
+                    <span className={styles.commentName}>{c.authorName}</span>
+                    {(c.authorRole === "owner" || c.authorRole === "moderator") && (
+                      <span className={styles.commentCrown} title={t("host")}>
+                        <Crown size={11} />
+                      </span>
+                    )}
+                    <span className={styles.commentTime}>{timeAgo(c.createdAt)}</span>
+                    {(c.authorId === uid || canModerate) && (
+                      <button
+                        className={styles.deleteSmall}
+                        onClick={() => handleDelete(c.id)}
+                        title={t("deleteComment")}
+                      >
+                        ×
+                      </button>
+                    )}
+                    {c.authorId !== uid && (
+                      <ReportButton type="comment" targetId={c.id} commentPostId={postId} small />
+                    )}
+                  </div>
+                  <p className={styles.commentText}>{renderMentions(c.text)}</p>
+                  <EmojiReactionBar
+                    postId={postId}
+                    commentId={c.id}
+                    reactions={c.reactions}
+                    uid={uid}
+                    disabled={disabled}
+                    onUpdated={(map) =>
+                      setComments((prev) =>
+                        prev.map((cm) => (cm.id === c.id ? { ...cm, reactions: map } : cm))
+                      )
+                    }
+                  />
+                </div>
               </div>
-              <p className={styles.commentText}>{renderMentions(c.text)}</p>
-              <EmojiReactionBar
-                postId={postId}
-                commentId={c.id}
-                reactions={c.reactions}
-                uid={uid}
-                disabled={disabled}
-                onUpdated={(map) =>
-                  setComments((prev) =>
-                    prev.map((cm) => (cm.id === c.id ? { ...cm, reactions: map } : cm))
-                  )
-                }
-              />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
       <form className={styles.commentForm} onSubmit={handleAdd}>
         <input
@@ -1151,7 +1214,97 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
 
   const disabledActions = !canWriteChat && !canModerate;
 
+  async function toggleArticleLike(post) {
+    if (disabledActions) return;
+    const realId = (post.id || "").split(":")[1];
+    if (!realId) return;
+    try {
+      const res = await fetch(`/api/articles/${realId}/like`, { method: "POST" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const next = { ...(post.likes || {}) };
+      if (data.liked) next[uid] = new Date().toISOString();
+      else delete next[uid];
+      patchPost(post.id, { likes: next });
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  function renderArticleCard(post) {
+    const realId = (post.id || "").split(":")[1] || "";
+    return (
+      <article key={`article:${realId}`} className={styles.post} style={postCardStyle("article")}>
+        <div className={styles.postHeader}>
+          <div className={styles.avatar}>
+            {(post.authorName || "?").slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <p className={styles.postAuthor}>
+              {post.authorName}
+              <span className={styles.kindBadge}><FileText size={13} /> {t("article")}</span>
+            </p>
+            <p className={styles.postTime}>{timeAgo(post.createdAt)}</p>
+          </div>
+        </div>
+        {post.coverImage && (
+          <img src={post.coverImage} alt="" className={styles.postImage} loading="lazy" decoding="async" />
+        )}
+        <p className={styles.cardTitle}>{post.title}</p>
+        {post.text && <p className={styles.postText}>{post.text}</p>}
+        <p className={styles.cardMeta}>{t("readTime", { count: post.readTime || 1 })}</p>
+        <div className={styles.postActions}>
+          <LikeButton likes={post.likes} uid={uid} disabled={disabledActions} onToggle={() => toggleArticleLike(post)} />
+          <a className={styles.cardLink} href={`/articles/${realId}`}>
+            {t("readArticle")}
+          </a>
+        </div>
+      </article>
+    );
+  }
+
+  function renderEventCard(post) {
+    const realId = (post.id || "").split(":")[1] || "";
+    const start = post.startTime ? new Date(post.startTime) : null;
+    const dateLabel = start
+      ? start.toLocaleString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "";
+    return (
+      <article key={`event:${realId}`} className={styles.post} style={postCardStyle("event")}>
+        <div className={styles.postHeader}>
+          <div className={styles.avatar}>
+            {(post.authorName || "?").slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <p className={styles.postAuthor}>
+              {post.authorName}
+              <span className={styles.kindBadge}><CalendarDays size={13} /> {t("event")}</span>
+            </p>
+            <p className={styles.postTime}>
+              {dateLabel}
+              {post.roomSlug ? <span className={styles.postPlace}> · {post.roomSlug}</span> : null}
+            </p>
+          </div>
+        </div>
+        <p className={styles.cardTitle}>{post.title}</p>
+        <div className={styles.postActions}>
+          <a className={styles.cardLink} href={`/events/${realId}`}>
+            {t("rsvp")}
+          </a>
+        </div>
+      </article>
+    );
+  }
+
   function renderPost(post) {
+    if (post.kind === "article") return renderArticleCard(post);
+    if (post.kind === "event") return renderEventCard(post);
     const attribution = post.spaceName ? post.spaceName : post.groupName ? post.groupName : null;
     return (
       <article key={post.id} className={styles.post} style={postCardStyle(post.kind)}>
