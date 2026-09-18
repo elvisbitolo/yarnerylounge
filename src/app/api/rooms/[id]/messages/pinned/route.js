@@ -4,8 +4,8 @@ import { guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getUserDoc } from "@/lib/server/auth";
 import { getScopedHostRights } from "@/lib/server/hosts";
+import { requireRoomAccess } from "@/lib/server/room-access";
 import {
-  getRoomForChat,
   listPinnedRoomMessages,
   toggleRoomPin,
 } from "@/lib/server/room-messages";
@@ -16,11 +16,9 @@ export async function GET(req, { params }) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const room = await getRoomForChat(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
-  const messages = await listPinnedRoomMessages(room.id);
+  const access = await requireRoomAccess(roomId, auth.user.uid, auth.userDoc);
+  if (access.denied) return access.denied;
+  const messages = await listPinnedRoomMessages(access.room.id);
   return NextResponse.json({ messages });
 }
 
@@ -33,10 +31,9 @@ export async function POST(req, { params }) {
   const limited = rateLimitGuard(`room-pin:${auth.user.uid}`, { limit: 30 });
   if (limited) return limited;
 
-  const room = await getRoomForChat(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
+  const access = await requireRoomAccess(roomId, auth.user.uid, auth.userDoc);
+  if (access.denied) return access.denied;
+  const room = access.room;
 
   const userDoc = await getUserDoc(auth.user.uid);
   const staff = userDoc?.role === "owner" || userDoc?.role === "moderator";

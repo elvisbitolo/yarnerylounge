@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getRoomBySlugEnsuringAlwaysOn } from "@/lib/server/rooms";
+import { resolveRoomAccess } from "@/lib/server/room-access";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities } from "@/lib/server/capabilities";
@@ -16,11 +16,9 @@ export default async function RoomPage({ params }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [userDoc, room] = await Promise.all([
-    getUserDoc(user.uid),
-    getRoomBySlugEnsuringAlwaysOn(slug),
-  ]);
-  if (!room || room.status !== "active") {
+  const userDoc = await getUserDoc(user.uid);
+  const gate = await resolveRoomAccess(slug, user.uid, userDoc);
+  if (gate.denied) {
     return (
       <main className={styles.page}>
         <div className={styles.container}>
@@ -31,6 +29,7 @@ export default async function RoomPage({ params }) {
       </main>
     );
   }
+  const room = gate.room;
 
   const [opensAt, rights, caps] = await Promise.all([
     getUpcomingRoomStart(slug),

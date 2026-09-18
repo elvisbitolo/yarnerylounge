@@ -3,8 +3,8 @@ import { requireActiveMember, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getUserDoc } from "@/lib/server/auth";
 import { getScopedHostRights } from "@/lib/server/hosts";
+import { requireRoomAccess } from "@/lib/server/room-access";
 import {
-  getRoomForSignals,
   addRoomSignal,
   listRoomSignals,
   ROOM_SIGNAL_TYPES,
@@ -19,11 +19,9 @@ export async function GET(req, { params }) {
   const limited = rateLimitGuard(`room-signals:${auth.user.uid}`, { limit: 600 });
   if (limited) return limited;
 
-  const room = await getRoomForSignals(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
-  const storageRoomId = room.id;
+  const access = await requireRoomAccess(roomId, auth.user.uid, auth.userDoc);
+  if (access.denied) return access.denied;
+  const storageRoomId = access.room.id;
 
   const rawAfter = req.nextUrl.searchParams.get("after");
   const after = Number(rawAfter);
@@ -42,11 +40,9 @@ export async function POST(req, { params }) {
   const limited = rateLimitGuard(`room-signal:${auth.user.uid}`, { limit: 180 });
   if (limited) return limited;
 
-  const room = await getRoomForSignals(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
-  const storageRoomId = room.id;
+  const access = await requireRoomAccess(roomId, auth.user.uid, auth.userDoc);
+  if (access.denied) return access.denied;
+  const storageRoomId = access.room.id;
 
   const body = await req.json().catch(() => ({}));
   const type = typeof body?.type === "string" ? body.type.trim() : "";

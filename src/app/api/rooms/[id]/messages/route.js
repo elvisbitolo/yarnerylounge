@@ -4,8 +4,8 @@ import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getUserDoc, canModerate } from "@/lib/server/auth";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
+import { requireRoomAccess } from "@/lib/server/room-access";
 import {
-  getRoomForChat,
   listRoomMessages,
   addRoomMessage,
   ROOM_MESSAGE_MAX,
@@ -55,10 +55,9 @@ export async function GET(req, { params }) {
   const limited = rateLimitGuard(`room-msgs:${auth.user.uid}`, { limit: 240 });
   if (limited) return limited;
 
-  const room = await getRoomForChat(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
+  const access = await requireRoomAccess(roomId, auth.user.uid, auth.userDoc);
+  if (access.denied) return access.denied;
+  const room = access.room;
   const storageRoomId = room.id;
 
   const limit = Number(req.nextUrl.searchParams.get("limit")) || 50;
@@ -77,10 +76,9 @@ export async function POST(req, { params }) {
   const limited = rateLimitGuard(`room-message:${auth.user.uid}`, { limit: 30 });
   if (limited) return limited;
 
-  const room = await getRoomForChat(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
+  const access = await requireRoomAccess(roomId, auth.user.uid, auth.userDoc);
+  if (access.denied) return access.denied;
+  const room = access.room;
   const storageRoomId = room.id;
 
   const userDoc = await getUserDoc(auth.user.uid);

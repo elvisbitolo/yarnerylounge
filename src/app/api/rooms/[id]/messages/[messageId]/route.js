@@ -4,10 +4,8 @@ import { guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getUserDoc } from "@/lib/server/auth";
 import { getScopedHostRights } from "@/lib/server/hosts";
-import {
-  getRoomForChat,
-  softDeleteRoomMessage,
-} from "@/lib/server/room-messages";
+import { requireRoomAccess } from "@/lib/server/room-access";
+import { softDeleteRoomMessage } from "@/lib/server/room-messages";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -20,10 +18,9 @@ export async function POST(req, { params }) {
   const limited = rateLimitGuard(`room-del:${auth.user.uid}`, { limit: 40 });
   if (limited) return limited;
 
-  const room = await getRoomForChat(roomId);
-  if (!room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
+  const access = await requireRoomAccess(roomId, auth.user.uid, auth.userDoc);
+  if (access.denied) return access.denied;
+  const room = access.room;
 
   const userDoc = await getUserDoc(auth.user.uid);
   const staff = userDoc?.role === "owner" || userDoc?.role === "moderator";
