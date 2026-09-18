@@ -173,23 +173,27 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
 
   // Single refresh path: messages + read + typing + pinned. Called by the
   // realtime channel (instant) and by the polling fallback (reliability).
+  // Returns whether the message re-fetch succeeded.
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`);
       if (res.ok) {
         const data = await res.json();
         setMessages((prev) => mergeMessages(prev, Array.isArray(data.messages) ? data.messages : []));
+        fetch(`/api/conversations/${conversationId}/read`, { method: "POST" }).catch(() => {});
+        refreshTyping();
+        fetch(`/api/conversations/${conversationId}/pinned`)
+          .then((r) => (r.ok ? r.json() : { messages: [] }))
+          .then((d) => {
+            if (Array.isArray(d.messages)) setPinnedMessages(d.messages);
+          })
+          .catch(() => {});
+        return true;
       }
-      fetch(`/api/conversations/${conversationId}/read`, { method: "POST" }).catch(() => {});
-      refreshTyping();
-      fetch(`/api/conversations/${conversationId}/pinned`)
-        .then((r) => (r.ok ? r.json() : { messages: [] }))
-        .then((d) => {
-          if (Array.isArray(d.messages)) setPinnedMessages(d.messages);
-        })
-        .catch(() => {});
+      return false;
     } catch {
       // transient network error — the next poll/event retries
+      return false;
     }
   }, [conversationId, mergeMessages, refreshTyping]);
 
@@ -424,9 +428,14 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to send");
       }
+      // Reconcile against the saved copy while pendingIdRef is still set so
+      // mergeMessages drops the optimistic row and the real one takes over.
+      // Discard the temp afterwards in case the re-fetch failed (the next
+      // poll will pick the saved message up).
+      await refresh();
+      if (tempId) setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setPendingId(null);
       pendingIdRef.current = null;
-      refresh();
     } catch (err) {
       setPendingId(null);
       pendingIdRef.current = null;
