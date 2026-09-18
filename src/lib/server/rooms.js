@@ -68,9 +68,13 @@ export async function getRoomBySlug(slug) {
 // Lobby read: returns all rooms, seeding the canonical always-on rooms first
 // only when one is missing from the database. In the steady state (all four
 // present) this is a single findMany, so there is no per-request write/sync pass.
+// Only persisted rows are treated as "present" — the in-memory canonical
+// fallback must never disguise a missing DB row, or seeding would be skipped
+// forever and every DB-backed room feature (chat, signals, presence, join
+// events) would 404.
 export async function listRoomsEnsuringAlwaysOn() {
   const rooms = await listRooms();
-  const present = new Set(rooms.map((room) => room.slug));
+  const present = new Set(rooms.filter((room) => room.persisted).map((room) => room.slug));
   const missing = ALWAYS_ON_ROOMS.filter((spec) => !present.has(spec.slug));
   if (missing.length === 0) return rooms;
   await seedAlwaysOnRooms();
@@ -89,6 +93,33 @@ export async function getRoomBySlugEnsuringAlwaysOn(slug) {
   if (ALWAYS_ON_ROOMS.some((spec) => spec.slug === slug)) {
     await seedAlwaysOnRooms();
     return getRoomBySlug(slug);
+  }
+  return null;
+}
+
+// Room resolver for the DB-backed room APIs (chat, signals, presence, join
+// events). Resolves by id or slug against the Room table, and when the key is
+// a canonical always-on lounge that has no row yet it seeds the canonical rooms
+// first so the API never 404s a lounge that should exist. Returns null for
+// genuinely unknown or non-active rooms (callers render "not found").
+export async function getActiveRoomEnsuring(roomKey) {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const row =
+        (await prisma.room.findUnique({ where: { id: roomKey } })) ||
+        (await prisma.room.findUnique({ where: { slug: roomKey } }));
+      if (row && (row.status || "active") === "active") return row;
+      if (row) return null;
+      if (ALWAYS_ON_ROOMS.some((spec) => spec.slug === roomKey)) {
+        await seedAlwaysOnRooms();
+        const seeded = await prisma.room.findUnique({ where: { slug: roomKey } });
+        if (seeded && (seeded.status || "active") === "active") return seeded;
+        return null;
+      }
+    } catch (err) {
+      logError("rooms.prisma_active_ensure_failed", { error: err.message });
+    }
   }
   return null;
 }
@@ -233,6 +264,10 @@ export const ALWAYS_ON_ROOMS = [
 export async function seedAlwaysOnRooms() {
   const prisma = getPrisma();
   try {
+    // Room.creator is a required User relation — the seeded rooms must point
+    // at a real member. Prefer an owner, then a moderator, then any member,
+    // so a fresh database never fails to seed the canonical lounges.
+    const createdBy = await resolveSeedCreatorId(prisma);
     const created = [];
     for (const spec of ALWAYS_ON_ROOMS) {
       if (prisma) {
@@ -267,8 +302,8 @@ export async function seedAlwaysOnRooms() {
               description: spec.description,
               status: "active",
               maxParticipants: 200,
-              groupId: "",
-              spaceId: "",
+              groupId: null,
+              spaceId: null,
               kind: "standard",
               publicPreview: true,
               opensAt: null,
@@ -282,7 +317,7 @@ export async function seedAlwaysOnRooms() {
               raiseHandToTalk: spec.raiseHandToTalk,
               disableAudio: spec.disableAudio,
               imageUrl: spec.imageUrl,
-              createdBy: "system",
+              createdBy,
             },
           });
           created.push({ id: room.id, slug: spec.slug, name: spec.name, alwaysOn: true });
@@ -301,6 +336,27 @@ export async function seedAlwaysOnRooms() {
       name: spec.name,
       alwaysOn: true,
     }));
+  }
+}
+
+async function resolveSeedCreatorId(prisma) {
+  if (!prisma) return "";
+  try {
+    for (const role of ["owner", "moderator"]) {
+      const user = await prisma.user.findFirst({
+        where: { role },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      if (user?.id) return user.id;
+    }
+    const anyUser = await prisma.user.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    return anyUser?.id || "";
+  } catch {
+    return "";
   }
 }
 

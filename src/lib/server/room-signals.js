@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { getActiveRoomEnsuring } from "@/lib/server/rooms";
 
 export const ROOM_SIGNAL_TYPES = ["hand", "reaction", "speakerInvite"];
 
@@ -24,28 +25,17 @@ function encodeSignal(row) {
 }
 
 export async function getRoomForSignals(roomId) {
-  const prisma = getPrisma();
-  if (prisma) {
-    try {
-      const row = await prisma.room.findUnique({ where: { id: roomId } })
-        || await prisma.room.findUnique({ where: { slug: roomId } });
-      if (row && (row.status || "active") === "active") {
-        return {
-          id: row.id,
-          slug: row.slug,
-          name: row.name,
-          description: row.description || "",
-          status: row.status || "active",
-          groupId: row.groupId || "",
-          spaceId: row.spaceId || "",
-        };
-      }
-      if (row) return null;
-    } catch (err) {
-      logError("room-signals.prisma_room_failed", { error: err.message });
-    }
-  }
-  return null;
+  const row = await getActiveRoomEnsuring(roomId);
+  if (!row) return null;
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description || "",
+    status: row.status || "active",
+    groupId: row.groupId || "",
+    spaceId: row.spaceId || "",
+  };
 }
 
 export async function addRoomSignal(roomId, fromIdentity, payload) {

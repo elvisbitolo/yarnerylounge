@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { blockedMemberIdsFor } from "@/lib/server/member-safety";
+import { getActiveRoomEnsuring } from "@/lib/server/rooms";
 
 export const ROOM_MESSAGE_MAX = 2000;
 export const ROOM_QUICK_EMOJIS = [
@@ -33,20 +34,9 @@ function removeUndefined(obj) {
 }
 
 export async function getRoomForChat(roomId) {
-  const prisma = getPrisma();
-  if (prisma) {
-    try {
-      const row = await prisma.room.findUnique({ where: { id: roomId } })
-        || await prisma.room.findUnique({ where: { slug: roomId } });
-      if (row && (row.status || "active") === "active") {
-        return { id: row.id, ...row };
-      }
-      if (row) return null;
-    } catch (err) {
-      logError("room-messages.prisma_room_failed", { error: err.message });
-    }
-  }
-  return null;
+  const row = await getActiveRoomEnsuring(roomId);
+  if (!row) return null;
+  return { id: row.id, ...row };
 }
 
 async function resolveRoomId(roomKey) {
