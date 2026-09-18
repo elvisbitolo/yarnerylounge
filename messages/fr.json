@@ -226,6 +226,7 @@
     "loadMore": "Charger plus",
     "loadingMore": "Chargement…",
     "couldNotLoadMore": "Impossible de charger plus de posts.",
+    "allCaughtUp": "Vous êtes à jour.",
     "deleteConfirm": "Supprimer ce post ?",
     "featured": "À la une",
     "featuredEmpty": "Les posts qui reçoivent de l'amour cette semaine apparaîtront ici.",
