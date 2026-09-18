@@ -255,16 +255,20 @@ model Post {
 model PostComment {
   id         String    @id @default(cuid())
   postId     String
+  parentId   String?
   authorId   String
   authorName String?
   text       String
   reactions  Json?
   createdAt  DateTime  @default(now())
 
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author User   @relation(fields: [authorId], references: [id])
+  post   Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent PostComment?  @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PostComment[] @relation("PostCommentReplies")
+  author User          @relation(fields: [authorId], references: [id])
 
   @@index([postId, createdAt(sort: Asc)])
+  @@index([parentId])
 }
 
 model PollVote {

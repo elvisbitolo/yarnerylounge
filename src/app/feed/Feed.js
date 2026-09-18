@@ -10,7 +10,7 @@ import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./feed.module.css";
-import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays } from "lucide-react";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown } from "lucide-react";
 
 const PAGE_SIZE = 20;
 const VIRTUALIZE_AT = 150; // window virtualizer only kicks in for long feeds
@@ -415,6 +415,8 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(0);
   const [commentSort, setCommentSort] = useState("newest");
+  const [replyTo, setReplyTo] = useState(null);
+  const [expanded, setExpanded] = useState(new Set());
 
   const rootRef = useRef(null);
   const visibleRef = useRef(true);
@@ -472,10 +474,11 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
       const res = await fetch(`/api/posts/${postId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed }),
+        body: JSON.stringify({ text: trimmed, parentId: replyTo?.id || null }),
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Reply failed");
       setText("");
+      if (replyTo) setReplyTo(null);
       setVersion((v) => v + 1);
       onCommentChanged(postId, 1);
     } catch (err) {
@@ -498,19 +501,95 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
     }
   }
 
-  const sortedComments = (() => {
+  const reactionsSum = (c) =>
+    Object.values(c.reactions || {}).reduce((s, v) => s + v, 0) +
+    (c.replies || []).reduce((s, r) => s + Object.values(r.reactions || {}).reduce((x, v) => x + v, 0), 0);
+
+  const compareComments = (a, b) => {
     if (commentSort === "oldest") {
-      return [...comments].sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
+      return (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0);
     }
     if (commentSort === "top") {
-      return [...comments].sort(
-        (a, b) =>
-          Object.values(b.reactions || {}).reduce((s, v) => s + v, 0) -
-          Object.values(a.reactions || {}).reduce((s, v) => s + v, 0)
-      );
+      return reactionsSum(b) - reactionsSum(a);
     }
-    return [...comments].sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
-  })();
+    return (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
+  };
+
+  const toggleExpanded = (id) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const renderCommentRow = (c, isReply = false) => (
+    <div className={`${styles.comment}${isReply ? ` ${styles.commentReply}` : ""}`} key={c.id}>
+      <div
+        className={styles.commentAvatar}
+        style={{ background: avatarGradient(c.authorName) }}
+        aria-hidden="true"
+      >
+        {(c.authorName || "?").slice(0, 1).toUpperCase()}
+      </div>
+      <div className={styles.commentBody}>
+        <div className={styles.commentHeader}>
+          <span className={styles.commentName}>{c.authorName}</span>
+          {(c.authorRole === "owner" || c.authorRole === "moderator") && (
+            <span className={styles.commentCrown} title={t("host")}>
+              <Crown size={11} />
+            </span>
+          )}
+          <span className={styles.commentTime}>{timeAgo(c.createdAt)}</span>
+          <button
+            className={styles.commentReplyBtn}
+            type="button"
+            disabled={disabled}
+            onClick={() => setReplyTo({ id: c.id, name: c.authorName })}
+          >
+            {t("reply")}
+          </button>
+          {(c.authorId === uid || canModerate) && (
+            <button
+              className={styles.deleteSmall}
+              onClick={() => handleDelete(c.id)}
+              title={t("deleteComment")}
+            >
+              ×
+            </button>
+          )}
+          {c.authorId !== uid && (
+            <ReportButton type="comment" targetId={c.id} commentPostId={postId} small />
+          )}
+        </div>
+        <p className={styles.commentText}>{renderMentions(c.text)}</p>
+        <EmojiReactionBar
+          postId={postId}
+          commentId={c.id}
+          reactions={c.reactions}
+          uid={uid}
+          disabled={disabled}
+          onUpdated={(map) =>
+            setComments((prev) =>
+              prev.map((cm) => {
+                if (cm.id === c.id) return { ...cm, reactions: map };
+                if (cm.replies) {
+                  return {
+                    ...cm,
+                    replies: cm.replies.map((r) => (r.id === c.id ? { ...r, reactions: map } : r)),
+                  };
+                }
+                return cm;
+              })
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+
+  const sortedComments = [...comments].sort(compareComments);
 
   return (
     <div ref={rootRef} className={styles.comments}>
@@ -531,60 +610,46 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
           </div>
           <div className={styles.commentList}>
             {sortedComments.map((c) => (
-              <div key={c.id} className={styles.comment}>
-                <div
-                  className={styles.commentAvatar}
-                  style={{ background: avatarGradient(c.authorName) }}
-                  aria-hidden="true"
-                >
-                  {(c.authorName || "?").slice(0, 1).toUpperCase()}
-                </div>
-                <div className={styles.commentBody}>
-                  <div className={styles.commentHeader}>
-                    <span className={styles.commentName}>{c.authorName}</span>
-                    {(c.authorRole === "owner" || c.authorRole === "moderator") && (
-                      <span className={styles.commentCrown} title={t("host")}>
-                        <Crown size={11} />
-                      </span>
+              <div key={c.id} className={styles.commentThread}>
+                {renderCommentRow(c)}
+                {c.replies && c.replies.length > 0 && (
+                  <>
+                    <button
+                      className={styles.repliesToggle}
+                      type="button"
+                      onClick={() => toggleExpanded(c.id)}
+                      aria-expanded={expanded.has(c.id)}
+                    >
+                      <ChevronDown size={13} className={expanded.has(c.id) ? styles.repliesChevronOpen : ""} />
+                      {expanded.has(c.id)
+                        ? t("hideReplies", { count: c.replies.length })
+                        : t("viewReplies", { count: c.replies.length })}
+                    </button>
+                    {expanded.has(c.id) && (
+                      <div className={styles.repliesList}>
+                        {[...c.replies].sort(compareComments).map((r) => renderCommentRow(r, true))}
+                      </div>
                     )}
-                    <span className={styles.commentTime}>{timeAgo(c.createdAt)}</span>
-                    {(c.authorId === uid || canModerate) && (
-                      <button
-                        className={styles.deleteSmall}
-                        onClick={() => handleDelete(c.id)}
-                        title={t("deleteComment")}
-                      >
-                        ×
-                      </button>
-                    )}
-                    {c.authorId !== uid && (
-                      <ReportButton type="comment" targetId={c.id} commentPostId={postId} small />
-                    )}
-                  </div>
-                  <p className={styles.commentText}>{renderMentions(c.text)}</p>
-                  <EmojiReactionBar
-                    postId={postId}
-                    commentId={c.id}
-                    reactions={c.reactions}
-                    uid={uid}
-                    disabled={disabled}
-                    onUpdated={(map) =>
-                      setComments((prev) =>
-                        prev.map((cm) => (cm.id === c.id ? { ...cm, reactions: map } : cm))
-                      )
-                    }
-                  />
-                </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
         </>
       )}
+      {replyTo && (
+        <div className={styles.replyContext}>
+          <span>{t("replyToName", { name: replyTo.name })}</span>
+          <button type="button" className={styles.replyCancel} onClick={() => setReplyTo(null)}>
+            ×
+          </button>
+        </div>
+      )}
       <form className={styles.commentForm} onSubmit={handleAdd}>
         <input
           className={styles.commentInput}
           type="text"
-          placeholder={disabled ? t("upgradeToChat") : t("replyPlaceholder")}
+          placeholder={disabled ? t("upgradeToChat") : replyTo ? t("replyToName", { name: replyTo.name }) : t("replyPlaceholder")}
           value={text}
           disabled={disabled}
           readOnly={disabled}

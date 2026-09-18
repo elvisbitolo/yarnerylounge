@@ -40,14 +40,14 @@ export async function GET(req, { params }) {
         : Promise.resolve([]),
     ]);
     const roles = new Map(authorRows.map((a) => [a.id, a.role]));
-    const comments = rows.map((r) => {
+    const mapped = rows.map((r) => {
       const createdAt =
         r.createdAt && typeof r.createdAt.toMillis === "function"
           ? r.createdAt.toMillis()
           : r.createdAt instanceof Date
             ? r.createdAt.getTime()
             : Number(r.createdAt) || 0;
-      return {
+      const base = {
         id: r.id,
         authorId: r.authorId,
         authorName: r.authorName,
@@ -56,7 +56,21 @@ export async function GET(req, { params }) {
         authorRole: roles.get(r.authorId) || "",
         createdAt,
       };
+      return r.parentId ? { ...base, parentId: r.parentId } : { ...base, replies: [] };
     });
+
+    // Nest replies under their top-level comment (single level of threading).
+    const byTopLevel = new Map();
+    const comments = [];
+    for (const c of mapped) {
+      if (c.parentId) {
+        const parent = byTopLevel.get(c.parentId);
+        if (parent) parent.replies.push(c);
+      } else {
+        byTopLevel.set(c.id, c);
+        comments.push(c);
+      }
+    }
     return NextResponse.json({ comments });
   } catch (err) {
     logError("posts.comments.prisma_read_failed", { error: err.message });
@@ -73,10 +87,25 @@ export async function POST(req, { params }) {
   const limited = rateLimitGuard(`comment:${user.uid}`, { limit: 20 });
   if (limited) return limited;
 
-  const { text } = await req.json();
+  const { text, parentId } = await req.json();
   const check = validateCommentText(text);
   if (!check.ok) {
     return NextResponse.json({ error: check.error }, { status: 400 });
+  }
+
+  let replyParentId = parentId || null;
+  if (replyParentId) {
+    const parent = await (async () => {
+      try {
+        const prisma = getPrisma();
+        return await prisma.postComment.findUnique({ where: { id: replyParentId } });
+      } catch {
+        return null;
+      }
+    })();
+    if (!parent || parent.postId !== postId || parent.parentId) {
+      return NextResponse.json({ error: "Invalid reply target" }, { status: 400 });
+    }
   }
 
   const userDoc = await getUserDoc(user.uid);
@@ -97,6 +126,7 @@ export async function POST(req, { params }) {
     const comment = await prisma.postComment.create({
       data: {
         postId,
+        parentId: replyParentId,
         authorId: user.uid,
         authorName,
         text: check.text,
