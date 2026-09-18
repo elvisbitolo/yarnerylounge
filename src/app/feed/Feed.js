@@ -136,21 +136,36 @@ function LikeButton({ likes, uid, disabled, onToggle }) {
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉", "👏", "💯", "🧶", "⭐"];
 
-function EmojiReactionBar({ postId, commentId, reactions, uid, disabled }) {
+function EmojiReactionBar({ postId, commentId, reactions, uid, disabled, onUpdated }) {
   const t = useTranslations("feed");
   const current = reactions || {};
-  const reactionEntries = Object.entries(current).map(([emoji, users]) => ({
-    emoji,
-    count: Object.keys(users || {}).length,
-    mine: Boolean(users?.[uid]),
-  }));
-  const [list, setList] = useState(reactionEntries.filter((r) => r.count > 0));
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const list = Object.entries(current)
+    .map(([emoji, users]) => ({
+      emoji,
+      count: Object.keys(users || {}).length,
+      mine: Boolean(users?.[uid]),
+    }))
+    .filter((r) => r.count > 0);
+
+  const mine = (emoji) => {
+    const entry = list.find((r) => r.emoji === emoji);
+    return entry ? entry.mine : false;
+  };
 
   async function toggle(emoji) {
     if (busy || disabled) return;
     setBusy(true);
+    const prev = current;
+    const optimistic = { ...prev };
+    const users = { ...(optimistic[emoji] || {}) };
+    if (users[uid]) delete users[uid];
+    else users[uid] = true;
+    if (Object.keys(users).length) optimistic[emoji] = users;
+    else delete optimistic[emoji];
+    if (onUpdated) onUpdated(optimistic);
     try {
       const path = commentId
         ? `/api/posts/${postId}/comments/${commentId}/reactions`
@@ -160,21 +175,14 @@ function EmojiReactionBar({ postId, commentId, reactions, uid, disabled }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emoji }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setList((data.reactions || []).filter((r) => r.count > 0));
-      }
+      if (!res.ok && onUpdated) onUpdated(prev);
     } catch (err) {
       console.error("Reaction failed", err);
+      if (onUpdated) onUpdated(prev);
     } finally {
       setBusy(false);
     }
   }
-
-  const mine = (emoji) => {
-    const entry = list.find((r) => r.emoji === emoji);
-    return entry ? entry.mine : false;
-  };
 
   return (
     <div className={styles.reactionRow}>
@@ -379,7 +387,7 @@ function ReportButton({ type, targetId, commentPostId, small }) {
   );
 }
 
-function CommentList({ postId, uid, canModerate, disabled }) {
+function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
   const t = useTranslations("feed");
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
@@ -395,7 +403,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
     let inFlight = false;
     const load = async () => {
       if (inFlight) return;
-      if (!document.hidden && !visibleRef.current) return;
+      if (document.hidden || !visibleRef.current) return;
       inFlight = true;
       try {
         const res = await fetch(`/api/posts/${postId}/comments`);
@@ -447,6 +455,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
       if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Reply failed");
       setText("");
       setVersion((v) => v + 1);
+      onCommentChanged(postId, 1);
     } catch (err) {
       console.error(err);
     } finally {
@@ -463,6 +472,7 @@ function CommentList({ postId, uid, canModerate, disabled }) {
       alert(data.error || "Failed to delete comment");
     } else {
       setVersion((v) => v + 1);
+      onCommentChanged(postId, -1);
     }
   }
 
@@ -495,6 +505,11 @@ function CommentList({ postId, uid, canModerate, disabled }) {
                 reactions={c.reactions}
                 uid={uid}
                 disabled={disabled}
+                onUpdated={(map) =>
+                  setComments((prev) =>
+                    prev.map((cm) => (cm.id === c.id ? { ...cm, reactions: map } : cm))
+                  )
+                }
               />
             </div>
           ))}
@@ -645,6 +660,14 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
 
   const patchPost = useCallback((id, patch) => {
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }, []);
+
+  const patchCommentCount = useCallback((id, delta) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) + delta) } : p
+      )
+    );
   }, []);
 
   // Session-scoped SWR-ish cache: render the last page instantly, refresh in
@@ -1170,9 +1193,9 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
                 {t("commentsCount", { count: post.commentCount || 0 })}
               </button>
             </div>
-            <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} />
+            <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} onUpdated={(map) => patchPost(post.id, { reactions: map })} />
             {openComments.has(post.id) && (
-              <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={disabledActions} />
+              <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={disabledActions} onCommentChanged={patchCommentCount} />
             )}
           </>
         )}
