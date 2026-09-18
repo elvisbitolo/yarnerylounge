@@ -12,13 +12,13 @@
 .title {
   font-size: 32px;
   font-weight: 800;
-  color: #17171c;
+  color: #ffffff;
   margin: 0;
 }
 
 .subtitle {
   font-size: 16px;
-  color: #6b6b7b;
+  color: rgba(255, 255, 255, 0.72);
   margin: 8px 0 32px;
 }
 
