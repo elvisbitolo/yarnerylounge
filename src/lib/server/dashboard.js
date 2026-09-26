@@ -52,6 +52,16 @@ export async function getCommunityActivity(uid, role, memberships, limit = 5) {
       rows = await prisma.post.findMany({
         orderBy: { createdAt: "desc" },
         take: 20,
+        select: {
+          id: true,
+          authorId: true,
+          authorName: true,
+          text: true,
+          kind: true,
+          spaceId: true,
+          groupId: true,
+          createdAt: true,
+        },
       });
     }
   } catch (err) {

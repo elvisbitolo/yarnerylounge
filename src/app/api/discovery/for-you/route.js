@@ -29,8 +29,16 @@ export async function GET(req) {
         take: 50,
         select: { hashtags: true },
       }),
-      prisma.post.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
-      prisma.space.findMany({ where: { status: "active" }, take: 50 }),
+      prisma.post.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        select: { id: true, text: true, likes: true, hashtags: true },
+      }),
+      prisma.space.findMany({
+        where: { status: "active" },
+        take: 50,
+        select: { id: true, name: true, slug: true, description: true },
+      }),
       prisma.course.findMany({ where: { status: "published" }, take: 50 }),
     ]);
     source = {

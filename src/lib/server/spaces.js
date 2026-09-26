@@ -265,7 +265,10 @@ export async function cascadeDeleteSpace(spaceId) {
 
   if (prisma) {
     try {
-      const postRows = await prisma.post.findMany({ where: { spaceId } });
+      const postRows = await prisma.post.findMany({
+        where: { spaceId },
+        select: { id: true },
+      });
       for (const post of postRows) {
         await deletePostWithComments(post.id);
       }

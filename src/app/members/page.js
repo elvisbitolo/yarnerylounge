@@ -22,7 +22,14 @@ export default async function MembersPage({ searchParams }) {
   const prisma = getPrisma();
 
   const [userSettled, gamiSettled] = await Promise.allSettled([
-    prisma.user.findMany({ orderBy: { name: "asc" }, take: 5000 }),
+    // Omit coverPhotoURL: the directory never renders it, and it can hold a
+    // ~290KB inline data URL. A select is not viable here because the member
+    // map reads 14 quiz columns dynamically via QUIZ_QUESTIONS.
+    prisma.user.findMany({
+      orderBy: { name: "asc" },
+      take: 5000,
+      omit: { coverPhotoURL: true },
+    }),
     prisma.gamification.findMany({ take: 5000 }),
   ]);
   const userRows = userSettled.status === "fulfilled" ? userSettled.value : [];

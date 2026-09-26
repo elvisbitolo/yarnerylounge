@@ -67,9 +67,21 @@ export async function getAnalytics() {
         prisma.progress.count(),
         prisma.subscription.findMany(),
         prisma.purchase.findMany(),
-        prisma.post.findMany(),
+        prisma.post.findMany({
+          select: {
+            id: true,
+            authorId: true,
+            authorName: true,
+            text: true,
+            likes: true,
+            commentCount: true,
+            createdAt: true,
+          },
+        }),
         prisma.rsvp.findMany(),
-        prisma.postComment.findMany(),
+        prisma.postComment.findMany({
+          select: { authorId: true, postId: true },
+        }),
         prisma.lesson.findMany(),
         prisma.progress.findMany(),
       ]);
@@ -335,7 +347,18 @@ export async function getSpaceAnalytics(spaceId) {
   const prisma = getPrisma();
   if (prisma) {
     try {
-      const postRows = await prisma.post.findMany({ where: { spaceId } });
+      const postRows = await prisma.post.findMany({
+        where: { spaceId },
+        select: {
+          id: true,
+          authorId: true,
+          authorName: true,
+          text: true,
+          likes: true,
+          commentCount: true,
+          createdAt: true,
+        },
+      });
       posts = postRows.map((row) => ({ id: row.id, ...row }));
       const gRows = memberIds.length
         ? await prisma.gamification.findMany({ where: { id: { in: memberIds.slice(0, 30) } } })

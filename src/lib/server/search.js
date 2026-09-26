@@ -20,12 +20,66 @@ const FETCH_MODELS = {
   rooms: "room",
 };
 
+// Search only matches text and renders no images, so never fetch the image
+// columns. Post.imageUrl can hold a ~700KB inline data URL, and these queries
+// page through up to 300 rows per collection.
+const POST_SEARCH_SELECT = {
+  id: true,
+  text: true,
+  authorName: true,
+  authorId: true,
+  kind: true,
+  hashtags: true,
+  likes: true,
+  bookmarks: true,
+  createdAt: true,
+  spaceId: true,
+  groupId: true,
+  pollOptions: true,
+};
+
+const FETCH_SELECTS = {
+  posts: POST_SEARCH_SELECT,
+  users: { id: true, name: true, username: true, role: true },
+  groups: { id: true, name: true, slug: true, description: true, status: true },
+  spaces: {
+    id: true,
+    name: true,
+    slug: true,
+    description: true,
+    status: true,
+    publicPreview: true,
+  },
+  courses: { id: true, title: true, description: true, status: true, spaceId: true },
+  events: {
+    id: true,
+    title: true,
+    description: true,
+    startTime: true,
+    publicPreview: true,
+    spaceId: true,
+  },
+  rooms: {
+    id: true,
+    name: true,
+    slug: true,
+    description: true,
+    status: true,
+    publicPreview: true,
+    spaceId: true,
+    groupId: true,
+  },
+};
+
 async function fetchDocs(collectionName, limit = 300) {
   const prisma = getPrisma();
   const model = FETCH_MODELS[collectionName];
   if (prisma && model) {
     try {
-      return await prisma[model].findMany({ take: limit });
+      return await prisma[model].findMany({
+        take: limit,
+        ...(FETCH_SELECTS[collectionName] ? { select: FETCH_SELECTS[collectionName] } : {}),
+      });
     } catch (err) {
       logError("search.prisma_fetch_failed", { error: err.message, collectionName });
     }
@@ -100,7 +154,11 @@ export async function searchCommunity(
     const prisma = getPrisma();
     if (prisma) {
       try {
-        rawPosts = await prisma.post.findMany({ where: { hashtags: { has: tag } }, take: 60 });
+        rawPosts = await prisma.post.findMany({
+          where: { hashtags: { has: tag } },
+          take: 60,
+          select: POST_SEARCH_SELECT,
+        });
       } catch (err) {
         logError("search.prisma_hashtag_failed", { error: err.message, tag });
       }

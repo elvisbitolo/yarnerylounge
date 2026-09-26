@@ -155,6 +155,7 @@ async function countUsersContributing(since) {
       const rows = await prisma.post.findMany({
         where: { createdAt: { gte: new Date(since) } },
         take: 1000,
+        select: { authorId: true },
       });
       return new Set(rows.map((p) => p.authorId).filter(Boolean)).size;
     } catch (err) {
@@ -199,9 +200,21 @@ export async function getAudienceSeries(days) {
   if (prisma) {
     try {
       const [users, posts, comments, countBefore] = await Promise.all([
-        prisma.user.findMany({ where: { createdAt: { gte: startDate } }, take: 3000 }),
-        prisma.post.findMany({ where: { createdAt: { gte: startDate } }, take: 4000 }),
-        prisma.postComment.findMany({ where: { createdAt: { gte: startDate } }, take: 5000 }),
+        prisma.user.findMany({
+          where: { createdAt: { gte: startDate } },
+          take: 3000,
+          select: { createdAt: true },
+        }),
+        prisma.post.findMany({
+          where: { createdAt: { gte: startDate } },
+          take: 4000,
+          select: { createdAt: true },
+        }),
+        prisma.postComment.findMany({
+          where: { createdAt: { gte: startDate } },
+          take: 5000,
+          select: { createdAt: true },
+        }),
         prisma.user.count({ where: { createdAt: { lt: startDate } } }),
       ]);
       membersBefore = countBefore;
@@ -285,8 +298,24 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
   if (prisma) {
     try {
       const [posts, users, rsvps] = await Promise.all([
-        prisma.post.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
-        prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
+        prisma.post.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: {
+            id: true,
+            authorId: true,
+            authorName: true,
+            text: true,
+            spaceId: true,
+            groupId: true,
+            createdAt: true,
+          },
+        }),
+        prisma.user.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, name: true, createdAt: true },
+        }),
         prisma.rsvp.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
       ]);
       return buildActivityItems(
@@ -417,8 +446,19 @@ export async function getDashboardContent() {
   if (prisma) {
     try {
       const [posts, comments] = await Promise.all([
-        prisma.post.findMany({ orderBy: { createdAt: "desc" }, take: 120 }),
-        prisma.postComment.findMany({ take: 3000 }),
+        prisma.post.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 120,
+          select: {
+            id: true,
+            text: true,
+            authorId: true,
+            authorName: true,
+            likes: true,
+            createdAt: true,
+          },
+        }),
+        prisma.postComment.findMany({ take: 3000, select: { postId: true } }),
       ]);
       return buildDashboardContent(posts, comments);
     } catch (err) {
@@ -478,10 +518,13 @@ export async function getDashboardOnboarding(uid) {
   if (prisma) {
     try {
       const [u, post, rsvp, roomEvent] = await Promise.all([
-        prisma.user.findUnique({ where: { id: uid } }),
-        prisma.post.findFirst({ where: { authorId: uid } }),
-        prisma.rsvp.findFirst({ where: { userId: uid } }),
-        prisma.roomEvent.findFirst({ where: { userId: uid } }),
+        prisma.user.findUnique({
+          where: { id: uid },
+          select: { id: true, name: true, headline: true, bio: true, createdAt: true },
+        }),
+        prisma.post.findFirst({ where: { authorId: uid }, select: { id: true } }),
+        prisma.rsvp.findFirst({ where: { userId: uid }, select: { id: true } }),
+        prisma.roomEvent.findFirst({ where: { userId: uid }, select: { id: true } }),
       ]);
       userRow = u;
       hasPost = !!post;
