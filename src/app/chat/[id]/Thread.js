@@ -391,14 +391,19 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     // copy (and the other member's screen updates the same moment it lands).
     let tempId = null;
     if (trimmed || attachment) {
-      tempId = `sending-${Date.now()}`;
+      // react-hooks/purity reads this as render-phase, but handleSend only runs
+      // from the composer's onSubmit/onKeyDown. One read also keeps the
+      // optimistic id and createdAt on the same millisecond.
+      // eslint-disable-next-line react-hooks/purity
+      const now = Date.now();
+      tempId = `sending-${now}`;
       const tempMsg = {
         id: tempId,
         conversationId,
         senderId: uid,
         senderName: selfName || "You",
         text: trimmed,
-        createdAt: Date.now(),
+        createdAt: now,
         readBy: {},
         replies: [],
         replyCount: 0,
