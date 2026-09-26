@@ -1,33 +1,37 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import * as vault from "../welcome-vault-core.js";
 import {
   WELCOME_VAULT_ID,
-  SYSTEM_AUTHOR_ID,
+  WELCOME_VAULT_AUTHOR_ID,
   WELCOME_VAULT_TEXT,
-  systemAuthorData,
   welcomeVaultPostData,
 } from "../welcome-vault-core.js";
 
-// Post.authorId is a NOT NULL foreign key to User, so the announcement can only
-// exist once the "system" author row does. Seeding the post without it fails on
-// Post_authorId_fkey, which is caught and logged as welcome-vault.seed_failed --
-// a silent failure that left the Terms of Service post missing entirely.
-test("the system author row matches the sentinel the post references", () => {
-  const author = systemAuthorData();
-  assert.equal(author.id, SYSTEM_AUTHOR_ID);
-  assert.ok(author.name, "the author needs a display name");
-  assert.equal(author.id, welcomeVaultPostData().authorId);
+// Post.authorId is NOT NULL with a foreign key to User, so the announcement
+// cannot be created without an author. An earlier fix satisfied the constraint
+// by inserting a synthetic "system" / "The Speakeasy Team" user, which put a
+// fake member into the public directory, user autocomplete and the member
+// counts. The correct fix is a nullable authorId, so nothing is invented.
+test("no service account is fabricated for the announcement", () => {
+  assert.equal(
+    Object.keys(vault).includes("systemAuthorData"),
+    false,
+    "welcome-vault-core must not export a factory that builds a synthetic user"
+  );
+  assert.equal(WELCOME_VAULT_AUTHOR_ID, null);
+  assert.equal(welcomeVaultPostData().authorId, null);
 });
 
-test("the announcement uses the sentinel authorId the Feed keys on", () => {
+// The byline is a denormalized display string on the post. It is allowed, and it
+// is not a member record.
+test("the announcement keeps a byline without an author row", () => {
   const post = welcomeVaultPostData();
-  // Feed.js:1423,1432,1444,1472 hide the delete menu, comment box and edit
-  // affordances for authorId "system". Any other value makes the read-only
-  // Terms post editable by its author or by moderators.
-  assert.equal(post.authorId, "system");
+  assert.equal(post.authorName, "The Speakeasy Team");
+  assert.equal(post.authorId, null);
+  assert.equal(post.id, WELCOME_VAULT_ID);
   assert.equal(post.kind, "announcement");
   assert.equal(post.pinned, true);
-  assert.equal(post.id, WELCOME_VAULT_ID);
   assert.equal(post.text, WELCOME_VAULT_TEXT);
 });
 

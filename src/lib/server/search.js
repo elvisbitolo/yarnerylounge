@@ -132,12 +132,15 @@ export async function searchCommunity(
 
   const memberships = isStaff ? null : await getUserMemberships(uid);
 
-  const canReadPost = (post) => {
+    const canReadPost = (post) => {
     if (isStaff || post.authorId === uid) return true;
-    if (post.status === "deleted") return false;
+    // No soft-delete filter here: Post has no status column and nothing ever
+    // wrote one. Deletion is a hard prisma.post.delete, so removed posts are
+    // already gone rather than flagged.
     if (post.spaceId && !memberships.spaceIds.has(post.spaceId)) return false;
     if (post.groupId && !memberships.groupIds.has(post.groupId)) return false;
-    return true;
+    return true
+;
   };
 
   const inSpaceScope = (item) => !spaceId || item.spaceId === spaceId;
@@ -234,11 +237,11 @@ export async function searchCommunity(
           (await fetchDocs("events"))
             .filter(
               (e) =>
-                e.status !== "deleted" &&
-                (e.publicPreview ||
-                  isStaff ||
-                  !e.spaceId ||
-                  memberships.spaceIds.has(e.spaceId))
+                // Event has no status column either; see canReadPost above.
+                e.publicPreview ||
+                isStaff ||
+                !e.spaceId ||
+                memberships.spaceIds.has(e.spaceId)
             )
             .filter(inSpaceScope),
           (e) => [e.title, e.description]

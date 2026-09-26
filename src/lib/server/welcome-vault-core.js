@@ -3,11 +3,11 @@
 // imports "@/lib/..." aliases, which plain `node --test` cannot resolve.
 export const WELCOME_VAULT_ID = "welcome-vault";
 
-// The Feed identifies this post by the sentinel authorId "system" and hides the
-// delete menu, comment box and edit affordances for it (Feed.js:1423,1432,1444,
-// 1472). But Post.authorId is a NOT NULL foreign key to User, so the sentinel
-// needs a real row behind it or the insert fails on Post_authorId_fkey.
-export const SYSTEM_AUTHOR_ID = "system";
+// Post.authorId is currently NOT NULL with a foreign key to User, so this
+// announcement cannot be created until that column is made nullable. It is then
+// authored by no one, and the Feed keys its read-only rendering off a null
+// author. No service account is ever inserted into User.
+export const WELCOME_VAULT_AUTHOR_ID = null;
 
 export const WELCOME_VAULT_TEXT = `📜 Christa's Secret Swipe Speakeasy: Terms of Service
 
@@ -30,15 +30,13 @@ Christa's Lounge reserves the right to modify these rules or adjust subscription
 
 The same document is always available at https://christasspeakeasy.com/terms. This announcement is read-only.`;
 
-// The row that must exist before the announcement can reference it.
-export function systemAuthorData() {
-  return { id: SYSTEM_AUTHOR_ID, name: "The Speakeasy Team" };
-}
-
+// authorName is a denormalized byline shown on the post, not a member record.
+// authorId stays null so that seeding against a not-yet-migrated database fails
+// loudly on the NOT NULL constraint instead of quietly inventing a user.
 export function welcomeVaultPostData(now = new Date()) {
   return {
     id: WELCOME_VAULT_ID,
-    authorId: SYSTEM_AUTHOR_ID,
+    authorId: WELCOME_VAULT_AUTHOR_ID,
     authorName: "The Speakeasy Team",
     text: WELCOME_VAULT_TEXT,
     kind: "announcement",
