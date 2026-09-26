@@ -9,6 +9,8 @@ import { UPGRADE_URL } from "@/lib/upgrade-url";
 import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
+import { dataUrlToBlob } from "@/lib/data-url";
+import { IMAGE_DATA_URL_MAX } from "@/lib/server/posts-core";
 import styles from "./feed.module.css";
 import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown } from "lucide-react";
 
@@ -41,6 +43,35 @@ function resizeImage(file, maxSize = 1600) {
     reader.onerror = () => reject(new Error("Couldn't read that file"));
     reader.readAsDataURL(file);
   });
+}
+
+// Reports isNewBlob so the caller can delete the blob if the post that was
+// supposed to reference it never gets created.
+async function uploadPostImage(dataUrl) {
+  try {
+    const fd = new FormData();
+    fd.append("file", dataUrlToBlob(dataUrl), "post.jpg");
+    const up = await fetch("/api/upload?kind=post", { method: "POST", body: fd });
+    const upData = await up.json().catch(() => ({}));
+    if (up.ok && upData.url) return { url: upData.url, isNewBlob: true };
+  } catch (err) {
+    console.error("Post image upload failed", err);
+  }
+  return { url: dataUrl, isNewBlob: false };
+}
+
+// Best effort: the post failed to create, so the blob it would have referenced
+// is unreferenced and would otherwise sit in storage forever.
+async function deleteUploadedBlob(url) {
+  try {
+    await fetch("/api/upload?kind=post", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+  } catch (err) {
+    console.error("Failed to clean up orphaned post image", err);
+  }
 }
 
 function timeAgo(ts) {
@@ -829,8 +860,8 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     (mode, list) => {
       try {
         sessionStorage.setItem(cacheKeyFor(mode), JSON.stringify({ at: Date.now(), posts: sortFeedPosts(list) }));
-      } catch {
-        /* storage unavailable */
+      } catch (err) {
+        console.error("Feed cache write failed", err);
       }
     },
     [cacheKeyFor, sortFeedPosts]
@@ -1030,7 +1061,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     setUploading(true);
     try {
       const dataUrl = await resizeImage(file);
-      if (dataUrl.length > 700_000) {
+      if (dataUrl.length > 2_800_000) {
         alert("That image is too large to attach yet — try a smaller one.");
         return;
       }
@@ -1059,13 +1090,27 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         return;
       }
       setBusy(true);
+      // Hoisted so the catch can clean up a blob this attempt created.
+      let uploadedBlobUrl = "";
       try {
+        // Store the image in object storage rather than inline in the post row.
+        // Falls back to the data URL if storage is unavailable, so posting still works.
+        const { url: storedImageUrl, isNewBlob } = imageUrl.startsWith("data:")
+          ? await uploadPostImage(imageUrl)
+          : { url: imageUrl, isNewBlob: false };
+        if (isNewBlob) uploadedBlobUrl = storedImageUrl;
+        // The composer accepts images up to 2.8MB but /api/posts rejects inline
+        // data URLs over IMAGE_DATA_URL_MAX. Without this the fallback path would
+        // post, get rejected, and lose the user's text with only "Post failed".
+        if (storedImageUrl.startsWith("data:") && storedImageUrl.length > IMAGE_DATA_URL_MAX) {
+          throw new Error("That image is too large to post here. Try a smaller one.");
+        }
         const res = await fetch("/api/posts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text: payloadText,
-            imageUrl,
+            imageUrl: storedImageUrl,
             groupId: groupId || "",
             spaceId: spaceId || "",
             kind,
@@ -1082,7 +1127,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           authorRole: role || "member",
           text: payloadText,
           kind,
-          imageUrl: imageUrl || "",
+          imageUrl: storedImageUrl || "",
           likes: {},
           bookmarks: {},
           reactions: {},
@@ -1108,6 +1153,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         setPollDeadline("");
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
+        if (uploadedBlobUrl) await deleteUploadedBlob(uploadedBlobUrl);
         console.error(err);
         alert(err.message || "Post failed. Try again.");
       } finally {

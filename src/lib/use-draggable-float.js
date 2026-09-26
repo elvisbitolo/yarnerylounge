@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -22,36 +22,60 @@ export default function useDraggableFloat({
   minBottom = 76,
   anchor = "right",
 }) {
-  const [pos, setPos] = useState(() => {
-    if (typeof window === "undefined") {
-      return { bottom: defaultPos.bottom, [anchor]: defaultPos[anchor] };
-    }
-    const maxWidth = Math.max(edgeMargin, window.innerWidth - width - edgeMargin);
-    const maxBottom = Math.max(minBottom, window.innerHeight - height - edgeMargin);
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-      if (
-        saved &&
-        Number.isFinite(saved.bottom) &&
-        Number.isFinite(saved[anchor])
-      ) {
-        return {
-          [anchor]: clamp(saved[anchor], edgeMargin, maxWidth),
-          bottom: clamp(saved.bottom, minBottom, maxBottom),
-        };
-      }
-    } catch {
-      /* use the default */
-    }
-    return {
-      [anchor]: clamp(defaultPos[anchor] ?? edgeMargin, edgeMargin, maxWidth),
-      bottom: clamp(defaultPos.bottom ?? minBottom, minBottom, maxBottom),
-    };
-  });
+  // The first render must be byte-identical on the server and the client, or
+  // React reports a hydration mismatch. The persisted position can only be read
+  // after mount, so the first render always uses the default and the saved
+  // position is applied by the effect below.
+  const [pos, setPos] = useState(() => ({
+    bottom: defaultPos.bottom,
+    [anchor]: defaultPos[anchor],
+  }));
 
   const dragRef = useRef(null);
   const movedRef = useRef(0);
   const suppressClickRef = useRef(false);
+  // Tracks the latest position synchronously. `pos` alone is one render behind
+  // when the pointer is released in the same frame as the final move.
+  const posRef = useRef(pos);
+
+  const defaultAnchor = defaultPos[anchor];
+  const defaultBottom = defaultPos.bottom;
+
+  useEffect(() => {
+    // Applied on the first animation frame instead of synchronously in the
+    // effect body: the saved position and the viewport are only knowable in the
+    // browser, and deferring to the next frame avoids both the cascading render
+    // the lint rule warns about and painting the default position first.
+    const frame = requestAnimationFrame(() => {
+      const maxWidth = Math.max(edgeMargin, window.innerWidth - width - edgeMargin);
+      const maxBottom = Math.max(minBottom, window.innerHeight - height - edgeMargin);
+      let next;
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+        if (
+          saved &&
+          Number.isFinite(saved.bottom) &&
+          Number.isFinite(saved[anchor])
+        ) {
+          next = {
+            [anchor]: clamp(saved[anchor], edgeMargin, maxWidth),
+            bottom: clamp(saved.bottom, minBottom, maxBottom),
+          };
+        }
+      } catch {
+        /* use the default */
+      }
+      if (!next) {
+        next = {
+          [anchor]: clamp(defaultAnchor ?? edgeMargin, edgeMargin, maxWidth),
+          bottom: clamp(defaultBottom ?? minBottom, minBottom, maxBottom),
+        };
+      }
+      posRef.current = next;
+      setPos(next);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [storageKey, anchor, edgeMargin, minBottom, width, height, defaultAnchor, defaultBottom]);
 
   function onPointerDown(e) {
     // Never hijack range inputs / text boxes (e.g. the volume slider).
@@ -80,10 +104,12 @@ export default function useDraggableFloat({
       anchor === "right"
         ? dragRef.current.anchor - dx
         : dragRef.current.anchor + dx;
-    setPos({
+    const next = {
       [anchor]: clamp(anchorNext, edgeMargin, maxWidth),
       bottom: clamp(dragRef.current.bottom - dy, minBottom, maxBottom),
-    });
+    };
+    posRef.current = next;
+    setPos(next);
   }
 
   function onPointerEnd(e) {
@@ -94,7 +120,7 @@ export default function useDraggableFloat({
     if (wasDrag) {
       suppressClickRef.current = true;
       try {
-        localStorage.setItem(storageKey, JSON.stringify(pos));
+        localStorage.setItem(storageKey, JSON.stringify(posRef.current));
       } catch {
         /* ignore quota / private mode */
       }

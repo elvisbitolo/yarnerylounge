@@ -10,6 +10,11 @@ const COVER_MAX_BYTES = 8 * 1024 * 1024;
 const PROJECT_MAX_BYTES = 10 * 1024 * 1024;
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
+const POST_MAX_BYTES = 2 * 1024 * 1024;
+
+// Upload kinds a user may delete their own blob for. Each maps to the
+// uploads/<kind>/<uid>/ path written by POST below.
+const DELETABLE_KINDS = new Set(["avatar", "cover", "post"]);
 
 const CHAT_FILE_MIME = new Set([
   "application/octet-stream",
@@ -44,7 +49,8 @@ export async function POST(req) {
   const isCover = kind === "cover";
   const isProject = kind === "project";
   const isChat = kind === "chat";
-  if (!isAvatar && !isCover && !isProject && !isChat) {
+  const isPost = kind === "post";
+  if (!isAvatar && !isCover && !isProject && !isChat && !isPost) {
     return NextResponse.json({ error: "Unknown upload kind" }, { status: 400 });
   }
 
@@ -59,11 +65,13 @@ export async function POST(req) {
     ? PROJECT_MAX_BYTES
     : isCover
       ? COVER_MAX_BYTES
-      : isAvatar
-        ? AVATAR_MAX_BYTES
-        : isChatImage
-          ? CHAT_IMAGE_MAX_BYTES
-          : CHAT_FILE_MAX_BYTES;
+      : isPost
+        ? POST_MAX_BYTES
+        : isAvatar
+          ? AVATAR_MAX_BYTES
+          : isChatImage
+            ? CHAT_IMAGE_MAX_BYTES
+            : CHAT_FILE_MAX_BYTES;
 
   if (isChatImage) {
     if (file.size > CHAT_IMAGE_MAX_BYTES) {
@@ -124,14 +132,17 @@ export async function DELETE(req) {
     /* no body */
   }
 
-  // Only allow deleting an avatar blob the caller owns. The upload route
-  // writes to uploads/avatar/<uid>/..., so the uid is part of the path.
-  const marker = `/uploads/avatar/${auth.user.uid}/`;
+  // Only allow deleting a blob the caller owns. The upload route writes to
+  // uploads/<kind>/<uid>/..., so the uid is part of the path and the kind is
+  // checked against an allowlist so the marker cannot be spoofed.
+  const kind = new URL(req.url).searchParams.get("kind") || "";
+  const marker = DELETABLE_KINDS.has(kind) ? `/uploads/${kind}/${auth.user.uid}/` : "";
   if (
+    !marker ||
     !/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(url) ||
     !url.includes(marker)
   ) {
-    return NextResponse.json({ error: "Not an owned avatar blob" }, { status: 400 });
+    return NextResponse.json({ error: "Not an owned upload blob" }, { status: 400 });
   }
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {

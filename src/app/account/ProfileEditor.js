@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
+import { dataUrlToBlob } from "@/lib/data-url";
 import { COUNTRIES, countryByCode } from "@/lib/profile/countries";
 import {
   SOCIAL_PLATFORMS,
@@ -193,17 +194,6 @@ function encodeFullCover(img) {
 
 function cropRatioFor(kind) {
   return kind === "avatar" ? 1 : COVER_RATIO;
-}
-
-function dataUrlToBlob(dataUrl) {
-  const comma = dataUrl.indexOf(",");
-  const meta = dataUrl.slice(0, comma);
-  const base64 = dataUrl.slice(comma + 1);
-  const mime = /data:(.*?);base64/.exec(meta)?.[1] || "image/jpeg";
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
 }
 
 function toHandledLinks(links) {  if (!Array.isArray(links) || links.length === 0) return [];
@@ -464,7 +454,7 @@ export default function ProfileEditor({ initial, memberId }) {
     }
   }
 
-  async function deleteBlobIfOwned(url) {
+  async function deleteBlobIfOwned(url, kind) {
     if (
       !url ||
       !/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(url)
@@ -472,13 +462,13 @@ export default function ProfileEditor({ initial, memberId }) {
       return;
     }
     try {
-      await fetch("/api/upload", {
+      await fetch(`/api/upload?kind=${encodeURIComponent(kind)}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
     } catch {
-      // Best-effort cleanup of the superseded avatar blob.
+      // Best-effort cleanup of the superseded upload blob.
     }
   }
 
@@ -495,6 +485,7 @@ export default function ProfileEditor({ initial, memberId }) {
         const data = await res.json();
         throw new Error(data.error || "Failed to remove photo");
       }
+      deleteBlobIfOwned(photoURL, "avatar");
       setPhotoURL("");
       setSavedSnapshot((prev) => ({ ...prev, photoURL: "" }));
       setNotice("Profile photo removed.");
@@ -739,6 +730,7 @@ export default function ProfileEditor({ initial, memberId }) {
 
   async function saveCoverUpload(dataUrl) {
     setUploadingCover(true);
+    const previousCover = coverPhotoURL;
     try {
       const fd = new FormData();
       const blob = dataUrlToBlob(dataUrl);
@@ -765,6 +757,7 @@ export default function ProfileEditor({ initial, memberId }) {
       setSavedSnapshot((prev) => ({ ...prev, coverPhotoURL }));
       setSaved(true);
       setNotice("Cover photo saved.");
+      deleteBlobIfOwned(previousCover, "cover");
       return true;
     } catch (err) {
       setError(err.message || "Failed to upload cover photo");
@@ -833,7 +826,7 @@ export default function ProfileEditor({ initial, memberId }) {
       setCropOpen(false);
       setCropImage(null);
       setCropStage("adjust");
-      deleteBlobIfOwned(previousPhotoURL);
+      deleteBlobIfOwned(previousPhotoURL, "avatar");
     } catch (err) {
       setError(err.message || "Failed to save photo");
       setCropStage("adjust");
@@ -862,6 +855,7 @@ export default function ProfileEditor({ initial, memberId }) {
         const data = await res.json();
         throw new Error(data.error || "Failed to remove cover photo");
       }
+      deleteBlobIfOwned(coverPhotoURL, "cover");
       setCoverPhotoURL("");
       setSavedSnapshot((prev) => ({ ...prev, coverPhotoURL: "" }));
       setNotice("Cover photo removed.");
