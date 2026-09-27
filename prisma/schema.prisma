@@ -217,7 +217,11 @@ model PushSubscription {
 
 model Post {
   id              String    @id @default(cuid())
-  authorId        String
+  // Nullable so the pinned read-only announcement can exist without a member
+  // row. See isSystemPost() in posts-core.js: "no author" is only read as a
+  // system post when kind is "announcement" too, so an orphaned post from a
+  // deleted account can never be mistaken for one.
+  authorId        String?
   authorName      String?
   authorRole      String?
   text            String
@@ -240,7 +244,10 @@ model Post {
   pollDeadline    DateTime?
   pollStatus      String?
 
-  author   User            @relation(fields: [authorId], references: [id])
+  // onDelete stays Restrict, which is what the column already enforces.
+  // Leaving it off an optional relation would default to SetNull and null out
+  // every post by a deleted account.
+  author   User?           @relation(fields: [authorId], references: [id], onDelete: Restrict)
   comments PostComment[]
   votes    PollVote[]
   space    Space?          @relation(fields: [spaceId], references: [id])

@@ -10,7 +10,7 @@ import ReportModal from "./ReportModal";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
 import { dataUrlToBlob } from "@/lib/data-url";
-import { IMAGE_DATA_URL_MAX } from "@/lib/server/posts-core";
+import { IMAGE_DATA_URL_MAX, isSystemPost } from "@/lib/server/posts-core";
 import styles from "./feed.module.css";
 import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown } from "lucide-react";
 
@@ -1447,7 +1447,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
                 {post.pinned ? t("unpin") : t("pin")}
               </button>
             )}
-            {(post.authorId === uid || (canModerate && post.authorId !== "system")) && (
+            {(post.authorId === uid || (canModerate && !isSystemPost(post))) && (
               <button
                 className={styles.deletePost}
                 onClick={() => handleDelete(post.id)}
@@ -1456,7 +1456,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
                 {t("delete")}
               </button>
             )}
-            {post.authorId !== uid && post.authorId !== "system" && (
+            {post.authorId !== uid && !isSystemPost(post) && (
               <ReportButton type="post" targetId={post.id} />
             )}
           </div>
@@ -1468,7 +1468,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         {post.imageUrl && (
           <img src={post.imageUrl} alt="" className={styles.postImage} loading="lazy" decoding="async" />
         )}
-        {post.kind === "announcement" && post.authorId === "system" ? (
+        {isSystemPost(post) ? (
           <p className={styles.readOnlyNote}>{t("readOnlyNote")}</p>
         ) : (
           <>
@@ -1496,7 +1496,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   }
 
   function renderFeaturedPost(post) {
-    const isSystemPin = post.pinned && post.authorId === "system";
+    const isSystemPin = post.pinned && isSystemPost(post);
     const engagement =
       Object.keys(post.likes || {}).length +
       Object.keys(post.reactions || {}).length +

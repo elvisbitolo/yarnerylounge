@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   postAccessCheck,
+  isSystemPost,
   nextLikeState,
   validatePostText,
   validateCommentText,
@@ -216,4 +217,38 @@ test("paginatePostRows: slices page and exposes opaque nextCursor", () => {
   const end = paginatePostRows(rows.slice(0, 2), 2);
   assert.equal(end.hasMore, false);
   assert.equal(end.nextCursor, null);
+});
+
+test("isSystemPost: the announcement has no author and is still system", () => {
+  assert.equal(isSystemPost({ kind: "announcement", authorId: null }), true);
+});
+
+test("isSystemPost: a legacy authorId of \"system\" still counts", () => {
+  assert.equal(isSystemPost({ kind: "announcement", authorId: "system" }), true);
+});
+
+test("isSystemPost: an ordinary member post is never system", () => {
+  assert.equal(isSystemPost({ kind: "post", authorId: "abc" }), false);
+  assert.equal(isSystemPost({ kind: "poll", authorId: "abc" }), false);
+});
+
+test("isSystemPost: undefined authorId is not system", () => {
+  assert.equal(isSystemPost({ kind: "announcement" }), false);
+  assert.equal(isSystemPost({ kind: "post", authorId: undefined }), false);
+});
+
+// The reason the kind check exists. Post.authorId is nullable now, and if the
+// foreign key ever falls back to SetNull a deleted account's posts arrive with
+// authorId: null. Treating those as system posts would make them undeletable,
+// uncommentable and unreportable.
+test("isSystemPost: an orphaned post from a deleted author is NOT system", () => {
+  assert.equal(isSystemPost({ kind: "post", authorId: null }), false);
+  assert.equal(isSystemPost({ kind: "question", authorId: null }), false);
+  assert.equal(isSystemPost({ kind: "win", authorId: null }), false);
+  assert.equal(isSystemPost({ kind: null, authorId: null }), false);
+});
+
+test("isSystemPost: tolerates a missing post", () => {
+  assert.equal(isSystemPost(null), false);
+  assert.equal(isSystemPost(undefined), false);
 });

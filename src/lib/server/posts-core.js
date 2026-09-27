@@ -164,3 +164,26 @@ export function paginatePostRows(rows, limit) {
     hasMore,
   };
 }
+
+// The pinned read-only announcement (the Terms of Service) has no member
+// author, so Post.authorId is nullable and the author is null. The "system"
+// string is still accepted so a row created before this change keeps rendering
+// as read-only.
+//
+// The kind check is load-bearing, not decoration: it is the only thing
+// separating "authored by the community" from "owned by the platform". Without
+// it, a post whose author was deleted would be treated as a system post and
+// become impossible to delete, impossible to comment on, and impossible to
+// report.
+//
+// The author comparison is deliberately strict. An authorId that is absent
+// (undefined, because a projection omitted it) is not the same as an authorId
+// that is null, and only the latter means "this post is owned by the platform".
+// Anything unknown is treated as an ordinary post, which keeps the moderation
+// controls available rather than silently removing them.
+export function isSystemPost(post) {
+  if (!post) return false;
+  if (post.kind !== "announcement") return false;
+  return post.authorId === null || post.authorId === "system";
+}
+
