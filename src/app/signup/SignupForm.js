@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -13,6 +13,7 @@ import {
   checkPaidSignup,
   resendSignupVerification,
 } from "@/lib/client-auth";
+import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -20,6 +21,25 @@ import styles from "../auth.module.css";
 
 const LANDING_URL =
   process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";
+
+// A `?provider=google` link with no return material behind it: a bookmark, a
+// shared link, a reload after the tokens were spent. It is not a failed sign-up
+// — there was never a sign-up to fail — so it releases the spinner without an
+// error the visitor cannot act on.
+//
+// Derived from the URL rather than latched into state, so it stays consistent
+// across re-renders, and the server snapshot stays false because the marker is
+// in the query string while the credentials would be in the fragment: the server
+// cannot see either. One frame of the spinner on a stale link is the cost.
+function subscribeStaleProvider() {
+  return () => {};
+}
+function getStaleProviderSnapshot() {
+  return isStaleProviderLink();
+}
+function getServerStaleProviderSnapshot() {
+  return false;
+}
 
 function BrandMark() {
   return (
@@ -50,7 +70,14 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   // the server shell so it is already correct in the SSR HTML; oauthFailed drops
   // it once the exchange gives up, since the prop can't change on its own.
   const [oauthFailed, setOauthFailed] = useState(false);
-  const waitingOnOAuth = oauthPending && !oauthFailed;
+  // Releases the spinner for a ?provider= link with nothing to redeem. Derived
+  // rather than state — see getStaleProviderSnapshot above.
+  const staleProvider = useSyncExternalStore(
+    subscribeStaleProvider,
+    getStaleProviderSnapshot,
+    getServerStaleProviderSnapshot
+  );
+  const waitingOnOAuth = oauthPending && !oauthFailed && !staleProvider;
 
   // A returning member (the server saw a session cookie) is about to be bounced
   // into the app by the auth wall below. That check costs up to three round
@@ -68,7 +95,9 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   // session.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has("session_refresh") || params.has("provider")) return;
+    // Skip the wall only for a *live* OAuth return, so someone who arrives on a
+    // stale ?provider= link with a valid cookie is still bounced into the app.
+    if (params.has("session_refresh") || isOAuthReturn()) return;
     // The server already read the httpOnly cookie and reported it as hasSession.
     // With no cookie there is nothing for the wall to heal, so skip the two
     // guaranteed 401s (/api/me, then /api/auth/refresh) that every anonymous
@@ -120,6 +149,10 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
 
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("provider")) return;
+    // The marker alone is not a return leg. With no return material there is no
+    // session to exchange, so skip the retry window and show the form —
+    // isStaleProviderLink() has already released the spinner, so nothing to set.
+    if (!isOAuthReturn()) return;
     // Returned from the Google OAuth redirect; exchange the Supabase session
     // for the httpOnly cookie and reload into the app.
     let cancelled = false;
