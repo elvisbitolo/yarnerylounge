@@ -23,7 +23,7 @@ const CANONICAL_HOST = (
 // list current: add any domain that links or points at the live site.
 const OWN_HOSTS = (
   process.env.NEXT_PUBLIC_OWN_HOSTS ||
-  "yarnerylounge.vercel.app,christasspeakeasy.com,christaspeakeasy.com,elvisbitolo11-8702s-projects.vercel.app"
+  "yarnerylounge.vercel.app,christasspeakeasy.com,christaspeakeasy.com,community-elvisbitolo11-8702s-projects.vercel.app,elvisbitolo11-8702s-projects.vercel.app"
 )
   .split(",")
   .map((host) => host.trim().toLowerCase())
@@ -105,11 +105,29 @@ function assertSameOrigin(request) {
   );
 }
 
-// Exact host, or a subdomain of one we own. The dot boundary is deliberate:
-// a bare endsWith() would also match `notchristasspeakeasy.com`.
+// Exact host, a subdomain of one we own, or a Vercel per-deploy sibling of one
+// we own.
+//
+// Both boundaries are deliberate. A bare endsWith() would also match
+// `notchristasspeakeasy.com`, so custom domains are anchored on `.`.
+//
+// The hyphen boundary exists because Vercel does not hang its per-project hosts
+// off the team domain as subdomains. It glues the project name onto the team
+// name with a dash instead, so
+// `elvisbitolo11-8702s-projects.vercel.app` is the *parent* of
+// `community-elvisbitolo11-8702s-projects.vercel.app` and of every
+// `community-<hash>-elvisbitolo11-8702s-projects.vercel.app` preview — they are
+// siblings under `vercel.app`, not subdomains of the team host. Matching only
+// on `.` therefore silently missed every real deployment domain of this
+// project, which left production served off-canonical and split the host-only
+// session cookie across two origins. Only Vercel can issue a
+// `<something>-<team>.vercel.app` host, so the dash form is not over-broad.
 function isOwnHost(hostname) {
   return OWN_HOSTS.some(
-    (host) => hostname === host || hostname.endsWith(`.${host}`)
+    (host) =>
+      hostname === host ||
+      hostname.endsWith(`.${host}`) ||
+      hostname.endsWith(`-${host}`)
   );
 }
 
