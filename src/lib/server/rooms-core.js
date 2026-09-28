@@ -31,6 +31,7 @@ export function mapRoomRow(row) {
     imageUrl: row.imageUrl || "",
     createdBy: row.createdBy || "",
     createdAt: row.createdAt || null,
+    pinned: !!row.pinned,
   };
 }
 
@@ -53,4 +54,31 @@ export function isRoomLive(room, now = Date.now()) {
         : Number(room.opensAt);
 
   return !Number.isFinite(opensAt) || opensAt <= now;
+}
+
+/**
+ * Orders live rooms for the nav's "live now" banner and returns the first
+ * `limit`. The banner shows room[0] and collapses the rest into "+N more", so
+ * the order decides which single room leads.
+ *
+ * Pinned first: that is an explicit choice about which room to promote, so it
+ * has to beat both the broadcast tier and creation order. Otherwise the lead
+ * room is whichever room happens to be newest, which is why the banner can
+ * change to a room nobody chose just by adding an unrelated one.
+ */
+export function pickBannerRooms(liveRooms, limit = 5) {
+  // Lower sorts first. Four tiers, in order: pinned, pinned broadcast, plain
+  // broadcast, then everything else.
+  const tier = (room) => {
+    if (room.pinned) return 0;
+    return (room.kind || "standard") === "broadcast" ? 1 : 2;
+  };
+
+  return [...liveRooms]
+    .sort((a, b) => {
+      const diff = tier(a) - tier(b);
+      if (diff !== 0) return diff;
+      return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
+    })
+    .slice(0, limit);
 }

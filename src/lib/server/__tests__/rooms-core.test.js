@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isRoomLive, mapRoomRow } from "../rooms-core.js";
+import { isRoomLive, mapRoomRow, pickBannerRooms } from "../rooms-core.js";
 
 test("isRoomLive: always-on rooms stay live despite a stale schedule", () => {
   assert.equal(
@@ -61,4 +61,65 @@ test("mapRoomRow: blank row yields safe defaults", () => {
   assert.equal(room.kind, "standard");
   assert.equal(room.publicPreview, false);
   assert.equal(room.opensAt, null);
+});
+
+test("mapRoomRow: pinned defaults to false when absent", () => {
+  assert.equal(mapRoomRow({ id: "x" }).pinned, false);
+  assert.equal(mapRoomRow({ id: "x", pinned: true }).pinned, true);
+});
+
+// The banner renders rooms[0] and collapses the rest into "+N more", so the
+// first element is the room every visitor sees promoted.
+const at = (mins) => ({ toMillis: () => Date.UTC(2026, 0, 1, 0, mins) });
+
+test("pickBannerRooms: a pinned room outranks creation order", () => {
+  // The real case: Happy Hour Hub is the oldest of the four, so it lost the
+  // banner to the newest room purely on creation time.
+  const oldest = { name: "Happy Hour Hub", pinned: true, createdAt: at(0) };
+  const newest = { name: "The Silent Studio", createdAt: at(30) };
+  const picked = pickBannerRooms([newest, oldest]);
+  assert.equal(picked[0].name, "Happy Hour Hub");
+});
+
+test("pickBannerRooms: pinning wins over the broadcast tier", () => {
+  const picked = pickBannerRooms([
+    { name: "Broadcast", kind: "broadcast", createdAt: at(30) },
+    { name: "Pinned", pinned: true, createdAt: at(0) },
+  ]);
+  assert.equal(picked[0].name, "Pinned");
+});
+
+test("pickBannerRooms: broadcast still outranks plain rooms when nothing is pinned", () => {
+  const picked = pickBannerRooms([
+    { name: "Plain", createdAt: at(30) },
+    { name: "Broadcast", kind: "broadcast", createdAt: at(0) },
+  ]);
+  assert.equal(picked[0].name, "Broadcast");
+});
+
+test("pickBannerRooms: unpinned rooms still fall back to newest first", () => {
+  const picked = pickBannerRooms([
+    { name: "Middle", createdAt: at(15) },
+    { name: "Newest", createdAt: at(30) },
+    { name: "Oldest", createdAt: at(0) },
+  ]);
+  assert.deepEqual(picked.map((r) => r.name), ["Newest", "Middle", "Oldest"]);
+});
+
+test("pickBannerRooms: honours the limit and does not mutate the input", () => {
+  const input = [
+    { name: "A", createdAt: at(0) },
+    { name: "B", createdAt: at(20) },
+    { name: "C", createdAt: at(10) },
+  ];
+  const snapshot = input.map((r) => r.name);
+  const picked = pickBannerRooms(input, 2);
+  assert.deepEqual(picked.map((r) => r.name), ["B", "C"]);
+  assert.deepEqual(input.map((r) => r.name), snapshot);
+});
+
+test("pickBannerRooms: rooms with no createdAt do not throw", () => {
+  const picked = pickBannerRooms([{ name: "NoDate" }, { name: "Dated", createdAt: at(1) }]);
+  assert.equal(picked[0].name, "Dated");
+  assert.equal(picked[1].name, "NoDate");
 });

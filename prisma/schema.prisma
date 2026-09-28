@@ -608,6 +608,9 @@ model Room {
   recordingAllowed Boolean?
   replayVisibility String?
   imageUrl         String?
+  // Leads the nav's "live now" banner, which otherwise shows whichever room was
+  // created most recently. See pickBannerRooms in rooms-core.js.
+  pinned           Boolean     @default(false)
   updatedAt        DateTime?   @updatedAt
 
   creator   User          @relation(fields: [createdBy], references: [id])
