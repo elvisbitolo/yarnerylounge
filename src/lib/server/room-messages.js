@@ -1,4 +1,5 @@
 import { getPrisma } from "@/lib/db/prisma";
+import { resolveActorId } from "@/lib/server/acting-as-core";
 import { logError } from "@/lib/server/log";
 import { blockedMemberIdsFor } from "@/lib/server/member-safety";
 import { getActiveRoomEnsuring } from "@/lib/server/rooms";
@@ -145,6 +146,9 @@ export async function addRoomMessage(roomId, sender, { text, mentions = [], repl
     userName: sender.name,
     userAvatar: sender.avatar || "",
     role: sender.role || "viewer",
+    // Null unless the sender is acting through an AccountGrant, in which case it
+    // records who really sent the message while it shows as the principal.
+    createdById: resolveActorId(sender),
     text: clean,
     imageData: cleanImage || "",
     mentions: uniqueMentions,

@@ -6,6 +6,7 @@ import { createNotification } from "@/lib/server/notifications";
 import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
+import { resolveActorId } from "@/lib/server/acting-as-core";
 import { awardPoints, awardBadge, POINTS } from "@/lib/server/gamification";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { validateCommentText } from "@/lib/server/posts-core";
@@ -129,6 +130,8 @@ export async function POST(req, { params }) {
         parentId: replyParentId,
         authorId: user.uid,
         authorName,
+        // Null unless published through an AccountGrant.
+        createdById: resolveActorId(user),
         text: check.text,
       },
     });

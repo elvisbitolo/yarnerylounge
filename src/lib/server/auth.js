@@ -13,6 +13,7 @@ import {
   SESSION_GONE,
   SESSION_OK,
 } from "@/lib/server/session-store";
+import { resolveActingIdentity } from "@/lib/server/acting-as";
 
 export { SESSION_MAX_AGE_SECONDS };
 
@@ -48,10 +49,20 @@ export async function getCurrentUserStatus() {
   const resolved = await resolveSessionStatus(sid);
   if (resolved.status !== SESSION_OK || !resolved.identity) return { status: resolved.status };
 
-  const userDoc = await getUserDoc(resolved.identity.uid);
+  // The session always belongs to the member who actually authenticated. While
+  // they hold an active AccountGrant, the identity the rest of the server sees
+  // is the principal's instead — same uid, name, role, email — so the member
+  // does everything as the principal without a single endpoint knowing about it.
+  // The real member stays on the returned object as actorUid, which is what the
+  // write path stores in createdById.
+  const identity = await resolveActingIdentity(resolved.identity);
+
   // A suspended member is signed out on purpose, so the cookie goes with it.
+  // Checked against the real member, not the principal: suspension has to be
+  // enforceable on the person who is actually signed in.
+  const userDoc = await getUserDoc(resolved.identity.uid);
   if (userDoc?.suspended) return { status: SESSION_GONE, suspended: true };
-  return { status: SESSION_OK, identity: resolved.identity };
+  return { status: SESSION_OK, identity };
 }
 
 // Resolves the current member from the opaque session cookie via the

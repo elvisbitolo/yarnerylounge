@@ -6,6 +6,7 @@ import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
 import { extractHashtags } from "@/lib/server/hashtags";
 import { extractMentions, resolveMentions, sendMentionNotifications } from "@/lib/server/mentions";
+import { resolveActorId } from "@/lib/server/acting-as-core";
 import { awardPoints, awardBadge, POINTS } from "@/lib/server/gamification";
 import { createNotification } from "@/lib/server/notifications";
 import { runAutomations } from "@/lib/server/automations";
@@ -607,6 +608,10 @@ export async function POST(req) {
       authorId: user.uid,
       authorName,
       authorRole,
+      // Null unless this member is acting through an AccountGrant, in which case
+      // it records who really pressed publish while the post shows as the
+      // principal. See acting-as-core.js.
+      createdById: resolveActorId(user),
       text: cleanText,
       likes: {},
       pinned: false,

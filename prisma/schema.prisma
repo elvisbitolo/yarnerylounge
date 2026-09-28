@@ -119,6 +119,49 @@ typing                 Typing[]
   matchDecisionsMade     MatchDecision[] @relation("MatchDecisionActor")
   matchDecisionsReceived MatchDecision[] @relation("MatchDecisionTarget")
   roomPresence           RoomPresence[]
+
+  // Delegated-account access. A grantee signs in with their own credentials
+  // and their own Session row, but while a grant is active they resolve to the
+  // principal's identity — same id, name, role and email — so everything they
+  // do is attributed to the principal.
+  grantsGiven     AccountGrant[] @relation("AccountGrantPrincipal")
+  grantsReceived AccountGrant[] @relation("AccountGrantGrantee")
+
+  // Back-references for the "who actually did this" columns. Named, because
+  // User already relates to these three models as an author.
+  postsCreated     Post[]         @relation("PostCreatedBy")
+  commentsCreated  PostComment[]  @relation("PostCommentCreatedBy")
+  roomMessagesCreated RoomMessage[] @relation("RoomMessageCreatedBy")
+}
+
+// Lets one member act as another member's account.
+//
+// The grantee's Session row stays their own, so authentication, password reset
+// and revocation are all honestly theirs. The swap happens in identity
+// resolution instead (see acting-as.js), which is why revoking a grant is a
+// single-row update rather than a hunt for sessions.
+//
+// createdAt/revokedAt are what make the audit window reconstructable: a Post
+// with createdById set was made while a grant existed, and the grant's own
+// timestamps say which one and when.
+model AccountGrant {
+  id          String    @id @default(cuid())
+  principalId String
+  granteeId   String
+  // Reserved. "act" is the only scope that grants anything today; the column
+  // exists so adding a read-only or post-only grant later is a data change
+  // rather than a schema change.
+  scopes      String[]  @default(["act"])
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  revokedBy   String?
+
+  principal User @relation("AccountGrantPrincipal", fields: [principalId], references: [id], onDelete: Cascade)
+  grantee   User @relation("AccountGrantGrantee", fields: [granteeId], references: [id], onDelete: Cascade)
+
+  @@unique([principalId, granteeId])
+  @@index([granteeId, revokedAt])
+  @@index([principalId, revokedAt])
 }
 
 model Subscription {
@@ -224,6 +267,11 @@ model Post {
   authorId        String?
   authorName      String?
   authorRole      String?
+  // Who actually made this row, when that is not the author. Non-null only for
+  // content published through an AccountGrant — see acting-as.js. Null for
+  // everything written by the account itself, so "was this delegated?" is a
+  // single `createdById IS NOT NULL` filter rather than a join against grants.
+  createdById     String?
   text            String
   kind            String? // post | poll | question | win
   imageUrl        String?
@@ -248,34 +296,40 @@ model Post {
   // Leaving it off an optional relation would default to SetNull and null out
   // every post by a deleted account.
   author   User?           @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  createdBy User?          @relation("PostCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   comments PostComment[]
   votes    PollVote[]
   space    Space?          @relation(fields: [spaceId], references: [id])
   group    Group?          @relation(fields: [groupId], references: [id])
 
   @@index([authorId, createdAt(sort: Desc)])
+  @@index([createdById])
   @@index([spaceId, createdAt(sort: Desc)])
   @@index([groupId, createdAt(sort: Desc)])
   @@index([lastActivityAt(sort: Desc)])
 }
 
 model PostComment {
-  id         String    @id @default(cuid())
-  postId     String
-  parentId   String?
-  authorId   String
-  authorName String?
-  text       String
-  reactions  Json?
-  createdAt  DateTime  @default(now())
+  id          String    @id @default(cuid())
+  postId      String
+  parentId    String?
+  authorId    String
+  authorName  String?
+  // See Post.createdById — non-null only when published via an AccountGrant.
+  createdById String?
+  text        String
+  reactions   Json?
+  createdAt   DateTime  @default(now())
 
-  post   Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parent PostComment?  @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies PostComment[] @relation("PostCommentReplies")
-  author User          @relation(fields: [authorId], references: [id])
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent    PostComment?  @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   PostComment[] @relation("PostCommentReplies")
+  author    User          @relation(fields: [authorId], references: [id])
+  createdBy User?         @relation("PostCommentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([postId, createdAt(sort: Asc)])
   @@index([parentId])
+  @@index([createdById])
 }
 
 model PollVote {
@@ -575,6 +629,8 @@ model RoomMessage {
   userName    String?
   userAvatar  String?
   role        String?      // viewer | speaker | moderator | host
+  // See Post.createdById — non-null only when sent via an AccountGrant.
+  createdById String?
   text        String       @default("")
   imageData   String?      // base64 data URL (moves to storage)
   mentions    String[]
@@ -588,9 +644,11 @@ model RoomMessage {
 
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id])
+  createdBy User? @relation("RoomMessageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([roomId, createdAt(sort: Desc)])
   @@index([userId])
+  @@index([createdById])
 }
 
 model RoomSignal {
