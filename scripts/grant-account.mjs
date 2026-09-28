@@ -9,14 +9,20 @@
 // The grantee keeps their own login and their own Session row. Only the identity
 // the app resolves for them changes, so revoking the grant takes effect on their
 // next request — there are no sessions to clean up.
+//
+// Uses pg rather than the Prisma client: Prisma 7 emits TypeScript into
+// src/generated, which Next compiles but bare node cannot resolve. create-owner.mjs
+// goes through pg for the same reason.
 
 import fs from "fs";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const pg = require("pg");
 
 const env = fs.readFileSync(".env.local", "utf8");
 for (const line of env.split("\n")) {
-  const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+  const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
   if (m && !process.env[m[1]]) {
     process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
   }
@@ -40,15 +46,18 @@ if (!url) {
   process.exit(1);
 }
 
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
+const pool = new pg.Pool({
+  connectionString: process.env.DIRECT_URL || url,
+  ssl: { rejectUnauthorized: false },
+});
 
 async function findByEmail(email) {
-  // findFirst, not findUnique: User.email has no unique constraint, and several
-  // addresses are duplicated. Refuse to guess if that is true here.
-  const rows = await prisma.user.findMany({
-    where: { email: { equals: email, mode: "insensitive" } },
-    select: { id: true, email: true, name: true, role: true },
-  });
+  // Not a single-row lookup: User.email has no unique constraint and five
+  // addresses are duplicated, so refuse to guess if that is true here.
+  const { rows } = await pool.query(
+    `SELECT id, email, "name", role FROM "User" WHERE email ILIKE $1`,
+    [email]
+  );
   if (rows.length === 0) {
     console.error(`No member found with email ${email}`);
     process.exit(1);
@@ -73,9 +82,10 @@ try {
     process.exit(1);
   }
 
-  const existing = await prisma.accountGrant.findFirst({
-    where: { principalId: principal.id, granteeId: grantee.id },
-  });
+  const { rows: [existing] } = await pool.query(
+    `SELECT * FROM "AccountGrant" WHERE "principalId" = $1 AND "granteeId" = $2`,
+    [principal.id, grantee.id]
+  );
 
   if (revoke) {
     if (!existing || existing.revokedAt) {
@@ -87,10 +97,10 @@ try {
       console.log("\nDry run. Re-run with --apply to make it so.");
       process.exit(0);
     }
-    await prisma.accountGrant.update({
-      where: { id: existing.id },
-      data: { revokedAt: new Date(), revokedBy: principal.id },
-    });
+    await pool.query(
+      `UPDATE "AccountGrant" SET "revokedAt" = now(), "revokedBy" = $1 WHERE id = $2`,
+      [principal.id, existing.id]
+    );
     console.log("Revoked. It takes effect on their next request.");
     process.exit(0);
   }
@@ -110,16 +120,22 @@ try {
   }
 
   if (existing) {
-    await prisma.accountGrant.update({
-      where: { id: existing.id },
-      data: { revokedAt: null, revokedBy: null, createdAt: new Date() },
-    });
+    // Reactivating keeps the original row and its history rather than inserting
+    // a second one; the unique pair means there can only ever be one.
+    await pool.query(
+      `UPDATE "AccountGrant"
+          SET "revokedAt" = NULL, "revokedBy" = NULL, "createdAt" = now()
+        WHERE id = $1`,
+      [existing.id]
+    );
   } else {
-    await prisma.accountGrant.create({
-      data: { principalId: principal.id, granteeId: grantee.id, scopes: ["act"] },
-    });
+    await pool.query(
+      `INSERT INTO "AccountGrant" (id, "principalId", "granteeId", scopes)
+       VALUES (gen_random_uuid()::text, $1, $2, ARRAY['act'])`,
+      [principal.id, grantee.id]
+    );
   }
   console.log("Granted.");
 } finally {
-  await prisma.$disconnect();
+  await pool.end();
 }
