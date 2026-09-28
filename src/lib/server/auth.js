@@ -8,7 +8,11 @@ import {
   parseSessionCookie,
   SESSION_MAX_AGE_SECONDS,
 } from "@/lib/server/auth-core";
-import { resolveSession } from "@/lib/server/session-store";
+import {
+  resolveSessionStatus,
+  SESSION_GONE,
+  SESSION_OK,
+} from "@/lib/server/session-store";
 
 export { SESSION_MAX_AGE_SECONDS };
 
@@ -31,24 +35,36 @@ export async function verifySupabaseToken(token) {
   }
 }
 
+// Status-aware form of getCurrentUser(). The distinction matters: "the member is
+// signed out" (SESSION_GONE) is the only answer that authorises deleting the
+// httpOnly session cookie, while a transient store/Supabase fault
+// (SESSION_UNAVAILABLE) must leave the cookie completely alone. Callers that
+// clear cookies on sign-out use this; everything else uses getCurrentUser().
+export async function getCurrentUserStatus() {
+  const cookieStore = await cookies();
+  const sid = parseSessionCookie(cookieStore.get(AUTH_COOKIE)?.value)?.sid;
+  if (!sid) return { status: SESSION_GONE };
+
+  const resolved = await resolveSessionStatus(sid);
+  if (resolved.status !== SESSION_OK || !resolved.identity) return { status: resolved.status };
+
+  const userDoc = await getUserDoc(resolved.identity.uid);
+  // A suspended member is signed out on purpose, so the cookie goes with it.
+  if (userDoc?.suspended) return { status: SESSION_GONE, suspended: true };
+  return { status: SESSION_OK, identity: resolved.identity };
+}
+
 // Resolves the current member from the opaque session cookie via the
 // server-side Session store (Supabase tokens live in Postgres, not the
 // browser). Rotation happens transparently inside the DB, so server components
 // — which cannot write cookies — still survive the ~1h access-token expiry
-// with zero /login flashes. Returns null only when the session is genuinely
-// gone (no cookie, revoked, past the sliding 14-day window) or the member has
-// been suspended.
+// with zero /login flashes. Returns null when there is no usable member: either
+// genuinely gone (no cookie, revoked, past the sliding 14-day window, suspended)
+// or the store could not be reached — callers that must tell those apart, and
+// that clear the cookie, use getCurrentUserStatus().
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const sid = parseSessionCookie(cookieStore.get(AUTH_COOKIE)?.value)?.sid;
-  if (!sid) return null;
-
-  const resolved = await resolveSession(sid);
-  if (!resolved?.identity) return null;
-
-  const userDoc = await getUserDoc(resolved.identity.uid);
-  if (userDoc?.suspended) return null;
-  return resolved.identity;
+  const result = await getCurrentUserStatus();
+  return result.status === SESSION_OK ? result.identity : null;
 }
 
 // Read the users table (Postgres). Returns the doc shape

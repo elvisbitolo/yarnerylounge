@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
   AUTH_COOKIE,
-  getCurrentUser,
+  getCurrentUserStatus,
   getUserDoc,
 } from "@/lib/server/auth";
+import { SESSION_OK, SESSION_UNAVAILABLE } from "@/lib/server/session-store";
 import {
   parseSessionCookie,
   serializeSessionCookie,
@@ -46,10 +47,24 @@ export async function GET() {
   // getCurrentUser resolves the opaque session cookie against the Postgres
   // Session store and refreshes the access token server-side when needed, so a
   // stale access token never reads as signed-out.
-  const user = await getCurrentUser();
-  if (!user) {
-    // Genuinely gone (revoked / past the sliding window) — clear the cookie so
-    // the client stops treating this sid as a live session.
+  const current = await getCurrentUserStatus();
+
+  if (current.status === SESSION_UNAVAILABLE) {
+    // The Session store or Supabase could not be reached. This is emphatically
+    // NOT a sign-out, and the cookie must survive it: /api/me is polled several
+    // times per page view (root layout, membership provider, and every page
+    // that reads the profile), so treating a blip as "signed out" used to throw
+    // away a perfectly healthy session — the member then had to sign in again.
+    // Answer "try again" and leave the cookie in place; the next poll resolves it.
+    return NextResponse.json(
+      { error: "Session temporarily unavailable" },
+      { status: 503, headers: { "Retry-After": "5" } }
+    );
+  }
+
+  if (current.status !== SESSION_OK || !current.identity) {
+    // Genuinely gone (revoked / past the sliding window / suspended) — clear the
+    // cookie so the client stops treating this sid as a live session.
     const res = NextResponse.json({ error: "Not signed in" }, { status: 401 });
     res.cookies.set(AUTH_COOKIE, "", {
       httpOnly: true,
@@ -60,6 +75,7 @@ export async function GET() {
     });
     return res;
   }
+  const user = current.identity;
   const userDoc = await getUserDoc(user.uid);
   const gamification = await getGamification(user.uid);
 

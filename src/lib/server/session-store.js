@@ -55,41 +55,64 @@ export async function createSession({ uid, accessToken, refreshToken }) {
   }
 }
 
-// Resolves an opaque session id to { session, identity } or null. Fast path:
+export const SESSION_OK = "ok";
+// A definitive verdict that the member is signed out: no cookie, no row, the row
+// was revoked, it is past the sliding window, or its refresh token is provably
+// dead. This is the ONLY verdict that may clear the httpOnly session cookie.
+export const SESSION_GONE = "gone";
+// "Could not tell right now" — a dead connection pool, a Supabase 5xx, a
+// transaction that rolled back. Deliberately NOT the same as SESSION_GONE:
+// /api/me is polled several times per page view, so a single blip that read as
+// "signed out" would permanently destroy a perfectly healthy session.
+export const SESSION_UNAVAILABLE = "unavailable";
+
+// Resolves an opaque session id to { status, identity?, session? }. Fast path:
 // local JWT exp check against the stored access token (zero network). Slow
 // path: serialized server-side refresh under a per-session advisory lock, with
 // reuse detection so concurrent requests can never burn the same single-use
 // refresh token.
-export async function resolveSession(sid) {
-  if (!sid) return null;
+export async function resolveSessionStatus(sid) {
+  if (!sid) return { status: SESSION_GONE };
   const prisma = getPrisma();
-  if (!prisma) return null;
+  if (!prisma) return { status: SESSION_UNAVAILABLE };
 
   let row;
   try {
     row = await prisma.session.findUnique({ where: { id: sid } });
   } catch (err) {
     logError("session.resolve_read_failed", { error: err.message });
-    return null;
+    return { status: SESSION_UNAVAILABLE };
   }
-  if (!row || row.revokedAt || row.expiresAt <= new Date()) {
-    if (row && !row.revokedAt) {
+  if (!row) return { status: SESSION_GONE };
+  if (row.revokedAt || row.expiresAt <= new Date()) {
+    if (!row.revokedAt) {
       // Past the 14-day window — retire the row so it cannot be resurrected.
       prisma.session
         .update({ where: { id: sid }, data: { revokedAt: new Date() } })
         .catch(() => {});
     }
-    return null;
+    return { status: SESSION_GONE };
   }
 
   if (isAccessTokenUsable(row.accessToken)) {
     const identity = identityFromAccessToken(row.accessToken);
-    if (!identity) return null;
+    // A live-looking token we cannot read an identity out of is a corrupt row,
+    // not a transient fault — nothing about waiting will fix it.
+    if (!identity) return { status: SESSION_GONE };
     maybeTouch(prisma, sid);
-    return { identity, session: row };
+    return { status: SESSION_OK, identity, session: row };
   }
 
   return refreshSessionRow(prisma, sid);
+}
+
+// Null-returning wrapper for the call sites that only need "is there a usable
+// member?" and treat every failure mode alike. Nothing on this path is allowed
+// to clear the session cookie — use resolveSessionStatus for that.
+export async function resolveSession(sid) {
+  const result = await resolveSessionStatus(sid);
+  if (result.status !== SESSION_OK) return null;
+  return { identity: result.identity, session: result.session };
 }
 
 function maybeTouch(prisma, sid) {
@@ -108,12 +131,16 @@ async function refreshSessionRow(prisma, sid) {
       // tabs, parallel API calls) can never race the single-use refresh token.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${sid}))`;
       const row = await tx.session.findUnique({ where: { id: sid } });
-      if (!row || row.revokedAt || row.expiresAt <= new Date()) return null;
+      if (!row || row.revokedAt || row.expiresAt <= new Date()) {
+        return { status: SESSION_GONE };
+      }
 
       // A peer rotated the token while we waited on the lock — reuse its result.
       if (isAccessTokenUsable(row.accessToken)) {
         const identity = identityFromAccessToken(row.accessToken);
-        return identity ? { identity, session: row } : null;
+        return identity
+          ? { status: SESSION_OK, identity, session: row }
+          : { status: SESSION_GONE };
       }
 
       const { default: supabaseAdmin } = await import("@/lib/supabase/service");
@@ -130,13 +157,14 @@ async function refreshSessionRow(prisma, sid) {
           await tx.session
             .update({ where: { id: sid }, data: { revokedAt: new Date() } })
             .catch(() => {});
+          return { status: SESSION_GONE };
         }
-        return null;
+        return { status: SESSION_UNAVAILABLE };
       }
 
       const access = data.session.access_token;
       const identity = identityFromAccessToken(access);
-      if (!identity) return null;
+      if (!identity) return { status: SESSION_GONE };
 
       const session = await tx.session.update({
         where: { id: sid },
@@ -147,11 +175,11 @@ async function refreshSessionRow(prisma, sid) {
           lastSeenAt: new Date(),
         },
       });
-      return { identity, session };
+      return { status: SESSION_OK, identity, session };
     });
   } catch (err) {
     logError("session.rotate_failed", { error: err.message });
-    return null;
+    return { status: SESSION_UNAVAILABLE };
   }
 }
 

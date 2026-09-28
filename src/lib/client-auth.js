@@ -1,13 +1,23 @@
 import { supabase } from "@/lib/supabase";
 import { forgetCachedMembership } from "@/lib/membership";
-import { beginExplicitLogout } from "@/lib/auth-client";
+import { auth, beginExplicitLogout, endExplicitLogout } from "@/lib/auth-client";
 
 // Canonical origin for all auth redirect targets. Must be the single public
 // host (www.christasspeakeasy.com) — NOT window.location.origin — so an OAuth
 // flow started on any stale vercel alias still returns to the origin where the
 // Supabase session actually lives.
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+//
+// An unusable value (empty, or an unfilled template placeholder such as
+// "[SENSITIVE]") is rejected and we fall back to the current origin. Without
+// this guard a placeholder flows straight into `redirectTo`, and the member is
+// handed to an address that does not exist — the Google sign-in appears to do
+// nothing at all.
+const CONFIGURED_APP_URL = process.env.NEXT_PUBLIC_APP_URL || "";
+const APP_URL = /^https?:\/\/[^\s"']+$/i.test(CONFIGURED_APP_URL)
+  ? CONFIGURED_APP_URL.replace(/\/+$/, "")
+  : typeof window !== "undefined"
+    ? window.location.origin
+    : "";
 
 async function createSession({ supabaseToken, supabaseRefreshToken, name } = {}) {
   const body = {};
@@ -265,98 +275,70 @@ export async function resendSignupVerification(email) {
   return true;
 }
 
-export async function refreshSupabaseSession() {
-  // Pass along any live browser-side Supabase tokens so the server can repair
-  // its Session row when the stored refresh token was consumed by an older
-  // auto-refreshing client (instead of forcing a fresh sign-in).
-  let body = {};
+// Asks the server whether the httpOnly cookie still authorizes a member.
+// Returns true / false / null ("could not tell right now").
+async function meVerdict() {
   try {
-    const { data } = await supabase.auth.getSession();
-    if (data?.session?.access_token) {
-      body = {
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token || "",
-      };
-    }
+    const me = await fetch("/api/me", { cache: "no-store" });
+    // 503 means the Session store was unreachable, not that the member is
+    // signed out. Never let a blip on this shared endpoint end a session.
+    if (me.status === 503) return null;
+    if (!me.ok) return false;
+    const data = await me.json().catch(() => ({}));
+    return !!data?.uid;
   } catch {
-    // no browser session — the server-side session alone decides
+    return null;
   }
-  const res = await fetch("/api/auth/refresh", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return res.ok;
+}
+
+// "Auth wall" healer, and the one implementation behind every sign-in handoff.
+// A member who already holds a valid session cookie is walked straight into the
+// app instead of being shown the form: confirm the cookie with /api/me, and if
+// it cannot be confirmed, let the server rotate it via /api/auth/refresh and
+// ask again.
+//
+// A successful /api/auth/refresh alone is NOT proof of a usable session —
+// suspended/deleted accounts refresh fine but getCurrentUser keeps refusing
+// them, so trusting refresh.ok would bounce /signing-in <-> /dashboard <->
+// /login forever (auto-reloading the tab). /api/me is the only authority.
+export async function reconcileSessionCookie() {
+  const verdict = await meVerdict();
+  // true = session confirmed, null = could not tell. Either way the member
+  // holds a cookie and walks in; only a definitive "no" falls through to the
+  // rotate-and-retry below. Flashing the sign-in form on a transient fault is
+  // what made healthy sessions look broken.
+  if (verdict !== false) return true;
+
+  try {
+    const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
+    if (!refreshed.ok) return false;
+    return (await meVerdict()) === true;
+  } catch {
+    return false;
+  }
+}
+
+// The `?session_refresh` handoff is the same question asked the same way, so it
+// shares one implementation rather than drifting from the auth wall.
+export async function refreshSession() {
+  return reconcileSessionCookie();
 }
 
 export async function logout() {
-  forgetCachedMembership(supabase.auth.getUser()?.user?.id);
-  // Tell the auth shim this is a deliberate sign-out BEFORE signOut() fires the
-  // null-session event, so it doesn't race /api/me and keep the SPA signed in
-  // while the cookie is still being cleared.
+  // Drop the shim's cached user before anything async runs, so no in-flight
+  // /api/me re-check can re-paint the member as signed in behind us.
   beginExplicitLogout();
+  const cached = auth.currentUser;
+  if (cached?.uid) forgetCachedMembership(cached.uid);
+  // The server owns the tokens; this only clears the in-memory copy the browser
+  // client is holding. /api/auth/logout is what actually ends the session.
   try {
     await supabase.auth.signOut();
   } catch {
     // best-effort
   }
   await fetch("/api/auth/logout", { method: "POST" });
-}
-
-export async function refreshSession() {
-  const { data } = await supabase.auth.getSession();
-  if (!data?.session?.access_token) {
-    const user = supabase.auth.getUser()?.user;
-    if (!user) return false;
-    forgetCachedMembership(user.id);
-    return false;
-  }
-  const refreshed = await refreshSupabaseSession();
-  if (!refreshed) return false;
-  // Refresh succeeding is not proof the account is usable (a suspended or
-  // deleted member's tokens rotate fine). Re-verify against /api/me so this
-  // path can never bounce a dead session back into /signing-in.
-  try {
-    const me = await fetch("/api/me", { cache: "no-store" });
-    const meData = await me.json().catch(() => ({}));
-    return me.ok && !!meData?.uid;
-  } catch {
-    return false;
-  }
-}
-
-// "Auth wall" healer: the httpOnly session cookie holds a Supabase access token
-// that expires on its own (~1h), and getCurrentUser never refreshes. When a
-// signed-in member lands back on /login or /signup walled, rotate the cookie's
-// refresh token first — if the session is alive we get straight into the app,
-// otherwise we fall through to the form.
-export async function reconcileSessionCookie() {
-  const meHasUid = async () => {
-    try {
-      const me = await fetch("/api/me", { cache: "no-store" });
-      if (!me.ok) return false;
-      const data = await me.json().catch(() => ({}));
-      return !!data?.uid;
-    } catch {
-      return false;
-    }
-  };
-
-  // Only trust the cookie when /api/me actually accepts it. A successful
-  // /api/auth/refresh alone is NOT proof of a usable session — suspended/
-  // deleted accounts refresh fine but getCurrentUser keeps refusing them, so
-  // trusting refresh.ok would bounce /signing-in <-> /dashboard <-> /login
-  // forever (auto-reloading the tab).
-  const needsRefresh = !(await meHasUid());
-  if (!needsRefresh) return true;
-
-  try {
-    const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
-    if (!refreshed.ok) return false;
-    return meHasUid();
-  } catch {
-    return false;
-  }
+  endExplicitLogout();
 }
 
 function supabaseError(error) {

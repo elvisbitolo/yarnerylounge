@@ -6,7 +6,13 @@ import {
   serializeSessionCookie,
   SESSION_MAX_AGE_SECONDS,
 } from "@/lib/server/auth-core";
-import { resolveSession, getSessionRow } from "@/lib/server/session-store";
+import {
+  resolveSessionStatus,
+  getSessionRow,
+  SESSION_GONE,
+  SESSION_OK,
+  SESSION_UNAVAILABLE,
+} from "@/lib/server/session-store";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { assertSameOrigin } from "@/lib/server/same-origin";
@@ -39,19 +45,28 @@ export async function POST(req) {
   }
 
   const sid = parseSessionCookie((await cookies()).get(AUTH_COOKIE)?.value)?.sid;
-  const resolved = sid ? await resolveSession(sid) : null;
+  const resolved = sid ? await resolveSessionStatus(sid) : { status: SESSION_GONE };
 
-  if (resolved?.identity) {
+  if (resolved.status === SESSION_UNAVAILABLE) {
+    // Could not verify the session right now. Do not touch the cookie — this route
+    // is the auth wall's last-chance healer, so clearing here on a transient
+    // fault is how a live member ends up locked out and forced to re-enter
+    // credentials. Answer "retry" and let the member keep the session.
+    return NextResponse.json(
+      { error: "session_unavailable" },
+      { status: 503, headers: { "Retry-After": "5" } }
+    );
+  }
+
+  if (resolved.status === SESSION_OK) {
     const res = NextResponse.json({ ok: true, uid: resolved.identity.uid });
     res.cookies.set(AUTH_COOKIE, serializeSessionCookie(sid), SESSION_COOKIE);
     return res;
   }
 
-  // The stored session failed to rotate — most commonly because the browser
-  // client's own auto-refresh (pre non-persisting client) consumed the single-
-  // use refresh token the server shared. If the browser still holds a live
-  // Supabase session for the SAME member, repair the Session row with those
-  // tokens instead of forcing a re-login.
+  // The stored session is definitively gone. As a last resort, if the browser
+  // still holds a live Supabase session for the SAME member, repair the Session
+  // row with those tokens instead of forcing a re-login.
   if (sid && typeof body.accessToken === "string" && body.accessToken) {
     const repaired = await repairSessionFromBrowser(sid, body.accessToken, String(body.refreshToken || ""));
     if (repaired) {
@@ -71,6 +86,13 @@ async function repairSessionFromBrowser(sid, accessToken, refreshToken) {
     const row = await getSessionRow(sid);
     if (!row) return null;
 
+    // Never resurrect a session that was deliberately ended. A revoked row is
+    // either an explicit sign-out or the dead-refresh-token verdict, and
+    // un-revoking it here (this path used to write `revokedAt: null`) would let
+    // any browser holding a token for that member bring a retired session back
+    // to life. A row past its sliding window is equally finished.
+    if (row.revokedAt || row.expiresAt <= new Date()) return null;
+
     // Verify the browser token really belongs to the sid's owner before
     // trusting it (network check against Supabase Auth, like login does).
     const { default: supabaseAdmin } = await import("@/lib/supabase/service");
@@ -86,7 +108,6 @@ async function repairSessionFromBrowser(sid, accessToken, refreshToken) {
         refreshToken: refreshToken || row.refreshToken || "",
         expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
         lastSeenAt: new Date(),
-        revokedAt: null,
       },
     });
     return row.userId;

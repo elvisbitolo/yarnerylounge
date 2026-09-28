@@ -1,21 +1,23 @@
-// Supabase-backed auth surface for the browser, shaped like the app's legacy
-// client API so existing components work verbatim. No Firebase packages are
-// involved — sign-in state is streamed from the Supabase browser client, with
-// the httpOnly session cookie as the ultimate source of truth.
+// Auth surface for the browser, shaped like the app's legacy client API so
+// existing components work verbatim. The httpOnly `community-auth` cookie —
+// resolved server-side against the Postgres Session store — is the only source
+// of truth. No Firebase packages are involved.
+//
+// Sign-in state is deliberately NOT sourced from `supabase.auth`. The browser
+// client runs with `persistSession: false`, so the Supabase session it receives
+// at sign-in lives in memory for the life of the tab and holds the *same*
+// single-use refresh token the server stored. Any `getSession()` close to expiry
+// makes the browser rotate that token; GoTrue's reuse detection then revokes the
+// whole refresh-token family, including the server's fresh copy, and the member
+// is signed out at the next real rotation. This shim is mounted by ~20
+// components, so that trigger used to fire constantly.
 "use client";
 
-import { supabase } from "@/lib/supabase";
-
-function toAuthUser(sbUser) {
-  if (!sbUser) return null;
-  return {
-    uid: sbUser.id,
-    id: sbUser.id,
-    email: sbUser.email || "",
-    displayName: sbUser.user_metadata?.name || "",
-    photoURL: sbUser.user_metadata?.avatar_url || sbUser.user_metadata?.picture || "",
-  };
-}
+// Returned by serverSessionUser() when the server could not reach the Session
+// store, or the request itself failed. It is NOT "signed out" — callers must
+// leave the current state alone rather than reporting a null user, which is what
+// a transient blip used to look like.
+export const SESSION_UNAVAILABLE = Symbol("session-unavailable");
 
 // Set by logout() so a deliberate sign-out is never overridden by a /api/me
 // re-check racing ahead of the cookie being cleared.
@@ -24,6 +26,12 @@ let emitGen = 0;
 
 export function beginExplicitLogout() {
   explicitLogout = true;
+}
+
+// Called once the server has actually cleared the cookie, so a later sign-in in
+// the same document is not permanently suppressed by the logout guard.
+export function endExplicitLogout() {
+  explicitLogout = false;
 }
 
 export const app = {};
@@ -53,59 +61,53 @@ function buildUserFromServer(me) {
 
 // Server session truth. /api/me self-heals (rotates the cookie when the access
 // token is stale) and is the same check every protected page uses, so this
-// never disagrees with what the server will let the user reach.
+// never disagrees with what the server will let the user reach. Returns
+// SESSION_UNAVAILABLE when the answer is unknown rather than guessing "signed
+// out".
 async function serverSessionUser() {
   try {
     const res = await fetch("/api/me", { cache: "no-store" });
+    if (res.status === 503) return SESSION_UNAVAILABLE;
     if (!res.ok) return null;
     return buildUserFromServer(await res.json().catch(() => null));
   } catch {
-    return null;
+    // Network error / offline. Unknown, not signed out.
+    return SESSION_UNAVAILABLE;
   }
 }
 
-// Legacy-compatible `onAuthStateChanged(auth, cb)`. Emits once synchronously
-// with the recovered session (INITIAL_SESSION), then on every change. Returns
-// an unsubscribe function.
+// Legacy-compatible `onAuthStateChanged(auth, cb)`. Emits the server's verdict
+// on mount and whenever the window regains focus (a sign-in or sign-out in
+// another tab changes the cookie without a reload here). Returns an unsubscribe
+// function.
 export function onAuthStateChanged(_auth, callback) {
-  const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
-    const user = toAuthUser(session?.user || null);
-    const gen = ++emitGen;
-    if (user) {
-      explicitLogout = false;
-      auth.setCurrentUser(user);
-      callback(user);
-      return;
-    }
+  let disposed = false;
 
-    // The browser-side Supabase session vanished (expired/rotated localStorage
-    // tokens). That alone must NOT sign the SPA out — the httpOnly cookie may
-    // still be perfectly valid. Only report signed-out when the server agrees.
+  async function emit() {
+    const gen = ++emitGen;
     if (explicitLogout) {
       auth.setCurrentUser(null);
       callback(null);
       return;
     }
-
-    const serverUser = await serverSessionUser();
-    if (gen !== emitGen) return;
-    auth.setCurrentUser(serverUser);
-    callback(serverUser);
-  });
-
-  // Seed from the server when there is no cached browser session (fresh load,
-  // or localStorage was cleared) so observers never sit on "signed out" while
-  // the cookie is healthy.
-  if (!auth.currentUser) {
-    serverSessionUser()
-      .then((user) => {
-        if (user && !explicitLogout) {
-          auth.setCurrentUser(user);
-          callback(user);
-        }
-      })
-      .catch(() => {});
+    const user = await serverSessionUser();
+    if (disposed || gen !== emitGen) return;
+    // Unknown verdict: keep whatever we already had. Reporting null here is
+    // what turned a momentary outage into a sign-out.
+    if (user === SESSION_UNAVAILABLE) return;
+    auth.setCurrentUser(user);
+    callback(user);
   }
 
-  return () => data?.subscription?.unsubscribe();
+  emit();
+
+  const onFocus = () => {
+    emit();
+  };
+  window.addEventListener("focus", onFocus);
+
+  return () => {
+    disposed = true;
+    window.removeEventListener("focus", onFocus);
+  };
 }

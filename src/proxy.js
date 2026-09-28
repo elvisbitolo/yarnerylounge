@@ -7,7 +7,27 @@ const AUTH_COOKIE = "community-auth";
 // bare domain splits logins into independent walled-off islands. Everything else
 // is canonically 308'd here so cookies, localStorage sessions and OAuth
 // callbacks always live on one host.
-const CANONICAL_HOST = "www.christasspeakeasy.com";
+const CANONICAL_HOST = (
+  process.env.NEXT_PUBLIC_CANONICAL_HOST || "www.christasspeakeasy.com"
+).trim().toLowerCase();
+
+// Hosts known to serve this same app, which must therefore be folded onto the
+// canonical origin. Vercel issues per-project, per-team and per-deploy domains
+// and they change when a project is renamed or transferred, so the list lives in
+// the environment (comma-separated) and adding a host is a config change rather
+// than a code change.
+//
+// A host that is NOT on this list is still served — which matters for preview
+// deployments — but because the session cookie is host-only, a member reaching
+// the app that way sees a signed-out app and has to sign in again. So keep this
+// list current: add any domain that links or points at the live site.
+const OWN_HOSTS = (
+  process.env.NEXT_PUBLIC_OWN_HOSTS ||
+  "yarnerylounge.vercel.app,christasspeakeasy.com,christaspeakeasy.com,elvisbitolo11-8702s-projects.vercel.app"
+)
+  .split(",")
+  .map((host) => host.trim().toLowerCase())
+  .filter(Boolean);
 
 const AUTH_ROUTES = [
   "/rooms",
@@ -85,18 +105,21 @@ function assertSameOrigin(request) {
   );
 }
 
+// Exact host, or a subdomain of one we own. The dot boundary is deliberate:
+// a bare endsWith() would also match `notchristasspeakeasy.com`.
+function isOwnHost(hostname) {
+  return OWN_HOSTS.some(
+    (host) => hostname === host || hostname.endsWith(`.${host}`)
+  );
+}
+
 export function proxy(request) {
   const { hostname, pathname, search } = request.nextUrl;
 
   const isCanonical =
     hostname === CANONICAL_HOST || hostname === "localhost" || hostname.endsWith(".local");
-  const isOwnHost =
-    hostname === "yarnerylounge.vercel.app" ||
-    hostname === "christasspeakeasy.com" ||
-    hostname === "christaspeakeasy.com" ||
-    hostname.endsWith("elvisbitolo11-8702s-projects.vercel.app");
 
-  if (!isCanonical && isOwnHost) {
+  if (!isCanonical && isOwnHost(hostname)) {
     return NextResponse.redirect(`https://${CANONICAL_HOST}${pathname}${search}`, { status: 308 });
   }
 
