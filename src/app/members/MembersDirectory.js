@@ -6,20 +6,12 @@ import { useRouter } from "next/navigation";
 import MemberBadge from "@/components/MemberBadge";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
-import { composeLayout } from "./avatarLayout";
+import { composeLayout, LAYOUT_NOW } from "./avatarLayout";
 import MembersMap from "./MembersMap";
 import MemberFilters from "./MemberFilters";
+import { MEMBER_TABS, applyMemberTab } from "@/lib/members/tabs-core";
 import styles from "./members.module.css";
 import { MapPin, MessageCircle } from "lucide-react";
-
-const TABS = [
-  { key: "all", label: "All" },
-  { key: "lounge", label: "In the lounge" },
-  { key: "online", label: "Online today" },
-  { key: "newest", label: "Newest" },
-  { key: "top", label: "Top" },
-  { key: "hosts", label: "Hosts" },
-];
 
 const CRAFTS = [
   { value: "crochet", label: "Crochet" },
@@ -225,11 +217,11 @@ export default function MembersDirectory({ members, viewer, role, todayKey, init
 
   const query = search.trim().toLowerCase();
 
-  const filtered = useMemo(() => {
-    const pool = members.filter((member) => {
-      if (tab === "lounge" && !member.live) return false;
-      if (tab === "online" && member.lastVisitDate !== todayKey) return false;
-      if (tab === "hosts" && member.role !== "owner" && member.role !== "moderator" && member.role !== "host") return false;
+  // The filter panel and the search box narrow `members`; the tab narrows what
+  // is left. They are separate concerns and the tab owns its own ordering, so
+  // neither can quietly re-sort the other's output.
+  const searched = useMemo(() => {
+    return members.filter((member) => {
       if (filters.craft && !member.crafts?.includes(filters.craft)) return false;
       if (filters.country && member.country !== filters.country) return false;
       if (filters.timezone && member.timezone !== filters.timezone) return false;
@@ -271,14 +263,12 @@ export default function MembersDirectory({ members, viewer, role, todayKey, init
           member.hobbies.some((h) => h.toLowerCase().includes(query)))
       );
     });
-    if (tab === "newest") {
-      return [...pool].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    }
-    if (tab === "top") {
-      return [...pool].sort((a, b) => (b.points || 0) - (a.points || 0));
-    }
-    return [...pool].sort((a, b) => a.name.localeCompare(b.name));
-  }, [members, tab, query, filters, todayKey]);
+  }, [members, query, filters]);
+
+  const { list: filtered, total: viewTotal, capped: viewCapped } = useMemo(
+    () => applyMemberTab(searched, tab, { nowMs: LAYOUT_NOW, todayKey }),
+    [searched, tab, todayKey]
+  );
 
   const activeFilterCount = useMemo(() => {
     let n = 0;
@@ -339,7 +329,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, init
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className={styles.filters}>
-          {TABS.map((t) => (
+          {MEMBER_TABS.map((t) => (
             <button
               key={t.key}
               className={tab === t.key ? `${styles.filterBtn} ${styles.filterActive}` : styles.filterBtn}
@@ -356,6 +346,13 @@ export default function MembersDirectory({ members, viewer, role, todayKey, init
         </p>
         <MemberFilters filters={filters} onChange={patchFilters} onReset={clearAllFilters} members={members} />
       </div>
+
+      {viewCapped && (
+        <p className={styles.viewNote}>
+          Showing the top {filtered.length} of {viewTotal} members with points. Open
+          All to browse everyone.
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>

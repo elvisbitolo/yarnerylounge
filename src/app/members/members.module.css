@@ -27,6 +27,13 @@
   font-size: 15px;
 }
 
+.viewNote {
+  margin: 0 0 16px;
+  color: #9b9bab;
+  font-size: 13px;
+  text-align: center;
+}
+
 .controls {
   display: flex;
   flex-direction: column;
