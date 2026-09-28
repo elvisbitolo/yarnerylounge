@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import styles from "../auth.module.css";
 
-const LANDING_URL =
-  process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";
-
 // A session the server keeps refusing (suspended/deleted account, a cookie the
 // auth wall can't heal) sends /signing-in -> /dashboard -> /login -> /signing-in
 // round again, reloading the tab forever. Count the round trips in this tab and
@@ -103,17 +100,22 @@ export default function SigningInPage() {
 
   return (
     <main className={styles.signingInScreen}>
+      {/* Mark + wordmark, matching the lockup used by the navs, terms, /login
+          and /signup. alt="" because the name is right beside it.
+
+          Deliberately not a link. This screen's whole job is a 900ms handoff,
+          and the brand used to point at the Shopify pricing page — so anyone
+          reaching for the logo while waiting left the tab holding the in-flight
+          session. The only way off this screen is the recovery button below. */}
       <p className={styles.brand}>
-        <a className={styles.brandLink} href={LANDING_URL}>
-          <Image
-            src="/brand/secretyarnery-logo.webp"
-            alt=""
-            width={90}
-            height={28}
-            className={styles.brandLogo}
-          />
-          <span className={styles.brandWord}>Secret Yarnery</span>
-        </a>
+        <Image
+          src="/brand/secretyarnery-logo.webp"
+          alt=""
+          width={90}
+          height={28}
+          className={styles.brandLogo}
+        />
+        <span className={styles.brandWord}>Secret Yarnery</span>
       </p>
       <div className={styles.signingIn} role="status" aria-live="polite">
         <div className={styles.spinner} />
