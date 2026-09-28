@@ -9,7 +9,7 @@ import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { composeLayout, LAYOUT_NOW } from "./avatarLayout";
 import MembersMap from "./MembersMap";
 import MemberFilters from "./MemberFilters";
-import { MEMBER_TABS, applyMemberTab } from "@/lib/members/tabs-core";
+import { MEMBER_TABS, applyMemberTab, emptyViewMessage } from "@/lib/members/tabs-core";
 import styles from "./members.module.css";
 import { MapPin, MessageCircle } from "lucide-react";
 
@@ -135,7 +135,14 @@ const TOOLTIP_W = 300;
 const TOOLTIP_H = 400;
 const HIDE_DELAY = 220;
 
-export default function MembersDirectory({ members, viewer, role, todayKey, initialSearch = "" }) {
+export default function MembersDirectory({
+  members,
+  viewer,
+  role,
+  todayKey,
+  initialSearch = "",
+  presenceAvailable = true,
+}) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
   const [tab, setTab] = useState("all");
@@ -356,9 +363,7 @@ export default function MembersDirectory({ members, viewer, role, todayKey, init
 
       {filtered.length === 0 ? (
         <p className={styles.empty}>
-          {query || tab !== "all" || activeFilterCount > 0
-            ? "No members match this view."
-            : "No members yet."}
+          {emptyViewMessage({ tab, query, activeFilterCount, presenceAvailable })}
         </p>
       ) : (
         <div className={styles.canvasFrame} ref={frameRef} style={{ height: frameHeight }}>

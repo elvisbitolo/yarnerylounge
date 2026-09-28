@@ -68,6 +68,27 @@ export function matchesMemberTab(member, tab, { nowMs, todayKey } = {}) {
   }
 }
 
+// What the empty state says.
+//
+// "Nobody is in the lounge" and "we could not check who is in the lounge" are
+// different facts. listActiveRoomMemberIds() used to return a bare [] on a
+// failed query, so a presence blip rendered as an empty lounge and the member
+// was told the room was deserted. It now reports whether it could answer, and
+// this is where that distinction reaches the screen.
+export function emptyViewMessage({
+  tab,
+  query = "",
+  activeFilterCount = 0,
+  presenceAvailable = true,
+} = {}) {
+  if (tab === "lounge" && !presenceAvailable) {
+    return "We couldn't check who is in the lounge just now. Try again in a moment.";
+  }
+  if (tab === "lounge") return "Nobody is in the lounge right now.";
+  if (query || tab !== "all" || activeFilterCount > 0) return "No members match this view.";
+  return "No members yet.";
+}
+
 // Narrow `pool` to `tab` and order it for display.
 //
 // Returns `total` — how many members matched before any cap — alongside the

@@ -5,6 +5,7 @@ import {
   NEWEST_WINDOW_DAYS,
   TOP_LIMIT,
   applyMemberTab,
+  emptyViewMessage,
   matchesMemberTab,
 } from "../../members/tabs-core.js";
 
@@ -173,4 +174,56 @@ test("an empty or missing pool is safe", () => {
 
 test("matchesMemberTab is total over an unknown tab", () => {
   assert.equal(matchesMemberTab(member(), "nonsense", { nowMs: NOW, todayKey: TODAY }), true);
+});
+
+// --- empty-state copy -----------------------------------------------------
+// The regression: listActiveRoomMemberIds() returned a bare [] when its query
+// failed, so a presence blip was reported to the member as a deserted lounge.
+
+test("an unavailable presence read does not claim the lounge is empty", () => {
+  const msg = emptyViewMessage({ tab: "lounge", presenceAvailable: false });
+  assert.match(msg, /couldn't check/i);
+  assert.doesNotMatch(msg, /nobody is in the lounge/i);
+});
+
+test("a successful empty read does say the lounge is empty", () => {
+  assert.equal(
+    emptyViewMessage({ tab: "lounge", presenceAvailable: true }),
+    "Nobody is in the lounge right now."
+  );
+});
+
+test("presence availability only changes the lounge tab", () => {
+  for (const tab of ["all", "newest", "top", "hosts", "online"]) {
+    assert.equal(
+      emptyViewMessage({ tab, presenceAvailable: false }),
+      emptyViewMessage({ tab, presenceAvailable: true }),
+      tab
+    );
+  }
+});
+
+test("a failed presence read does not leak into the empty copy elsewhere", () => {
+  // A member filtering on All with no results should never be told about the
+  // lounge, even when presence is unavailable.
+  const msg = emptyViewMessage({ tab: "all", presenceAvailable: false, activeFilterCount: 3 });
+  assert.equal(msg, "No members match this view.");
+  assert.doesNotMatch(msg, /lounge/i);
+});
+
+test("the empty copy keeps its pre-existing cases", () => {
+  assert.equal(emptyViewMessage({ tab: "all" }), "No members yet.");
+  assert.equal(emptyViewMessage({ tab: "all", query: "ana" }), "No members match this view.");
+  assert.equal(emptyViewMessage({ tab: "top" }), "No members match this view.");
+  assert.equal(
+    emptyViewMessage({ tab: "all", activeFilterCount: 1 }),
+    "No members match this view."
+  );
+});
+
+test("emptyViewMessage is total with no arguments", () => {
+  // No tab is not "all", so this lands on the filtered-view copy rather than
+  // claiming the community is empty.
+  assert.equal(typeof emptyViewMessage(), "string");
+  assert.equal(emptyViewMessage(), "No members match this view.");
 });

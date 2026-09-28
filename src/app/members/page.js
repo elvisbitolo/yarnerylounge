@@ -43,12 +43,12 @@ export default async function MembersPage({ searchParams }) {
     });
   }
 
-  let liveUids = new Set();
-  try {
-    liveUids = new Set(await listActiveRoomMemberIds());
-  } catch {
-    liveUids = new Set();
-  }
+  // listActiveRoomMemberIds reports whether it could actually answer. The
+  // previous try/catch around it could never fire, because the helper already
+  // swallowed its own errors and returned [] — so a failed presence query was
+  // indistinguishable from an empty lounge.
+  const { uids: liveUidList, ok: presenceOk } = await listActiveRoomMemberIds();
+  const liveUids = new Set(liveUidList);
   const todayKey = (() => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
@@ -136,6 +136,7 @@ export default async function MembersPage({ searchParams }) {
         </p>
         <MembersDirectory
           members={members}
+          presenceAvailable={presenceOk}
           viewer={{
             country: userDoc?.country || "",
             location: userDoc?.location || "",

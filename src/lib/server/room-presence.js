@@ -36,19 +36,25 @@ export async function getRoomPresence(roomId, now = Date.now()) {
   }
 }
 
+// Who is in any room right now, and whether that answer can be trusted.
+//
+// This returns `ok: false` on a failed or unavailable query rather than an empty
+// list, because "nobody is in the lounge" and "we could not ask" are different
+// facts and the member directory renders them differently. Returning a bare []
+// made the two identical, so a presence blip showed as an empty lounge.
 export async function listActiveRoomMemberIds(now = Date.now()) {
   const prisma = getPrisma();
-  if (!prisma) return [];
+  if (!prisma) return { uids: [], ok: false };
   try {
     const rows = await prisma.roomPresence.findMany({
       where: { leftAt: null, lastSeenAt: { gt: cutoffDate(now) } },
       select: { userId: true },
       distinct: ["userId"],
     });
-    return rows.map((row) => row.userId);
+    return { uids: rows.map((row) => row.userId), ok: true };
   } catch (err) {
     logError("room-presence.active_members_failed", { error: err.message });
-    return [];
+    return { uids: [], ok: false };
   }
 }
 
