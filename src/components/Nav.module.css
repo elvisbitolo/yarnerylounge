@@ -902,6 +902,13 @@
   white-space: nowrap;
 }
 
+/* JSX drops the newline between the name and the badge, so they render as
+   "Elvis BitoloOWNER". 1px is still invisible against the badge's own border. */
+.profileCardName > span {
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
 .profileCardHandle {
   margin: 0;
   font-size: 12px;

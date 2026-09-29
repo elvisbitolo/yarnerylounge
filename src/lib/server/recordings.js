@@ -28,10 +28,16 @@ const PLAYBACK_URL_TTL_SEC = 60 * 60;
 // A single recording can be several hundred MB. Cap the pull so a pathological
 // or spoofed payload cannot exhaust the function's memory/disk.
 //
-// The default is Supabase's free-tier per-object cap. Plans reject a
-// `fileSizeLimit` above their own cap, so this must stay <= the plan limit or
-// bucket creation fails outright. Raise it when the Supabase plan is upgraded.
-const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+// The bucket's own file_size_limit is the real ceiling (50GiB on the Pro plan,
+// raised directly in storage.buckets because the createBucket API rejects a
+// limit above 50MiB). 2GiB is a deliberate ceiling well under that: a JaaS
+// session can run 6h, and an unbounded pull would be a denial-of-service
+// vector. Raise with RECORDINGS_MAX_UPLOAD_BYTES if you need more.
+const DEFAULT_MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+const SIZE_LIMIT_NOTE =
+  "storage.buckets.file_size_limit cannot be raised through the Storage API (it rejects " +
+  "any value above 50MiB). Set it with SQL: UPDATE storage.buckets SET file_size_limit = " +
+  "53687091200 WHERE id = 'recordings';";
 const configuredMax = Number(process.env.RECORDINGS_MAX_UPLOAD_BYTES);
 export const MAX_UPLOAD_BYTES =
   Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : DEFAULT_MAX_UPLOAD_BYTES;
@@ -48,29 +54,33 @@ export async function ensureRecordingsBucket() {
   const { data, error } = await supabaseAdmin.storage.getBucket(RECORDINGS_BUCKET);
   if (!error && data) {
     bucketChecked = true;
+    // The bucket's own file_size_limit is the real ceiling; MAX_UPLOAD_BYTES is
+    // only our pre-flight guard. getBucket reports null when the project
+    // default (50MiB) applies, which is below anything worth recording.
+    const limit = data.file_size_limit ?? null;
+    if (limit !== null && limit < MAX_UPLOAD_BYTES) {
+      logError("recordings:bucket-limit-below-app-cap", {
+        bucketLimitBytes: limit,
+        appCapBytes: MAX_UPLOAD_BYTES,
+        note: SIZE_LIMIT_NOTE,
+      });
+    }
     return true;
   }
-  const options = {
+  // Deliberately no fileSizeLimit: the Storage API rejects any value above
+  // 50MiB ("The object exceeded the maximum allowed size"), so asking for our
+  // real cap would fail the whole call and leave the bucket at the tiny
+  // project default. See SIZE_LIMIT_NOTE for how the ceiling is actually set.
+  const { error: createError } = await supabaseAdmin.storage.createBucket(RECORDINGS_BUCKET, {
     public: false,
-    fileSizeLimit: MAX_UPLOAD_BYTES,
     allowedMimeTypes: ["video/mp4", "video/webm", "text/vtt", "text/plain", "application/json"],
-  };
+  });
   // Already-exists is a benign race between two cold instances.
-  let { error: createError } = await supabaseAdmin.storage.createBucket(RECORDINGS_BUCKET, options);
-  if (createError && /exceeded the maximum allowed size/i.test(createError.message || "")) {
-    // The plan caps per-object size below our configured limit. Take the
-    // project's own default rather than failing every future ingest.
-    const fallback = await supabaseAdmin.storage.createBucket(RECORDINGS_BUCKET, {
-      public: false,
-      allowedMimeTypes: options.allowedMimeTypes,
-    });
-    logError("recordings:bucket-size-capped-by-plan", { requestedBytes: MAX_UPLOAD_BYTES });
-    createError = fallback.error;
-  }
   if (createError && !/already exists/i.test(createError.message || "")) {
     logError("recordings:bucket-create-failed", { message: createError?.message });
     return false;
   }
+  logError("recordings:bucket-created", { note: SIZE_LIMIT_NOTE });
   bucketChecked = true;
   return true;
 }
