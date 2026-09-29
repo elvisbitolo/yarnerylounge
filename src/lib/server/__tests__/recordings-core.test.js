@@ -10,6 +10,7 @@ import {
   normalizeMeetingKey,
   parseJaasSignature,
   parseRecordingUploaded,
+  serializeRecording,
   verifyJaasSignature,
 } from "../recordings-core.js";
 
@@ -294,4 +295,71 @@ test("buildStoragePath: never lets the id escape its folder", () => {
 test("buildStoragePath: falls back to now when the start time is unusable", () => {
   const path = buildStoragePath({ recordingId: "abc", startedAt: "nope" });
   assert.match(path, /^\d{4}\/\d{2}\/abc-\d{8}T\d{6}Z-video\.mp4$/);
+});
+
+// ------------------------------------------------------------- serialization
+
+const ROW = {
+  id: "rec_1",
+  roomId: "room_1",
+  roomName: "Happy Hour Hub",
+  status: "ready",
+  durationSec: 2700,
+  sizeBytes: 1048576,
+  sizeUnknown: false,
+  participants: [{ id: "u1", name: "Grace" }],
+  startedAt: new Date("2026-03-01T10:00:00.000Z"),
+  endedAt: new Date("2026-03-01T10:45:00.000Z"),
+  pulledAt: new Date("2026-03-01T12:00:00.000Z"),
+  transcriptPath: "2026/03/rec_1-x-transcript.vtt",
+  createdAt: new Date("2026-03-01T12:00:01.000Z"),
+  sourceLink: "https://example.test/secret-link",
+  lastError: "boom",
+};
+
+test("serializeRecording: never leaks the JaaS download credential", () => {
+  const out = serializeRecording(ROW);
+  assert.equal(out.sourceLink, undefined);
+  assert.ok(!Object.keys(out).includes("sourceLink"));
+});
+
+test("serializeRecording: converts timestamps to ISO strings", () => {
+  const out = serializeRecording(ROW);
+  assert.equal(out.startedAt, "2026-03-01T10:00:00.000Z");
+  assert.equal(out.endedAt, "2026-03-01T10:45:00.000Z");
+  assert.equal(out.pulledAt, "2026-03-01T12:00:00.000Z");
+});
+
+test("serializeRecording: tolerates an invalid Date instead of throwing", () => {
+  // `new Date(x).toISOString()` throws RangeError on a bad date, which would
+  // take down the whole library page for one malformed row.
+  const out = serializeRecording({ ...ROW, startedAt: new Date("nonsense") });
+  assert.equal(out.startedAt, null);
+  assert.equal(out.endedAt, "2026-03-01T10:45:00.000Z");
+});
+
+test("serializeRecording: normalises missing timestamps to null", () => {
+  const out = serializeRecording({ ...ROW, startedAt: null, endedAt: undefined, pulledAt: null });
+  assert.equal(out.startedAt, null);
+  assert.equal(out.endedAt, null);
+  assert.equal(out.pulledAt, null);
+});
+
+test("serializeRecording: reports transcript presence as a boolean", () => {
+  assert.equal(serializeRecording(ROW).hasTranscript, true);
+  assert.equal(serializeRecording({ ...ROW, transcriptPath: null }).hasTranscript, false);
+});
+
+test("serializeRecording: defaults non-array participants to an empty list", () => {
+  assert.deepEqual(serializeRecording({ ...ROW, participants: null }).participants, []);
+  assert.deepEqual(serializeRecording({ ...ROW, participants: undefined }).participants, []);
+});
+
+test("serializeRecording: falls back through title then roomName", () => {
+  assert.equal(serializeRecording({ ...ROW, title: "" }).title, "Happy Hour Hub");
+  assert.equal(serializeRecording({ ...ROW, title: "", roomName: null }).title, "Lounge recording");
+});
+
+test("serializeRecording: returns null for a missing row", () => {
+  assert.equal(serializeRecording(null), null);
 });

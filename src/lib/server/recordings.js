@@ -57,27 +57,6 @@ export async function ensureRecordingsBucket() {
   return true;
 }
 
-/** Every field safe to send to a browser. Never includes sourceLink. */
-export function serializeRecording(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    title: row.title || row.roomName || "Lounge recording",
-    roomId: row.roomId,
-    roomName: row.roomName,
-    status: row.status,
-    durationSec: row.durationSec,
-    sizeBytes: row.sizeBytes,
-    sizeUnknown: row.sizeUnknown,
-    participants: Array.isArray(row.participants) ? row.participants : [],
-    startedAt: row.startedAt ? new Date(row.startedAt).toISOString() : null,
-    endedAt: row.endedAt ? new Date(row.endedAt).toISOString() : null,
-    pulledAt: row.pulledAt ? new Date(row.pulledAt).toISOString() : null,
-    hasTranscript: Boolean(row.transcriptPath),
-    createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
-  };
-}
-
 /**
  * Record a RECORDING_UPLOADED webhook. Returns { recording, created } where
  * `created` is false when this delivery was a duplicate — JaaS documents that
@@ -260,7 +239,9 @@ export async function listRecordings({ roomId = null, limit = 60 } = {}) {
       share: true,
       ...(roomId ? { roomId } : {}),
     },
-    orderBy: { startedAt: "desc", createdAt: "desc" },
+    // Array form, as Prisma 7 requires for more than one sort key. A plain
+    // object here is a validation error, not a silent fallback.
+    orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }],
     take: Math.min(Math.max(1, limit), 200),
   });
   return rows;

@@ -2,7 +2,8 @@
 // recordings are a shared community artefact, not per-space content.
 
 import { NextResponse } from "next/server";
-import { listRecordings, serializeRecording } from "@/lib/server/recordings";
+import { listRecordings } from "@/lib/server/recordings";
+import { serializeRecording } from "@/lib/server/recordings-core";
 import { guardJson, requireActiveMember } from "@/lib/server/authorize";
 
 export const dynamic = "force-dynamic";

@@ -256,3 +256,36 @@ export function isSourceExpired(sourceExpiresAt, now = Date.now()) {
   if (expiry == null) return true;
   return expiry <= now;
 }
+
+/** ISO string, or null. `toISOString()` throws on an invalid Date. */
+function toIso(value) {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
+ * Shape a Recording row for a browser.
+ *
+ * `sourceLink` is deliberately absent: it is a live download credential for the
+ * JaaS copy and must never leave the server.
+ */
+export function serializeRecording(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title || row.roomName || "Lounge recording",
+    roomId: row.roomId,
+    roomName: row.roomName,
+    status: row.status,
+    durationSec: row.durationSec,
+    sizeBytes: row.sizeBytes,
+    sizeUnknown: row.sizeUnknown,
+    participants: Array.isArray(row.participants) ? row.participants : [],
+    startedAt: toIso(row.startedAt),
+    endedAt: toIso(row.endedAt),
+    pulledAt: toIso(row.pulledAt),
+    hasTranscript: Boolean(row.transcriptPath),
+    createdAt: toIso(row.createdAt),
+  };
+}

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { listRecordings, serializeRecording } from "@/lib/server/recordings";
+import { listRecordings } from "@/lib/server/recordings";
+import { serializeRecording } from "@/lib/server/recordings-core";
+import { logError } from "@/lib/server/log";
 import Nav from "@/components/Nav";
 import RecordingsLibrary from "./RecordingsLibrary";
 
@@ -21,6 +23,9 @@ export default async function RecordingsPage() {
   } catch (error) {
     // An empty library and a broken query look identical otherwise, and a
     // silent empty state would be misread as "nothing has been recorded yet".
+    // Log it: the UI intentionally shows a generic message, so the log is the
+    // only place the real cause is visible.
+    logError("recordings.page.load_failed", { message: error?.message, stack: error?.stack });
     loadError = error?.message || "Failed to load recordings";
   }
 
