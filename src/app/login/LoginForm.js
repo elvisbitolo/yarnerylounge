@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import {
   completePasswordRecovery,
@@ -53,11 +52,14 @@ function getServerStaleProviderSnapshot() {
   return false;
 }
 
+// Name only, no mark beside it. The full lockup (image + text) is used by the
+// navs, /signup, /terms and /community, but on the auth screens the pair reads
+// as two brand elements stacked above the form, and the same BrandMark serves
+// the "Preparing your sign-in…" handoff screen, where a mark is just noise.
 function BrandMark() {
   return (
     <p className={styles.brand}>
       <a className={styles.brandLink} href={LANDING_URL}>
-        <Image src="/brand/secretyarnery-logo.webp" alt="" width={90} height={28} className={styles.brandLogo} />
         <span className={styles.brandWord}>Secret Yarnery</span>
       </a>
     </p>
@@ -328,10 +330,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
             <a className={styles.backLink} href={LANDING_URL}>
               ← {t("backToLanding")}
             </a>
-            <p className={styles.brand}><a className={styles.brandLink} href={LANDING_URL}>
-              <Image src="/brand/secretyarnery-logo.webp" alt="" width={90} height={28} className={styles.brandLogo} />
-              <span className={styles.brandWord}>Secret Yarnery</span>
-            </a></p>
+            <BrandMark />
             <h1 className={styles.title}>{t("chooseNewPassword")}</h1>
             <p className={styles.subtitle}>{t("recoveryDesc")}</p>
 
@@ -392,10 +391,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
             <a className={styles.backLink} href={LANDING_URL}>
               ← {t("backToLanding")}
             </a>
-            <p className={styles.brand}><a className={styles.brandLink} href={LANDING_URL}>
-              <Image src="/brand/secretyarnery-logo.webp" alt="" width={90} height={28} className={styles.brandLogo} />
-              <span className={styles.brandWord}>Secret Yarnery</span>
-            </a></p>
+            <BrandMark />
             <h1 className={styles.title}>{t("resetPassword")}</h1>
             <p className={styles.subtitle}>{t("resetPasswordDesc")}</p>
 
