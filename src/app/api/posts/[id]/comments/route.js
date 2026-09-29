@@ -145,8 +145,14 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Failed to post comment" }, { status: 500 });
   }
 
-  await awardPoints(user.uid, POINTS.COMMENT, authorName);
-  await awardBadge(user.uid, "first_comment", authorName);
+  // The comment is stored; everything below is a side effect the member is
+  // already waiting on. None of it gates seeing their own comment, and the
+  // email in particular can take seconds, so none of it is awaited — the
+  // response goes back as soon as the write lands.
+  awardPoints(user.uid, POINTS.COMMENT, authorName).catch((err) => {
+    logError("comments.award_points_failed", { postId, error: err.message });
+  });
+  awardBadge(user.uid, "first_comment", authorName).catch(() => {});
 
   const mentionUsernames = extractMentions(check.text);
   if (mentionUsernames.length > 0) {
@@ -163,7 +169,7 @@ export async function POST(req, { params }) {
   }
 
   if (post.authorId !== user.uid) {
-    await createNotification({
+    createNotification({
       userId: post.authorId,
       type: "comment",
       actorId: user.uid,
@@ -171,21 +177,22 @@ export async function POST(req, { params }) {
       targetId: postId,
       href: `/feed`,
       text: `commented on your post`,
+    }).catch((err) => {
+      logError("comments.notify_author_failed", { postId, error: err.message });
     });
 
-    const postAuthorDoc = await getUserDoc(post.authorId);
-    if (postAuthorDoc) {
-      const author = postAuthorDoc;
-      if (author.email && author.notifications !== "off") {
-        await sendEmail({
+    getUserDoc(post.authorId)
+      .then((author) => {
+        if (!author || !author.email || author.notifications === "off") return null;
+        return sendEmail({
           to: author.email,
           subject: `New comment on your post`,
           text: `${authorName} commented: "${text.trim()}"\n\nView it in the community feed.`,
-        }).catch((err) => {
-          logError("email.comment_notify_failed", { postId, error: err.message });
         });
-      }
-    }
+      })
+      .catch((err) => {
+        logError("email.comment_notify_failed", { postId, error: err.message });
+      });
   }
 
   notifyOtherCommenters(postId, post.authorId, user.uid, authorName).catch(() => {});

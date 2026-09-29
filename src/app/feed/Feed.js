@@ -439,7 +439,7 @@ function ReportButton({ type, targetId, commentPostId, small }) {
   );
 }
 
-function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
+function CommentList({ postId, uid, userName, role, canModerate, disabled, onCommentChanged }) {
   const t = useTranslations("feed");
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
@@ -448,6 +448,10 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
   const [commentSort, setCommentSort] = useState("newest");
   const [replyTo, setReplyTo] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
+  // Authoritative in-flight lock. `busy` is state, so it cannot gate two
+  // submits that land in the same tick — a double-click reads it as false
+  // twice and the second POST goes out anyway. A ref flips synchronously.
+  const sendingRef = useRef(false);
 
   const rootRef = useRef(null);
   const visibleRef = useRef(true);
@@ -496,25 +500,90 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
     };
   }, [postId, version]);
 
+  // Add a comment to local state, nesting a reply under its parent the way the
+  // server groups them. Lets the send render immediately instead of waiting
+  // for the refetch below.
+  function insertOptimistic(list, comment) {
+    if (!comment.parentId) return [...list, comment];
+    return list.map((c) => {
+      if (c.id !== comment.parentId) return c;
+      return { ...c, replies: [...(c.replies || []), { ...comment, parentId: undefined }] };
+    });
+  }
+
+  function removeById(list, id) {
+    return list
+      .filter((c) => c.id !== id)
+      .map((c) => (c.replies && c.replies.length ? { ...c, replies: c.replies.filter((r) => r.id !== id) } : c));
+  }
+
   async function handleAdd(e) {
     e.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || sendingRef.current) return;
+    sendingRef.current = true;
     setBusy(true);
+
+    const parentId = replyTo?.id || null;
+    const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const optimistic = {
+      id: tempId,
+      authorId: uid,
+      authorName: userName,
+      authorRole: role || "member",
+      text: trimmed,
+      reactions: {},
+      createdAt: Date.now(),
+      pending: true,
+      ...(parentId ? { parentId } : { replies: [] }),
+    };
+    // Clear the composer and show the comment straight away. The round trip
+    // still has to succeed, so the refetch reconciles both.
+    setComments((prev) => insertOptimistic(prev, optimistic));
+    setText("");
+    if (replyTo) setReplyTo(null);
+    if (parentId) {
+      setExpanded((prev) => new Set(prev).add(parentId));
+    }
+    onCommentChanged(postId, 1);
+
     try {
       const res = await fetch(`/api/posts/${postId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed, parentId: replyTo?.id || null }),
+        body: JSON.stringify({ text: trimmed, parentId }),
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Reply failed");
-      setText("");
-      if (replyTo) setReplyTo(null);
+      const data = await res.json().catch(() => ({}));
+      setComments((prev) =>
+        prev.flatMap((c) => {
+          if (c.id === tempId) return data.id ? [{ ...c, id: data.id, pending: false }] : [{ ...c, pending: false }];
+          if (c.replies && c.replies.some((r) => r.id === tempId)) {
+            return [
+              {
+                ...c,
+                replies: c.replies.map((r) =>
+                  r.id === tempId ? { ...r, id: data.id || r.id, pending: false } : r
+                ),
+              },
+            ];
+          }
+          return [c];
+        })
+      );
       setVersion((v) => v + 1);
-      onCommentChanged(postId, 1);
     } catch (err) {
       console.error(err);
+      // Roll the optimistic comment back and put the text back so nothing is
+      // lost, then let the refetch settle the count.
+      setComments((prev) => removeById(prev, tempId));
+      setText(trimmed);
+      if (parentId) setReplyTo({ id: parentId, name: replyTo?.name });
+      onCommentChanged(postId, -1);
+      setVersion((v) => v + 1);
+      alert(err.message || "Reply failed");
     } finally {
+      sendingRef.current = false;
       setBusy(false);
     }
   }
@@ -682,6 +751,9 @@ function CommentList({ postId, uid, canModerate, disabled, onCommentChanged }) {
           type="text"
           placeholder={disabled ? t("upgradeToChat") : replyTo ? t("replyToName", { name: replyTo.name }) : t("replyPlaceholder")}
           value={text}
+          // Not disabled while sending: the text is cleared on submit, and a
+          // disabled box mid-send reads as the app having frozen. `busy` gates
+          // the button instead, and sendingRef blocks repeat submits.
           disabled={disabled}
           readOnly={disabled}
           onChange={(e) => setText(e.target.value)}
@@ -1487,7 +1559,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             </div>
             <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} onUpdated={(map) => patchPost(post.id, { reactions: map })} />
             {openComments.has(post.id) && (
-              <CommentList postId={post.id} uid={uid} canModerate={canModerate} disabled={disabledActions} onCommentChanged={patchCommentCount} />
+              <CommentList postId={post.id} uid={uid} userName={userName} role={role} canModerate={canModerate} disabled={disabledActions} onCommentChanged={patchCommentCount} />
             )}
           </>
         )}
