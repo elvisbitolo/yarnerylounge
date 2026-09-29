@@ -158,7 +158,6 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
     };
     for (const m of members) {
       add("country", m.country);
-      add("timezone", m.timezone);
       add("skillLevel", m.skillLevel);
       add("yearsExperience", m.yearsExperience);
       add("favoriteYarnBrand", m.favoriteYarnBrand);
@@ -186,7 +185,6 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
     a.localeCompare(b)
   );
   const inUseHobbies = inUseOptions(counts, "hobby");
-  const timezoneValues = inUseOptions(counts, "timezone");
   const yarnOptions = inUseOptions(counts, "favoriteYarnBrand");
   const goToOptions = inUseOptions(counts, "goToYarn");
   const learningNextOptions = inUseOptions(counts, "learningNext");
@@ -202,7 +200,6 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
   const advancedCount = countActive(filters, [
     "country",
     "hobby",
-    "timezone",
     "craft",
     "skillLevel",
     "yearsExperience",
@@ -230,7 +227,6 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
     onChange({
       country: "",
       hobby: "",
-      timezone: "",
       craft: "",
       skillLevel: "",
       yearsExperience: "",
@@ -258,12 +254,11 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
 
   return (
     <div className={styles.advancedFilters}>
-      {/* One disclosure for the whole finder. Location, hobbies, timezone
-          and crafts used to sit permanently above this button while
-          everything else hid behind it, which split a single job across two
-          tiers and left the button describing itself ("More") instead of its
-          purpose. Closed by default so the card stays a single line above the
-          results. */}
+      {/* One disclosure for the whole finder. Location, hobbies and crafts
+          used to sit permanently above this button while everything else hid
+          behind it, which split a single job across two tiers and left the
+          button describing itself ("More") instead of its purpose. Closed by
+          default so the card stays a single line above the results. */}
       <div className={styles.filterBar}>
         <button
           type="button"
@@ -310,22 +305,6 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
                 {inUseHobbies.map((h) => (
                   <option key={h} value={h}>
                     {titleCase(h)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.filterField}>
-              <span className={styles.filterLabel}>Timezone</span>
-              <select
-                className={styles.locationSelect}
-                value={filters.timezone}
-                onChange={(e) => onChange({ timezone: e.target.value })}
-                aria-label="Filter by timezone"
-              >
-                <option value="">All timezones</option>
-                {timezoneValues.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
                   </option>
                 ))}
               </select>

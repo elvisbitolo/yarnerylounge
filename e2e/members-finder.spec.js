@@ -56,7 +56,7 @@ test("every filter sits behind one closed-by-default 'Find members by' toggle", 
     // Closed by default: the card is a title plus a single line.
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator("p", { hasText: "Find Members" })).toBeVisible();
-    for (const label of ["Location", "Hobbies", "Timezone", "Crafts"]) {
+    for (const label of ["Location", "Hobbies", "Crafts"]) {
       await expect(page.getByText(label, { exact: true })).toBeHidden();
     }
     await expect(page.getByText("Yarn story")).toBeHidden();
@@ -67,13 +67,18 @@ test("every filter sits behind one closed-by-default 'Find members by' toggle", 
     // Open: core filters and every advanced group arrive together.
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    for (const label of ["Location", "Hobbies", "Timezone", "Crafts"]) {
+    for (const label of ["Location", "Hobbies", "Crafts"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
     for (const group of ["Yarn story", "Your makes"]) {
       await expect(page.getByText(group, { exact: false })).toBeVisible();
     }
     await expect(page.getByText(/Crochet love quiz/)).toBeVisible();
+
+    // Timezone was dropped from the finder. The field itself stays on the
+    // member record — the map and similar-members scoring still read it.
+    await expect(page.getByText("Timezone", { exact: true })).toHaveCount(0);
+    await expect(page.locator('select[aria-label="Filter by timezone"]')).toHaveCount(0);
 
     // A core filter counts toward the badge, so collapsing cannot hide it.
     await page.selectOption('select[aria-label="Filter by location"]', { index: 1 });

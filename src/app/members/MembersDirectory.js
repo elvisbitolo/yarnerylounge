@@ -31,7 +31,6 @@ const INITIAL_QUIZ = QUIZ_QUESTIONS.reduce((acc, q) => {
 const INITIAL_FILTERS = {
   country: "",
   hobby: "",
-  timezone: "",
   craft: "",
   skillLevel: "",
   yearsExperience: "",
@@ -161,7 +160,6 @@ export default function MembersDirectory({
     setFilters({
       country: "",
       hobby: "",
-      timezone: "",
       craft: "",
       skillLevel: "",
       yearsExperience: "",
@@ -231,7 +229,6 @@ export default function MembersDirectory({
     return members.filter((member) => {
       if (filters.craft && !member.crafts?.includes(filters.craft)) return false;
       if (filters.country && member.country !== filters.country) return false;
-      if (filters.timezone && member.timezone !== filters.timezone) return false;
       if (filters.hobby && !(Array.isArray(member.hobbies) && member.hobbies.includes(filters.hobby))) return false;
       if (filters.skillLevel && member.skillLevel !== filters.skillLevel) return false;
       if (filters.yearsExperience && member.yearsExperience !== filters.yearsExperience) return false;
@@ -282,7 +279,6 @@ export default function MembersDirectory({
     for (const key of [
       "country",
       "hobby",
-      "timezone",
       "craft",
       "skillLevel",
       "yearsExperience",
