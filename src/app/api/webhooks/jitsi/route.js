@@ -77,6 +77,7 @@ export async function POST(req) {
 
   const eventType = String(payload.eventType || "");
   if (!HANDLED.has(eventType)) {
+    logInfo("jaas.webhook.event_ignored", { eventType });
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -101,7 +102,10 @@ export async function POST(req) {
     after(async () => {
       const result = await attachTranscript({ jaasSessionId: payload.sessionId, sourceLink });
       if (!result.ok) logError("jaas.webhook.transcript", { message: result.error });
+      else logInfo("jaas.webhook.transcript_attached", { sessionId: payload.sessionId });
     });
+  } else {
+    logInfo("jaas.webhook.transcript_no_link", { sessionId: payload.sessionId });
   }
   return NextResponse.json({ ok: true });
 }
@@ -124,19 +128,33 @@ async function handleRecordingUploaded(payload, room, appId) {
   }
 
   if (created.skipped) {
+    // "duplicate" lands here too: the row already exists, so there is nothing
+    // to do. Answer 2xx either way so JaaS stops retrying.
+    logInfo("jaas.webhook.recording_skipped", {
+      reason: created.skipped,
+      eventKey: payload.idempotencyKey,
+      recordingId: created.recording?.id || null,
+    });
     return NextResponse.json({ ok: true, ignored: created.skipped });
   }
 
-  // Duplicate delivery: the row already exists, so nothing more to do. Answer
-  // 2xx so JaaS stops retrying.
+  // Defensive: recordUploadedEvent reports every non-create through `skipped`.
   if (!created.created) {
+    logInfo("jaas.webhook.recording_duplicate", { eventKey: payload.idempotencyKey });
     return NextResponse.json({ ok: true, duplicate: true });
   }
 
   const recording = created.recording;
   if (!recording?.sourceLink) {
+    logInfo("jaas.webhook.recording_no_link", { id: recording?.id, eventKey: payload.idempotencyKey });
     return NextResponse.json({ ok: true, ignored: "no_source_link" });
   }
+
+  logInfo("jaas.webhook.recording_ingest", {
+    id: recording.id,
+    roomId: room?.id || null,
+    durationSec: payload?.data?.durationSec ?? null,
+  });
 
   // Copy the bytes after the response. The 24h link makes a failed pull
   // recoverable via /api/cron/recording-ingest, so a transient error here is
@@ -144,7 +162,9 @@ async function handleRecordingUploaded(payload, room, appId) {
   after(async () => {
     try {
       const result = await pullRecording(recording);
-      if (!result.ok && !result.skipped) {
+      if (result.ok && result.path) {
+        logInfo("jaas.webhook.pull_ok", { id: recording.id, path: result.path });
+      } else if (!result.ok && !result.skipped) {
         logError("jaas.webhook.pull_failed", { id: recording.id, message: result.error });
       }
     } catch (error) {

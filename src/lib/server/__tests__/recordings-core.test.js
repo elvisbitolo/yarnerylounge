@@ -11,6 +11,7 @@ import {
   parseJaasSignature,
   parseRecordingUploaded,
   serializeRecording,
+  signJaasPayload,
   verifyJaasSignature,
 } from "../recordings-core.js";
 
@@ -57,6 +58,30 @@ test("verifyJaasSignature: rejects a replayed signature outside the tolerance", 
 test("verifyJaasSignature: rejects when no secret is configured", () => {
   const { header } = sign("{}");
   assert.equal(verifyJaasSignature({ header, body: "{}", secret: "" }), false);
+});
+
+// Published test vector from 8x8's "Check the webhook signatures" doc. Pinning
+// this catches a drift between our HMAC and 8x8's real signer that synthetic
+// round-trips cannot: every other signature test signs with our own code, so
+// they would all still pass if our format were subtly wrong.
+test("verifyJaasSignature: matches the test vector published by 8x8", () => {
+  const body =
+    '{"eventType":"PARTICIPANT_JOINED","sessionId":"9a441d60-ceaf-4eba-b0a8-a7d940a76e1b",' +
+    '"timestamp":1632490058278,"fqn":"vpaas-magic-cookie-96f0941768964ab380ed0fbada7a502f/' +
+    'sampleappromanticshiftsstripas","idempotencyKey":"9e9e7420-562d-4659-8e22-44b9b22aaa49",' +
+    '"customerId":"96f0941768964ab380ed0fbada7a502f",' +
+    '"appId":"vpaas-magic-cookie-96f0941768964ab380ed0fbada7a502f","data":{"avatar":"",' +
+    '"name":"Test User","id":"auth0|5f903d7a77f3b4006eb8e67d",' +
+    '"participantJid":"fc1ea14a-9bca-4218-a563-8c627e803d56@8x8.vc","moderator":true,' +
+    '"email":"test.user@company.com"}}';
+  const secret = "whsec_9635df66714a4cf088ee9d0979dd3bf6";
+  const header = "t=1632490060,v1=xlzqEojlh4qb21sQpXYsWgyK8x9HVpz+RQldsv18rV0=";
+
+  assert.equal(signJaasPayload({ timestamp: "1632490060", body, secret }),
+    "xlzqEojlh4qb21sQpXYsWgyK8x9HVpz+RQldsv18rV0=");
+  // The vector is years old, so widen the tolerance to isolate the signature
+  // from the replay window.
+  assert.equal(verifyJaasSignature({ header, body, secret, toleranceSec: 1e9 }), true);
 });
 
 test("parseJaasSignature: reads timestamp and every v1 digest", () => {
