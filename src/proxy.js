@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildCspHeader } from "@/lib/server/csp";
 
 const AUTH_COOKIE = "community-auth";
 
@@ -54,28 +55,7 @@ const AUTH_ROUTES = [
 ];
 
 const isDev = process.env.NODE_ENV === "development";
-
-// Content Security Policy. The app statically prerenders pages, so nonce-based
-// CSP (which forces dynamic rendering) would be a regression — the documented
-// "without nonces" baseline is used instead, widened with the third-party hosts
-// the app talks to. This still hardens against injection: no object embedding,
-// no base-uri/clickjacking, no form exfiltration, and HTTPS-only upgrades.
-const cspHeader = `
-  default-src 'self';
-  script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://8x8.vc https://*.8x8.vc;
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' blob: data: https:;
-  font-src 'self';
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.bigdatacloud.net https://api-bdc.io;
-  frame-src 'self' https://8x8.vc https://*.8x8.vc https://www.youtube.com https://youtube.com;
-  object-src 'none';
-  base-uri 'self';
-  form-action 'self';
-  frame-ancestors 'none';
-  upgrade-insecure-requests;
-`
-  .replace(/\s{2,}/g, " ")
-  .trim();
+const cspHeader = buildCspHeader({ isDev });
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
