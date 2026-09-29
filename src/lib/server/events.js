@@ -30,6 +30,7 @@ function mapEventRow(row) {
     recurrence: row.recurrence && typeof row.recurrence === "object" ? row.recurrence : null,
     capacityCounts:
       row.capacityCounts && typeof row.capacityCounts === "object" ? row.capacityCounts : {},
+    source: row.source || null,
   };
 }
 
@@ -62,18 +63,26 @@ export async function getEvent(id) {
   return null;
 }
 
-export async function createEvent({ title, description, startTime, endTime, roomSlug, capacity, recurrence, spaceId, purchasePriceCents, publicPreview, createdBy }) {
+export async function createEvent({ title, description, startTime, endTime, roomSlug, capacity, recurrence, spaceId, purchasePriceCents, publicPreview, createdBy, source }) {
   const data = {
     title,
     description: description || "",
     startTime: new Date(startTime),
     endTime: endTime ? new Date(endTime) : null,
-    roomSlug: roomSlug || "",
+    // Same FK trap as spaceId: "" is not "no room", it is a lookup for a room
+    // whose slug is the empty string, which violates Event_roomSlug_fkey.
+    roomSlug: roomSlug || null,
     capacity: Number(capacity) || 0,
-    spaceId: spaceId || "",
+    // A column typed as a plain String but declared as a relation is a foreign
+    // key, so an empty string is not "no space": it violates Event_spaceId_fkey
+    // and the insert fails. null is the correct value for an unset relation.
+    spaceId: spaceId || null,
     purchasePriceCents: Math.max(Number(purchasePriceCents) || 0, 0),
     publicPreview: !!publicPreview,
     createdBy,
+    // "availability" marks an event promoted from a member's block, so the
+    // events page can tell it apart from an admin-scheduled one.
+    source: source === "availability" ? "availability" : null,
     createdAt: new Date(),
   };
   if (recurrence && recurrence.freq && Number(recurrence.count) > 1) {

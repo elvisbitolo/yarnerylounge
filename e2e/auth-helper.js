@@ -44,6 +44,18 @@ async function createMember() {
       await pool.query(`DELETE FROM "Notification" WHERE "userId" = $1 OR "actorId" = $1`, [uid]);
       await pool.query(`DELETE FROM "Subscription" WHERE "id" = $1 OR "userId" = $1`, [uid]);
       await pool.query(`DELETE FROM "Follow" WHERE "followerId" = $1 OR "followingId" = $1`, [uid]);
+      // Scheduling tables, in dependency order. Deleting "User" first raised an
+      // FK violation and aborted the whole transaction, which leaked every one
+      // of these child rows into the live database.
+      await pool.query(`DELETE FROM "Rsvp" WHERE "userId" = $1`, [uid]);
+      await pool.query(`DELETE FROM "AvailabilityRsvp" WHERE "userId" = $1`, [uid]);
+      // A block promoted to a meetup is RESTRICT-ed by Event, so remove the
+      // event first, then the block it points at.
+      await pool.query(
+        `DELETE FROM "Event" WHERE "createdBy" = $1 OR id IN (SELECT "eventId" FROM "Availability" WHERE "userId" = $1 AND "eventId" IS NOT NULL)`,
+        [uid]
+      );
+      await pool.query(`DELETE FROM "Availability" WHERE "userId" = $1`, [uid]);
       await pool.query(`DELETE FROM "User" WHERE "id" = $1`, [uid]);
     } catch (e) {
       console.error("playwright cleanup:", e.message);

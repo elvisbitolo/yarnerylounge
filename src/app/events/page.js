@@ -34,7 +34,10 @@ export default async function EventsPage() {
   }));
 
   const now = new Date();
+  // A block that was promoted to a meetup is already shown on the events board
+  // below, so it is dropped here rather than listed twice.
   const hangouts = (await listAvailability({}))
+    .filter((slot) => !slot.eventId)
     .map((slot) => ({ ...slot, nextAt: nextOccurrenceAt(slot, now) }))
     .filter((slot) => slot.nextAt)
     .sort((a, b) => new Date(a.nextAt) - new Date(b.nextAt))

@@ -414,6 +414,9 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
   const [duration, setDuration] = useState("90");
   const [recurring, setRecurring] = useState("none");
   const [note, setNote] = useState("");
+  // Opt-in: a block is an offer of time by default, and promoting it creates a
+  // real meetup that shows up on /events. Not every block should become one.
+  const [makeEvent, setMakeEvent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState("");
 
@@ -439,6 +442,7 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
       timeZone: browserZone,
       recurring,
       note,
+      makeEvent,
     });
     setSaving(false);
     if (ok) onClose();
@@ -533,6 +537,16 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
               maxLength={300}
               className={styles.input}
             />
+          </label>
+          <label className={styles.fieldRow}>
+            <span className={styles.fieldLabel}>
+              <input
+                type="checkbox"
+                checked={makeEvent}
+                onChange={(e) => setMakeEvent(e.target.checked)}
+              />{" "}
+              Also post this as a meetup
+            </span>
           </label>
           {localError && <p className={styles.error}>{localError}</p>}
           <div className={styles.modalActions}>

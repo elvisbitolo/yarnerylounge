@@ -117,6 +117,10 @@ export function serializeAvailability(docOrRow) {
     recurring: normalizeRecurring(data.recurring),
     rsvpCount: data.rsvpCount || 0,
     createdAt: toIso(data.createdAt),
+    // Non-null once the block has been promoted to a meetup; the events page
+    // uses this to avoid listing the same slot twice.
+    eventId: data.eventId || null,
+    timeZone: normalizeTimeZone(data.timeZone),
   };
 }
 

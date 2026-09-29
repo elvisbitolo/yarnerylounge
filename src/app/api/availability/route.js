@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
+import { createEvent } from "@/lib/server/events";
 import { getAccessSub } from "@/lib/server/subscription";
 import {
   createAvailability,
@@ -10,6 +11,7 @@ import {
   AVAILABILITY_MIN_MINUTES,
   normalizeRecurring,
   normalizeTimeZone,
+  linkAvailabilityEvent,
 } from "@/lib/server/availability";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +59,11 @@ export async function POST(req) {
   // zone is what that string meant. Fall back to the stored profile zone.
   const timeZone = normalizeTimeZone(body.timeZone) || normalizeTimeZone(userDoc.timezone);
 
-  const id = await createAvailability({
+  // Opt-in promotion: the block is created first, then a meetup is derived from
+  // it and the two are linked. Doing it in this order means a failure while
+  // creating the event leaves a usable block rather than nothing.
+  const recurring = normalizeRecurring(body.recurring);
+  const created = await createAvailability({
     userId: auth.user.uid,
     userName: userDoc.name || auth.user.displayName || "Member",
     userAvatar: userDoc.avatar || userDoc.photoURL || "",
@@ -67,8 +73,30 @@ export async function POST(req) {
     startAt,
     endAt,
     timeZone,
-    recurring: normalizeRecurring(body.recurring),
+    recurring,
   });
+  const blockId = typeof created === "object" ? created.id : created;
 
-  return NextResponse.json({ id, subTier: sub.tier });
+  let eventId = null;
+  if (blockId && body.makeEvent === true) {
+    const event = await createEvent({
+      title,
+      description: note,
+      // startAt/endAt are the validated epoch-ms values parsed at the top of the
+      // handler; body.startAt/body.endAt are the raw strings and are unvalidated.
+      startTime: startAt,
+      endTime: endAt,
+      roomSlug,
+      capacity: 0,
+      // The block is the source of truth for recurrence, so the meetup repeats
+      // on the same cadence rather than becoming a single occurrence.
+      recurrence: recurring === "none" ? null : { freq: "weekly", interval: 1, count: 52 },
+      createdBy: auth.user.uid,
+      source: "availability",
+    });
+    eventId = event.id || null;
+    if (eventId) await linkAvailabilityEvent(blockId, eventId);
+  }
+
+  return NextResponse.json({ id: blockId, eventId, subTier: sub.tier });
 }

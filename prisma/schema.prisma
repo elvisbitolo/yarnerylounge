@@ -794,11 +794,15 @@ model Event {
   recurrence         Json?
   capacityCounts     Json?
   membersOnly        Boolean   @default(false)
+  // NULL for admin-scheduled events; "availability" when promoted from a
+  // member's block, so the two surfaces can be told apart.
+  source             String?
 
   creator User   @relation(fields: [createdBy], references: [id])
   space   Space? @relation(fields: [spaceId], references: [id])
   room    Room?  @relation(fields: [roomSlug], references: [slug])
   rsvps   Rsvp[]
+  availability Availability?
 
   @@index([startTime])
   @@index([spaceId])
@@ -838,9 +842,14 @@ model Availability {
   recurring   String?   // weekly | none
   rsvpCount   Int?      @default(0)
   createdAt   DateTime  @default(now())
+  // Set when this block has been promoted to a real meetup. NULL while the
+  // block is only an offer of time. Unique so one meetup maps to one block.
+  // Cascades so the event cannot outlive the block that produced it.
+  eventId     String?   @unique
 
   user  User                @relation(fields: [userId], references: [id])
   rsvps AvailabilityRsvp[]
+  event Event?               @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([userId, startAt])
   @@index([startAt])

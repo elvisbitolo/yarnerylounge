@@ -31,12 +31,19 @@ export function expandEvent(
   let cursor = new Date(base);
   for (let i = 0; i < count; i++) {
     if (cursor.getTime() > until.getTime()) break;
-    occurrences.push({
-      ...event,
-      startTime: new Date(cursor),
-      occurrenceId: `${event.id}_${i}`,
-      occurrenceIndex: i,
-    });
+      // Preserve the block's own duration. Shifting only startTime left every
+      // later occurrence ending on the first occurrence's end, so a 19:00-21:00
+      // event repeated as 19:00-21:00 seven days later regardless of its real end.
+      const duration = event.endTime
+        ? new Date(event.endTime).getTime() - new Date(event.startTime).getTime()
+        : null;
+      occurrences.push({
+        ...event,
+        startTime: new Date(cursor),
+        endTime: duration != null ? new Date(cursor.getTime() + duration) : event.endTime,
+        occurrenceId: `${event.id}_${i}`,
+        occurrenceIndex: i,
+      });
     cursor = addInterval(cursor, recurrence.freq, interval);
   }
   return occurrences;
