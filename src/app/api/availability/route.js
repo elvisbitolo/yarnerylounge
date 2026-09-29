@@ -9,6 +9,7 @@ import {
   AVAILABILITY_MAX_MINUTES,
   AVAILABILITY_MIN_MINUTES,
   normalizeRecurring,
+  normalizeTimeZone,
 } from "@/lib/server/availability";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,10 @@ export async function POST(req) {
   const sub = await getAccessSub(auth.user.uid);
   const userDoc = auth.userDoc || {};
 
+  // The form built its ISO string in the browser's own zone, so the browser's
+  // zone is what that string meant. Fall back to the stored profile zone.
+  const timeZone = normalizeTimeZone(body.timeZone) || normalizeTimeZone(userDoc.timezone);
+
   const id = await createAvailability({
     userId: auth.user.uid,
     userName: userDoc.name || auth.user.displayName || "Member",
@@ -61,6 +66,7 @@ export async function POST(req) {
     roomSlug,
     startAt,
     endAt,
+    timeZone,
     recurring: normalizeRecurring(body.recurring),
   });
 

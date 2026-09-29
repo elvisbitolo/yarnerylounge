@@ -11,6 +11,7 @@ import {
   roomColorFor,
   roomNameFor,
   normalizeRecurring,
+  normalizeTimeZone,
   recurringWeekday,
   recurringLabel,
   recurringShortLabel,
@@ -33,6 +34,7 @@ export {
   roomColorFor,
   roomNameFor,
   normalizeRecurring,
+  normalizeTimeZone,
   recurringWeekday,
   recurringLabel,
   recurringShortLabel,
@@ -146,7 +148,7 @@ export async function toggleAvailabilityRsvp(availabilityId, user) {
   return { error: "Database unavailable", status: 500 };
 }
 
-export async function createAvailability({ userId, userName, userAvatar, title, note, roomSlug, startAt, endAt, recurring }) {
+export async function createAvailability({ userId, userName, userAvatar, title, note, roomSlug, startAt, endAt, recurring, timeZone }) {
   const data = {
     userId,
     userName: userName || "Member",
@@ -157,6 +159,9 @@ export async function createAvailability({ userId, userName, userAvatar, title, 
     color: roomColorFor(roomSlug),
     startAt: new Date(startAt),
     endAt: new Date(endAt),
+    // Pins the wall clock a recurring block means, so "every Tuesday 11:00"
+    // stays 11:00 in the creator's own zone across DST.
+    timeZone: normalizeTimeZone(timeZone),
     recurring: normalizeRecurring(recurring),
     rsvpCount: 0,
     createdAt: new Date(),

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   nextOccurrenceAt,
   normalizeRecurring,
+  normalizeTimeZone,
   recurringWeekday,
   recurringLabel,
   recurringDayMatches,
@@ -173,4 +174,32 @@ test("availabilityWindowWhere: a past-start weekly block survives the filter the
     anchor <= recurring.startAt.lte,
     "but it is before the window end, so the recurring clause still returns it"
   );
+});
+
+test("normalizeTimeZone accepts real IANA zones and rejects non-zones", () => {
+  assert.equal(normalizeTimeZone("Africa/Nairobi"), "Africa/Nairobi");
+  assert.equal(normalizeTimeZone("America/New_York"), "America/New_York");
+  assert.equal(normalizeTimeZone("Europe/London"), "Europe/London");
+  assert.equal(normalizeTimeZone("Australia/Sydney"), "Australia/Sydney");
+  // Region-qualified: needed to survive a DST transition in its own zone.
+  assert.equal(normalizeTimeZone("America/Argentina/Buenos_Aires"), "America/Argentina/Buenos_Aires");
+
+  // "UTC" is what some browsers report, and it carries no DST information, so a
+  // recurring block pinned to it would drift twice a year.
+  assert.equal(normalizeTimeZone("UTC"), null);
+  assert.equal(normalizeTimeZone("GMT"), null);
+  assert.equal(normalizeTimeZone("Z"), null);
+
+  assert.equal(normalizeTimeZone(""), null);
+  assert.equal(normalizeTimeZone("   "), null);
+  assert.equal(normalizeTimeZone(null), null);
+  assert.equal(normalizeTimeZone(undefined), null);
+  assert.equal(normalizeTimeZone(42), null);
+  assert.equal(normalizeTimeZone({ timeZone: "Africa/Nairobi" }), null);
+
+  // SQL injection and path-like values must not reach the column.
+  assert.equal(normalizeTimeZone("'; DROP TABLE \"User\"; --"), null);
+  assert.equal(normalizeTimeZone("../../etc/passwd"), null);
+  // A bare city name is not a zone and would throw at Intl/Postgres.
+  assert.equal(normalizeTimeZone("Nairobi"), null);
 });

@@ -16,6 +16,12 @@ datasource db {
 
 // placeholders are keyed by email and deleted after real provisioning).
 model User {
+  // IANA zone (e.g. "Africa/Nairobi"). Authoritative source for rendering this
+  // member's availability in their own wall-clock time, and the anchor used to
+  // backfill pre-timestamptz rows. NULL means unknown: render in the viewer's
+  // zone and never guess during a migration.
+  timezone               String?
+
   id                     String    @id
   name                   String
   username               String?
@@ -774,8 +780,10 @@ model Event {
   id                 String     @id @default(cuid())
   title              String
   description        String     @default("")
-  startTime          DateTime
-  endTime            DateTime?
+  // Absolute instants. Rendered in the viewer's zone; the event's own wall-clock
+  // label is derived from the creator's User.timezone.
+  startTime          DateTime   @db.Timestamptz(3)
+  endTime            DateTime?  @db.Timestamptz(3)
   roomSlug           String?
   capacity           Int?       @default(0)
   spaceId            String?
@@ -820,8 +828,13 @@ model Availability {
   note        String?   @default("")
   roomSlug    String?   @default("")
   color       String?
-  startAt     DateTime
-  endAt       DateTime
+  // Absolute instants, except for recurring rows: those store the FIRST
+  // occurrence in the creator's wall-clock time. Availability.timeZone pins the
+  // IANA zone that wall clock belongs to, so "every Tuesday 11:00" stays 11:00
+  // across DST and renders correctly in any viewer's zone.
+  timeZone    String?
+  startAt     DateTime  @db.Timestamptz(3)
+  endAt       DateTime  @db.Timestamptz(3)
   recurring   String?   // weekly | none
   rsvpCount   Int?      @default(0)
   createdAt   DateTime  @default(now())

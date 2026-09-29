@@ -5,28 +5,10 @@ import { listEvents, expandEvents } from "@/lib/server/events";
 import { listAvailability, nextOccurrenceAt, recurringLabel } from "@/lib/server/availability";
 import Nav from "@/components/Nav";
 import EventsBoard from "./EventsBoard";
+import ViewerTime from "./ViewerTime";
 import styles from "./events.module.css";
 
 export const dynamic = "force-dynamic";
-
-function formatWhen(iso) {
-  return new Date(iso).toLocaleString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatWhenShort(iso) {
-  return new Date(iso).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 export default async function EventsPage() {
   const user = await getCurrentUser();
@@ -84,7 +66,9 @@ export default async function EventsPage() {
                         <span className={`${styles.tag} ${styles.tagRepeat}`}>{recurringLabel(slot.recurring)}</span>
                       )}
                     </div>
-                    <p className={styles.hangoutWhen}>{formatWhen(slot.nextAt)}</p>
+                    <p className={styles.hangoutWhen}>
+                      <ViewerTime iso={slot.nextAt} />
+                    </p>
                     <p className={styles.hangoutNote}>
                       {slot.userAvatar ? (
                         // eslint-disable-next-line @next/next/no-img-element

@@ -57,6 +57,16 @@ export function normalizeRecurring(value) {
   return "none";
 }
 
+// Validates an IANA zone name. Guards against arbitrary strings reaching the DB
+// and, more importantly, against the "UTC" that some browsers report: a real
+// zone is needed to keep a recurring block's wall clock meaningful.
+const IANA_SHAPE = /^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+){1,2}$/;
+export function normalizeTimeZone(value) {
+  const tz = typeof value === "string" ? value.trim() : "";
+  if (!tz || tz === "UTC" || tz === "GMT" || tz === "Z") return null;
+  return IANA_SHAPE.test(tz) ? tz : null;
+}
+
 // Numeric weekday for a weekly repeat, or null when it's not weekday-specific
 // (one-off blocks and legacy "weekly" both fall back to the block's own day).
 export function recurringWeekday(recurring) {

@@ -16,6 +16,7 @@ function formatDate(iso) {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 }
 

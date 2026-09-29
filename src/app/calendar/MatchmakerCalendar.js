@@ -427,11 +427,16 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
     const start = snapToWeekday(picked, recurring);
     const end = addMinutes(start, Number(duration) || 90);
     setSaving(true);
+    // `picked` above is parsed without an offset, so it means this browser's
+    // wall clock. Ship the zone that interpretation relied on.
+    const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     const ok = await onSave({
       title: title.trim(),
       roomSlug,
       startAt: start.toISOString(),
       endAt: end.toISOString(),
+      timeZone: browserZone,
       recurring,
       note,
     });
