@@ -8,7 +8,6 @@ import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, Wif
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
-import RoomMusicPicker from "@/components/RoomMusicPicker";
 import RoomDataProvider from "./RoomDataProvider";
 import RoomChat from "./RoomChat";
 import useDraggableFloat from "@/lib/use-draggable-float";
@@ -1087,7 +1086,7 @@ export default function RoomClient({
 
   const connectedRoom = (
     <main className={styles.page}>
-      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} autoplaySound={phase === "connected"} />
+      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
       <div className={styles.roomWrap}>
         <AmbientAudio
           active={alwaysOn}
@@ -1097,7 +1096,6 @@ export default function RoomClient({
           hasVideoBackdrop={alwaysOn}
           pauseWhenBusy={participantCount > 1}
         />
-        {alwaysOn && isStaff && <RoomMusicPicker isStaff={isStaff} roomSlug={slug} />}
 
         <div className={styles.liveRoom}>
           <header className={styles.roomHeader}>
