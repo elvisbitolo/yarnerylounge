@@ -93,6 +93,7 @@ const COMMUNITY_ITEMS = [
   { href: "/feed", key: "feed" },
   { href: "/events", key: "events" },
   { href: "/gallery", key: "gallery" },
+  { href: "/recordings", key: "recordings" },
   { href: "/portfolio", key: "portfolio" },
   { href: "/leaderboard", key: "leaderboard" },
 ];

@@ -119,6 +119,10 @@ function jaasFlag(value) {
 //   avatar      -> optional public avatar URL -> context.user.avatar
 //   moderator   -> grants JaaS moderator powers (and JaaS recording UI)
 //   recording   -> grants the JaaS "recording" feature in features.*
+//   transcription -> grants the JaaS "transcription" feature. This is a
+//      billable add-on ($0.03/min) and only *permits* the feature: JaaS shows
+//      it under the triple-dot > Subtitles menu and each participant still
+//      turns it on themselves. Set JITSI_TRANSCRIPTION="off" as a kill switch.
 export function buildJitsiTokenPayload({
   appId,
   identity,
@@ -128,6 +132,7 @@ export function buildJitsiTokenPayload({
   roomName,
   moderator = false,
   recording = false,
+  transcription = false,
 }) {
   const now = Math.floor(Date.now() / 1000);
   return {
@@ -149,7 +154,7 @@ export function buildJitsiTokenPayload({
       features: {
         recording: jaasFlag(recording),
         livestreaming: "false",
-        transcription: "false",
+        transcription: jaasFlag(transcription),
         "outbound-call": "false",
       },
       room: { regex: false },
@@ -168,6 +173,7 @@ export async function signJitsiToken({
   roomName,
   moderator = false,
   recording = false,
+  transcription = false,
 }) {
   const appId = getJitsiAppId();
   const apiKeyId = getJitsiApiKeyId();
@@ -193,6 +199,7 @@ export async function signJitsiToken({
       roomName,
       moderator,
       recording,
+      transcription,
     }),
     privateKey,
     {

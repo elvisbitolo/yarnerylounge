@@ -625,6 +625,7 @@ model Room {
   signals   RoomSignal[]
   events    RoomEvent[]
   presence  RoomPresence[]
+  recordings Recording[]
   eventsScheduled Event[]
 
   @@index([spaceId])
@@ -706,6 +707,68 @@ model RoomPresence {
 
   @@index([roomId, lastSeenAt])
   @@index([userId, lastSeenAt])
+}
+
+// A lounge recording captured by Jitsi as a Service, pulled out of JaaS's
+// 24-hour holding bucket into our own private Supabase Storage bucket by
+// /api/webhooks/jitsi (see lib/server/recordings.js).
+//
+// JaaS never hands us a durable file: RECORDING_UPLOADED carries a
+// `preAuthenticatedLink` that dies after 24h. `sourceLink` therefore holds
+// that short-lived URL and exists only to let the ingest sweep retry a failed
+// pull — it must never be rendered or returned to a client.
+model Recording {
+  id          String @id @default(cuid())
+  // JaaS guarantees a unique GUID per delivery, so this alone is enough to
+  // make webhook handling idempotent (8x8 explicitly requires deduping).
+  idempotencyKey String @unique
+  // The meeting session the recording belongs to (one session can yield
+  // several recordings if a host restarts recording).
+  jaasSessionId   String
+  // `recordingSessionId` from the payload — distinguishes restart segments
+  // within one meeting session.
+  jaasRecordingId String?
+
+  roomId   String?
+  roomName String?
+  title    String  @default("")
+  status   String  @default("pending") // pending | processing | ready | failed
+  // True once the bytes are in our bucket and playback can be signed.
+  share    Boolean @default(false)
+
+  storageBucket String?
+  storagePath   String?
+  // JaaS caps a recording session at 6h, which can exceed Int range at high
+  // bitrates. Clamped on write and paired with `sizeUnknown` rather than
+  // silently wrapping.
+  sizeBytes     Int?
+  sizeUnknown   Boolean   @default(false)
+  durationSec   Int?
+  // Transcript file from TRANSCRIPTION_UPLOADED, when the meeting transcribed.
+  transcriptPath String?
+  // [{ id, name, avatar }] exactly as JaaS reported it, for the credits list.
+  participants    Json?
+  initiatorId     String?
+
+  startedAt DateTime?
+  endedAt   DateTime?
+  // The 24h preAuthenticatedLink deadline. Once passed the pull is impossible.
+  sourceExpiresAt DateTime?
+  // JaaS's short-lived download URL. A credential, not a public link: it
+  // authorises anyone holding it for 24h, so it is never returned to a client
+  // and is cleared once the pull succeeds.
+  sourceLink       String?
+  pulledAt         DateTime?
+  attempts        Int       @default(0)
+  lastError       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  room Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
 }
 
 // ---------------------------------------------------------------------------

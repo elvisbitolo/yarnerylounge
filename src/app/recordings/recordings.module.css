@@ -1,0 +1,153 @@
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #f5f5f5;
+  margin: 0 0 6px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #9b9bab;
+  margin: 0 0 28px;
+}
+
+.notice {
+  font-size: 14px;
+  color: #8fd3a8;
+  margin: 0 0 16px;
+}
+
+.error {
+  font-size: 14px;
+  color: #e08a8a;
+  margin: 0 0 16px;
+}
+
+.empty {
+  border: 1px solid #2c2c3a;
+  border-radius: 12px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.emptyTitle {
+  color: #f5f5f5;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.emptyHint {
+  color: #9b9bab;
+  font-size: 14px;
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid #2c2c3a;
+  border-radius: 12px;
+  background: #16161f;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f5f5f5;
+  margin: 0;
+}
+
+.cardMeta {
+  font-size: 13px;
+  color: #9b9bab;
+  margin: 4px 0 0;
+  flex: 1 1 100%;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.playButton,
+.deleteButton {
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.playButton {
+  background: #f5f5f5;
+  color: #16161f;
+}
+
+.deleteButton {
+  background: transparent;
+  color: #e08a8a;
+  border-color: #4a2a2a;
+}
+
+.deleteButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.player {
+  border-top: 1px solid #2c2c3a;
+  padding: 12px 18px 18px;
+}
+
+.video {
+  width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  background: #000;
+  display: block;
+}
+
+.loading {
+  color: #9b9bab;
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+.transcriptLink {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #c9b6f0;
+}
+
+.footnote {
+  margin-top: 24px;
+  font-size: 12px;
+  color: #6f6f7f;
+}

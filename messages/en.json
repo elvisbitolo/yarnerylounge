@@ -803,5 +803,22 @@
     "retryMic": "Retry mic",
     "retry": "Retry",
     "recordingAvail": "Recording is available for this lounge."
+  },
+  "recordings": {
+    "title": "Recordings",
+    "subtitle": "Lounge sessions you can rewind.",
+    "empty": "No recordings yet.",
+    "emptyHint": "When a host records a lounge, it appears here for every member.",
+    "play": "Play",
+    "delete": "Delete",
+    "deleteConfirm": "Permanently delete this recording? The file cannot be recovered.",
+    "deleting": "Deleting...",
+    "deleted": "Recording deleted.",
+    "deleteFailed": "Could not delete this recording.",
+    "transcript": "Transcript",
+    "ownerNote": "Only owners can delete recordings.",
+    "playbackFailed": "This recording could not be loaded.",
+    "loadFailed": "Could not load the recordings library.",
+    "unavailable": "This recording is no longer available."
   }
 }

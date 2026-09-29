@@ -803,5 +803,22 @@
     "retryMic": "Réessayer le micro",
     "retry": "Réessayer",
     "recordingAvail": "L'enregistrement est disponible pour ce salon."
+  },
+  "recordings": {
+    "title": "Enregistrements",
+    "subtitle": "Les sessions du salon à revoir.",
+    "empty": "Aucun enregistrement pour le moment.",
+    "emptyHint": "Lorsqu’un hôte enregistre un salon, il apparaît ici pour tous les membres.",
+    "play": "Lire",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer définitivement cet enregistrement ? Le fichier sera irrécupérable.",
+    "deleting": "Suppression...",
+    "deleted": "Enregistrement supprimé.",
+    "deleteFailed": "Impossible de supprimer cet enregistrement.",
+    "transcript": "Transcription",
+    "ownerNote": "Seuls les propriétaires peuvent supprimer les enregistrements.",
+    "playbackFailed": "Cet enregistrement n’a pas pu être chargé.",
+    "loadFailed": "Impossible de charger la bibliothèque d’enregistrements.",
+    "unavailable": "Cet enregistrement n’est plus disponible."
   }
 }

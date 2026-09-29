@@ -146,6 +146,11 @@ export async function POST(req) {
     // kid fails every join. JITSI_KEY_ID is preferred, JITSI_API_KEY_ID is the
     // fallback (see getJitsiApiKeyId).
     const started = Date.now();
+    // Transcription is provisioned on the JaaS plan and is available to every
+    // member (it only surfaces the Jitsi > Subtitles menu; participants still
+    // choose to switch it on). JITSI_TRANSCRIPTION="off" disables the flag
+    // without a code change, which matters because it is billed per minute.
+    const transcription = process.env.JITSI_TRANSCRIPTION !== "off";
     const token = jwt.sign(
       buildJitsiTokenPayload({
         appId: getJitsiAppId(),
@@ -155,7 +160,11 @@ export async function POST(req) {
         avatar,
         roomName: room.name,
         moderator: isModerator,
-        recording: isModerator,
+        // Honour the room's recording switch. Without this a host in a room
+        // with recording disabled could still record via Jitsi's own UI, and
+        // the webhook would then have to discard the file.
+        recording: isModerator && room.recordingAllowed !== false,
+        transcription,
       }),
       getJitsiPrivateKey(),
       {

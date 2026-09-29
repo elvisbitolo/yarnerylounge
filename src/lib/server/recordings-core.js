@@ -1,0 +1,258 @@
+// Pure helpers for the Jitsi as a Service (JaaS) recording pipeline.
+//
+// Deliberately free of Prisma, Supabase and `next/*` imports so the security-
+// critical parts — signature verification and mapping a JaaS conference back to
+// one of our rooms — can be unit tested directly. See __tests__/recordings-core.test.js.
+//
+// Docs: https://developer.8x8.com/jaas/docs/webhooks-signatures
+//       https://developer.8x8.com/jaas/docs/webhooks-payload#recording_uploaded
+
+import crypto from "node:crypto";
+
+// JaaS holds a recording for 24h; the preAuthenticatedLink dies with it.
+export const SOURCE_LINK_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Reject replays of a captured webhook. 5 minutes matches the industry
+// convention and tolerates ordinary clock drift between 8x8 and Vercel.
+export const DEFAULT_SIGNATURE_TOLERANCE_SEC = 300;
+
+// Prisma `Int` is a 32-bit signed column. A 6h JaaS recording can exceed it at
+// high bitrate, so oversized lengths are clamped and flagged rather than
+// silently wrapping negative.
+const INT_MAX = 2147483647;
+// The prefix jitsiRoomName() prepends to every conference. Stripped
+// (repeatedly) when matching an inbound conference back to a room.
+const MEETING_PREFIX = /^yarnery-lounge-/i;
+
+/**
+ * Parse a JaaS `X-Jaas-Signature` header.
+ *
+ * Format: `t=<unix-seconds>,v1=<base64>[,v1=<base64>...]`. Any other scheme is
+ * ignored, per 8x8's instruction to drop non-v1 schemes to avoid downgrades.
+ *
+ * @returns {{timestamp: string, signatures: string[]}}
+ */
+export function parseJaasSignature(header) {
+  const result = { timestamp: "", signatures: [] };
+  if (typeof header !== "string" || !header) return result;
+
+  for (const part of header.split(",")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    const key = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (key === "t") result.timestamp = value;
+    else if (key === "v1" && value) result.signatures.push(value);
+  }
+  return result;
+}
+
+/**
+ * Compute the expected signature for a payload.
+ * signed_payload = "<timestamp>.<raw body>", HMAC-SHA256, base64.
+ */
+export function signJaasPayload({ timestamp, body, secret }) {
+  return crypto
+    .createHmac("sha256", String(secret))
+    .update(`${timestamp}.${body}`, "utf8")
+    .digest("base64");
+}
+
+/**
+ * Verify a JaaS webhook request.
+ *
+ * `body` MUST be the exact raw request text: re-serializing a parsed object
+ * changes key order/whitespace and invalidates the signature.
+ */
+export function verifyJaasSignature({
+  header,
+  body,
+  secret,
+  toleranceSec = DEFAULT_SIGNATURE_TOLERANCE_SEC,
+  now = Date.now(),
+}) {
+  if (!secret) return false;
+  const { timestamp, signatures } = parseJaasSignature(header);
+  if (!timestamp || !signatures.length) return false;
+
+  const sentAt = Number(timestamp) * 1000;
+  if (!Number.isFinite(sentAt)) return false;
+  if (Math.abs(now - sentAt) > toleranceSec * 1000) return false;
+
+  const expected = Buffer.from(signJaasPayload({ timestamp, body, secret }), "utf8");
+  // Constant-time compare against every provided v1 signature. Length is
+  // checked first because timingSafeEqual throws on a mismatch.
+  return signatures.some((candidate) => {
+    const received = Buffer.from(candidate, "utf8");
+    if (received.length !== expected.length) return false;
+    return crypto.timingSafeEqual(received, expected);
+  });
+}
+
+/**
+ * Pull the conference name out of a fully qualified name ("AppID/room").
+ * Returns "" when the fqn is not in that shape.
+ */
+export function extractMeetingName(fqn, appId) {
+  const value = String(fqn || "");
+  const slash = value.indexOf("/");
+  if (slash === -1) return "";
+  const prefix = value.slice(0, slash);
+  const name = value.slice(slash + 1);
+  if (!name) return "";
+  // When the tenant AppID is known, refuse a payload minted for another tenant.
+  if (appId && prefix !== appId) return "";
+  return name;
+}
+
+/**
+ * Reduce a conference name to a comparable key: drop every
+ * "Yarnery-Lounge-" prefix, then strip punctuation and case.
+ *
+ * jitsiRoomName() prepends exactly one prefix, so a single strip is the normal
+ * path. The loop is deliberate belt-and-braces: it keeps a recording
+ * resolvable if the naming scheme is ever applied twice, and
+ * `Yarnery-Lounge-Lounge-Happy-Hour-Hub` still maps to the same room.
+ */
+export function normalizeMeetingKey(value) {
+  let key = String(value || "").trim();
+  while (MEETING_PREFIX.test(key)) key = key.replace(MEETING_PREFIX, "");
+  return key.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/**
+ * True when a JaaS conference name belongs to this room. Matches on the
+ * display name and the slug, since a room can be addressed by either.
+ */
+export function roomMatchesMeeting(room, meetingName) {
+  if (!room || !meetingName) return false;
+  const key = normalizeMeetingKey(meetingName);
+  if (!key) return false;
+  return normalizeMeetingKey(room.name) === key || normalizeMeetingKey(room.slug) === key;
+}
+
+/** Find the room a webhook conference belongs to, by name or slug. */
+export function findRoomByMeeting(rooms, meetingName) {
+  if (!Array.isArray(rooms)) return null;
+  return rooms.find((room) => roomMatchesMeeting(room, meetingName)) || null;
+}
+
+/** Clamp a byte length into the Prisma Int range, flagging anything oversized. */
+export function clampSize(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return { sizeBytes: null, sizeUnknown: false };
+  if (n > INT_MAX) return { sizeBytes: INT_MAX, sizeUnknown: true };
+  return { sizeBytes: Math.round(n), sizeUnknown: false };
+}
+
+/**
+ * Coerce a timestamp of unknown provenance to epoch milliseconds.
+ *
+ * JaaS sends epoch milliseconds, Prisma hands back Date objects, and anything
+ * handed to us by a cron query or a test may be an ISO string. Treating the
+ * unrecognised case as "no timestamp" would be actively dangerous for
+ * `isSourceExpired`, where a parse failure means "expired".
+ */
+function toEpoch(value) {
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isNaN(t) ? null : t;
+  }
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+/** Same coercion, returning a Date (or null). */
+export function toDate(value) {
+  const ms = toEpoch(value);
+  return ms == null ? null : new Date(ms);
+}
+
+/**
+ * Presentation helpers live in a separate dependency-free module so the
+ * browser player can import them too — see ../recordings-display.js.
+ */
+export { defaultRecordingTitle, formatDuration, formatBytes } from "../recordings-display.js";
+
+/**
+ * Normalize a RECORDING_UPLOADED payload into the columns we persist.
+ * Returns null when the payload has no downloadable file — a recording we
+ * cannot fetch is not worth a row.
+ *
+ * @param payload    the verified JaaS webhook body
+ * @param appId      our tenant AppID, used to recover the conference name
+ * @param receivedAt when we received the webhook, used for the retry window
+ */
+export function parseRecordingUploaded(payload, { appId = "", receivedAt = new Date() } = {}) {
+  const data = payload?.data;
+  const link = typeof data?.preAuthenticatedLink === "string" ? data.preAuthenticatedLink : "";
+  if (!link) return null;
+
+  const startedAt = toDate(data.startTimestamp);
+  const durationSec = Number(data.durationSec);
+  const participants = Array.isArray(data.participants)
+    ? data.participants
+        .map((p) => ({
+          id: typeof p?.id === "string" ? p.id : "",
+          name: typeof p?.name === "string" ? p.name : "",
+          avatar: typeof p?.avatar === "string" ? p.avatar : "",
+        }))
+        .filter((p) => p.name || p.id)
+    : [];
+
+  // The 24h clock starts when JaaS hands us the link, not when the meeting
+  // began. Deriving it from startedAt would over-grant the window by the
+  // meeting length and, worse, silently expire the retry sweep part-way
+  // through it for anything that ran long.
+  const linkIssuedAt = toDate(payload?.timestamp) || receivedAt;
+
+  return {
+    idempotencyKey: String(payload.idempotencyKey || ""),
+    jaasSessionId: String(payload.sessionId || ""),
+    jaasRecordingId: data.recordingSessionId ? String(data.recordingSessionId) : null,
+    roomName: extractMeetingName(payload.fqn, appId) || null,
+    sourceLink: link,
+    share: data.share === true,
+    initiatorId: typeof data.initiatorId === "string" ? data.initiatorId : null,
+    durationSec:
+      Number.isFinite(durationSec) && durationSec > 0 ? Math.min(Math.round(durationSec), INT_MAX) : null,
+    startedAt,
+    endedAt: toDate(data.endTimestamp),
+    sourceExpiresAt: new Date(linkIssuedAt.getTime() + SOURCE_LINK_TTL_MS),
+    participants,
+  };
+}
+
+/**
+ * Storage key inside the `recordings` bucket, e.g.
+ * "2026/03/abc123-20260301T100000Z-video.mp4".
+ *
+ * The compact timestamp keeps the bucket browsable and roughly ordered by
+ * session when listed out of band. It is a convenience, not the ordering
+ * source — the library sorts on `startedAt` in Postgres.
+ */
+export function buildStoragePath({ recordingId, startedAt, kind = "video", ext = "mp4" }) {
+  const when = toDate(startedAt) || new Date();
+  const yyyy = when.getUTCFullYear();
+  const mm = String(when.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(when.getUTCDate()).padStart(2, "0");
+  const time = [when.getUTCHours(), when.getUTCMinutes(), when.getUTCSeconds()]
+    .map((n) => String(n).padStart(2, "0"))
+    .join("");
+  // Strip anything that could traverse out of the bucket or break the key.
+  const safeId = String(recordingId || "unknown").replace(/[^a-zA-Z0-9_-]/g, "");
+  return `${yyyy}/${mm}/${safeId}-${yyyy}${mm}${dd}T${time}Z-${kind}.${ext}`;
+}
+
+/** True once the 24h preAuthenticatedLink can no longer be used. */
+export function isSourceExpired(sourceExpiresAt, now = Date.now()) {
+  const expiry = toEpoch(sourceExpiresAt);
+  if (expiry == null) return true;
+  return expiry <= now;
+}

@@ -803,5 +803,22 @@
     "retryMic": "Mikrofon erneut versuchen",
     "retry": "Erneut versuchen",
     "recordingAvail": "Aufnahme ist für diese Lounge verfügbar."
+  },
+  "recordings": {
+    "title": "Aufzeichnungen",
+    "subtitle": "Lounge-Sessions zum Nachsehen.",
+    "empty": "Noch keine Aufzeichnungen.",
+    "emptyHint": "Wenn ein Host eine Lounge aufzeichnet, erscheint sie hier für alle Mitglieder.",
+    "play": "Abspielen",
+    "delete": "Löschen",
+    "deleteConfirm": "Diese Aufzeichnung dauerhaft löschen? Die Datei kann nicht wiederhergestellt werden.",
+    "deleting": "Wird gelöscht...",
+    "deleted": "Aufzeichnung gelöscht.",
+    "deleteFailed": "Diese Aufzeichnung konnte nicht gelöscht werden.",
+    "transcript": "Transkript",
+    "ownerNote": "Nur Eigentümer können Aufzeichnungen löschen.",
+    "playbackFailed": "Diese Aufzeichnung konnte nicht geladen werden.",
+    "loadFailed": "Die Aufzeichnungsbibliothek konnte nicht geladen werden.",
+    "unavailable": "Diese Aufzeichnung ist nicht mehr verfügbar."
   }
 }
