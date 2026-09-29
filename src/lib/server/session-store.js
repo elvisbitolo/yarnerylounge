@@ -129,7 +129,7 @@ async function refreshSessionRow(prisma, sid) {
     return await prisma.$transaction(async (tx) => {
       // Serialize rotation per session so two concurrent requests (multiple
       // tabs, parallel API calls) can never race the single-use refresh token.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${sid}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sid}))`;
       const row = await tx.session.findUnique({ where: { id: sid } });
       if (!row || row.revokedAt || row.expiresAt <= new Date()) {
         return { status: SESSION_GONE };
