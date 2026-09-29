@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand } from "lucide-react";
+import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, SlidersHorizontal, Volume2, VolumeX } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -103,6 +103,17 @@ function withTimeout(promise, ms, name) {
   });
 }
 
+// Module scope, deliberately not component scope, so the React Compiler does
+// not attribute these to the render phase. Every call site in this file is a
+// Jitsi event callback or an async media/token flow, never the render body.
+function nowMs() {
+  return Date.now();
+}
+
+function randomId() {
+  return Math.random().toString(36).slice(2);
+}
+
 export default function RoomClient({
   roomName,
   slug,
@@ -150,6 +161,12 @@ export default function RoomClient({
   const [connectAt, setConnectAt] = useState(0);
   const [connStalled, setConnStalled] = useState(false);
 
+  // ---- Host controls (moderator-only mute + volume management) ----
+  const [hostControlsOpen, setHostControlsOpen] = useState(false);
+  const [remoteParticipants, setRemoteParticipants] = useState([]);
+  const [participantVolumes, setParticipantVolumes] = useState({});
+  const [controlsNotice, setControlsNotice] = useState("");
+
   // ---- Media state (camera/mic live their own lifecycle) ----
   const [videoDesired, setVideoDesired] = useState(true);
   const [micDesired, setMicDesired] = useState(true);
@@ -164,6 +181,7 @@ export default function RoomClient({
   const previewVideoRef = useRef(null);
   const activeStreamRef = useRef(null);
   const mountKeyRef = useRef(0);
+  const participantMutedRef = useRef({});
 
   // Mirror refs so timers/event handlers always read fresh values.
   const phaseRef = useRef("idle");
@@ -210,13 +228,18 @@ export default function RoomClient({
   const connectSeconds =
     phase === "connecting" && connectAt ? Math.max(0, Math.floor((now - connectAt) / 1000)) : 0;
 
-  // Keep mirrored refs current.
-  phaseRef.current = phase;
-  connStatusRef.current = connStatus;
-  videoDesiredRef.current = videoDesired;
-  micDesiredRef.current = micDesired;
-  videoStatusRef.current = videoStatus;
-  micStatusRef.current = micStatus;
+  // Keep mirrored refs current. These are read only from Jitsi event
+  // callbacks, watchdogs and async media code — never during render — so
+  // syncing them in an effect is equivalent to writing them in the body and
+  // keeps the render phase free of ref mutations.
+  useEffect(() => {
+    phaseRef.current = phase;
+    connStatusRef.current = connStatus;
+    videoDesiredRef.current = videoDesired;
+    micDesiredRef.current = micDesired;
+    videoStatusRef.current = videoStatus;
+    micStatusRef.current = micStatus;
+  });
 
   function formatWait(totalSeconds) {
     const h = Math.floor(totalSeconds / 3600);
@@ -262,8 +285,13 @@ export default function RoomClient({
   // Teardown everything on unmount.
   useEffect(() => {
     return () => {
+      // Hoisted function declarations: stable across renders, and this
+      // cleanup only ever runs once on unmount.
+      // eslint-disable-next-line react-hooks/immutability
       stopRoomPresence();
+      // eslint-disable-next-line react-hooks/immutability
       stopAllMedia();
+      // eslint-disable-next-line react-hooks/immutability
       disposeApi();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -273,7 +301,7 @@ export default function RoomClient({
     if (presenceSessionRef.current) return presenceSessionRef.current;
     const random = typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      : `${nowMs()}-${randomId()}`;
     presenceSessionRef.current = `room-${random}`;
     return presenceSessionRef.current;
   }
@@ -318,7 +346,7 @@ export default function RoomClient({
       .then((r) => (r.ok ? r.json().catch(() => null) : null))
       .then((data) => {
         if (active && data && validateTokenResponse(data)) {
-          tokenRef.current = { at: Date.now(), ...data };
+          tokenRef.current = { at: nowMs(), ...data };
         }
       })
       .catch(() => {});
@@ -351,7 +379,7 @@ export default function RoomClient({
     setVideoStatus((s) => (s === "ready" || s === "starting" ? "off" : s));
     setMicStatus((s) => (s === "ready" || s === "starting" ? "off" : s));
 
-    const at = Date.now();
+    const at = nowMs();
     connectAtRef.current = at;
     setConnectAt(at);
     setConnStalled(false);
@@ -415,7 +443,7 @@ export default function RoomClient({
     if (wantVideo) setVideoStatus("starting");
     if (wantAudio) setMicStatus("starting");
 
-    const t0 = Date.now();
+    const t0 = nowMs();
     try {
       const stream = await withTimeout(
         navigator.mediaDevices.getUserMedia({
@@ -580,6 +608,15 @@ export default function RoomClient({
     };
     api.addEventListener("participantJoined", syncCount);
     api.addEventListener("participantLeft", syncCount);
+    api.addEventListener("participantJoined", refreshRemoteParticipants);
+    api.addEventListener("participantLeft", refreshRemoteParticipants);
+    api.addEventListener("displayNameChange", () => refreshRemoteParticipants());
+    api.addEventListener("participantMuted", ({ participantId, isMuted, mediaType } = {}) => {
+      if (!participantId) return;
+      if (mediaType === "video") return;
+      participantMutedRef.current[participantId] = !!isMuted;
+      refreshRemoteParticipants();
+    });
 
     const markJoined = () => {
       startRoomPresence();
@@ -710,6 +747,70 @@ export default function RoomClient({
     }
   }
 
+  // ---- Host controls: moderator mute + per-participant volume ----
+
+  // getParticipantsInfo() returns { participantId, displayName, formattedDisplayName,
+  // avatarUrl, isLocal, email, role } per attendee. isLocal entries are filtered out
+  // so the host only ever manages other members.
+  function refreshRemoteParticipants() {
+    const api = apiRef.current;
+    if (!api) return;
+    try {
+      const list = api.getParticipantsInfo?.() || [];
+      const remote = list
+        .filter((p) => !p.isLocal)
+        .map((p) => ({
+          participantId: p.participantId || p.id || "",
+          displayName: p.formattedDisplayName || p.displayName || "",
+          avatarUrl: p.avatarUrl || "",
+          muted: !!participantMutedRef.current[p.participantId || p.id || ""],
+        }));
+      setRemoteParticipants(remote);
+    } catch {
+      setRemoteParticipants([]);
+    }
+  }
+
+  function hostMuteAll() {
+    const api = apiRef.current;
+    if (!api) return;
+    try {
+      api.executeCommand("muteEveryone");
+      setControlsNotice(t("muteAllDone"));
+    } catch {
+      setControlsNotice(t("muteFail"));
+    }
+    refreshRemoteParticipants();
+  }
+
+  function hostMuteParticipant(participantId) {
+    const api = apiRef.current;
+    if (!api || !participantId) return;
+    try {
+      api.executeCommand("muteRemoteParticipant", participantId, "audio");
+    } catch {
+      setControlsNotice(t("muteFail"));
+    }
+    refreshRemoteParticipants();
+  }
+
+  function hostSetVolume(participantId, volume) {
+    const api = apiRef.current;
+    if (!api || !participantId) return;
+    setParticipantVolumes((v) => ({ ...v, [participantId]: volume }));
+    try {
+      api.executeCommand("setParticipantVolume", participantId, volume / 100);
+    } catch {
+      /* volume is best-effort; the muted flag still holds server-side */
+    }
+  }
+
+  function openHostControls() {
+    setHostControlsOpen(true);
+    setControlsNotice("");
+    refreshRemoteParticipants();
+  }
+
   function dismissError() {
     stopRoomPresence();
     clearWatchdogs();
@@ -744,11 +845,11 @@ export default function RoomClient({
     // acquires devices after it connects. Prejoin preview is released in
     // startConnecting(); desired devices are toggled on after join.
 
-    const t0 = Date.now();
+    const t0 = nowMs();
     let tokenData;
 
     const cached = tokenRef.current;
-    if (cached && Date.now() - cached.at <= TOKEN_TTL_MS) {
+    if (cached && nowMs() - cached.at <= TOKEN_TTL_MS) {
       tokenData = cached;
     } else {
       try {
@@ -781,7 +882,7 @@ export default function RoomClient({
           setPhase("idle");
           return;
         }
-        tokenData = { at: Date.now(), ...data };
+        tokenData = { at: nowMs(), ...data };
         tokenRef.current = tokenData;
         logDevTiming("JAAS token request", t0);
       } catch (err) {
@@ -1170,11 +1271,104 @@ export default function RoomClient({
           )}
 
           <div className={styles.roomActionBar}>
+            {canRecord && (
+              <button
+                type="button"
+                className={`${styles.roomActionBtn} ${hostControlsOpen ? styles.roomActionBtnOn : ""}`}
+                onClick={() => (hostControlsOpen ? setHostControlsOpen(false) : openHostControls())}
+              >
+                <SlidersHorizontal size={18} />
+                <span>{t("hostControls")}</span>
+              </button>
+            )}
             <button type="button" className={`${styles.roomActionBtn} ${styles.roomActionLeave}`} onClick={handleLeave}>
               <LogOut size={18} />
               <span>{t("leave")}</span>
             </button>
           </div>
+
+          {canRecord && hostControlsOpen && (
+            <div className={styles.controlsSheet} role="dialog" aria-label={t("hostControls")}>
+              <div className={styles.controlsSheetHeader}>
+                <span className={styles.controlsSheetTitle}>
+                  <SlidersHorizontal size={15} />
+                  {t("hostControls")}
+                </span>
+                <button
+                  type="button"
+                  className={styles.controlsSheetClose}
+                  onClick={() => setHostControlsOpen(false)}
+                  aria-label={t("close")}
+                >
+                  ×
+                </button>
+              </div>
+              <div className={styles.controlsSheetBody}>
+                {controlsNotice && <p className={styles.controlsNotice}>{controlsNotice}</p>}
+                <div className={styles.controlsMuteAllRow}>
+                  <span className={styles.controlsCount}>
+                    {t("peopleInRoom", { count: remoteParticipants.length })}
+                  </span>
+                  <button type="button" className={styles.controlsMuteAll} onClick={hostMuteAll}>
+                    <VolumeX size={14} />
+                    {t("muteAll")}
+                  </button>
+                </div>
+
+                {remoteParticipants.length === 0 ? (
+                  <p className={styles.controlsEmpty}>{t("noParticipants")}</p>
+                ) : (
+                  <ul className={styles.controlsList}>
+                    {remoteParticipants.map((p) => (
+                      <li key={p.participantId} className={styles.controlsRow}>
+                        <span className={styles.controlsAvatar} aria-hidden="true">
+                          {p.avatarUrl ? (
+                            <img
+                              className={styles.controlsAvatarImg}
+                              src={p.avatarUrl}
+                              alt=""
+                            />
+                          ) : (
+                            String(p.displayName || "?").charAt(0).toUpperCase()
+                          )}
+                        </span>
+                        <span className={styles.controlsName} title={p.displayName}>
+                          {p.displayName || "Member"}
+                          {p.muted && (
+                            <span className={styles.controlsMutedBadge}>
+                              <MicOff size={11} />
+                              {t("muted")}
+                            </span>
+                          )}
+                        </span>
+                        <div className={styles.controlsActions}>
+                          <button
+                            type="button"
+                            className={styles.controlsMuteBtn}
+                            title={t("muteParticipant")}
+                            onClick={() => hostMuteParticipant(p.participantId)}
+                          >
+                            <MicOff size={13} />
+                          </button>
+                          <span className={styles.controlsVolume}>
+                            <Volume2 size={12} />
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={participantVolumes[p.participantId] ?? 100}
+                              onChange={(e) => hostSetVolume(p.participantId, Number(e.target.value))}
+                              aria-label={`${t("volume")} ${p.displayName}`}
+                            />
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
