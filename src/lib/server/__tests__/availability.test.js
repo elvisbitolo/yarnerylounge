@@ -6,6 +6,7 @@ import {
   recurringWeekday,
   recurringLabel,
   recurringDayMatches,
+  availabilityWindowWhere,
 } from "../availability-core.js";
 
 test("normalizeRecurring keeps none, weekly, and weekday values only", () => {
@@ -89,4 +90,87 @@ test("recurringDayMatches: non-recurring blocks never match", () => {
 
 test("nextOccurrenceAt: malformed dates yield null", () => {
   assert.equal(nextOccurrenceAt({ startAt: "not-a-date", recurring: "none" }), null);
+});
+
+// Regression: a weekly block stores only its first occurrence, so filtering
+// recurring rows by the window's lower bound removed them for good once that
+// date passed. The query must keep them and let the per-day match filter.
+test("availabilityWindowWhere: no window matches everything", () => {
+  assert.deepEqual(availabilityWindowWhere({}), {});
+  assert.deepEqual(availabilityWindowWhere(), {});
+});
+
+test("availabilityWindowWhere: recurring rows are never bounded by `from`", () => {
+  const where = availabilityWindowWhere({
+    from: "2026-09-29T08:09:00.000Z",
+    to: "2026-11-28T08:09:00.000Z",
+  });
+  const [oneOff, recurring] = where.OR;
+
+  // One-off: real lower and upper bounds on the single occurrence. Prisma
+  // rejects null inside `in`, so NULL and "none" are separate clauses.
+  assert.deepEqual(oneOff.OR, [{ recurring: null }, { recurring: "none" }]);
+  assert.equal(oneOff.startAt.gte.toISOString(), "2026-09-29T08:09:00.000Z");
+  assert.equal(oneOff.endAt.lte.toISOString(), "2026-11-28T08:09:00.000Z");
+
+  // Recurring: only an upper bound. No `gte`, so a past anchor still matches.
+  assert.equal(recurring.startAt.gte, undefined);
+  assert.equal(recurring.startAt.lte.toISOString(), "2026-11-28T08:09:00.000Z");
+  assert.deepEqual(recurring.recurring, { startsWith: "weekly" });
+});
+
+test("availabilityWindowWhere: no clause relies on `in` with a null", () => {
+  // Prisma throws "Expected ListStringFieldRefInput or Null" for in: [null, x],
+  // and listAvailability swallows the throw into an empty result, which reads
+  // as "no availability exists" rather than as an error.
+  const { OR: [oneOff] } = availabilityWindowWhere({ from: "2026-09-29T00:00:00.000Z" });
+  for (const clause of oneOff.OR) {
+    assert.ok(clause.recurring === null || typeof clause.recurring === "string");
+    assert.equal(clause.recurring?.in, undefined);
+  }
+});
+
+test("availabilityWindowWhere: matches weekly-N and legacy weekly, not 'none'", () => {
+  const { OR: [, recurring] } = availabilityWindowWhere({ from: "2026-09-29T00:00:00.000Z" });
+  const { startsWith } = recurring.recurring;
+  for (const value of ["weekly", "weekly-0", "weekly-1", "weekly-5"]) {
+    assert.equal(value.startsWith(startsWith), true, `${value} should be recurring`);
+  }
+  for (const value of ["none", "daily", null, ""]) {
+    assert.equal(value?.startsWith(startsWith) ?? false, false, `${value} should not be recurring`);
+  }
+});
+
+test("availabilityWindowWhere: an open-ended window drops no bounds", () => {
+  const { OR: [oneOff, recurring] } = availabilityWindowWhere({ from: "2026-09-29T00:00:00.000Z" });
+  assert.equal(oneOff.endAt, undefined);
+  assert.equal(recurring.startAt, undefined);
+});
+
+test("availabilityWindowWhere: an upper bound alone still keeps past anchors", () => {
+  const { OR: [oneOff, recurring] } = availabilityWindowWhere({ to: "2026-11-28T00:00:00.000Z" });
+  assert.equal(oneOff.startAt, undefined);
+  assert.equal(recurring.startAt.lte.toISOString(), "2026-11-28T00:00:00.000Z");
+});
+
+test("availabilityWindowWhere: invalid bounds are ignored rather than throwing", () => {
+  assert.deepEqual(availabilityWindowWhere({ from: "not-a-date" }), {});
+  assert.deepEqual(availabilityWindowWhere({ to: "nonsense", from: "also-bad" }), {});
+});
+
+test("availabilityWindowWhere: a past-start weekly block survives the filter the calendar sends", () => {
+  // "Monday Make Along" anchored 2026-09-28, viewed on 2026-09-29.
+  const where = availabilityWindowWhere({
+    from: "2026-09-29T08:09:00.000Z",
+    to: "2026-11-28T08:09:00.000Z",
+  });
+  const { OR: [, recurring] } = where;
+  const anchor = new Date("2026-09-28T12:00:00.000Z");
+  const from = where.OR[0].startAt.gte;
+  const matchesLowerBound = anchor >= from;
+  assert.equal(matchesLowerBound, false, "anchor predates `from`, which used to drop it");
+  assert.ok(
+    anchor <= recurring.startAt.lte,
+    "but it is before the window end, so the recurring clause still returns it"
+  );
 });

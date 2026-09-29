@@ -122,6 +122,35 @@ export function nextOccurrenceAt(slot, now = new Date()) {
   return new Date(first.getTime() + k * WEEK_MS).toISOString();
 }
 
+// Values that mean "this block happens only once". NULL appears because older
+// rows predate the column default and store nothing at all.
+const ONE_OFF_RECURRING = [null, "none"];
+
+// A recurring row's startAt/endAt hold only the FIRST occurrence; the block
+// then repeats weekly forever. Bounding such a row by a window's lower bound
+// would drop it permanently the moment that first occurrence passed, so the
+// query has to treat one-off and recurring rows differently. One-offs are
+// windowed directly; recurring rows are kept as long as their anchor begins
+// before the window closes, and the per-day match decides what renders.
+export function availabilityWindowWhere({ from, to } = {}) {
+  if (!from && !to) return {};
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
+  if (fromDate && !Number.isFinite(fromDate.getTime())) return {};
+  if (toDate && !Number.isFinite(toDate.getTime())) return {};
+
+  // `in` cannot carry a null in Prisma, so a missing value needs its own
+  // clause; older rows predate the default and store recurring as NULL.
+  const oneOff = { OR: ONE_OFF_RECURRING.map((value) => ({ recurring: value })) };
+  if (fromDate) oneOff.startAt = { gte: fromDate };
+  if (toDate) oneOff.endAt = { lte: toDate };
+
+  const recurring = { recurring: { startsWith: "weekly" } };
+  if (toDate) recurring.startAt = { lte: toDate };
+
+  return { OR: [oneOff, recurring] };
+}
+
 // Whether a recurring block appears on a given calendar day (for grid views).
 export function recurringDayMatches(block, day) {
   const rec = normalizeRecurring(block?.recurring);

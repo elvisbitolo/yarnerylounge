@@ -18,6 +18,7 @@ import {
   serializeAvailability,
   nextOccurrenceAt,
   recurringDayMatches,
+  availabilityWindowWhere,
   toIso,
 } from "@/lib/server/availability-core";
 
@@ -39,15 +40,14 @@ export {
   serializeAvailability,
   nextOccurrenceAt,
   recurringDayMatches,
+  availabilityWindowWhere,
 };
 
-export async function listAvailability({ from, to }) {
+export async function listAvailability({ from, to } = {}) {
   const prisma = getPrisma();
   if (prisma) {
     try {
-      const where = {};
-      if (from) where.startAt = { gte: new Date(from) };
-      if (to) where.endAt = { lte: new Date(to) };
+      const where = availabilityWindowWhere({ from, to });
       const rows = await prisma.availability.findMany({
         where,
         orderBy: { startAt: "asc" },
