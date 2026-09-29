@@ -27,7 +27,14 @@ const PLAYBACK_URL_TTL_SEC = 60 * 60;
 
 // A single recording can be several hundred MB. Cap the pull so a pathological
 // or spoofed payload cannot exhaust the function's memory/disk.
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024 * 1024;
+//
+// The default is Supabase's free-tier per-object cap. Plans reject a
+// `fileSizeLimit` above their own cap, so this must stay <= the plan limit or
+// bucket creation fails outright. Raise it when the Supabase plan is upgraded.
+const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const configuredMax = Number(process.env.RECORDINGS_MAX_UPLOAD_BYTES);
+export const MAX_UPLOAD_BYTES =
+  Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : DEFAULT_MAX_UPLOAD_BYTES;
 
 let bucketChecked = false;
 
@@ -43,12 +50,23 @@ export async function ensureRecordingsBucket() {
     bucketChecked = true;
     return true;
   }
-  // Already-exists is a benign race between two cold instances.
-  const { error: createError } = await supabaseAdmin.storage.createBucket(RECORDINGS_BUCKET, {
+  const options = {
     public: false,
     fileSizeLimit: MAX_UPLOAD_BYTES,
     allowedMimeTypes: ["video/mp4", "video/webm", "text/vtt", "text/plain", "application/json"],
-  });
+  };
+  // Already-exists is a benign race between two cold instances.
+  let { error: createError } = await supabaseAdmin.storage.createBucket(RECORDINGS_BUCKET, options);
+  if (createError && /exceeded the maximum allowed size/i.test(createError.message || "")) {
+    // The plan caps per-object size below our configured limit. Take the
+    // project's own default rather than failing every future ingest.
+    const fallback = await supabaseAdmin.storage.createBucket(RECORDINGS_BUCKET, {
+      public: false,
+      allowedMimeTypes: options.allowedMimeTypes,
+    });
+    logError("recordings:bucket-size-capped-by-plan", { requestedBytes: MAX_UPLOAD_BYTES });
+    createError = fallback.error;
+  }
   if (createError && !/already exists/i.test(createError.message || "")) {
     logError("recordings:bucket-create-failed", { message: createError?.message });
     return false;
