@@ -196,7 +196,14 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
   const techniqueCounts = presetCounts(CROCHET_TECHNIQUES, counts, "techniques");
   const motivationCounts = presetCounts(CROCHET_MOTIVATIONS, counts, "motivations");
 
+  // Every filter now lives behind the one disclosure, so the badge counts all
+  // of them. Otherwise a member who sets a country and closes the panel sees
+  // no badge and forgets the filter is still applied.
   const advancedCount = countActive(filters, [
+    "country",
+    "hobby",
+    "timezone",
+    "craft",
     "skillLevel",
     "yearsExperience",
     "crochetTechniques",
@@ -251,78 +258,12 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
 
   return (
     <div className={styles.advancedFilters}>
-      <div className={styles.coreFilters}>
-        <label className={styles.filterField}>
-          <span className={styles.filterLabel}>Location</span>
-          <select
-            className={styles.locationSelect}
-            value={filters.country}
-            onChange={(e) => onChange({ country: e.target.value })}
-            aria-label="Filter by location"
-          >
-            <option value="">All countries</option>
-            {countryValues.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.filterField}>
-          <span className={styles.filterLabel}>Hobbies</span>
-          <select
-            className={styles.locationSelect}
-            value={filters.hobby}
-            onChange={(e) => onChange({ hobby: e.target.value })}
-            aria-label="Filter by hobby"
-          >
-            <option value="">All hobbies</option>
-            {inUseHobbies.map((h) => (
-              <option key={h} value={h}>
-                {titleCase(h)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.filterField}>
-          <span className={styles.filterLabel}>Timezone</span>
-          <select
-            className={styles.locationSelect}
-            value={filters.timezone}
-            onChange={(e) => onChange({ timezone: e.target.value })}
-            aria-label="Filter by timezone"
-          >
-            <option value="">All timezones</option>
-            {timezoneValues.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className={styles.craftRow}>
-          <span className={styles.craftLabel}>Crafts</span>
-          <button
-            type="button"
-            className={!filters.craft ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
-            onClick={() => onChange({ craft: "" })}
-          >
-            All
-          </button>
-          {CRAFT_OPTIONS.map((c) => (
-            <button
-              type="button"
-              key={c}
-              className={filters.craft === c ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
-              onClick={() => onChange({ craft: filters.craft === c ? "" : c })}
-            >
-              {titleCase(c)}
-              <span className={styles.optCount}>{craftCounts[c] || 0}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
+      {/* One disclosure for the whole finder. Location, hobbies, timezone
+          and crafts used to sit permanently above this button while
+          everything else hid behind it, which split a single job across two
+          tiers and left the button describing itself ("More") instead of its
+          purpose. Closed by default so the card stays a single line above the
+          results. */}
       <div className={styles.filterBar}>
         <button
           type="button"
@@ -333,13 +274,85 @@ export default function MemberFilters({ filters, onChange, onReset, members }) {
           <span className={styles.filtersToggleIcon} aria-hidden="true">
             <SlidersHorizontal size={14} />
           </span>
-          More filters
+          Find members by
           {advancedCount > 0 && <span className={styles.filtersBadge}>{advancedCount}</span>}
         </button>
       </div>
 
       {advancedOpen && (
         <>
+          <div className={styles.coreFilters}>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Location</span>
+              <select
+                className={styles.locationSelect}
+                value={filters.country}
+                onChange={(e) => onChange({ country: e.target.value })}
+                aria-label="Filter by location"
+              >
+                <option value="">All countries</option>
+                {countryValues.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Hobbies</span>
+              <select
+                className={styles.locationSelect}
+                value={filters.hobby}
+                onChange={(e) => onChange({ hobby: e.target.value })}
+                aria-label="Filter by hobby"
+              >
+                <option value="">All hobbies</option>
+                {inUseHobbies.map((h) => (
+                  <option key={h} value={h}>
+                    {titleCase(h)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Timezone</span>
+              <select
+                className={styles.locationSelect}
+                value={filters.timezone}
+                onChange={(e) => onChange({ timezone: e.target.value })}
+                aria-label="Filter by timezone"
+              >
+                <option value="">All timezones</option>
+                {timezoneValues.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className={styles.craftRow}>
+              <span className={styles.craftLabel}>Crafts</span>
+              <button
+                type="button"
+                className={!filters.craft ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
+                onClick={() => onChange({ craft: "" })}
+              >
+                All
+              </button>
+              {CRAFT_OPTIONS.map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  className={filters.craft === c ? `${styles.craftChip} ${styles.craftActive}` : styles.craftChip}
+                  onClick={() => onChange({ craft: filters.craft === c ? "" : c })}
+                >
+                  {titleCase(c)}
+                  <span className={styles.optCount}>{craftCounts[c] || 0}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Group title="Yarn story">
             <div className={styles.fieldGroup}>
               <FieldLabel>Skill level</FieldLabel>
