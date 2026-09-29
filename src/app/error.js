@@ -3,15 +3,19 @@
 import Link from "next/link";
 
 export default function ErrorPage({ error, reset }) {
+  // Never hand an internal TypeError to a member. It reads as a broken site and
+  // leaks internals; the console keeps it for us.
+  const detail = process.env.NODE_ENV === "development" ? error?.message : null;
+  if (error) console.error("[error-boundary]", error);
+
   return (
     <div style={wrap}>
       <div style={card}>
         <p style={code}>Something went wrong</p>
         <h1 style={title}>That page hit a snag</h1>
         <p style={body}>
-          {error?.message
-            ? `${error.message}`
-            : "An unexpected error occurred while loading this page."}
+          {detail ||
+            "We couldn't load this page. Try again, and if it keeps happening, let us know."}
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 24 }}>
           <button type="button" onClick={reset} style={primary}>

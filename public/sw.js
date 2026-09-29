@@ -1,13 +1,24 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v9";
+const VERSION = "v10";
 
 // NEVER touch API requests: a cached /api/me JSON that carries a uid replays
 // long after the session cookie is gone, which makes reconcileSessionCookie()
 // on /login + /signing-in believe a dead session is alive and bounce them in an
 // infinite login <-> signing-in reload loop.
 const isApiRequest = (url) => new URL(url).pathname.startsWith("/api/");
+
+// Everything Next.js emits for the current build, including the Turbopack
+// module registry that each chunk binds its imports against.
+const isStaticBuildAsset = (url) => {
+  const { pathname } = new URL(url);
+  return (
+    pathname.startsWith("/_next/static/") ||
+    pathname === "/_next/image" ||
+    pathname === "/favicon.ico"
+  );
+};
 
 // Minimal doctype'd offline shell. The SW must ALWAYS hand respondWith() a real
 // Response — resolving it with null/undefined makes the browser throw
@@ -67,6 +78,21 @@ self.addEventListener("fetch", (event) => {
       return false;
     }
   };
+
+  // Next.js build output. A document from one build and a chunk from another
+  // is a half-applied deploy: a consumer chunk reaches a module namespace that
+  // predates the export it calls, and you get "x.y is not a function" thrown
+  // mid-render. The filenames are content-hashed, so there is nothing to gain
+  // from reusing them -- always revalidate, and only fall back to the cache
+  // when the network is genuinely gone.
+  if (isStaticBuildAsset(request.url)) {
+    event.respondWith(
+      fetch(request).catch(() =>
+        caches.match(request).then((cached) => cached || offlineResponse())
+      )
+    );
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
