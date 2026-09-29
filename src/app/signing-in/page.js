@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import styles from "../auth.module.css";
 
 // A session the server keeps refusing (suspended/deleted account, a cookie the
@@ -100,21 +99,16 @@ export default function SigningInPage() {
 
   return (
     <main className={styles.signingInScreen}>
-      {/* Mark + wordmark, matching the lockup used by the navs, terms, /login
-          and /signup. alt="" because the name is right beside it.
+      {/* Name only, no mark beside it. The full lockup (image + text) matches
+          the navs, terms, /login and /signup, but here the two read as clutter
+          stacked above an already-tall status block — the wordmark alone is
+          enough to say where you are.
 
           Deliberately not a link. This screen's whole job is a 900ms handoff,
           and the brand used to point at the Shopify pricing page — so anyone
-          reaching for the logo while waiting left the tab holding the in-flight
+          reaching for it while waiting left the tab holding the in-flight
           session. The only way off this screen is the recovery button below. */}
       <p className={styles.brand}>
-        <Image
-          src="/brand/secretyarnery-logo.webp"
-          alt=""
-          width={90}
-          height={28}
-          className={styles.brandLogo}
-        />
         <span className={styles.brandWord}>Secret Yarnery</span>
       </p>
       <div className={styles.signingIn} role="status" aria-live="polite">
