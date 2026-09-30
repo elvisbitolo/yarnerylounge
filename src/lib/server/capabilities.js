@@ -7,6 +7,10 @@ import { getAccessSub, isActiveSub, isStaff } from "@/lib/server/subscription";
 import { periodEndMillis } from "@/lib/server/billing";
 import { tierForRole } from "@/lib/server/plans";
 import { cache } from "react";
+// A bare `export { X } from` is a re-export only: it does not bind X in this
+// module's scope. getCapabilities below reads CAPABILITIES directly, so it
+// also needs a real import or every call throws "CAPABILITIES is not defined".
+import { CAPABILITIES } from "./capabilities-core.js";
 
 export {
   CAPABILITIES,
