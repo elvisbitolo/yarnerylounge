@@ -42,6 +42,18 @@ const configuredMax = Number(process.env.RECORDINGS_MAX_UPLOAD_BYTES);
 export const MAX_UPLOAD_BYTES =
   Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : DEFAULT_MAX_UPLOAD_BYTES;
 
+// The pull buffers the whole file in memory before uploading (see pullRecording:
+// forwarding a live CDN stream into storage-js trips Supabase's parser on the
+// Vercel runtime). MAX_UPLOAD_BYTES is the absolute guard; this tighter ceiling
+// keeps a single ArrayBuffer comfortably inside the function's memory budget.
+// Raise with RECORDINGS_MAX_IN_MEMORY_BYTES when a lounge records longer.
+const DEFAULT_MAX_IN_MEMORY_BYTES = 384 * 1024 * 1024;
+const configuredMemory = Number(process.env.RECORDINGS_MAX_IN_MEMORY_BYTES);
+export const MAX_IN_MEMORY_BYTES =
+  Number.isFinite(configuredMemory) && configuredMemory > 0
+    ? configuredMemory
+    : DEFAULT_MAX_IN_MEMORY_BYTES;
+
 let bucketChecked = false;
 
 /**
@@ -127,11 +139,44 @@ export async function recordUploadedEvent(payload, { room, title, appId = "" } =
 }
 
 /**
+ * Read a fetch response body into memory, refusing anything over capBytes.
+ * Works whether or not the server sent a content-length, and it bounds the
+ * memory cost even when the declared length was absent or lied.
+ */
+async function readBodyBounded(upstream, capBytes) {
+  const reader = upstream.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value?.byteLength) {
+      total += value.byteLength;
+      if (total > capBytes) {
+        await reader.cancel().catch(() => {});
+        throw new Error("recording_too_large_for_memory");
+      }
+      chunks.push(value);
+    }
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
+/**
  * Copy the file out of JaaS and into our bucket.
  *
- * The response body is piped straight through rather than buffered: a 90-minute
- * lounge recording is easily several hundred MB, which would blow past the
- * Vercel function memory limit if held in memory.
+ * The body is read into memory (bounded by MAX_IN_MEMORY_BYTES) rather than
+ * piped straight through: a foreign ReadableStream forwarded into storage-js
+ * intermittently makes Supabase reject the upload with
+ * "Multipart: Boundary not found" on the Vercel runtime, while buffered bytes
+ * always round-trip cleanly. The tradeoff is that a recording above the
+ * in-memory ceiling is refused instead of spilling the function's memory.
  *
  * Returns { ok, skipped?, error? } — never throws, so one bad recording cannot
  * take down the ingest sweep.
@@ -169,14 +214,18 @@ export async function pullRecording(recording) {
       throw new Error("recording_too_large");
     }
 
+    const bodyBytes = await readBodyBounded(upstream, MAX_IN_MEMORY_BYTES);
+
     const path = buildStoragePath({
       recordingId: recording.id,
       startedAt: recording.startedAt,
     });
     const { error: uploadError } = await supabaseAdmin.storage
       .from(RECORDINGS_BUCKET)
-      .upload(path, upstream.body, {
-        contentType: upstream.headers.get("content-type") || "video/mp4",
+      .upload(path, bodyBytes, {
+        // JaaS recordings are MP4s. Force it rather than trusting a CDN
+        // content-type that may have been mangled in transit.
+        contentType: "video/mp4",
         // "upsert" makes a retried pull overwrite a half-written object.
         upsert: true,
       });
@@ -243,9 +292,12 @@ export async function attachTranscript({ jaasSessionId, sourceLink }) {
       kind: "transcript",
       ext: "vtt",
     });
+    // Same buffering rationale as pullRecording: forward bytes, never the
+    // live CDN stream. VTT sidecars are a few KB, so the ceiling is moot.
+    const bodyBytes = await readBodyBounded(upstream, MAX_IN_MEMORY_BYTES);
     const { error } = await supabaseAdmin.storage
       .from(RECORDINGS_BUCKET)
-      .upload(path, upstream.body, { contentType: "text/vtt", upsert: true });
+      .upload(path, bodyBytes, { contentType: "text/vtt", upsert: true });
     if (error) throw new Error(`transcript_upload_failed: ${error.message}`);
     await prisma.recording.update({
       where: { id: target.id },
