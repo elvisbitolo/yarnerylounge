@@ -4,9 +4,12 @@ import {
   mapShopifyLineItems,
   computeExpiresAt,
   shouldGrantMembership,
+  mayWriteTier,
+  roleAfterRevoke,
 } from "@/lib/server/shopify";
 import { sendEmail } from "@/lib/server/email";
-import { logError } from "@/lib/server/log";
+import { logError, logInfo } from "@/lib/server/log";
+import { isActiveSub } from "@/lib/server/billing";
 import { getPrisma } from "@/lib/db/prisma";
 
 function verifyHmac(rawBody, header) {
@@ -59,6 +62,24 @@ async function grantAccess({ data, email, order }) {
   const existing = await prisma.user.findFirst({ where: { email } });
   if (existing) {
     const uid = existing.id;
+
+    // A purchase may raise a tier but never lower it. Writing variant.tier
+    // unconditionally meant a Moving In member who bought Hooking Up was
+    // silently demoted, losing hosting and the Diamond badge while still
+    // paying. Check the tier the member actually holds right now, and only
+    // write the incoming one if it is at least as valuable.
+    const existingSub = await prisma.subscription
+      .findFirst({ where: { OR: [{ id: uid }, { userId: uid }] } })
+      .catch((err) => {
+        logError("shopify.existing_sub_read_failed", { error: err.message, uid });
+        return null;
+      });
+    const downgrades = !mayWriteTier({
+      currentTier: existingSub?.tier,
+      currentIsActive: existingSub ? isActiveSub(existingSub) : false,
+      incomingTier: variant.tier,
+    });
+
     // Never demote an existing privileged role. The free Flirting product maps to
     // role "member", so buying your own $0 tier used to overwrite an owner,
     // moderator or host role and silently strip their access. A role is only
@@ -66,52 +87,77 @@ async function grantAccess({ data, email, order }) {
     const role = shouldWriteRole(existing.role, variant.role)
       ? variant.role
       : existing.role;
+    // Likewise, do not let a lower-tier purchase rewrite the plan or the expiry
+    // of a member whose higher tier is being preserved.
+    const keepPlan = downgrades ? existing.plan : variant.plan;
+    const keepExpires = downgrades ? existing.expiresAt : expiresAt ? new Date(expiresAt) : null;
     await prisma.user.update({
       where: { id: uid },
       data: {
-        plan: variant.plan,
+        plan: keepPlan,
         role,
         paymentStatus: "paid",
         isPrePaid: false,
         shopifyCustomerId: customerId,
         shopifyOrderId: orderId,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        expiresAt: keepExpires,
         updatedAt: new Date(),
       },
     }).catch((err) => {
       logError("shopify.grant_user_prisma_failed", { error: err.message, uid });
     });
 
-    const subData = {
-      id: uid,
-      userId: uid,
-      provider: "shopify",
-      status: "active",
-      plan: variant.annual ? "annual" : "monthly",
-      tier: variant.tier,
-      planName: variant.plan,
-      role: variant.role,
-      shopifyCustomerId: customerId || "",
-      shopifyOrderId: orderId || "",
-    };
-    if (expiresAt) subData.currentPeriodEnd = new Date(expiresAt);
-    await prisma.subscription.upsert({
-      where: { id: uid },
-      create: subData,
-      update: {
-        provider: subData.provider,
-        status: subData.status,
-        plan: subData.plan,
-        tier: subData.tier,
-        planName: subData.planName,
-        role: subData.role,
-        shopifyCustomerId: subData.shopifyCustomerId,
-        shopifyOrderId: subData.shopifyOrderId,
-        ...(subData.currentPeriodEnd ? { currentPeriodEnd: subData.currentPeriodEnd } : {}),
-      },
-    }).catch((err) => {
-      logError("shopify.grant_sub_prisma_failed", { error: err.message, uid });
-    });
+    if (downgrades) {
+      // Record the order for support, but leave the entitlements untouched.
+      await prisma.subscription
+        .update({
+          where: { id: uid },
+          data: {
+            shopifyCustomerId: customerId || existingSub?.shopifyCustomerId || "",
+            shopifyOrderId: orderId || existingSub?.shopifyOrderId || "",
+          },
+        })
+        .catch((err) => {
+          logError("shopify.downgrade_guard_sub_failed", { error: err.message, uid });
+        });
+      logInfo("shopify.tier_downgrade_ignored", {
+        uid,
+        currentTier: existingSub?.tier,
+        incomingTier: variant.tier,
+        orderId,
+      });
+    } else {
+      const subData = {
+        id: uid,
+        userId: uid,
+        provider: "shopify",
+        status: "active",
+        plan: variant.annual ? "annual" : "monthly",
+        tier: variant.tier,
+        planName: variant.plan,
+        role: variant.role,
+        shopifyCustomerId: customerId || "",
+        shopifyOrderId: orderId || "",
+      };
+      if (expiresAt) subData.currentPeriodEnd = new Date(expiresAt);
+      await prisma.subscription.upsert({
+        where: { id: uid },
+        create: subData,
+        update: {
+          provider: subData.provider,
+          status: subData.status,
+          plan: subData.plan,
+          tier: subData.tier,
+          planName: subData.planName,
+          role: subData.role,
+          shopifyCustomerId: subData.shopifyCustomerId,
+          shopifyOrderId: subData.shopifyOrderId,
+          ...(subData.currentPeriodEnd ? { currentPeriodEnd: subData.currentPeriodEnd } : {}),
+        },
+      }).catch((err) => {
+        logError("shopify.grant_sub_prisma_failed", { error: err.message, uid });
+      });
+    }
 
     await sendEmail({
       to: email,
@@ -191,11 +237,16 @@ async function revokeAccess({ email, paymentStatus }) {
     return;
   }
 
+  // A refund gives back what the purchase granted, and nothing more. The staff
+  // roles are assigned by hand and are unrelated to payment, so writing
+  // role: "member" unconditionally used to demote an owner or moderator on a
+  // refund and strip their access to the entire community.
+  const keptRole = roleAfterRevoke(existing.role);
   await prisma.user.update({
     where: { id: uid },
     data: {
       plan: "flirting",
-      role: "member",
+      role: keptRole,
       paymentStatus,
       isPrePaid: false,
       expiresAt: new Date(),
@@ -210,7 +261,8 @@ async function revokeAccess({ email, paymentStatus }) {
     plan: "monthly",
     planName: "flirting",
     tier: "flirting",
-    role: "member",
+    // Keep the staff role here too, so the stored row agrees with the user row.
+    role: keptRole,
     currentPeriodEnd: new Date(),
     canceledAt: new Date(),
   };

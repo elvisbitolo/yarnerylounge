@@ -71,3 +71,33 @@ export function shouldGrantMembership({ topic, data }) {
 
 export const SHOPIFY_UPGRADE_URL =
   process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";
+
+// Whether an incoming purchase may write its tier over what the member already
+// holds. Tiers only ever move up: buying a cheaper plan must not silently strip
+// hosting or lounge access someone is currently paying for.
+//
+// currentIsActive matters as much as the rank. A lapsed higher tier is not
+// worth protecting, so re-subscribing at a lower tier after expiry is allowed.
+// An unrecognised tier on either side is not evidence of a downgrade, so we
+// fail open and let the purchase through rather than stranding a paying
+// customer on a stale row.
+export function mayWriteTier({ currentTier, currentIsActive, incomingTier }) {
+  if (!currentIsActive) return true;
+  const current = RANK[currentTier];
+  const incoming = RANK[incomingTier];
+  if (current == null || incoming == null) return true;
+  return incoming >= current;
+}
+
+// The role a member keeps after a refund or cancellation.
+//
+// A purchase may grant a role but must never take one away, and a staff role
+// (owner/moderator) is assigned by hand and has nothing to do with what anyone
+// paid for — so a refund must not demote an owner to member and strip their
+// access to the whole community. The host role is different: it is granted by
+// the Moving In purchase, so a refund does give it back.
+export function roleAfterRevoke(currentRole) {
+  const current = String(currentRole || "").toLowerCase();
+  if (current === "owner" || current === "moderator") return currentRole;
+  return "member";
+}

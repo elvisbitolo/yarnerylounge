@@ -7,6 +7,8 @@ import {
   computeExpiresAt,
   buildSubscriptionDoc,
   shouldGrantMembership,
+  mayWriteTier,
+  roleAfterRevoke,
 } from "../shopify.js";
 
 test("SHOPIFY_VARIANTS covers all 5 documented variants", () => {
@@ -116,4 +118,113 @@ test("shouldGrantMembership: unrelated topics never grant", () => {
   assert.equal(shouldGrantMembership({ topic: "orders/fulfilled" }), false);
   assert.equal(shouldGrantMembership({ topic: "refunds/create" }), false);
   assert.equal(shouldGrantMembership({ topic: "", data: { financial_status: "paid" } }), false);
+});
+
+// ------------------------- a purchase may raise a tier, never lower it (fix 2)
+
+test("a lower-tier purchase is refused while the member holds a higher active tier", () => {
+  // The bug: writing variant.tier unconditionally silently demoted a Moving In
+  // member who bought Hooking Up, taking their hosting and Diamond badge while
+  // they were still paying.
+  assert.equal(
+    mayWriteTier({ currentTier: "moving-in", currentIsActive: true, incomingTier: "hooking-up" }),
+    false
+  );
+  assert.equal(
+    mayWriteTier({ currentTier: "moving-in", currentIsActive: true, incomingTier: "flirting" }),
+    false
+  );
+  assert.equal(
+    mayWriteTier({ currentTier: "hooking-up", currentIsActive: true, incomingTier: "flirting" }),
+    false
+  );
+});
+
+test("a same-tier or higher purchase is always written", () => {
+  // A renewal of the same plan, and any genuine upgrade, must go through.
+  assert.equal(
+    mayWriteTier({ currentTier: "hooking-up", currentIsActive: true, incomingTier: "hooking-up" }),
+    true
+  );
+  assert.equal(
+    mayWriteTier({ currentTier: "flirting", currentIsActive: true, incomingTier: "hooking-up" }),
+    true
+  );
+  assert.equal(
+    mayWriteTier({ currentTier: "flirting", currentIsActive: true, incomingTier: "moving-in" }),
+    true
+  );
+  assert.equal(
+    mayWriteTier({ currentTier: "hooking-up", currentIsActive: true, incomingTier: "moving-in" }),
+    true
+  );
+});
+
+test("a lapsed higher tier is not protected", () => {
+  // Expiry matters as much as rank: once Moving In has lapsed, re-subscribing at
+  // a lower tier is a legitimate purchase, not a downgrade to block.
+  assert.equal(
+    mayWriteTier({ currentTier: "moving-in", currentIsActive: false, incomingTier: "flirting" }),
+    true
+  );
+  assert.equal(
+    mayWriteTier({ currentTier: "moving-in", currentIsActive: false, incomingTier: "hooking-up" }),
+    true
+  );
+});
+
+test("a member with no subscription is granted whatever they bought", () => {
+  for (const incomingTier of ["flirting", "hooking-up", "moving-in"]) {
+    assert.equal(
+      mayWriteTier({ currentTier: undefined, currentIsActive: false, incomingTier }),
+      true,
+      `first purchase of ${incomingTier} was blocked`
+    );
+  }
+});
+
+test("an unrecognised tier on either side fails open", () => {
+  // Not evidence of a downgrade, so the purchase is written rather than
+  // stranding a paying customer on a row we cannot rank.
+  assert.equal(
+    mayWriteTier({ currentTier: "premium", currentIsActive: true, incomingTier: "flirting" }),
+    true
+  );
+  assert.equal(
+    mayWriteTier({ currentTier: "moving-in", currentIsActive: true, incomingTier: "premium" }),
+    true
+  );
+});
+
+// ------------------------------- a refund gives back the purchase, not the
+// role (fix 3)
+
+test("a refund never strips a hand-assigned staff role", () => {
+  // The bug: revokeAccess wrote role: "member" unconditionally, so a refund
+  // demoted an owner or moderator and locked them out of the community.
+  assert.equal(roleAfterRevoke("owner"), "owner");
+  assert.equal(roleAfterRevoke("moderator"), "moderator");
+});
+
+test("a refund does give back the host role, which the purchase granted", () => {
+  assert.equal(roleAfterRevoke("host"), "member");
+  assert.equal(roleAfterRevoke("member"), "member");
+});
+
+test("a refund normalises anything that is not staff", () => {
+  for (const role of [null, undefined, "", "guest", "co-host", "Owner "]) {
+    const kept = roleAfterRevoke(role);
+    assert.ok(
+      kept === "member" || kept === role,
+      `unexpected role ${JSON.stringify(kept)} for ${JSON.stringify(role)}`
+    );
+  }
+  assert.equal(roleAfterRevoke("co-host"), "member");
+});
+
+test("roleAfterRevoke is case tolerant on the way in", () => {
+  // Staff detection must not depend on the exact casing stored on the row, or
+  // an "Owner" row would still be demoted.
+  assert.equal(roleAfterRevoke("Owner"), "Owner");
+  assert.equal(roleAfterRevoke("MODERATOR"), "MODERATOR");
 });
