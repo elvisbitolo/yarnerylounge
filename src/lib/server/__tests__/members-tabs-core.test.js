@@ -45,6 +45,19 @@ test("newest narrows to recent joiners instead of showing everyone", () => {
   assert.equal(r.capped, false);
 });
 
+// The window was a month and is now a fortnight, so a joiner from three weeks
+// ago used to be "new" and now must not be.
+test("newest uses a fortnight, so a three-week joiner is no longer new", () => {
+  assert.equal(NEWEST_WINDOW_DAYS, 14);
+  const pool = [
+    member({ name: "ThreeWeeks", createdAt: NOW - 21 * DAY }),
+    member({ name: "ThirteenDays", createdAt: NOW - 13 * DAY }),
+  ];
+  const r = applyMemberTab(pool, "newest", { nowMs: NOW, todayKey: TODAY });
+  assert.deepEqual(names(r), ["ThirteenDays"]);
+  assert.equal(r.total, 1);
+});
+
 test("top narrows to the leaderboard, not the full pool", () => {
   const pool = Array.from({ length: 10 }, (_, i) =>
     member({ name: `M${i}`, points: (i + 1) * 10 })

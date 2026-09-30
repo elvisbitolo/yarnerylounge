@@ -19,9 +19,10 @@ export const MEMBER_TABS = [
   { key: "hosts", label: "Hosts" },
 ];
 
-// How far back "Newest" reaches. A month of joiners is the useful window; the
-// full membership stays reachable through All.
-export const NEWEST_WINDOW_DAYS = 30;
+// How far back "Newest" reaches. A fortnight of joiners is the useful window:
+// long enough to have a populated view, short enough that everyone in it really
+// is new. The full membership stays reachable through All.
+export const NEWEST_WINDOW_DAYS = 14;
 
 // Matches the leaderboard the sidebar already renders, so "Top" here and the
 // leaderboard there cannot drift apart into two different top-30s.
