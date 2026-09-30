@@ -69,7 +69,7 @@ export default async function GroupPage({ params }) {
             <p className={styles.subtitle}>{group.sidebarDescription}</p>
           )}
           {group.description && (
-            <p className={styles.cardDesc}>{group.description}</p>
+            <p className={styles.headerDesc}>{group.description}</p>
           )}
           {group.hangoutTag && (
             <p className={styles.hangoutTag} style={{ color: group.color || undefined }}>
@@ -80,10 +80,10 @@ export default async function GroupPage({ params }) {
               </Link>
             </p>
           )}
-          <p className={styles.cardMeta}>
+          <p className={styles.headerMeta}>
             {members.length} {members.length === 1 ? "member" : "members"}
             {memberNames.length > 0 && (
-              <span className={styles.memberNames}> — {memberNames.join(", ")}</span>
+              <span className={styles.headerMemberNames}> — {memberNames.join(", ")}</span>
             )}
           </p>
           <div className={styles.groupActions}>
