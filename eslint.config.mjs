@@ -3,6 +3,17 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
+  {
+    rules: {
+      // This project is plain JavaScript with no typechecker, so nothing else
+      // catches a reference to a name that was never imported. That is not
+      // theoretical: `getCurrentUser` in PATCH /api/me and `actorName` in
+      // POST /api/posts/[id]/comments both shipped, and each threw a
+      // ReferenceError that surfaced to members as a bodiless 500. The Next
+      // config leaves this off, so turn it on.
+      "no-undef": "error",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
