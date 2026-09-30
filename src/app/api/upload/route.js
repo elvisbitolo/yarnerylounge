@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
+import { blobUploadFailureMessage } from "@/lib/server/blob-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -107,13 +108,23 @@ export async function POST(req) {
   const pathname = `uploads/${kind}/${auth.user.uid}/${Date.now()}.${ext}`;
   const freshBlob = new Blob([bytes], { type: file.type || "application/octet-stream" });
 
-  const blob = await put(pathname, freshBlob, {
-    access: "public",
-    contentType: file.type || "application/octet-stream",
-    addRandomSuffix: true,
-  });
-
-  return NextResponse.json({ url: blob.url });
+  try {
+    const blob = await put(pathname, freshBlob, {
+      access: "public",
+      contentType: file.type || "application/octet-stream",
+      addRandomSuffix: true,
+    });
+    return NextResponse.json({ url: blob.url });
+  } catch (err) {
+    // put() is the one storage call that can fail for reasons outside this
+    // route's control -- a revoked/rotated token, a store that no longer
+    // exists, or a project transfer that dropped the store link. Unhandled,
+    // that surfaced as a non-JSON 500 and the client could only show a generic
+    // "Failed to upload", hiding the real cause. The raw error stays in the
+    // server log; the client gets a message it can act on.
+    console.error("[upload] blob put failed", err);
+    return NextResponse.json({ error: blobUploadFailureMessage(err) }, { status: 502 });
+  }
 }
 
 export async function DELETE(req) {

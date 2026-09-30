@@ -130,6 +130,15 @@ function coverWindow(width, height, ratio = COVER_RATIO) {
   return { winW, winH, offX, offY };
 }
 
+// The upload route answers its own failures with JSON, but the platform can
+// reject a request before it ever reaches the route -- 413 on an oversized
+// body, 504 on a timeout -- and reply with HTML. There is no message to show
+// then, so surface the status rather than a bare "failed".
+function uploadErrorMessage(up, upData, fallback) {
+  if (upData?.error) return upData.error;
+  return up.status ? `${fallback} (HTTP ${up.status})` : fallback;
+}
+
 function cropImageToBanner(img, rect) {
   const targetRatio = COVER_RATIO;
   const scale = Math.min(1, 1200 / rect.w);
@@ -741,7 +750,7 @@ export default function ProfileEditor({ initial, memberId }) {
       });
       const upData = await up.json().catch(() => ({}));
       if (!up.ok || (!upData.url && !upData.dataUrl)) {
-        throw new Error(upData.error || "Failed to upload cover photo");
+        throw new Error(uploadErrorMessage(up, upData, "Failed to upload cover photo"));
       }
       const coverPhotoURL = upData.url || upData.dataUrl;
       const res = await fetch("/api/me", {
@@ -804,7 +813,7 @@ export default function ProfileEditor({ initial, memberId }) {
       });
       const upData = await up.json().catch(() => ({}));
       if (!up.ok || (!upData.url && !upData.dataUrl)) {
-        throw new Error(upData.error || "Failed to upload photo");
+        throw new Error(uploadErrorMessage(up, upData, "Failed to upload photo"));
       }
       const nextPhotoURL = upData.url || upData.dataUrl;
       const res = await fetch("/api/me", {
