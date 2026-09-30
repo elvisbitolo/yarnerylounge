@@ -15,6 +15,27 @@ export const LEGACY_ALIASES = {
 
 export const TIER_RANK = { flirting: 0, "hooking-up": 1, "moving-in": 2 };
 
+// Roles that carry the top tier regardless of the plan string.
+//
+// This is the single source of truth for role -> tier. It used to be
+// hand-rolled in two places (capabilities.js and membership.js) and the two
+// copies drifted: capabilities.js honoured "host" while membership.js only
+// knew "owner"/"moderator", so a host got full Moving In entitlements but no
+// Diamond badge and a "Flirting" label. Both call this now.
+//
+// "co-host" is deliberately absent: it is a per-room HostAssignment role, not
+// a User.role, so it must not imply global top-tier rights.
+export const TIER_FOR_ROLE = {
+  owner: "moving-in",
+  moderator: "moving-in",
+  host: "moving-in",
+};
+
+export function tierForRole(role) {
+  if (!role) return null;
+  return TIER_FOR_ROLE[String(role).trim().toLowerCase()] || null;
+}
+
 export const TIER_BADGE = {
   "hooking-up": { icon: "👑", color: "#d4a017", label: "Hooking Up" },
   "moving-in": { icon: "💎", color: "#3b82f6", label: "Moving In" },

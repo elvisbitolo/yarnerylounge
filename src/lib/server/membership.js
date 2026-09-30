@@ -1,6 +1,10 @@
-import { CAPABILITIES } from "@/lib/server/capabilities";
-import { isOpenAccess, openAccessPlan } from "@/lib/server/access-policy";
-import { toMillis } from "@/lib/server/user-core";
+// Relative imports rather than the "@/..." alias: the test runner resolves bare
+// specifiers only, and this module is covered directly by
+// __tests__/tier-resolution.test.js. All three targets live in this directory.
+import { CAPABILITIES } from "./capabilities-core.js";
+import { isOpenAccess, openAccessPlan } from "./access-policy.js";
+import { tierForRole } from "./plans.js";
+import { toMillis } from "./user-core.js";
 
 const PAID_PLANS = new Set(["hooking-up", "moving-in"]);
 
@@ -16,7 +20,12 @@ export function deriveMembership(userDoc, now = Date.now()) {
   const expired = paidPlan && expiresAtMs > 0 && expiresAtMs < now;
 
   let planKey = "flirting";
-  if (role === "owner" || role === "moderator") planKey = "moving-in";
+  // A top-tier role wins over the plan string, so a manually granted host shows
+  // the Moving In label and Diamond badge rather than "Flirting". Previously
+  // only owner/moderator were honoured here while capabilities.js also honoured
+  // host, which is how a host ended up with host rights and no badge.
+  const roleTier = tierForRole(role);
+  if (roleTier) planKey = roleTier;
   // Open-access mode: every signed-in member is admitted at the top tier until
   // the gate is flipped on — mirrors getAccessSub so badges/CTAs match the
   // server capability grants (no upgrade prompts while the community ramps up).
