@@ -90,6 +90,28 @@ export function shouldAnnounce({
 }
 
 /**
+ * Pick the room to feature in the "Christa is live" card.
+ *
+ * Returns null when she is not in a room, when the room is gone, or when more
+ * than one live row survives — a second tab or a missed `leave` would
+ * otherwise leave the card pointing at an arbitrary room and inviting people
+ * into an empty one.
+ */
+export function pickAnnouncerRoom(rows, { ownerEmail = LIVE_ANNOUNCER_EMAIL } = {}) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const wanted = String(ownerEmail).trim().toLowerCase();
+
+  const candidates = rows.filter(
+    (row) =>
+      String(row?.user?.email || "").trim().toLowerCase() === wanted &&
+      row?.room &&
+      row.room.status !== "deleted"
+  );
+  if (candidates.length !== 1) return null;
+  return candidates[0].room;
+}
+
+/**
  * Recipients for the broadcast: every active member except the announcer.
  *
  * Suspended members are excluded. Deliberately *not* filtered on

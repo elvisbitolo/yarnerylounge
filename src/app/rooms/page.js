@@ -5,6 +5,8 @@ import { Wine, Headphones, Sofa, Ban } from "lucide-react";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { loungeGate } from "@/lib/server/lounge-gate";
 import { listRoomsEnsuringAlwaysOn, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
+import { getAnnouncerLiveRoom } from "@/lib/server/lounge-live";
+import { LIVE_ANNOUNCER_NAME } from "@/lib/server/lounge-live-core";
 import Nav from "@/components/Nav";
 import styles from "./rooms.module.css";
 
@@ -51,9 +53,10 @@ export default async function RoomsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [userDoc, rooms] = await Promise.all([
+  const [userDoc, rooms, liveRoom] = await Promise.all([
     getUserDoc(user.uid),
     listRoomsEnsuringAlwaysOn(),
+    getAnnouncerLiveRoom(),
   ]);
 
   const gate = await loungeGate(user.uid, userDoc);
@@ -96,6 +99,47 @@ export default async function RoomsPage() {
         <p className={styles.subtitle}>
           Four always-on video lounges — pick your vibe and join the crafters already inside.
         </p>
+
+        {liveRoom && (
+          <Link
+            href={`/rooms/${liveRoom.slug}`}
+            className={styles.liveCard}
+            aria-label={`${LIVE_ANNOUNCER_NAME} is live in ${liveRoom.name}. Join the lounge.`}
+          >
+            <span className={styles.liveCardGlow} aria-hidden="true" />
+            <span className={styles.liveCardMain}>
+              <span className={styles.liveCardEyebrow}>
+                <span className={styles.liveCardDot} aria-hidden="true" />
+                Live now
+              </span>
+              <span className={styles.liveCardTitle}>
+                {LIVE_ANNOUNCER_NAME} is live in {liveRoom.name}
+              </span>
+              <span className={styles.liveCardSub}>
+                She just joined
+                {liveRoom.viewerCount > 1
+                  ? ` · ${liveRoom.viewerCount} people in there now`
+                  : " · be the first to say hello"}
+              </span>
+            </span>
+            <span className={styles.liveCardCta}>
+              Join
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 12h13M12 5v13" />
+              </svg>
+            </span>
+          </Link>
+        )}
 
         {featuredRooms.length === 0 ? (
           <p className={styles.empty}>The lounges are being prepped — check back in a moment.</p>

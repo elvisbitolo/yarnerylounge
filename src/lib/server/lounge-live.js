@@ -11,14 +11,17 @@ import { createNotification } from "@/lib/server/notifications";
 import { sendEmail } from "@/lib/server/email";
 import { logError, logInfo } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
-import { ROOM_PRESENCE_WINDOW_MS } from "@/lib/server/room-presence";
+import { ROOM_PRESENCE_WINDOW_MS, countActiveRoomMembers } from "@/lib/server/room-presence";
 import {
+  LIVE_ANNOUNCER_EMAIL,
+  LIVE_ANNOUNCER_NAME,
   LIVE_COOLDOWN_MS,
   LIVE_PRESENCE_GRACE_MS,
   buildLiveEmail,
   buildLiveMessage,
   isLoungeLiveEnabled,
   isLiveAnnouncer,
+  pickAnnouncerRoom,
   selectRecipients,
   shouldAnnounce,
 } from "./lounge-live-core.js";
@@ -251,4 +254,48 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
 
 function isAnnouncerUser(user) {
   return isLiveAnnouncer(user);
+}
+
+/**
+ * The room to feature in the "Christa is live" card, or null.
+ *
+ * Reads presence rather than the join history, which is what makes the card
+ * trustworthy: presence is refreshed on a 90s heartbeat, so the card cannot
+ * claim she is in a lounge she quietly left ten minutes ago — the failure mode
+ * a notification sent at join time cannot rule out.
+ *
+ * Deliberately independent of Room.pinned, which is a manual static promotion
+ * and would keep featuring a lounge long after she has gone.
+ *
+ * @returns {Promise<{id: string, slug: string, name: string, viewerCount: number} | null>}
+ */
+export async function getAnnouncerLiveRoom(now = Date.now()) {
+  const prisma = getPrisma();
+  if (!prisma) return null;
+
+  let owner = null;
+  try {
+    owner = await prisma.user.findFirst({
+      where: { email: LIVE_ANNOUNCER_EMAIL },
+      select: { id: true, email: true, name: true, photoURL: true },
+    });
+  } catch (err) {
+    logError("lounge-live.banner_owner_lookup_failed", { error: err.message });
+    return null;
+  }
+  if (!owner) return null;
+
+  try {
+    const rows = await prisma.roomPresence.findMany({
+      where: { userId: owner.id, leftAt: null, lastSeenAt: { gt: new Date(now - ROOM_PRESENCE_WINDOW_MS) } },
+      select: { room: { select: { id: true, slug: true, name: true, status: true } } },
+    });
+    const room = pickAnnouncerRoom(rows.map((row) => ({ ...row, user: owner })));
+    if (!room) return null;
+    const viewerCount = await countActiveRoomMembers([room.id], now);
+    return { id: room.id, slug: room.slug, name: room.name, viewerCount };
+  } catch (err) {
+    logError("lounge-live.banner_failed", { error: err.message });
+    return null;
+  }
 }
