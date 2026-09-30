@@ -36,7 +36,14 @@ export default async function EventsPage() {
   const now = new Date();
   // A block that was promoted to a meetup is already shown on the events board
   // below, so it is dropped here rather than listed twice.
-  const hangouts = (await listAvailability({}))
+  //
+  // The window is what makes this read correct. Without one the query has no
+  // lower bound and returns the oldest blocks in the table, so the 12 soonest
+  // occurrences below were chosen from stale rows and a newly added hangout
+  // could not appear. Anchored 60 days out, matching the calendar's own reach.
+  const windowEnd = new Date(now);
+  windowEnd.setDate(windowEnd.getDate() + 60);
+  const hangouts = (await listAvailability({ from: now.toISOString(), to: windowEnd.toISOString() }))
     .filter((slot) => !slot.eventId)
     .map((slot) => ({ ...slot, nextAt: nextOccurrenceAt(slot, now) }))
     .filter((slot) => slot.nextAt)

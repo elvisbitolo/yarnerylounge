@@ -165,6 +165,24 @@ export function availabilityWindowWhere({ from, to } = {}) {
   return { OR: [oneOff, recurring] };
 }
 
+// The cap on a single list read. A guard against an unbounded query, not a
+// display limit: the calendar genuinely needs every block in its window.
+export const AVAILABILITY_LIST_LIMIT = 500;
+
+// How to order a list read, which depends entirely on whether the caller gave
+// us a window to aim at.
+//
+// With a `from`, the rows are already bounded to a date range and the useful
+// ones are the soonest, so ascending keeps the ones the viewer is about to
+// scroll onto. Without one the where clause is empty, so the cap is the only
+// bound on the whole table -- and ascending then returns the 500 OLDEST blocks
+// ever created. The events page asks for exactly that (listAvailability({}))
+// and picks the 12 soonest occurrences from the result, so the newest hangouts
+// were structurally unreachable no matter how many were added.
+export function availabilityListOrder({ from } = {}) {
+  return from ? { startAt: "asc" } : { startAt: "desc" };
+}
+
 // Whether a recurring block appears on a given calendar day (for grid views).
 export function recurringDayMatches(block, day) {
   const rec = normalizeRecurring(block?.recurring);

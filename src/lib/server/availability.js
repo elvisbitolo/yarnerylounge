@@ -1,6 +1,8 @@
 import { getPrisma } from "@/lib/db/prisma";
-import { logError } from "@/lib/server/log";
+import { logError, logInfo } from "@/lib/server/log";
 import {
+  AVAILABILITY_LIST_LIMIT,
+  availabilityListOrder,
   AVAILABILITY_MAX_TITLE,
   AVAILABILITY_MAX_NOTE,
   AVAILABILITY_MAX_MINUTES,
@@ -26,6 +28,8 @@ import {
 // Re-exported for the API routes. linkAvailabilityEvent is declared with
 // `export async function` below, so it must not be listed here as well.
 export {
+  AVAILABILITY_LIST_LIMIT,
+  availabilityListOrder,
   AVAILABILITY_MAX_TITLE,
   AVAILABILITY_MAX_NOTE,
   AVAILABILITY_MAX_MINUTES,
@@ -52,12 +56,25 @@ export async function listAvailability({ from, to } = {}) {
   if (prisma) {
     try {
       const where = availabilityWindowWhere({ from, to });
+      // Ask for one more than the cap so a truncated read is detectable. Without
+      // this the 500-row limit discards rows silently, which reads as "that is
+      // all there is" -- the same failure shape as the failed-query-reads-as-empty
+      // bug in the test suite.
       const rows = await prisma.availability.findMany({
         where,
-        orderBy: { startAt: "asc" },
-        take: 500,
+        orderBy: availabilityListOrder({ from }),
+        take: AVAILABILITY_LIST_LIMIT + 1,
       });
-      return rows.map(serializeAvailability);
+      const capped = rows.length > AVAILABILITY_LIST_LIMIT;
+      const visible = capped ? rows.slice(0, AVAILABILITY_LIST_LIMIT) : rows;
+      if (capped) {
+        logInfo("availability.prisma_list_capped", {
+          returned: visible.length,
+          limit: AVAILABILITY_LIST_LIMIT,
+          windowed: Boolean(from || to),
+        });
+      }
+      return visible.map(serializeAvailability);
     } catch (err) {
       logError("availability.prisma_list_failed", { error: err.message });
     }

@@ -8,6 +8,8 @@ import {
   recurringLabel,
   recurringDayMatches,
   availabilityWindowWhere,
+  availabilityListOrder,
+  AVAILABILITY_LIST_LIMIT,
 } from "../availability-core.js";
 
 test("normalizeRecurring keeps none, weekly, and weekday values only", () => {
@@ -174,6 +176,48 @@ test("availabilityWindowWhere: a past-start weekly block survives the filter the
     anchor <= recurring.startAt.lte,
     "but it is before the window end, so the recurring clause still returns it"
   );
+});
+
+test("availabilityListOrder: a windowed read keeps the soonest blocks", () => {
+  // The calendar sends from=now, so ascending puts the blocks the viewer is
+  // about to scroll onto inside the cap.
+  assert.deepEqual(availabilityListOrder({ from: "2026-09-29T00:00:00.000Z" }), { startAt: "asc" });
+});
+
+test("availabilityListOrder: an unwindowed read takes the newest, not the oldest", () => {
+  // This is the bug. With no `from` the where clause is empty, so the cap is the
+  // only bound on the whole table. Ascending here returned the 500 oldest blocks
+  // ever created, and the events page picked its 12 soonest occurrences out of
+  // those -- so a newly added hangout could never appear, however recent.
+  assert.deepEqual(availabilityListOrder({}), { startAt: "desc" });
+  assert.deepEqual(availabilityListOrder(), { startAt: "desc" });
+  assert.deepEqual(availabilityListOrder({ to: "2026-11-28T00:00:00.000Z" }), { startAt: "desc" });
+});
+
+test("availabilityListOrder: descending is what keeps a new block reachable", () => {
+  // Models the events page: 500 rows already in the table, then a hangout added
+  // now. Under the old ascending order the new row fell off the end of the cap.
+  const old = Array.from({ length: 500 }, (_, i) => ({
+    startAt: new Date(Date.UTC(2020, 0, 1) + i * 86400000),
+  }));
+  const fresh = { startAt: new Date(Date.UTC(2026, 8, 29)) };
+  const table = [...old, fresh];
+
+  const take = (order) => {
+    const sign = order.startAt === "asc" ? 1 : -1;
+    return [...table].sort((a, b) => sign * (a.startAt - b.startAt)).slice(0, 500);
+  };
+
+  const ascRows = take({ startAt: "asc" });
+  assert.equal(ascRows.includes(fresh), false, "ascending: the new block is unreachable");
+  assert.equal(take({ startAt: "desc" }).includes(fresh), true);
+});
+
+test("AVAILABILITY_LIST_LIMIT leaves room to detect truncation", () => {
+  // listAvailability asks for limit + 1 so a capped read is visible instead of
+  // silently reading as complete.
+  assert.equal(typeof AVAILABILITY_LIST_LIMIT, "number");
+  assert.ok(AVAILABILITY_LIST_LIMIT > 0);
 });
 
 test("normalizeTimeZone accepts real IANA zones and rejects non-zones", () => {
