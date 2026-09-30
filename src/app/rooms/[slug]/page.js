@@ -5,6 +5,7 @@ import { resolveRoomAccess } from "@/lib/server/room-access";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities } from "@/lib/server/capabilities";
+import { loungeGate } from "@/lib/server/lounge-gate";
 import Nav from "@/components/Nav";
 import RoomClient from "./RoomClient";
 import styles from "./room.module.css";
@@ -17,6 +18,10 @@ export default async function RoomPage({ params }) {
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
+  // Video lounges are a paid perk, so an unpaid member is sent to upgrade
+  // rather than shown a room they cannot join.
+  const tierGate = await loungeGate(user.uid, userDoc, { lounge: true });
+  if (tierGate) redirect(tierGate);
   const gate = await resolveRoomAccess(slug, user.uid, userDoc);
   if (gate.denied) {
     return (

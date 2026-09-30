@@ -11,7 +11,7 @@ import {
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getUserDoc, canModerate } from "@/lib/server/auth";
-import { getCapabilities, canPublishRemote, canHost } from "@/lib/server/capabilities";
+import { getCapabilities, canPublishRemote, canHost, canJoinLounge } from "@/lib/server/capabilities";
 import {
   buildJitsiTokenPayload,
   jitsiRoomName,
@@ -21,7 +21,7 @@ import {
   isJitsiConfigured,
   describeJitsiToken,
 } from "@/lib/server/jitsi";
-import { logError } from "@/lib/server/log";
+import { logError, logInfo } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 import { toMillis } from "@/lib/server/user-core";
 import { announceLoungeLive } from "@/lib/server/lounge-live";
@@ -97,6 +97,16 @@ export async function POST(req) {
     }
 
     const caps = await getCapabilities(auth.user.uid);
+    // The paywall. A page redirect is only UX; without this a Flirting member
+    // could POST here directly and get a working Jitsi token for free. Video
+    // lounges are a paid perk, so an unpaid member is refused a token outright.
+    if (!canJoinLounge(caps)) {
+      logInfo("jitsi.token.denied_tier", { tier: caps.key });
+      return NextResponse.json(
+        { error: "A paid membership is required to enter the lounges", code: "upgrade_required" },
+        { status: 403 }
+      );
+    }
     const canPublishUser = canPublishRemote(caps) || canHost(caps);
 
     let canPublish = canPublishUser;

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CAPABILITIES, canPublishRemote } from "../capabilities-core.js";
+import { CAPABILITIES, canPublishRemote, canJoinLounge } from "../capabilities-core.js";
 import { deriveMembership } from "../membership.js";
+import { isOpenAccess } from "../access-policy.js";
 import { tierForRole, TIER_FOR_ROLE, tierLabel } from "../plans.js";
 
 // Guards the invariant that broke once already: three modules answer "what tier
@@ -68,9 +69,7 @@ test("the Flirting tier is view-only: joins, cannot publish, muted", () => {
   // The sales page sells video lounges as a paid perk, so the free tier must
   // not be able to unmute or go live. This is the paywall the app actually
   // enforces, via the Jitsi token's canPublish flag.
-  assert.equal(CAPS_BY_TIER.free.video.canJoin, true);
   assert.equal(CAPS_BY_TIER.free.video.canPublish, false);
-  assert.equal(CAPS_BY_TIER.free.video.muted, true);
   assert.equal(canPublishRemote(CAPS_BY_TIER.free), false);
 });
 
@@ -196,10 +195,18 @@ test("an expired paid plan falls back to Flirting", () => {
   assert.equal(m.profileBadge, null);
 });
 
-test("open access still admits every signed-in member at the top tier", () => {
-  // Current production state: SHOPIFY_OPEN_ACCESS is unset, so this branch is
-  // what every member resolves to today.
+test("an unset access override means strict access, not open", () => {
+  // This used to be open access, resolving every member to the top tier
+  // regardless of plan. The default is now strict, so the plan decides.
   const m = withOpenAccess(null, () => deriveMembership({ role: "member", plan: "flirting" }));
+  assert.equal(m.planKey, "flirting");
+  assert.equal(m.profileBadge, null);
+  assert.equal(canJoinLounge(m.capabilities), false);
+});
+
+test("the override still admits every signed-in member at the top tier", () => {
+  // The emergency path, when explicitly switched on.
+  const m = withOpenAccess("true", () => deriveMembership({ role: "member", plan: "flirting" }));
   assert.equal(m.planKey, "moving-in");
   assert.equal(m.profileBadge?.icon, "💎");
 });
@@ -223,4 +230,78 @@ test("every role and plan combination yields a label that exists on the shop pag
       }
     }
   }
+});
+
+// ----------------------------------------------------- the closed paywall
+
+test("open access is off unless explicitly turned on", () => {
+  // Fails closed. This used to default to true, which resolved every member to
+  // the top tier and showed an unpaid member the $179.50/yr tier and its badge.
+  assert.equal(withOpenAccess(null, () => isOpenAccess()), false);
+  assert.equal(withOpenAccess("", () => isOpenAccess()), false);
+  assert.equal(withOpenAccess("false", () => isOpenAccess()), false);
+  assert.equal(withOpenAccess("0", () => isOpenAccess()), false);
+  assert.equal(withOpenAccess("nonsense", () => isOpenAccess()), false);
+});
+
+test("the emergency override still reopens the gate", () => {
+  assert.equal(withOpenAccess("true", () => isOpenAccess()), true);
+  assert.equal(withOpenAccess("1", () => isOpenAccess()), true);
+  assert.equal(withOpenAccess("yes", () => isOpenAccess()), true);
+});
+
+test("Flirting cannot enter the video lounges at all", () => {
+  // "Full access to the 24/7 Video Lounges" is sold as a Hooking Up perk, so the
+  // free tier is refused entry rather than seated muted in a silent room.
+  assert.equal(CAPS_BY_TIER.free.video.canJoin, false);
+  assert.equal(canJoinLounge(CAPS_BY_TIER.free), false);
+  assert.equal(canJoinLounge(undefined), false);
+  assert.equal(canJoinLounge({}), false);
+  assert.equal(canJoinLounge({ video: {} }), false);
+});
+
+test("both paid tiers may enter the lounges", () => {
+  for (const caps of [CAPS_BY_TIER.paid, CAPS_BY_TIER.host]) {
+    assert.equal(caps.video.canJoin, true);
+    assert.equal(canJoinLounge(caps), true);
+  }
+});
+
+test("every tier combination either may enter the lounge or may not", () => {
+  // Ties the gate to the resolved membership, so a Flirting member is refused
+  // the moment the paywall is enforced and admitted at every paid tier.
+  const cases = [
+    [{ role: "member", plan: "flirting" }, false],
+    [{ role: "member", plan: "hooking-up" }, true],
+    [{ role: "member", plan: "moving-in" }, true],
+    [{ role: "host", plan: "flirting" }, true],
+    [{ role: "owner", plan: "flirting" }, true],
+    [{ role: "moderator", plan: "flirting" }, true],
+  ];
+  for (const [userDoc, expected] of cases) {
+    const m = withOpenAccess("false", () => deriveMembership(userDoc));
+    assert.equal(canJoinLounge(m.capabilities), expected, `role=${userDoc.role} plan=${userDoc.plan}`);
+  }
+});
+
+test("an expired paid plan loses lounge access again", () => {
+  const m = withOpenAccess("false", () =>
+    deriveMembership({ role: "member", plan: "hooking-up", expiresAt: Date.now() - 1000 })
+  );
+  assert.equal(canJoinLounge(m.capabilities), false);
+});
+
+test("the emergency override still admits a free member to the lounges", () => {
+  // Deliberate: the override ignores tiers entirely, which is the point of it.
+  const m = withOpenAccess("true", () => deriveMembership({ role: "member", plan: "flirting" }));
+  assert.equal(canJoinLounge(m.capabilities), true);
+});
+
+test("Flirting keeps the front-parlor perks that are not gated on video", () => {
+  // The shop page promises Flirting a profile, the calendar, sharing creations
+  // and browsing the feed. Only the lounges are withheld, so closing the paywall
+  // must not turn a free member into a locked-out user entirely.
+  const m = withOpenAccess("false", () => deriveMembership({ role: "member", plan: "flirting" }));
+  assert.equal(m.capabilities.chat.read, true);
+  assert.equal(m.capabilities.video.canJoin, false);
 });

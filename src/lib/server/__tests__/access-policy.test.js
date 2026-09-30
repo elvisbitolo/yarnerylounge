@@ -6,10 +6,12 @@ import {
   OPEN_ACCESS_PLAN,
 } from "../access-policy.js";
 
-test("isOpenAccess: defaults to open when env is unset", () => {
+test("isOpenAccess: defaults to strict when env is unset", () => {
+  // Fails closed. The default used to be open, which resolved every member to
+  // the top tier regardless of the plan they bought.
   const prev = process.env.SHOPIFY_OPEN_ACCESS;
   delete process.env.SHOPIFY_OPEN_ACCESS;
-  assert.equal(isOpenAccess(), true);
+  assert.equal(isOpenAccess(), false);
   if (prev !== undefined) process.env.SHOPIFY_OPEN_ACCESS = prev;
 });
 

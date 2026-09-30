@@ -12,6 +12,7 @@ export {
   CAPABILITIES,
   canBuildNeighborhoods,
   canHost,
+  canJoinLounge,
   canJoinNeighborhoods,
   canPublishRemote,
   canUseMatchmaker,

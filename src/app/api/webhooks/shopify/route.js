@@ -30,6 +30,22 @@ function verifyHmac(rawBody, header) {
   }
 }
 
+// Whether a purchase may write its role onto the user record.
+//
+// The free Flirting product maps to role "member", so writing it unconditionally
+// meant buying your own $0 tier silently demoted an owner, moderator or host.
+// Keep the more privileged role instead: a purchase may grant a role, never
+// revoke one.
+const ROLE_RANK = { member: 0, host: 1, moderator: 2, owner: 3 };
+
+function shouldWriteRole(currentRole, variantRole) {
+  const current = ROLE_RANK[String(currentRole || "").toLowerCase()];
+  const next = ROLE_RANK[String(variantRole || "").toLowerCase()];
+  if (next == null) return false;
+  if (current == null) return true;
+  return next >= current;
+}
+
 // Grants (or refreshes) paid access. Registered members get an in-place
 // upgrade; unregistered buyers get a pre-paid record merged at signup.
 async function grantAccess({ data, email, order }) {
@@ -43,11 +59,18 @@ async function grantAccess({ data, email, order }) {
   const existing = await prisma.user.findFirst({ where: { email } });
   if (existing) {
     const uid = existing.id;
+    // Never demote an existing privileged role. The free Flirting product maps to
+    // role "member", so buying your own $0 tier used to overwrite an owner,
+    // moderator or host role and silently strip their access. A role is only
+    // ever upgraded here, and only to the one the purchased variant grants.
+    const role = shouldWriteRole(existing.role, variant.role)
+      ? variant.role
+      : existing.role;
     await prisma.user.update({
       where: { id: uid },
       data: {
         plan: variant.plan,
-        role: variant.role,
+        role,
         paymentStatus: "paid",
         isPrePaid: false,
         shopifyCustomerId: customerId,

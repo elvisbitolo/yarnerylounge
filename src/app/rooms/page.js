@@ -59,7 +59,7 @@ export default async function RoomsPage() {
     getAnnouncerLiveRoom(),
   ]);
 
-  const gate = await loungeGate(user.uid, userDoc);
+  const gate = await loungeGate(user.uid, userDoc, { lounge: true });
   if (gate) redirect(gate);
 
   const activeRooms = rooms.filter((room) => room.status === "active");
