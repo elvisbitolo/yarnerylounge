@@ -1,0 +1,195 @@
+.wrap {
+  min-height: 100dvh;
+  padding: 40px 20px 72px;
+  background: radial-gradient(ellipse at top, #1b0f24 0%, #0b0510 60%);
+}
+
+.inner {
+  max-width: 940px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #f7ecfa;
+}
+
+.subtitle {
+  font-size: 15px;
+  line-height: 1.55;
+  color: #b9a9c4;
+  margin: 0 0 32px;
+}
+
+/* ------------------------------------------------- the member's current plan */
+
+.current {
+  background: #161119;
+  border: 1px solid #2b2233;
+  border-radius: 16px;
+  padding: 24px 26px;
+  margin-bottom: 34px;
+}
+
+.currentTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.currentLabel {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f7ecfa;
+  margin: 0;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.status {
+  font-size: 13px;
+  color: #8d7c99;
+  margin: 0;
+}
+
+.status strong {
+  color: #cdb9d8;
+  font-weight: 600;
+}
+
+.notice {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b9a9c4;
+  background: #1d1622;
+  border-left: 3px solid #6b4f7d;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  margin: 16px 0 0;
+}
+
+/* -------------------------------------------------------------- the tier ladder */
+
+.ladder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.tier {
+  background: #161119;
+  border: 1px solid #2b2233;
+  border-radius: 16px;
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tierCurrent {
+  border-color: #6b4f7d;
+  box-shadow: 0 0 0 1px #6b4f7d inset;
+}
+
+.tierTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tierName {
+  font-size: 17px;
+  font-weight: 700;
+  color: #f7ecfa;
+  margin: 0;
+}
+
+.youAre {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #cdb9d8;
+  background: #2b2233;
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.features {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  flex: 1;
+}
+
+.features li {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #b9a9c4;
+  padding: 5px 0;
+  display: flex;
+  gap: 8px;
+}
+
+.features li.off {
+  color: #6b5c76;
+}
+
+.mark {
+  flex: none;
+  width: 16px;
+}
+
+.cta {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #1f9d63;
+  color: #fff;
+  transition: background 0.15s ease;
+}
+
+.cta:hover {
+  background: #25b473;
+}
+
+.ctaMuted {
+  background: none;
+  border: 1px solid #2b2233;
+  color: #8d7c99;
+  cursor: default;
+}
+
+.ctaMuted:hover {
+  background: none;
+}
+
+.signIn {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #cdb9d8;
+}
+
+.foot {
+  margin-top: 30px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #6b5c76;
+}

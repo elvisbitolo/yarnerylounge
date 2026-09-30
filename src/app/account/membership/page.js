@@ -1,12 +1,26 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getAccessSub } from "@/lib/server/subscription";
+import { subscriptionStatus } from "@/lib/server/billing";
 import { tierLabel } from "@/lib/server/plans";
 import Nav from "@/components/Nav";
 import AccountTabs from "../AccountTabs";
 import styles from "../account.module.css";
 
 export const dynamic = "force-dynamic";
+
+// The status was hardcoded to "Active", so a canceled or expired member was
+// still told their plan was active. Read it from the subscription instead.
+const STATUS_TEXT = {
+  active: "Active",
+  trialing: "Trial",
+  past_due: "Payment past due",
+  cancel_at_period_end: "Cancels at period end",
+  canceled: "Canceled",
+  paused: "Paused",
+  incomplete: "Incomplete",
+  inactive: "Expired",
+};
 
 export default async function MembershipPage() {
   const user = await getCurrentUser();
@@ -23,6 +37,17 @@ export default async function MembershipPage() {
       : new Date(userDoc.createdAt).getTime()
     : null;
 
+  // getAccessSub hands back an active-shaped free tier for members with no
+  // paid subscription, so "Active" is only meaningful once a plan is paid for.
+  const tier = sub?.tier || "flirting";
+  const isPaidTier = tier === "hooking-up" || tier === "moving-in";
+  const status = isPaidTier ? subscriptionStatus(sub) : "none";
+  const statusText = isPaidTier ? STATUS_TEXT[status] || "Active" : "Free tier";
+  const statusTone =
+    isPaidTier && (status === "active" || status === "trialing")
+      ? `${styles.badge} ${styles.badgeActive}`
+      : styles.badge;
+
   return (
     <Nav role={userDoc?.role}>
       <div className={styles.container}>
@@ -32,7 +57,7 @@ export default async function MembershipPage() {
           <div className={styles.row}>
             <span className={styles.label}>Status</span>
             <span className={styles.value}>
-              <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
+              <span className={statusTone}>{statusText}</span>
             </span>
           </div>
           <div className={styles.row}>
