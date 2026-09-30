@@ -2,7 +2,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { cache } from "react";
 import { isActiveSub as isActiveSubLogic } from "@/lib/server/billing";
-import { mapSubscriptionRow } from "./subscription-core.js";
+import { mapSubscriptionRow, effectiveSubscription } from "./subscription-core.js";
 import { isOpenAccess, openAccessPlan } from "@/lib/server/access-policy";
 
 const FREE_ACCESS_SUB = {
@@ -71,7 +71,10 @@ export const getAccessSub = cache(async function getAccessSub(uid) {
     };
   }
 
-  const sub = await getSubscription(uid);
+  // A row left behind by the open-access override is not a purchase, so it
+  // must not decide access once the override is off; effectiveSubscription
+  // drops it and the member falls back to Flirting.
+  const sub = effectiveSubscription(await getSubscription(uid));
   if (sub && isActiveSubLogic(sub)) {
     return sub;
   }

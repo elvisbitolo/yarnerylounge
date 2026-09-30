@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { CAPABILITIES, canPublishRemote, canJoinLounge } from "../capabilities-core.js";
 import { deriveMembership } from "../membership.js";
 import { isOpenAccess } from "../access-policy.js";
+import { isOpenAccessRow, effectiveSubscription } from "../subscription-core.js";
 import { tierForRole, TIER_FOR_ROLE, tierLabel } from "../plans.js";
 
 // Guards the invariant that broke once already: three modules answer "what tier
@@ -304,4 +305,62 @@ test("Flirting keeps the front-parlor perks that are not gated on video", () => 
   const m = withOpenAccess("false", () => deriveMembership({ role: "member", plan: "flirting" }));
   assert.equal(m.capabilities.chat.read, true);
   assert.equal(m.capabilities.video.canJoin, false);
+});
+
+// ------------------------- the stale open-access grant (the tiers-not-applying bug)
+
+test("a row written by the open-access override is recognised as such", () => {
+  assert.equal(isOpenAccessRow({ provider: "open-access", tier: "moving-in" }), true);
+  assert.equal(isOpenAccessRow({ provider: "shopify", tier: "moving-in", priceId: "gid://x" }), false);
+  assert.equal(isOpenAccessRow({ provider: "stripe", tier: "premium" }), false);
+  assert.equal(isOpenAccessRow({}), false);
+  assert.equal(isOpenAccessRow(null), false);
+  assert.equal(isOpenAccessRow(undefined), false);
+});
+
+test("a stale open-access row stops deciding access once the override is off", () => {
+  // The bug. 28 members hold provider="open-access" / tier="moving-in" rows
+  // written by the signup route while the override was on. Nothing invalidated
+  // them when it was switched off, so every one of them kept the top tier and
+  // the tiers never applied. The row must be discarded, not honoured.
+  const stale = { provider: "open-access", status: "active", tier: "moving-in", plan: "moving-in" };
+  assert.equal(effectiveSubscription(stale), null);
+});
+
+test("a real purchase still decides access", () => {
+  // The guard must not demote anyone who actually paid: those rows carry a
+  // priceId and a shopifyCustomerId and are passed through untouched.
+  for (const paid of [
+    { provider: "shopify", status: "active", tier: "moving-in", priceId: "gid://shopify/PriceVariant/1" },
+    { provider: "shopify", status: "active", tier: "hooking-up", priceId: "gid://shopify/PriceVariant/2" },
+    { provider: "stripe", status: "trialing", tier: "premium", priceId: "price_1" },
+  ]) {
+    assert.equal(effectiveSubscription(paid), paid, `a real purchase was dropped: ${paid.tier}`);
+    assert.equal(isOpenAccessRow(paid), false);
+  }
+});
+
+test("a missing row decides nothing", () => {
+  assert.equal(effectiveSubscription(null), null);
+  assert.equal(effectiveSubscription(undefined), null);
+});
+
+test("the 28 stale open-access members land on Flirting, not Moving In", () => {
+  // End to end over the pure pieces: the stale row is discarded, so the tier
+  // that reaches the membership layer is the free one and the lounge gate
+  // closes. Before the fix this resolved to Moving In and admitted everyone.
+  const stale = { provider: "open-access", status: "active", tier: "moving-in", plan: "moving-in" };
+  const effective = effectiveSubscription(stale) || { tier: "flirting" };
+  const m = withOpenAccess("false", () => deriveMembership({ role: "member", plan: effective.tier }));
+  assert.equal(m.planKey, "flirting");
+  assert.equal(m.profileBadge, null);
+  assert.equal(canJoinLounge(m.capabilities), false);
+});
+
+test("the override still admits everyone while it is switched on", () => {
+  // The escape hatch is unaffected: with the override on, the read path returns
+  // the top tier from the env var before any stored row is consulted.
+  const m = withOpenAccess("true", () => deriveMembership({ role: "member", plan: "flirting" }));
+  assert.equal(m.planKey, "moving-in");
+  assert.equal(canJoinLounge(m.capabilities), true);
 });
