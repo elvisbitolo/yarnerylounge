@@ -17,6 +17,9 @@ export async function GET() {
     mentions: true,
     automations: true,
   };
+  // No new key here on purpose: `lounge_live` maps onto the existing "events"
+  // preference (see NOTIFICATION_TYPE_TO_PREF in notifications.js), so members
+  // inherit the toggle they already understand and the UI needs no change.
   try {
     const row = await prisma.user.findUnique({
       where: { id: user.uid },

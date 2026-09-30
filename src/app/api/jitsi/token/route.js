@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import jwt from "jsonwebtoken";
 import { getRoomBySlugEnsuringAlwaysOn } from "@/lib/server/rooms";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
@@ -24,6 +24,8 @@ import {
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 import { toMillis } from "@/lib/server/user-core";
+import { announceLoungeLive } from "@/lib/server/lounge-live";
+import { isLoungeLiveEnabled } from "@/lib/server/lounge-live-core";
 
 // Development-only diagnostic sink. Never logs the token itself or the key.
 function logJwtDiagnostics(token) {
@@ -182,16 +184,34 @@ export async function POST(req) {
     // violate RoomEvent_roomId_fkey, so joins are recorded for real rooms.
     if (room.persisted) {
       const prisma = getPrisma();
+      const joinedAt = new Date();
       prisma.roomEvent
         .create({
           data: {
             userId: auth.user.uid,
             roomId: room.id,
             roomName: room.name,
-            joinedAt: new Date(),
+            joinedAt,
           },
         })
         .catch((err) => console.error("roomEvent.record_failed", err));
+
+      // "Christa is live" broadcast. Runs after the response so a slow Resend
+      // or an unreachable push endpoint can never delay or fail a join, and
+      // so a broadcast failure is invisible to the person joining.
+      if (isLoungeLiveEnabled()) {
+        after(async () => {
+          try {
+            await announceLoungeLive({
+              user: { uid: auth.user.uid, email: auth.user.email, name: displayName },
+              room: { id: room.id, name: room.name, slug: room.slug },
+              now: joinedAt.getTime(),
+            });
+          } catch (err) {
+            logError("lounge-live.failed", { error: err?.message });
+          }
+        });
+      }
     }
 
     return NextResponse.json({

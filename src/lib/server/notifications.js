@@ -9,6 +9,7 @@ const NOTIFICATION_TYPE_TO_PREF = {
   chat: "chat",
   event_reminder: "events",
   event_rsvp: "events",
+  lounge_live: "events",
   space_activity: "feed",
   follow: "feed",
   automation: "automations",
