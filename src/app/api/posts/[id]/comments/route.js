@@ -173,7 +173,7 @@ export async function POST(req, { params }) {
       userId: post.authorId,
       type: "comment",
       actorId: user.uid,
-      actorName,
+      actorName: authorName,
       targetId: postId,
       href: `/feed`,
       text: `commented on your post`,

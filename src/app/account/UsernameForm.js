@@ -34,8 +34,10 @@ export default function UsernameForm({ initialUsername }) {
         body: JSON.stringify({ username }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Could not save username");
+        // A bodiless error (a crashed or proxy-generated 5xx) must not surface as
+        // a raw JSON.parse message in the form.
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Could not save username (${res.status})`);
       }
       setValue(username);
       setSaved(true);

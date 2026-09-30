@@ -202,7 +202,7 @@ export default function SearchBoard({ initialQ, initialHashtag, initialType, ini
         <p className={styles.hashtagBanner}>Showing posts tagged #{initialHashtag}</p>
       )}
 
-      {(q || hashtag) && total > 0 && !hashtagMode && (
+      {(q || initialHashtag) && total > 0 && !hashtagMode && (
         <p className={styles.resultBanner}>
           Showing results for: <strong>{q}</strong>
           {type && <span className={styles.resultBannerType}> · {type}</span>}

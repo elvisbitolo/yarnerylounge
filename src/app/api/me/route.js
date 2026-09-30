@@ -153,7 +153,21 @@ function splitProfilePatch(patch) {
 }
 
 export async function PATCH(req) {
-  const user = await getCurrentUser();
+  // Uses getCurrentUserStatus rather than getCurrentUser, mirroring GET, so a
+  // Session store blip is reported as "try again" instead of being mistaken for
+  // a revoked session. This handler previously called getCurrentUser(), which
+  // this module never imported: every PATCH threw a ReferenceError and returned
+  // a bodiless 500, so saving a username showed a raw JSON.parse error.
+  const current = await getCurrentUserStatus();
+
+  if (current.status === SESSION_UNAVAILABLE) {
+    return NextResponse.json(
+      { error: "Session temporarily unavailable" },
+      { status: 503, headers: { "Retry-After": "5" } }
+    );
+  }
+
+  const user = current.status === SESSION_OK ? current.identity : null;
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
