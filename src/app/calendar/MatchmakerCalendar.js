@@ -118,6 +118,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const [availability, setAvailability] = useState([]);
   const [events, setEvents] = useState([]);
   const [filters, setFilters] = useState(() => ({ event: true, availability: true, course: true }));
+  const [matchOnly, setMatchOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -179,6 +180,17 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (!selected && !showAdd) return undefined;
+    function onKeyDown(event) {
+      if (event.key !== "Escape") return;
+      setSelected(null);
+      setShowAdd(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected, showAdd]);
+
   const mine = useMemo(() => {
     const set = new Set();
     availability.forEach((a) => {
@@ -187,8 +199,15 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     return set;
   }, [availability, userId]);
 
-  // One list for the grid: member availability plus lounge events. Each carries
-  // a `kind` so the renderer (and the filter chips) can tell them apart.
+  const mineRanges = useMemo(
+    () =>
+      availability
+        .filter((a) => a.userId === userId)
+        .map((a) => [new Date(a.startAt).getTime(), new Date(a.endAt || a.startAt).getTime()]),
+    [availability, userId]
+  );
+
+  // One list for the grid: member availability plus lounge events. Each carries  // a `kind` so the renderer (and the filter chips) can tell them apart.
   const items = useMemo(() => {
     const av = availability.map((a) => ({
       ...a,
@@ -214,8 +233,17 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   }, [availability, events]);
 
   const visibleItems = useMemo(
-    () => items.filter((item) => filters[item.kind] !== false),
-    [items, filters]
+    () =>
+      items.filter((item) => {
+        if (filters[item.kind] === false) return false;
+        if (matchOnly && item.kind === "availability" && item.userId !== userId && mineRanges.length) {
+          const start = new Date(item.startAt).getTime();
+          const end = new Date(item.endAt || item.startAt).getTime();
+          return mineRanges.some(([ms, me]) => start < me && end > ms);
+        }
+        return true;
+      }),
+    [items, filters, matchOnly, userId, mineRanges]
   );
 
   const nextUp = useMemo(() => {
@@ -451,6 +479,13 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
 
   const todayKey = dayKeyFor(new Date(), timeZone);
 
+  // The narrow-screen agenda: the same blocks the grid shows, flattened into a
+  // date-headed list so a phone never has to scroll a seven-column grid.
+  const agendaDays = days
+    .map((day) => ({ day, key: dayKeyFor(day, timeZone), blocks: blocksForDay(day) }))
+    .filter((entry) => entry.blocks.length > 0)
+    .filter((entry) => view !== "month" || entry.day.getMonth() === anchor.getMonth());
+
   return (
     <>
       <div className={styles.toolbar}>
@@ -542,6 +577,16 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
             {type.label}
           </button>
         ))}
+        <button
+          type="button"
+          className={`${styles.legendChip} ${matchOnly ? styles.legendOn : ""}`}
+          onClick={() => setMatchOnly((v) => !v)}
+          aria-pressed={matchOnly}
+          title="Only show availability that overlaps your own"
+        >
+          <CalendarDays size={13} aria-hidden="true" />
+          Matches me
+        </button>
       </div>
 
       {nextUp && (
@@ -578,6 +623,55 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
         <p className={styles.empty}>Loading calendar…</p>
       ) : (
         <>
+          <div className={styles.agenda} aria-label="Agenda">
+            {agendaDays.length === 0 ? (
+              <p className={styles.empty}>Nothing scheduled in this range yet.</p>
+            ) : (
+              agendaDays.map((entry) => (
+                <div key={entry.key} className={styles.agendaDay}>
+                  <h3 className={styles.agendaDate}>
+                    {formatDay(entry.day, timeZone, {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </h3>
+                  {entry.blocks.map((block) => (
+                    <button
+                      key={block.id}
+                      type="button"
+                      className={styles.agendaItem}
+                      onClick={() => setSelected(block)}
+                    >
+                      <span className={styles.agendaTime}>
+                        {formatClock(block.startAt, timeZone)}
+                      </span>
+                      <span
+                        className={`${styles.swatch} ${
+                          block.kind === "event"
+                            ? styles.swatchEvent
+                            : block.kind === "course"
+                              ? styles.swatchCourse
+                              : styles.swatchAvailability
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span className={styles.agendaBody}>
+                        <span className={styles.agendaTitle}>{block.title}</span>
+                        <span className={styles.agendaMeta}>
+                          {block.roomName}
+                          {block.kind === "availability" && block.userName
+                            ? ` · ${block.userName}`
+                            : ""}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+
           {(view === "week" || view === "day") && (
             <div className={styles.timeGridWrap} ref={scrollRef}>
               <div className={styles.timeCol}>
@@ -961,7 +1055,7 @@ function SelectedModal({
     block.kind === "event" ? "#e91e63" : block.kind === "course" ? "#a78bfa" : "#2dd4bf";
   return (
     <div className={styles.modalBackdrop} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={block.title}>
         <div className={styles.selTop}>
           <span className={styles.selColorDot} style={{ background: dotColor }} />
           <h2 className={styles.modalTitle}>{block.title}</h2>

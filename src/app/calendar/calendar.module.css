@@ -813,6 +813,81 @@
   line-height: 1.5;
 }
 
+.agenda {
+  display: none;
+}
+
+.agendaDay {
+  margin-bottom: 18px;
+}
+
+.agendaDate {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #d8d8e3;
+}
+
+.agendaItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.agendaItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.agendaTime {
+  min-width: 46px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #d8d8e3;
+}
+
+.agendaBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.agendaTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f2f2f7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agendaMeta {
+  font-size: 12px;
+  color: #9b9bab;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .agenda {
+    display: block;
+  }
+
+  .timeGridWrap,
+  .monthGrid {
+    display: none;
+  }
+}
+
 @media (max-width: 720px) {
   .container {
     padding: 28px 14px 48px;
