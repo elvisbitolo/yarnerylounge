@@ -239,6 +239,71 @@ async function loadNames(ids) {
   return names;
 }
 
+// Resolves display name + avatar for a set of participants. Used by the chat
+// list, which needs a real avatar next to every DM row.
+async function loadProfiles(ids) {
+  const profiles = {};
+  if (ids.length === 0) return profiles;
+
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.user.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true, email: true, photoURL: true },
+      });
+      for (const row of rows) {
+        profiles[row.id] = {
+          name: participantName(row) || row.email?.split("@")[0] || "Member",
+          photoURL: row.photoURL || "",
+        };
+      }
+    } catch (err) {
+      logError("chat.prisma_load_profiles_failed", { error: err.message });
+    }
+  }
+  return profiles;
+}
+
+// Per-conversation read state for the inbox list: who sent the newest message
+// (so the row can show delivery ticks) and how many messages landed after this
+// viewer's last read (so the row can show an unread badge). Two small queries
+// per conversation, run in parallel — the inbox is short and this keeps the
+// badge exact instead of guessing from timestamps.
+async function loadInboxMeta(entries, uid) {
+  const meta = {};
+  if (entries.length === 0) return meta;
+  const prisma = getPrisma();
+  if (!prisma) return meta;
+
+  const results = await Promise.all(
+    entries.map(async ([conversationId, lastReadAt]) => {
+      try {
+        const [last, unreadCount] = await Promise.all([
+          prisma.conversationMessage.findFirst({
+            where: { conversationId },
+            orderBy: { createdAt: "desc" },
+            select: { senderId: true },
+          }),
+          prisma.conversationMessage.count({
+            where: {
+              conversationId,
+              senderId: { not: uid },
+              createdAt: { gt: new Date(lastReadAt) },
+            },
+          }),
+        ]);
+        return [conversationId, { lastSenderId: last?.senderId || "", unreadCount }];
+      } catch (err) {
+        logError("chat.prisma_inbox_meta_failed", { conversationId, error: err.message });
+        return [conversationId, { lastSenderId: "", unreadCount: 0 }];
+      }
+    })
+  );
+  for (const [conversationId, value] of results) meta[conversationId] = value;
+  return meta;
+}
+
 export async function listConversations(uid) {
   const prisma = getPrisma();
   if (prisma) {
@@ -250,7 +315,7 @@ export async function listConversations(uid) {
         const ids = uniqueIds(
           rows.flatMap((r) => (r.participantIds || []).filter((id) => id !== uid))
         );
-        const names = await loadNames(ids);
+        const profiles = await loadProfiles(ids);
         const safetyRows = await prisma.user.findMany({
           where: { id: { in: [uid, ...ids] } },
           select: { id: true, extra: true },
@@ -262,15 +327,21 @@ export async function listConversations(uid) {
           const otherId = (row.participantIds || []).find((id) => id !== uid);
           return !isSafetyId(viewerExtra, BLOCKED_KEY, otherId) && !isSafetyId(extras.get(otherId), BLOCKED_KEY, uid);
         });
+        const meta = await loadInboxMeta(
+          visibleRows.map((row) => [row.id, toMillisValue(row.lastReadAt?.[uid]) || 0]),
+          uid
+        );
         return visibleRows
           .map((row) => {
             const data = mapConversationRow(row);
-            const otherId = data.type === "dm"
-              ? (data.participantIds.filter((id) => id !== uid)[0] || "")
-              : "";
-            const resolvedName = otherId ? names[otherId] : "";
-            const title =
-              data.type === "dm"
+            const peers = (data.participantIds || []).filter((id) => id !== uid);
+            const otherId = data.type === "dm" ? (peers[0] || "") : "";
+            const profile = otherId ? profiles[otherId] : null;
+            const resolvedName = profile?.name || "";
+            const selfChat = data.type === "dm" && peers.length === 0;
+            const title = selfChat
+              ? "You (notes)"
+              : data.type === "dm"
                 ? (resolvedName || (otherId ? "Member" : "Chat"))
                 : data.name || "Group chat";
             return {
@@ -278,9 +349,14 @@ export async function listConversations(uid) {
               type: data.type,
               title,
               groupId: data.groupId || "",
+              spaceId: data.spaceId || "",
+              photoURL: profile?.photoURL || "",
+              selfChat,
               lastMessage: data.lastMessageEnc ? decryptText(data.lastMessage) : data.lastMessage || "",
               lastMessageAt: data.lastMessageAt || 0,
               lastReadAt: toMillisValue(row.lastReadAt?.[uid]) || 0,
+              lastSenderId: meta[data.id]?.lastSenderId || "",
+              unreadCount: meta[data.id]?.unreadCount || 0,
               updatedAt: toMillisValue(row.updatedAt) || 0,
             };
           })
@@ -520,29 +596,11 @@ export async function markConversationRead(conversationId, uid) {
   return false;
 }
 
+// Number of conversations with at least one unread message. listConversations
+// already counted them per chat, so no extra round trips.
 export async function unreadCount(uid) {
   const convs = await listConversations(uid);
-  let count = 0;
-
-  const prisma = getPrisma();
-  if (prisma) {
-    try {
-      for (const conv of convs) {
-        const row = await prisma.conversation.findUnique({
-          where: { id: conv.id },
-          select: { lastMessageAt: true, lastReadAt: true },
-        });
-        if (!row) continue;
-        const lastRead = toMillisValue(row.lastReadAt?.[uid]);
-        const lastMsgAt = toMillisValue(row.lastMessageAt);
-        if (lastMsgAt > lastRead) count++;
-      }
-      return count;
-    } catch (err) {
-      logError("chat.prisma_unread_count_failed", { error: err.message });
-    }
-  }
-  return count;
+  return convs.filter((conv) => (conv.unreadCount || 0) > 0).length;
 }
 
 export function toMillis(value) {

@@ -1,18 +1,37 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CheckCheck } from "lucide-react";
 import { subscribeInbox } from "@/lib/chat-realtime";
 import { chatListTime } from "@/lib/chat-time";
+import { subscribeTyping, getTypingState } from "@/lib/chat-typing-core";
 import styles from "./chat.module.css";
+
+const EMPTY_TYPING = {};
+
+// Lounges are the "space" conversations; groups are the multi-member chats.
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "unread", label: "Unread" },
+  { key: "lounges", label: "Lounges" },
+  { key: "groups", label: "Groups" },
+];
 
 function initial(name) {
   return (name || "?").slice(0, 1).toUpperCase();
 }
 
 function unread(conv) {
-  return (conv.lastMessageAt || 0) > (conv.lastReadAt || 0);
+  return (conv.unreadCount || 0) > 0 || (conv.lastMessageAt || 0) > (conv.lastReadAt || 0);
+}
+
+function matchesFilter(conv, filter) {
+  if (filter === "unread") return unread(conv);
+  if (filter === "lounges") return conv.type === "space";
+  if (filter === "groups") return conv.type === "group";
+  return true;
 }
 
 export default function ConversationRail({ conversations, activeId, selfUid }) {
@@ -26,7 +45,15 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
   const [members, setMembers] = useState([]);
   const [searching, setSearching] = useState(false);
   const [startError, setStartError] = useState("");
-  const [onlinePeers, setOnlinePeers] = useState([]);
+  const [liveRooms, setLiveRooms] = useState([]);
+
+  // Typing is ephemeral and published by the open thread, so the list preview
+  // reads the same store the header uses.
+  const typingByConversation = useSyncExternalStore(
+    subscribeTyping,
+    getTypingState,
+    () => EMPTY_TYPING
+  );
 
   useEffect(() => {
     if (conversations === prevConversationsRef.current) return;
@@ -69,21 +96,21 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
     };
   }, []);
 
-  // "Live now" strip: who is currently active in the community. Refresh on a
-  // slow cadence — presence is ambient, not something to poll aggressively.
+  // "Live now" strip: which lounges have people in them right now. Replaces the
+  // old page-wide pink banner with a compact, actionable row inside the list.
   useEffect(() => {
     let disposed = false;
-    async function loadOnline() {
+    async function loadLive() {
       try {
-        const res = await fetch("/api/presence?online=1", { cache: "no-store" });
+        const res = await fetch("/api/rooms/live", { cache: "no-store" });
         const data = res.ok ? await res.json() : null;
-        if (!disposed && Array.isArray(data?.members)) setOnlinePeers(data.members);
+        if (!disposed && Array.isArray(data?.rooms)) setLiveRooms(data.rooms);
       } catch {
         // keep the last strip; the next tick retries
       }
     }
-    loadOnline();
-    const timer = setInterval(loadOnline, 30_000);
+    loadLive();
+    const timer = setInterval(loadLive, 30_000);
     return () => {
       disposed = true;
       clearInterval(timer);
@@ -142,8 +169,7 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = convs;
-    if (listFilter === "unread") list = list.filter(unread);
+    let list = convs.filter((c) => matchesFilter(c, listFilter));
     if (!q) return list;
     return list.filter((c) =>
       (c.title || "").toLowerCase().includes(q) ||
@@ -174,25 +200,21 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
           aria-label="Search chats"
         />
         <div className={styles.railTabs} role="tablist" aria-label="Filter chats">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={listFilter === "all"}
-            className={`${styles.railTab} ${listFilter === "all" ? styles.railTabActive : ""}`}
-            onClick={() => setListFilter("all")}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={listFilter === "unread"}
-            className={`${styles.railTab} ${listFilter === "unread" ? styles.railTabActive : ""}`}
-            onClick={() => setListFilter("unread")}
-          >
-            Unread
-            {unreadCount > 0 && <span className={styles.railTabCount}>{unreadCount}</span>}
-          </button>
+          {FILTERS.map((filter) => (
+            <button
+              key={filter.key}
+              type="button"
+              role="tab"
+              aria-selected={listFilter === filter.key}
+              className={`${styles.railTab} ${listFilter === filter.key ? styles.railTabActive : ""}`}
+              onClick={() => setListFilter(filter.key)}
+            >
+              {filter.label}
+              {filter.key === "unread" && unreadCount > 0 && (
+                <span className={styles.railTabCount}>{unreadCount}</span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -231,23 +253,19 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
         </div>
       )}
 
-      {onlinePeers.length > 0 && (
+      {liveRooms.length > 0 && (
         <div className={styles.liveStrip}>
           <span className={styles.liveLabel}>
             <span className={styles.livePulse} aria-hidden="true" />
             Live now
           </span>
-          <div className={styles.liveAvatars}>
-            {onlinePeers.map((m) => (
-              <Link
-                key={m.uid}
-                href={`/members/${m.uid}`}
-                className={styles.liveAvatar}
-                title={`${m.name || "Member"} · online`}
-                style={m.photoURL ? { backgroundImage: `url(${m.photoURL})` } : undefined}
-                aria-label={`${m.name || "Member"} is online`}
-              >
-                {!m.photoURL && initial(m.name)}
+          <div className={styles.liveRooms}>
+            {liveRooms.slice(0, 3).map((room) => (
+              <Link key={room.id} href={`/rooms/${room.slug}`} className={styles.liveRoom}>
+                <span className={styles.liveRoomName}>{room.name}</span>
+                <span className={styles.liveRoomCount}>
+                  {room.viewers > 0 ? `+${room.viewers} live` : "Open"}
+                </span>
               </Link>
             ))}
           </div>
@@ -268,15 +286,23 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
             {filtered.map((conv) => {
               const isActive = conv.id === activeId;
               const unreadChat = unread(conv);
+              const typingNames = typingByConversation[conv.id] || [];
+              const previewText = typingNames.length > 0 ? "typing…" : conv.lastMessage || "Say hi!";
+              const mine = !!conv.lastSenderId && conv.lastSenderId === selfUid;
               return (
                 <li key={conv.id}>
                   <Link
                     href={`/chat/${conv.id}`}
-                    className={`${styles.railItem} ${isActive ? styles.railItemActive : ""}`}
+                    className={`${styles.railItem} ${isActive ? styles.railItemActive : ""} ${
+                      unreadChat ? styles.railItemUnread : ""
+                    }`}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <span className={`${styles.railAvatar} ${unreadChat ? styles.railAvatarUnread : ""}`}>
-                      {initial(conv.title)}
+                    <span
+                      className={`${styles.railAvatar} ${unreadChat ? styles.railAvatarUnread : ""}`}
+                      style={conv.photoURL ? { backgroundImage: `url(${conv.photoURL})` } : undefined}
+                    >
+                      {!conv.photoURL && initial(conv.title)}
                     </span>
                     <span className={styles.railBody}>
                       <span className={styles.railTop}>
@@ -285,11 +311,28 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
                         </span>
                         <span className={styles.railTime}>{chatListTime(conv.lastMessageAt)}</span>
                       </span>
-                      <span className={`${styles.railPreview} ${unreadChat ? styles.railPreviewUnread : ""}`}>
-                        {conv.lastMessage || "Say hi!"}
+                      <span className={styles.railBottom}>
+                        <span
+                          className={`${styles.railPreview} ${
+                            typingNames.length > 0
+                              ? styles.railPreviewTyping
+                              : unreadChat
+                                ? styles.railPreviewUnread
+                                : ""
+                          }`}
+                        >
+                          {previewText}
+                        </span>
+                        {mine && (
+                          <CheckCheck size={13} className={styles.railTicks} aria-label="Delivered" />
+                        )}
+                        {unreadChat && conv.unreadCount > 0 && (
+                          <span className={styles.unreadBadge}>
+                            {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                          </span>
+                        )}
                       </span>
                     </span>
-                    {unreadChat && <span className={styles.unreadDot} aria-label="Unread" />}
                     <span className={styles.railChevron} aria-hidden="true">›</span>
                   </Link>
                 </li>

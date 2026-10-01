@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { listRooms } from "@/lib/server/rooms";
 import { isRoomLive, pickBannerRooms } from "@/lib/server/rooms-core";
-import { countActiveRoomMembers } from "@/lib/server/room-presence";
+import { countActiveRoomMembers, activeRoomMemberCounts } from "@/lib/server/room-presence";
 
 export async function GET() {
   const auth = await requireUser();
@@ -20,5 +20,9 @@ export async function GET() {
     kind: room.kind || "standard",
   }));
   const viewerCount = await countActiveRoomMembers(live.map((room) => room.id));
-  return NextResponse.json({ rooms: live, viewerCount });
+  const perRoom = await activeRoomMemberCounts(live.map((room) => room.id));
+  return NextResponse.json({
+    rooms: live.map((room) => ({ ...room, viewers: perRoom.get(room.id) || 0 })),
+    viewerCount,
+  });
 }

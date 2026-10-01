@@ -72,6 +72,28 @@ export async function countActiveRoomMembers(roomIds = [], now = Date.now()) {
   }
 }
 
+// Per-room active member counts, keyed by roomId. Distinct per room so two
+// tabs in the same lounge count once.
+export async function activeRoomMemberCounts(roomIds = [], now = Date.now()) {
+  const counts = new Map();
+  if (roomIds.length === 0) return counts;
+  const prisma = getPrisma();
+  if (!prisma) return counts;
+  try {
+    const rows = await prisma.roomPresence.findMany({
+      where: { leftAt: null, lastSeenAt: { gt: cutoffDate(now) }, roomId: { in: roomIds } },
+      select: { roomId: true, userId: true },
+      distinct: ["roomId", "userId"],
+    });
+    for (const row of rows) {
+      counts.set(row.roomId, (counts.get(row.roomId) || 0) + 1);
+    }
+  } catch (err) {
+    logError("room-presence.counts_failed", { error: err.message });
+  }
+  return counts;
+}
+
 export async function touchRoomPresence({ sessionId, roomId, userId }) {
   const prisma = getPrisma();
   if (!prisma) return { error: "Database unavailable" };

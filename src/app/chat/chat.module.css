@@ -981,6 +981,51 @@
   transform: translateY(-2px);
 }
 
+.liveRooms {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.liveRooms::-webkit-scrollbar {
+  display: none;
+}
+
+.liveRoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid rgba(53, 208, 180, 0.35);
+  border-radius: 999px;
+  background: rgba(53, 208, 180, 0.08);
+  color: #e8e8ec;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.liveRoom:hover {
+  background: rgba(53, 208, 180, 0.16);
+  border-color: rgba(53, 208, 180, 0.55);
+}
+
+.liveRoomName {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.liveRoomCount {
+  color: #7ff0df;
+  font-weight: 700;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .livePulse {
     animation: none;
@@ -1154,6 +1199,40 @@
 .railPreviewUnread {
   color: #f2f2f2;
   font-weight: 600;
+}
+
+.railPreviewTyping {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.railBottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.railTicks {
+  color: #6b6b7b;
+  flex-shrink: 0;
+}
+
+.unreadBadge {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .unreadDot {
