@@ -7,7 +7,9 @@ const VERSION = "v10";
 // long after the session cookie is gone, which makes reconcileSessionCookie()
 // on /login + /signing-in believe a dead session is alive and bounce them in an
 // infinite login <-> signing-in reload loop.
-const isApiRequest = (url) => new URL(url).pathname.startsWith("/api/");
+const isApiRequest = (url) => {
+  try { return new URL(url).pathname.startsWith("/api/"); } catch { return false; }
+};
 
 // Everything Next.js emits for the current build, including the Turbopack
 // module registry that each chunk binds its imports against.
@@ -157,15 +159,15 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (new URL(client.url).origin === location.origin && "focus" in client) {
+        if (new URL(client.url).origin === self.location.origin && "focus" in client) {
           client.focus();
           client.navigate(url);
           return;
         }
       }
-      return clients.openWindow(url);
+      return self.clients.openWindow(url);
     })
   );
 });

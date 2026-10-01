@@ -9,7 +9,7 @@ test("mapSubscriptionRow: null stays null", () => {
 });
 
 test("mapSubscriptionRow: maps a full Postgres row to the doc shape", () => {
-  const end = new Date("2026-10-01T00:00:00Z");
+  const end = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const row = {
     id: "uid-1",
     userId: "uid-1",
