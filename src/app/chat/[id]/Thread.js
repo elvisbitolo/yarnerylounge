@@ -7,7 +7,7 @@ import tStyles from "./thread.module.css";
 import { renderRichText } from "@/lib/chat-render";
 import { subscribeConversation, openTypingChannel } from "@/lib/chat-realtime";
 import { chatTimeLabel, dayDividerLabel, isSameLocalDay } from "@/lib/chat-time";
-import { Pin, Paperclip, Image as ImageIcon, Lock, Smile } from "lucide-react";
+import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, Search, X } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -140,6 +140,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   const [replyBusy, setReplyBusy] = useState(false);
   const [expandedThreads, setExpandedThreads] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
   const bottomRef = useRef(null);
@@ -709,26 +710,43 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   return (
     <div className={styles.threadBody}>
       <div className={tStyles.searchBar}>
-        <input
-          className={tStyles.searchInput}
-          type="text"
-          placeholder="Search messages…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        {searchQuery.trim() && (
+        {searchOpen || searchQuery ? (
           <>
+            <Search size={15} className={tStyles.searchIcon} aria-hidden="true" />
+            <input
+              className={tStyles.searchInput}
+              type="text"
+              placeholder="Search messages…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+            {searchQuery.trim() && (
+              <p className={tStyles.searchCount}>
+                {matchCount} {matchCount === 1 ? "match" : "matches"}
+              </p>
+            )}
             <button
               type="button"
-              className={tStyles.searchClear}
-              onClick={() => setSearchQuery("")}
+              className={tStyles.searchIconBtn}
+              onClick={() => {
+                setSearchQuery("");
+                setSearchOpen(false);
+              }}
+              aria-label="Close search"
             >
-              Clear
+              <X size={16} />
             </button>
-            <p className={tStyles.searchCount}>
-              {matchCount} {matchCount === 1 ? "message matches" : "messages match"}
-            </p>
           </>
+        ) : (
+          <button
+            type="button"
+            className={tStyles.searchToggle}
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search messages"
+          >
+            <Search size={15} /> Search
+          </button>
         )}
       </div>
 
@@ -775,6 +793,8 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
               : 0;
           const showDayDivider = index === 0 || !isSameLocalDay(prevMillis, millis);
           const replies = msg.replies || [];
+          const readByOthers =
+            !!msg.readBy && Object.keys(msg.readBy).some((readerId) => readerId !== uid);
           const isExpanded = expandedThreads[msg.id] || false;
           return (
             <div key={msg.id} className={tStyles.threadMessage}>
@@ -884,11 +904,18 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
                     ))}
                   </div>
                 )}
-                {isMine &&
-                  msg.readBy &&
-                  Object.keys(msg.readBy).some((readerId) => readerId !== uid) ? (
-                  <p className={tStyles.readReceipt}>✓✓ Read</p>
-                ) : null}
+                {isMine && !msg.sending && (
+                  <p
+                    className={`${tStyles.readReceipt} ${readByOthers ? tStyles.readReceiptRead : ""}`}
+                    title={readByOthers ? "Read" : "Sent"}
+                  >
+                    {readByOthers ? (
+                      <CheckCheck size={13} aria-hidden="true" />
+                    ) : (
+                      <Check size={13} aria-hidden="true" />
+                    )}
+                  </p>
+                )}
               </div>
 
               {isExpanded && replies.length > 0 && (

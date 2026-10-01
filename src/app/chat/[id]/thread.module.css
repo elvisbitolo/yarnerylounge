@@ -211,9 +211,56 @@
 /* Search bar */
 .searchBar {
   display: flex;
+  align-items: center;
   gap: 8px;
   padding: 12px 24px;
   border-bottom: 1px solid #27272a;
+}
+
+.searchIcon {
+  color: #9a9aa8;
+  flex-shrink: 0;
+}
+
+.searchIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid #3a3a45;
+  border-radius: 10px;
+  background: none;
+  color: #b6b6c2;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.searchIconBtn:hover {
+  color: #f2f2f2;
+  border-color: #9a9aa8;
+}
+
+.searchToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid #3a3a45;
+  border-radius: 999px;
+  background: none;
+  color: #b6b6c2;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.searchToggle:hover {
+  color: #f2f2f2;
+  border-color: #9a9aa8;
 }
 
 .searchInput {
@@ -255,7 +302,7 @@
   font-size: 12px;
   color: #9b9bab;
   margin: 0;
-  padding: 0 24px;
+  padding: 0 2px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -306,6 +353,19 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.threadMessage:hover .replyActions,
+.threadMessage:focus-within .replyActions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .replyActions {
+    opacity: 1;
+  }
 }
 
 @media (max-width: 560px) {
@@ -436,10 +496,17 @@
 
 /* Read receipt */
 .readReceipt {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
   margin: 2px 0 0;
   font-size: 11px;
   color: #9b9bab;
-  text-align: right;
+}
+
+.readReceiptRead {
+  color: #7ff0df;
 }
 
 /* Pinned bar */

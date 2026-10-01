@@ -20,6 +20,7 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
   const [convs, setConvs] = useState(conversations);
   const prevConversationsRef = useRef(conversations);
   const [query, setQuery] = useState("");
+  const [listFilter, setListFilter] = useState("all");
   const [showNewChat, setShowNewChat] = useState(false);
   const [memberQuery, setMemberQuery] = useState("");
   const [members, setMembers] = useState([]);
@@ -115,14 +116,18 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
     }
   }
 
+  const unreadCount = useMemo(() => convs.filter(unread).length, [convs]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return convs;
-    return convs.filter((c) =>
+    let list = convs;
+    if (listFilter === "unread") list = list.filter(unread);
+    if (!q) return list;
+    return list.filter((c) =>
       (c.title || "").toLowerCase().includes(q) ||
       (c.lastMessage || "").toLowerCase().includes(q)
     );
-  }, [convs, query]);
+  }, [convs, query, listFilter]);
 
   return (
     <aside className={styles.rail}>
@@ -146,6 +151,27 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search chats"
         />
+        <div className={styles.railTabs} role="tablist" aria-label="Filter chats">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={listFilter === "all"}
+            className={`${styles.railTab} ${listFilter === "all" ? styles.railTabActive : ""}`}
+            onClick={() => setListFilter("all")}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={listFilter === "unread"}
+            className={`${styles.railTab} ${listFilter === "unread" ? styles.railTabActive : ""}`}
+            onClick={() => setListFilter("unread")}
+          >
+            Unread
+            {unreadCount > 0 && <span className={styles.railTabCount}>{unreadCount}</span>}
+          </button>
+        </div>
       </div>
 
       {showNewChat && (
@@ -188,7 +214,9 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
           <p className={styles.railEmpty}>
             {query
               ? "No chats match your search."
-              : "No conversations yet. Start one with + New chat."}
+              : listFilter === "unread"
+                ? "You're all caught up."
+                : "No conversations yet. Start one with + New chat."}
           </p>
         ) : (
           <ul className={styles.railList}>
