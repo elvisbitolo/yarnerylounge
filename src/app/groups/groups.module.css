@@ -182,6 +182,30 @@
   color: #9b9bab;
 }
 
+.memberStack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.memberStackAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #111116;
+  background: #2a2a33;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: -8px;
+}
+
+.memberStackAvatar:first-child {
+  margin-left: 0;
+}
+
 .join {
   height: 40px;
   padding: 0 20px;
@@ -250,6 +274,25 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.groupFallback {
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  border-radius: 18px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2a2a33, #111116 70%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.groupFallbackEmoji {
+  font-size: 72px;
+  line-height: 1;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
 }
 
 .notMember {

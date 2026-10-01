@@ -54,7 +54,7 @@ export default async function GroupPage({ params }) {
         </p>
 
         <div className={styles.groupHeader}>
-          {group.imageUrl && (
+          {group.imageUrl ? (
             <div className={styles.groupImageWrap}>
               <Image
                 src={group.imageUrl}
@@ -64,6 +64,18 @@ export default async function GroupPage({ params }) {
                 className={styles.groupImage}
                 priority={false}
               />
+            </div>
+          ) : (
+            <div
+              className={styles.groupFallback}
+              style={
+                group.color
+                  ? { backgroundImage: `linear-gradient(135deg, ${group.color}40, #111116 70%)` }
+                  : undefined
+              }
+              aria-hidden="true"
+            >
+              <span className={styles.groupFallbackEmoji}>{group.emoji || "🧶"}</span>
             </div>
           )}
           <h1 className={styles.title}>
@@ -85,6 +97,15 @@ export default async function GroupPage({ params }) {
             </p>
           )}
           <p className={styles.headerMeta}>
+            {members.length > 0 && (
+              <span className={styles.memberStack} aria-hidden="true">
+                {members.slice(0, 5).map((m) => (
+                  <span key={m.id} className={styles.memberStackAvatar}>
+                    {(m.name || "?").slice(0, 1).toUpperCase()}
+                  </span>
+                ))}
+              </span>
+            )}
             {members.length} {members.length === 1 ? "member" : "members"}
             {memberNames.length > 0 && (
               <span className={styles.headerMemberNames}> — {memberNames.join(", ")}</span>
