@@ -120,40 +120,41 @@ export async function subscribeInbox({ onEvent }) {
   };
 }
 
-// Streams typing rows for one conversation so the "is typing…" indicator
-// appears the moment a member's keystroke lands, instead of on the 4s poll.
-// Typing rows hold only display data (no ciphertext), so the event payload is
-// safe to stream; callers still re-query to keep the 5s freshness window.
-export async function subscribeTyping(conversationId, { onEvent }) {
+// Ephemeral typing over Realtime Broadcast. Unlike postgres_changes, broadcast
+// events are never written to the database: they live only on the socket and
+// expire on the recipient. That keeps the hot "keystroke" path off Postgres
+// entirely. The channel still opens with the member's conversation-scoped token
+// so only a participant can subscribe.
+export async function openTypingChannel(conversationId, { onTyping }) {
   const token = await fetchRealtimeToken(conversationId);
   const client = getSupabaseClient();
 
   try {
     await setAuthToken(client, token);
   } catch {
-    // fall back to polling
+    // The indicator stays quiet; messages still flow over their own channel.
   }
 
   let disposed = false;
   const channel = client
-    .channel(`typing:${conversationId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "Typing",
-        filter: `conversationId=eq.${conversationId}`,
-        columns: ["id", "conversationId", "userId", "userName", "lastTypedAt"],
-      },
-      (payload) => {
-        if (!disposed) onEvent(payload);
-      }
-    )
+    .channel(`typing:${conversationId}`, {
+      config: { broadcast: { self: false } },
+    })
+    .on("broadcast", { event: "typing" }, (message) => {
+      if (!disposed) onTyping(message?.payload || {});
+    })
     .subscribe();
 
-  return () => {
-    disposed = true;
-    if (channel) channel.unsubscribe().catch(() => {});
+  return {
+    send(entry) {
+      if (disposed) return;
+      channel
+        .send({ type: "broadcast", event: "typing", payload: entry })
+        .catch(() => {});
+    },
+    close() {
+      disposed = true;
+      if (channel) channel.unsubscribe().catch(() => {});
+    },
   };
 }

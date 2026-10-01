@@ -115,7 +115,6 @@ export async function deleteMemberData(prisma, memberId) {
     prisma.availability.deleteMany({ where: { userId: memberId } }),
     prisma.availabilityRsvp.deleteMany({ where: { userId: memberId } }),
     prisma.conversationMessage.deleteMany({ where: { senderId: memberId } }),
-    prisma.typing.deleteMany({ where: { userId: memberId } }),
     prisma.groupMember.deleteMany({ where: { userId: memberId } }),
     prisma.topicReply.deleteMany({ where: { authorId: memberId } }),
     prisma.topicThread.deleteMany({ where: { authorId: memberId } }),

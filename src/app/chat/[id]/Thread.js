@@ -5,11 +5,17 @@ import { UPGRADE_URL } from "@/lib/upgrade-url";
 import styles from "../chat.module.css";
 import tStyles from "./thread.module.css";
 import { renderRichText } from "@/lib/chat-render";
-import { subscribeConversation, subscribeTyping } from "@/lib/chat-realtime";
+import { subscribeConversation, openTypingChannel } from "@/lib/chat-realtime";
 import { chatTimeLabel, dayDividerLabel, isSameLocalDay } from "@/lib/chat-time";
 import { Pin, Paperclip, Image as ImageIcon, Lock, Smile } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
+
+// Typing is ephemeral: a keystroke is broadcast at most once per throttle
+// window, and a recipient drops a sender who has gone quiet for the TTL.
+const TYPING_THROTTLE_MS = 1500;
+const TYPING_TTL_MS = 5000;
+const TYPING_PRUNE_MS = 1000;
 
 const MAX_FILE_RAW = 10 * 1024 * 1024;
 const MAX_IMAGE_RAW = 8 * 1024 * 1024;
@@ -139,7 +145,9 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   const bottomRef = useRef(null);
   const emojiRef = useRef(null);
   const replyInputRef = useRef(null);
-  const typingRef = useRef(null);
+  const typingSentAtRef = useRef(0);
+  const typingChannelRef = useRef(null);
+  const typingMapRef = useRef(new Map());
 
   const [typingUsers, setTypingUsers] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
@@ -162,17 +170,9 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     return [...map.values()].sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
   }, []);
 
-  const refreshTyping = useCallback(() => {
-    fetch(`/api/conversations/${conversationId}/typing`)
-      .then((r) => (r.ok ? r.json() : { typing: [] }))
-      .then((d) => {
-        if (Array.isArray(d.typing)) setTypingUsers(d.typing);
-      })
-      .catch(() => {});
-  }, [conversationId]);
-
-  // Single refresh path: messages + read + typing + pinned. Called by the
-  // realtime channel (instant) and by the polling fallback (reliability).
+  // Single refresh path: messages + read + pinned. Called by the realtime
+  // channel (instant) and by the polling fallback (reliability). Typing is not
+  // here: it rides its own ephemeral broadcast channel.
   // Returns whether the message re-fetch succeeded.
   const refresh = useCallback(async () => {
     try {
@@ -181,7 +181,6 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
         const data = await res.json();
         setMessages((prev) => mergeMessages(prev, Array.isArray(data.messages) ? data.messages : []));
         fetch(`/api/conversations/${conversationId}/read`, { method: "POST" }).catch(() => {});
-        refreshTyping();
         fetch(`/api/conversations/${conversationId}/pinned`)
           .then((r) => (r.ok ? r.json() : { messages: [] }))
           .then((d) => {
@@ -195,7 +194,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       // transient network error — the next poll/event retries
       return false;
     }
-  }, [conversationId, mergeMessages, refreshTyping]);
+  }, [conversationId, mergeMessages]);
 
   // Loads one more page of history BEFORE the oldest loaded message. Prepend
   // via the timestamp-ordered merge so existing/newer messages stay put.
@@ -255,28 +254,55 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     };
   }, [conversationId, refresh]);
 
-  // Realtime typing: the moment anyone's typing row lands, refresh the typing
-  // indicator instead of waiting for the 4s poll. Falls back to the poll.
+  // Ephemeral typing over Realtime Broadcast. No database row and no poll: the
+  // sender throttles keystrokes, the recipient stamps each sender and prunes
+  // anyone quiet for TYPING_TTL_MS. A briefly dropped socket just means the
+  // indicator goes quiet until the next keystroke.
   useEffect(() => {
     let disposed = false;
     let stop = () => {};
+    const typingMap = typingMapRef.current;
 
-    subscribeTyping(conversationId, {
-      onEvent: () => {
-        if (!disposed && document.visibilityState !== "hidden") refreshTyping();
+    function publish() {
+      const now = Date.now();
+      const names = [];
+      for (const entry of typingMap.values()) {
+        if (now - entry.at < TYPING_TTL_MS && entry.userId !== uid) names.push(entry.name);
+      }
+      setTypingUsers(names);
+    }
+
+    const prune = setInterval(publish, TYPING_PRUNE_MS);
+
+    openTypingChannel(conversationId, {
+      onTyping: (entry) => {
+        if (disposed || document.visibilityState === "hidden") return;
+        if (!entry || typeof entry.userId !== "string" || entry.userId === uid) return;
+        typingMap.set(entry.userId, {
+          userId: entry.userId,
+          name: typeof entry.name === "string" && entry.name ? entry.name : "Someone",
+          at: Date.now(),
+        });
+        publish();
       },
     })
-      .then((s) => {
-        if (disposed) s();
-        else stop = s;
+      .then((channel) => {
+        if (disposed) channel.close();
+        else {
+          typingChannelRef.current = channel;
+          stop = () => channel.close();
+        }
       })
       .catch(() => {});
 
     return () => {
       disposed = true;
+      clearInterval(prune);
+      typingMap.clear();
+      typingChannelRef.current = null;
       stop();
     };
-  }, [conversationId, refreshTyping]);
+  }, [conversationId, uid]);
 
   // Auto-scroll only when a NEW message lands at the end of the history
   // (loading older pages changes the front, and must not yank the view).
@@ -520,10 +546,15 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   }
 
   function handleTyping() {
-    if (typingRef.current) clearTimeout(typingRef.current);
-    typingRef.current = setTimeout(() => {
-      fetch(`/api/conversations/${conversationId}/typing`, { method: "POST" }).catch(() => {});
-    }, 400);
+    const channel = typingChannelRef.current;
+    if (!channel) return;
+    // react-hooks/purity reads this as render-phase, but handleTyping only runs
+    // from the composer's onChange.
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    if (now - typingSentAtRef.current < TYPING_THROTTLE_MS) return;
+    typingSentAtRef.current = now;
+    channel.send({ userId: uid, name: selfName, at: now });
   }
 
   function closeMentions() {

@@ -95,7 +95,6 @@ model User {
   rsvps                  Rsvp[]
   conversationsCreated   Conversation[] @relation("ConversationCreator")
   conversationMessages   ConversationMessage[]
-typing                 Typing[]
   groupMembers           GroupMember[]
   topicThreads           TopicThread[]
   topicReplies           TopicReply[]
@@ -794,7 +793,6 @@ model Conversation {
   creator       User                 @relation("ConversationCreator", fields: [createdBy], references: [id])
   space         Space?               @relation(fields: [spaceId], references: [id])
   messages      ConversationMessage[]
-  typing        Typing[]
 
   @@index([createdBy])
   @@index([spaceId])
@@ -823,18 +821,8 @@ model ConversationMessage {
   @@index([senderId])
 }
 
-model Typing {
-  id             String    @id
-  conversationId String
-  userId         String
-  userName       String?
-  lastTypedAt    DateTime  @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id])
-
-  @@index([conversationId])
-}
+// Typing indicators are ephemeral now (Supabase Realtime Broadcast) and have
+// no table. See openTypingChannel in src/lib/chat-realtime.js.
 
 // ---------------------------------------------------------------------------
 // Events, calendar & availability
