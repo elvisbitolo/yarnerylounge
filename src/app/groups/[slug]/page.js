@@ -4,6 +4,8 @@ import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getGroupBySlug, getGroupMembers, isGroupMember } from "@/lib/server/groups";
 import { listRoomsForGroup } from "@/lib/server/rooms";
+import { nextEventForRoom } from "@/lib/server/events";
+import { formatClock, formatDay } from "@/lib/calendar-core";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import Feed from "@/app/feed/Feed";
@@ -35,9 +37,11 @@ export default async function GroupPage({ params }) {
 
   const members = await getGroupMembers(group.id);
   const membership = await isGroupMember(group.id, user.uid);
+  const isMember = !!membership || userDoc?.role === "owner";
   const memberNames = members.slice(0, 8).map((m) => m.name);
   const groupRooms = await listRoomsForGroup(group.id);
   const activeGroupRooms = groupRooms.filter((room) => room.status === "active");
+  const nextHangout = await nextEventForRoom(group.hangoutRoomSlug);
 
   return (
       <Nav role={userDoc?.role}>
@@ -87,14 +91,13 @@ export default async function GroupPage({ params }) {
             )}
           </p>
           <div className={styles.groupActions}>
-            {userDoc?.role === "owner" || membership ? (
+            <GroupJoinButton groupId={group.id} initialJoined={isMember} />
+            {isMember && (
               <Link className={styles.groupChatLink} href={`/chat?group=${group.id}`}>
                 Text neighbours
               </Link>
-            ) : (
-              <GroupJoinButton groupId={group.id} initialJoined={false} />
             )}
-            {membership || userDoc?.role === "owner" ? (
+            {isMember ? (
               <Link className={styles.shareLink} href="#group-feed">
                 Share a picture
               </Link>
@@ -103,6 +106,31 @@ export default async function GroupPage({ params }) {
             )}
           </div>
         </div>
+
+        {nextHangout && (
+          <div className={styles.nextHangout}>
+            <div className={styles.nextHangoutMain}>
+              <span className={styles.nextHangoutLabel}>Next hangout</span>
+              <span className={styles.nextHangoutTitle}>{nextHangout.title}</span>
+              <span className={styles.nextHangoutWhen}>
+                {formatDay(nextHangout.startTime, undefined, {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
+                })}
+                {" · "}
+                {formatClock(nextHangout.startTime)}
+                {nextHangout.endTime ? ` – ${formatClock(nextHangout.endTime)}` : ""}
+              </span>
+            </div>
+            <Link
+              className={styles.nextHangoutBtn}
+              href={nextHangout.roomSlug ? `/rooms/${nextHangout.roomSlug}` : "#group-feed"}
+            >
+              Join lounge
+            </Link>
+          </div>
+        )}
 
         <h2 id="group-feed" className={styles.sectionTitle}>Neighbourhood feed</h2>
         <div className={styles.groupLayout}>

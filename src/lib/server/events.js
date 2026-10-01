@@ -63,6 +63,25 @@ export async function getEvent(id) {
   return null;
 }
 
+// The soonest upcoming one-off event for a room, used by the group page's
+// "Next hangout" card. Recurring events are expanded elsewhere; this keeps the
+// simple case cheap.
+export async function nextEventForRoom(roomSlug) {
+  if (!roomSlug) return null;
+  const now = Date.now();
+  const events = await listEvents();
+  return (
+    events
+      .filter(
+        (event) =>
+          event.roomSlug === roomSlug &&
+          event.startTime &&
+          event.startTime.getTime() >= now
+      )
+      .sort((a, b) => a.startTime - b.startTime)[0] || null
+  );
+}
+
 export async function createEvent({ title, description, startTime, endTime, roomSlug, capacity, recurrence, spaceId, purchasePriceCents, publicPreview, createdBy, source }) {
   const data = {
     title,

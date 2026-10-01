@@ -31,8 +31,10 @@ export default function GroupJoinButton({ groupId, initialJoined }) {
         className={initialJoined ? `${styles.joinBtn} ${styles.joinBtnActive}` : styles.joinBtn}
         onClick={handleToggle}
         disabled={busy}
+        title={initialJoined ? "Leave this group" : "Join this group"}
+        aria-pressed={initialJoined}
       >
-        {busy ? "Saving…" : initialJoined ? "Leave group" : "Join group"}
+        {busy ? "Saving…" : initialJoined ? "Joined" : "Join group"}
       </button>
       {error && <p className={styles.joinError}>{error}</p>}
     </div>

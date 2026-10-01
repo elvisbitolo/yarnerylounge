@@ -63,19 +63,19 @@
 .empty {
   padding: 48px;
   text-align: center;
-  background: #ffffff;
-  border: 1px dashed #d8d8e3;
+  background: #202027;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
   border-radius: 14px;
-  color: #6b6b7b;
+  color: #a9a9bd;
   font-size: 15px;
 }
 
 .error {
   font-size: 14px;
   font-weight: 600;
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.4);
   border-radius: 10px;
   padding: 12px 16px;
   margin: 0 0 20px;
@@ -92,16 +92,16 @@
   flex-direction: column;
   justify-content: space-between;
   gap: 16px;
-  background: #ffffff;
-  border: 1px solid #e6e6ef;
+  background: #1f1f26;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 24px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .card:hover {
-  border-color: #d8d8e3;
-  box-shadow: 0 6px 20px rgba(23, 23, 28, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .cardLink {
@@ -134,17 +134,17 @@
 .cardTitle {
   font-size: 18px;
   font-weight: 700;
-  color: #17171c;
+  color: #f2f2f7;
   margin: 0 0 6px;
 }
 
 .cardTitle:hover {
-  color: var(--primary);
+  color: var(--primary-light);
 }
 
 .cardDesc {
   font-size: 14px;
-  color: #6b6b7b;
+  color: #a9a9bd;
   margin: 0 0 12px;
   line-height: 1.5;
 }
@@ -152,7 +152,7 @@
 .cardMeta {
   font-size: 13px;
   font-weight: 600;
-  color: #34344a;
+  color: #c9c9d4;
   margin: 0;
 }
 
@@ -254,9 +254,9 @@
 
 .notMember {
   font-size: 14px;
-  color: #6b6b7b;
-  background: #ffffff;
-  border: 1px solid #e6e6ef;
+  color: #a9a9bd;
+  background: #202027;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 12px 16px;
   margin: 16px 0 0;
@@ -369,8 +369,8 @@
 
 .roomCard {
   display: block;
-  background: #ffffff;
-  border: 1px solid #e6e6ef;
+  background: #202027;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 20px;
   text-decoration: none;
@@ -379,20 +379,20 @@
 
 .roomCard:hover {
   border-color: var(--primary);
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 8px 24px rgba(233, 30, 99, 0.15);
   transform: translateY(-2px);
 }
 
 .roomName {
   font-size: 16px;
   font-weight: 700;
-  color: #17171c;
+  color: #f2f2f7;
   margin: 0 0 6px;
 }
 
 .roomDesc {
   font-size: 13px;
-  color: #6b6b7b;
+  color: #a9a9bd;
   margin: 0 0 12px;
   line-height: 1.5;
 }
@@ -400,8 +400,65 @@
 .roomMeta {
   font-size: 12px;
   font-weight: 600;
-  color: var(--primary);
+  color: var(--primary-light);
   margin: 0;
+}
+
+.nextHangout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  margin: 0 0 24px;
+  border: 1px solid rgba(233, 30, 99, 0.35);
+  border-left: 3px solid var(--primary);
+  border-radius: 14px;
+  background: rgba(233, 30, 99, 0.08);
+}
+
+.nextHangoutMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nextHangoutLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-light);
+}
+
+.nextHangoutTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f2f2f7;
+}
+
+.nextHangoutWhen {
+  font-size: 13px;
+  color: #a9a9bd;
+}
+
+.nextHangoutBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nextHangoutBtn:hover {
+  background: var(--primary-hover);
 }
 
 /* ─── Topics & conversations sidebar ─── */
@@ -419,8 +476,8 @@
 }
 
 .topicsSidebar {
-  background: #fff;
-  border: 1px solid #e6e2f0;
+  background: #202027;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 20px;
   position: sticky;
@@ -432,7 +489,7 @@
 .topicsTitle {
   font-size: 15px;
   font-weight: 800;
-  color: #17171c;
+  color: #f2f2f7;
   margin: 0 0 4px;
 }
 
@@ -447,7 +504,7 @@
 
 .topicItem {
   border-radius: 12px;
-  background: #f7f6fb;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .topicRow {
@@ -462,13 +519,13 @@
   border-radius: 12px;
   font-size: 14px;
   font-weight: 700;
-  color: #17171c;
+  color: #eaeaf2;
   text-align: left;
   transition: background 0.15s ease;
 }
 
 .topicRow:hover {
-  background: #efedf8;
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .topicIcon {
@@ -483,34 +540,34 @@
 .topicCount {
   font-size: 11px;
   font-weight: 700;
-  color: #55556a;
-  background: #e6e2f0;
+  color: #c9c9d4;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   padding: 2px 8px;
 }
 
 .topicBody {
   padding: 0 14px 14px;
-  border-top: 1px solid #ece9f4;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .topicDesc {
   font-size: 12.5px;
-  color: #6b6b7b;
+  color: #a9a9bd;
   line-height: 1.5;
   margin: 10px 0 10px;
 }
 
 .topicHint {
   font-size: 12.5px;
-  color: #5c5c6b;
+  color: #a9a9bd;
   line-height: 1.5;
   margin: 8px 0 12px;
 }
 
 .topicError {
   font-size: 12.5px;
-  color: #b91c1c;
+  color: #f87171;
   margin: 8px 0 0;
 }
 
@@ -521,7 +578,7 @@
 }
 
 .threadItem {
-  border-bottom: 1px solid #ece9f4;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .threadItem:last-child {
@@ -543,13 +600,13 @@
 .threadTitle {
   font-size: 13.5px;
   font-weight: 700;
-  color: #17171c;
+  color: #eaeaf2;
   line-height: 1.35;
 }
 
 .threadMeta {
   font-size: 11.5px;
-  color: #5c5c6b;
+  color: #9b9bab;
 }
 
 .threadBody {
@@ -558,7 +615,7 @@
 
 .threadText {
   font-size: 13px;
-  color: #4a4a58;
+  color: #c9c9d4;
   line-height: 1.55;
   margin: 0 0 10px;
   white-space: pre-wrap;
@@ -577,8 +634,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: #fff;
-  border: 1px solid #ece9f4;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 8px 10px;
 }
@@ -586,12 +643,12 @@
 .replyAuthor {
   font-size: 11.5px;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--primary-light);
 }
 
 .replyText {
   font-size: 12.5px;
-  color: #4a4a58;
+  color: #c9c9d4;
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -607,11 +664,11 @@
 .topicInput {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #d9d5ea;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 10px;
   font-size: 13px;
-  color: #17171c;
-  background: #fff;
+  color: #f2f2f7;
+  background: #16161c;
   outline: none;
   transition: border-color 0.15s ease;
 }
@@ -624,11 +681,11 @@
 .topicTextarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #d9d5ea;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 10px;
   font-size: 13px;
-  color: #17171c;
-  background: #fff;
+  color: #f2f2f7;
+  background: #16161c;
   outline: none;
   resize: vertical;
   font-family: inherit;
