@@ -188,25 +188,27 @@
 }
 
 .bubble {
-  max-width: 75%;
-  padding: 10px 14px;
-  border-radius: 14px;
+  max-width: min(75%, 560px);
+  padding: 9px 13px;
+  border-radius: 16px 16px 16px 4px;
   background: #26262e;
   align-self: flex-start;
   color: #f2f2f2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .mine {
   background: var(--primary);
   color: #ffffff;
   align-self: flex-end;
+  border-radius: 16px 16px 4px 16px;
 }
 
 .bubbleName {
   font-size: 12px;
   font-weight: 700;
   color: var(--primary);
-  margin: 0 0 4px;
+  margin: 0 0 3px;
 }
 
 .mine .bubbleName {
@@ -226,6 +228,10 @@
   font-size: 11px;
   margin: 4px 0 0;
   opacity: 0.6;
+}
+
+.mine .bubbleTime {
+  text-align: right;
 }
 
 .composer {
@@ -794,6 +800,93 @@
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
+}
+
+.liveStrip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #27272a;
+  overflow: hidden;
+}
+
+.liveLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7ff0df;
+}
+
+.livePulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #35d0b4;
+  box-shadow: 0 0 0 0 rgba(53, 208, 180, 0.55);
+  animation: livePulse 1.8s ease-out infinite;
+}
+
+@keyframes livePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(53, 208, 180, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(53, 208, 180, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(53, 208, 180, 0);
+  }
+}
+
+.liveAvatars {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.liveAvatars::-webkit-scrollbar {
+  display: none;
+}
+
+.liveAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid #2fd0b2;
+  background-color: #2a2a33;
+  background-size: cover;
+  background-position: center;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.12s ease;
+}
+
+.liveAvatar:hover {
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .livePulse {
+    animation: none;
+  }
+
+  .liveAvatar {
+    transition: none;
+  }
 }
 
 .newChatPanel {

@@ -3,8 +3,7 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-
-const PRESENCE_WINDOW_MS = 90_000;
+import { isOnlineRow, onlineMembers } from "@/lib/server/presence-core";
 
 function parseIds(value) {
   return [...new Set(String(value || "").split(",").map((id) => id.trim()).filter(Boolean))].slice(0, 50);
@@ -39,19 +38,36 @@ export async function GET(req) {
   const limited = rateLimitGuard(`presence-read:${user.uid}`, { limit: 8, windowMs: 60_000 });
   if (limited) return limited;
 
-  const ids = parseIds(new URL(req.url).searchParams.get("ids"));
-  if (!ids.length) return NextResponse.json({ presence: {} });
+  const params = new URL(req.url).searchParams;
+  const wantsOnline = params.get("online") === "1";
 
   const prisma = getPrisma();
-  if (!prisma) return NextResponse.json({ presence: {} });
+  if (!prisma) return NextResponse.json(wantsOnline ? { members: [] } : { presence: {} });
+
+  if (wantsOnline) {
+    try {
+      const rows = await prisma.user.findMany({
+        take: 200,
+        where: { suspended: { not: true } },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true, name: true, photoURL: true, extra: true },
+      });
+      return NextResponse.json({ members: onlineMembers(rows, { excludeId: user.uid }) });
+    } catch (err) {
+      logError("presence.online_failed", { error: err.message });
+      return NextResponse.json({ error: "Presence unavailable" }, { status: 503 });
+    }
+  }
+
+  const ids = parseIds(params.get("ids"));
+  if (!ids.length) return NextResponse.json({ presence: {} });
 
   try {
     const rows = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, extra: true } });
     const now = Date.now();
-    const presence = Object.fromEntries(rows.map((row) => {
-      const timestamp = Date.parse(typeof row.extra?.lastActiveAt === "string" ? row.extra.lastActiveAt : "");
-      return [row.id, { online: Number.isFinite(timestamp) && now - timestamp <= PRESENCE_WINDOW_MS }];
-    }));
+    const presence = Object.fromEntries(
+      rows.map((row) => [row.id, { online: isOnlineRow(row, now) }])
+    );
     return NextResponse.json({ presence });
   } catch (err) {
     logError("presence.read_failed", { error: err.message });

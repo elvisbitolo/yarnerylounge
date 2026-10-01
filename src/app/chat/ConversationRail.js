@@ -26,6 +26,7 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
   const [members, setMembers] = useState([]);
   const [searching, setSearching] = useState(false);
   const [startError, setStartError] = useState("");
+  const [onlinePeers, setOnlinePeers] = useState([]);
 
   useEffect(() => {
     if (conversations === prevConversationsRef.current) return;
@@ -64,6 +65,27 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
     return () => {
       disposed = true;
       cleanup();
+      clearInterval(timer);
+    };
+  }, []);
+
+  // "Live now" strip: who is currently active in the community. Refresh on a
+  // slow cadence — presence is ambient, not something to poll aggressively.
+  useEffect(() => {
+    let disposed = false;
+    async function loadOnline() {
+      try {
+        const res = await fetch("/api/presence?online=1", { cache: "no-store" });
+        const data = res.ok ? await res.json() : null;
+        if (!disposed && Array.isArray(data?.members)) setOnlinePeers(data.members);
+      } catch {
+        // keep the last strip; the next tick retries
+      }
+    }
+    loadOnline();
+    const timer = setInterval(loadOnline, 30_000);
+    return () => {
+      disposed = true;
       clearInterval(timer);
     };
   }, []);
@@ -206,6 +228,29 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {onlinePeers.length > 0 && (
+        <div className={styles.liveStrip}>
+          <span className={styles.liveLabel}>
+            <span className={styles.livePulse} aria-hidden="true" />
+            Live now
+          </span>
+          <div className={styles.liveAvatars}>
+            {onlinePeers.map((m) => (
+              <Link
+                key={m.uid}
+                href={`/members/${m.uid}`}
+                className={styles.liveAvatar}
+                title={`${m.name || "Member"} · online`}
+                style={m.photoURL ? { backgroundImage: `url(${m.photoURL})` } : undefined}
+                aria-label={`${m.name || "Member"} is online`}
+              >
+                {!m.photoURL && initial(m.name)}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
