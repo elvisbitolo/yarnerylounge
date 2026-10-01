@@ -10,6 +10,7 @@ import {
   hourLabels,
   minutesIntoDay,
   nowOffset,
+  layoutOverlaps,
   timeZoneDisplay,
   windowHeightPx,
   zonedParts,
@@ -193,4 +194,56 @@ test("timeZoneDisplay: names the city and shows an offset", () => {
 
 test("timeZoneDisplay: falls back when there is no zone", () => {
   assert.deepEqual(timeZoneDisplay(null), { city: "your time", offset: "" });
+});
+
+test("layoutOverlaps: non-overlapping items each own the full row", () => {
+  const out = layoutOverlaps([
+    { id: "a", start: 0, end: 10 },
+    { id: "b", start: 20, end: 30 },
+  ]);
+  assert.deepEqual(out.map((b) => [b.lane, b.cols]), [
+    [0, 1],
+    [0, 1],
+  ]);
+});
+
+test("layoutOverlaps: two overlapping items sit side by side", () => {
+  const out = layoutOverlaps([
+    { id: "a", start: 0, end: 30 },
+    { id: "b", start: 10, end: 40 },
+  ]);
+  assert.deepEqual(out.map((b) => [b.lane, b.cols]), [
+    [0, 2],
+    [1, 2],
+  ]);
+});
+
+test("layoutOverlaps: a free lane is reused after the first item ends", () => {
+  const out = layoutOverlaps([
+    { id: "a", start: 0, end: 10 },
+    { id: "b", start: 5, end: 25 },
+    { id: "c", start: 15, end: 30 },
+  ]);
+  // b overlaps a and c; c can reuse a's lane because a is long done.
+  assert.deepEqual(out.map((b) => [b.lane, b.cols]), [
+    [0, 2],
+    [1, 2],
+    [0, 2],
+  ]);
+});
+
+test("layoutOverlaps: back-to-back items do not count as overlapping", () => {
+  const out = layoutOverlaps([
+    { id: "a", start: 0, end: 10 },
+    { id: "b", start: 10, end: 20 },
+  ]);
+  assert.deepEqual(out.map((b) => b.cols), [1, 1]);
+});
+
+test("layoutOverlaps: preserves input order", () => {
+  const out = layoutOverlaps([
+    { id: "late", start: 60, end: 90 },
+    { id: "early", start: 0, end: 30 },
+  ]);
+  assert.deepEqual(out.map((b) => b.id), ["late", "early"]);
 });

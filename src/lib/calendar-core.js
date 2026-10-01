@@ -198,3 +198,55 @@ export function windowHeightPx({
 } = {}) {
   return (endHour - startHour) * pxPerHour;
 }
+
+// Side-by-side lanes for items that overlap in time, so two events on the same
+// row are both readable instead of drawn on top of each other.
+//
+// Greedy first-fit: within a cluster of mutually-overlapping items each takes
+// the lowest lane whose previous item has already ended. A cluster ends when
+// the next item starts after everything open has finished, which resets the
+// lane pool — otherwise one busy morning would force every afternoon block into
+// a narrow column for the rest of the day. Input `start`/`end` may be pixels or
+// milliseconds; output preserves input order and adds `lane` (0-based) and
+// `cols` (the cluster's lane count).
+export function layoutOverlaps(items = []) {
+  const order = items.map((item, index) => ({ index, start: Number(item.start), end: Number(item.end) }));
+  order.sort((a, b) => a.start - b.start || a.end - b.end || a.index - b.index);
+
+  const layout = new Map();
+  let cluster = [];
+  let laneEnds = [];
+  let clusterEnd = -Infinity;
+
+  function flush() {
+    if (!cluster.length) return;
+    const cols = Math.max(laneEnds.length, 1);
+    for (const item of cluster) layout.set(item.index, { lane: item.lane, cols });
+    cluster = [];
+    laneEnds = [];
+    clusterEnd = -Infinity;
+  }
+
+  for (const item of order) {
+    if (!Number.isFinite(item.start) || !Number.isFinite(item.end)) continue;
+    if (cluster.length && item.start >= clusterEnd) flush();
+
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= item.start);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(item.end);
+    } else {
+      laneEnds[lane] = item.end;
+    }
+    item.lane = lane;
+    cluster.push(item);
+    clusterEnd = Math.max(clusterEnd, item.end);
+  }
+  flush();
+
+  return items.map((item, index) => ({
+    ...item,
+    lane: layout.get(index)?.lane ?? 0,
+    cols: layout.get(index)?.cols ?? 1,
+  }));
+}

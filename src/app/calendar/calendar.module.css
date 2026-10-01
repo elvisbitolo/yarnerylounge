@@ -101,7 +101,7 @@
   padding: 9px 16px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--secondary), var(--secondary-light));
+  background: linear-gradient(135deg, var(--primary, #e91e63), var(--primary-light, #ff6090));
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -123,6 +123,58 @@
   gap: 12px;
   flex-wrap: wrap;
   margin: 4px 0 16px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.legendChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a9a9bd;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.legendChip:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.legendOn {
+  color: #f2f2f7;
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.swatchEvent {
+  background: var(--primary, #e91e63);
+}
+
+.swatchAvailability {
+  background: rgba(45, 212, 191, 0.16);
+  border: 1.5px dashed #2dd4bf;
+}
+
+.swatchCourse {
+  background: #a78bfa;
 }
 
 .viewLabel {
@@ -245,6 +297,10 @@
   min-width: 0;
 }
 
+.weekendCol {
+  background: rgba(255, 255, 255, 0.025);
+}
+
 .dayHead {
   position: sticky;
   top: 0;
@@ -307,7 +363,6 @@
 .block {
   position: absolute;
   left: 3px;
-  right: 3px;
   border: none;
   border-radius: 8px;
   padding: 4px 6px;
@@ -325,6 +380,20 @@
 .block:hover {
   transform: scale(1.02);
   filter: brightness(1.1);
+}
+
+.blockEvent {
+  background: var(--primary, #e91e63);
+}
+
+.blockCourse {
+  background: #a78bfa;
+}
+
+.blockAvailability {
+  background: rgba(45, 212, 191, 0.16);
+  border: 1.5px dashed #2dd4bf;
+  color: #d1faf3;
 }
 
 .blockMine {
@@ -414,6 +483,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.monthBlockEvent {
+  background: var(--primary, #e91e63);
+}
+
+.monthBlockCourse {
+  background: #a78bfa;
+}
+
+.monthBlockAvailability {
+  background: rgba(45, 212, 191, 0.16);
+  border: 1px dashed #2dd4bf;
+  color: #d1faf3;
 }
 
 .monthMore {

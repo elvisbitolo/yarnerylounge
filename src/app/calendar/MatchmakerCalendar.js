@@ -17,6 +17,7 @@ import {
   formatClock,
   formatDay,
   hourLabels,
+  layoutOverlaps,
   nowOffset,
   timeZoneDisplay,
   windowHeightPx,
@@ -28,6 +29,18 @@ const ROOMS = [
   { slug: "lo-fi-and-loops", name: "Lo-Fi & Loops", color: "#2dd4bf" },
   { slug: "velvet-den", name: "The Velvet Den", color: "#a78bfa" },
   { slug: "silent-studio", name: "The Silent Studio", color: "#94a3b8" },
+];
+
+function roomName(slug) {
+  return ROOMS.find((r) => r.slug === slug)?.name || slug || "";
+}
+
+// The three item kinds the PRD distinguishes. Colour is never the only signal:
+// each chip and block also carries a label or an outline style.
+const ITEM_TYPES = [
+  { kind: "event", label: "Lounge events", swatch: "swatchEvent" },
+  { kind: "availability", label: "Availability", swatch: "swatchAvailability" },
+  { kind: "course", label: "Courses", swatch: "swatchCourse" },
 ];
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -100,6 +113,8 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   // pin it to a home city via the chip.
   const [timeZone, setTimeZone] = useState(() => initialTimeZone());
   const [availability, setAvailability] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [filters, setFilters] = useState(() => ({ event: true, availability: true, course: true }));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -116,10 +131,19 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     const to = addDays(from, 60);
     const qs = `from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
     try {
-      const res = await fetch(`/api/availability?${qs}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Could not load the calendar");
-      const data = await res.json();
-      setAvailability(data.availability || []);
+      // Availability and lounge events come from different endpoints but share
+      // one grid, so they are fetched together and merged below.
+      const [avRes, evRes] = await Promise.all([
+        fetch(`/api/availability?${qs}`, { credentials: "include" }),
+        fetch("/api/events", { credentials: "include" }),
+      ]);
+      if (!avRes.ok) throw new Error("Could not load the calendar");
+      const avData = await avRes.json();
+      setAvailability(avData.availability || []);
+      if (evRes.ok) {
+        const evData = await evRes.json();
+        setEvents(Array.isArray(evData.events) ? evData.events : []);
+      }
     } catch (e) {
       setError(e.message || "Could not load the calendar");
     } finally {
@@ -145,6 +169,41 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     });
     return set;
   }, [availability, userId]);
+
+  // One list for the grid: member availability plus lounge events. Each carries
+  // a `kind` so the renderer (and the filter chips) can tell them apart.
+  const items = useMemo(() => {
+    const av = availability.map((a) => ({
+      ...a,
+      kind: "availability",
+      roomName: a.roomName || roomName(a.roomSlug),
+    }));
+    const ev = events.map((e) => ({
+      id: `event-${e.id}`,
+      kind: "event",
+      title: e.title,
+      note: e.description || "",
+      startAt: e.startTime,
+      endAt: e.endTime,
+      roomSlug: e.roomSlug || "",
+      roomName: roomName(e.roomSlug),
+      userName: "",
+      userAvatar: "",
+      rsvpCount: 0,
+      recurring: "none",
+      eventId: e.id,
+    }));
+    return [...av, ...ev];
+  }, [availability, events]);
+
+  const visibleItems = useMemo(
+    () => items.filter((item) => filters[item.kind] !== false),
+    [items, filters]
+  );
+
+  function toggleFilter(kind) {
+    setFilters((prev) => ({ ...prev, [kind]: !prev[kind] }));
+  }
 
   const viewStart = useMemo(() => {
     const base = startOfDay(anchor);
@@ -207,7 +266,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
 
   const blocksForDay = (day) => {
     const key = dayKeyFor(day, timeZone);
-    return availability
+    return visibleItems
       .filter((a) => {
         if (a.recurring !== "none" && a.recurring) {
           return recurringDayMatches(a, day);
@@ -378,6 +437,21 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
         </label>
       </div>
 
+      <div className={styles.legend} role="group" aria-label="Filter calendar items">
+        {ITEM_TYPES.map((type) => (
+          <button
+            key={type.kind}
+            type="button"
+            className={`${styles.legendChip} ${filters[type.kind] ? styles.legendOn : ""}`}
+            onClick={() => toggleFilter(type.kind)}
+            aria-pressed={filters[type.kind]}
+          >
+            <span className={`${styles.swatch} ${styles[type.swatch]}`} aria-hidden="true" />
+            {type.label}
+          </button>
+        ))}
+      </div>
+
       {error && <p className={styles.error}>{error}</p>}
       {toast && <p className={styles.toast}>{toast}</p>}
 
@@ -401,7 +475,12 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                   const key = dayKeyFor(day, timeZone);
                   const isToday = key === todayKey;
                   return (
-                    <div key={key} className={styles.dayCol}>
+                    <div
+                      key={key}
+                      className={`${styles.dayCol} ${
+                        day.getDay() === 0 || day.getDay() === 6 ? styles.weekendCol : ""
+                      }`}
+                    >
                       <div
                         className={`${styles.dayHead} ${isToday ? styles.todayHead : ""}`}
                       >
@@ -425,41 +504,68 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                             <span className={styles.nowDot} />
                           </div>
                         )}
-                        {blocks.map((block) => {
-                          // One source for the label and the position: both
-                          // descend from the same instant → minutes conversion,
-                          // so a block can never sit on a different row from the
-                          // hour it is labelled with.
-                          const g = blockGeometry({
-                            startAt: block.startAt,
-                            endAt: block.endAt,
-                            timeZone,
-                            windowStartMinutes,
-                          });
-                          if (!g) return null;
-                          const isMine = mine.has(block.id);
-                          return (
-                            <button
-                              key={block.id}
-                              type="button"
-                              className={`${styles.block} ${isMine ? styles.blockMine : ""}`}
-                              style={{
-                                top: g.top,
-                                minHeight: g.height - 4,
-                                background: block.color,
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelected(block);
-                              }}
-                            >
-                              <span className={styles.blockTitle}>{block.title}</span>
-                              <span className={styles.blockMeta}>
-                                {formatClock(block.startAt, timeZone)} · {block.roomName}
-                              </span>
-                            </button>
+                        {(() => {
+                          // Position every block first, then let layoutOverlaps
+                          // split overlaps into side-by-side lanes so two events
+                          // at the same hour are both readable.
+                          const laid = layoutOverlaps(
+                            blocks
+                              .map((block) => {
+                                const g = blockGeometry({
+                                  startAt: block.startAt,
+                                  endAt: block.endAt,
+                                  timeZone,
+                                  windowStartMinutes,
+                                });
+                                return g ? { block, g, start: g.top, end: g.top + g.height } : null;
+                              })
+                              .filter(Boolean)
                           );
-                        })}
+                          return laid.map(({ block, g, lane, cols }) => {
+                            const widthPct = 100 / cols;
+                            const leftPct = lane * widthPct;
+                            const isMine = mine.has(block.id);
+                            const typeClass =
+                              block.kind === "event"
+                                ? styles.blockEvent
+                                : block.kind === "course"
+                                  ? styles.blockCourse
+                                  : styles.blockAvailability;
+                            const range = `${formatClock(block.startAt, timeZone)}${
+                              block.endAt ? ` – ${formatClock(block.endAt, timeZone)}` : ""
+                            }`;
+                            const meta =
+                              block.kind === "availability"
+                                ? `${range} · ${block.userName ? `${block.userName} · ` : ""}online`
+                                : `${range}${block.roomName ? ` · ${block.roomName}` : ""}`;
+                            return (
+                              <button
+                                key={block.id}
+                                type="button"
+                                className={`${styles.block} ${typeClass} ${isMine ? styles.blockMine : ""}`}
+                                style={{
+                                  top: g.top,
+                                  minHeight: Math.max(g.height - 4, 22),
+                                  left: `calc(${leftPct}% + 3px)`,
+                                  width: `calc(${widthPct}% - 6px)`,
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelected(block);
+                                }}
+                                aria-label={`${block.title}, ${formatDay(day, timeZone, {
+                                  weekday: "long",
+                                  month: "long",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}, ${range}${block.roomName ? `, ${block.roomName}` : ""}`}
+                              >
+                                <span className={styles.blockTitle}>{block.title}</span>
+                                <span className={styles.blockMeta}>{meta}</span>
+                              </button>
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
                   );
@@ -488,8 +594,13 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                         <button
                           key={block.id}
                           type="button"
-                          className={styles.monthBlock}
-                          style={{ background: block.color }}
+                          className={`${styles.monthBlock} ${
+                            block.kind === "event"
+                              ? styles.monthBlockEvent
+                              : block.kind === "course"
+                                ? styles.monthBlockCourse
+                                : styles.monthBlockAvailability
+                          }`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelected(block);
@@ -708,11 +819,14 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
 }
 
 function SelectedModal({ block, mine, userId, timeZone, onClose, onDelete, onToggle, busy }) {
+  const isEvent = block.kind === "event";
+  const dotColor =
+    block.kind === "event" ? "#e91e63" : block.kind === "course" ? "#a78bfa" : "#2dd4bf";
   return (
     <div className={styles.modalBackdrop} onMouseDown={onClose}>
       <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.selTop}>
-          <span className={styles.selColorDot} style={{ background: block.color }} />
+          <span className={styles.selColorDot} style={{ background: dotColor }} />
           <h2 className={styles.modalTitle}>{block.title}</h2>
         </div>
         <p className={styles.modalSub}>
@@ -728,22 +842,31 @@ function SelectedModal({ block, mine, userId, timeZone, onClose, onDelete, onTog
             </Link>
           </p>
         )}
-        <div className={styles.selHost}>
-          <span className={styles.selAvatar}>
-            {block.userAvatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className={styles.selAvatarImg} src={block.userAvatar} alt="" />
-            ) : (
-              (block.userName || "?").charAt(0).toUpperCase()
-            )}
-          </span>
-          <span className={styles.selHostName}>
-            {block.userName} <span className={styles.selHostBadge}>({block.rsvpCount || 0} stitching)</span>
-          </span>
-        </div>
+        {!isEvent && (
+          <div className={styles.selHost}>
+            <span className={styles.selAvatar}>
+              {block.userAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className={styles.selAvatarImg} src={block.userAvatar} alt="" />
+              ) : (
+                (block.userName || "?").charAt(0).toUpperCase()
+              )}
+            </span>
+            <span className={styles.selHostName}>
+              {block.userName}{" "}
+              <span className={styles.selHostBadge}>({block.rsvpCount || 0} stitching)</span>
+            </span>
+          </div>
+        )}
         {block.note && <p className={styles.selNote}>{block.note}</p>}
         <div className={styles.modalActions}>
-          {mine ? (
+          {isEvent ? (
+            block.roomSlug && (
+              <Link href={`/rooms/${block.roomSlug}`} className={styles.saveBtn}>
+                <Users size={15} /> Join lounge
+              </Link>
+            )
+          ) : mine ? (
             <button className={styles.dangerBtn} onClick={onDelete}>
               <Trash2 size={15} /> Delete
             </button>
