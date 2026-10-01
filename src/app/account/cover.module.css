@@ -5,9 +5,13 @@
   margin: 0 0 20px;
 }
 
+/* Must match COVER_RATIO (4:1) in src/lib/cover-core.js. Covers are cropped to
+   that ratio on upload, so the slot and the stored image agree exactly and
+   .coverImg never letterboxes -- which would expose .coverBackdrop. */
 .coverPreview {
   position: relative;
-  height: 160px;
+  aspect-ratio: 4 / 1;
+  width: 100%;
   border-radius: 14px;
   border: 1px solid #e6e6ef;
   overflow: hidden;
@@ -24,9 +28,10 @@
 
 .coverImg {
   position: relative;
+  display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .coverPlaceholder {
@@ -34,7 +39,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 160px;
+  aspect-ratio: 4 / 1;
+  width: 100%;
   border-radius: 14px;
   border: 1px dashed #d8d8e3;
   background: #faf9ff;
@@ -125,9 +131,9 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  /* Must match COVER_RATIO (4:1) in ProfileEditor so the overlay rect lines up
-     exactly with the pixels object-fit: cover reveals. A different ratio here
-     makes the selection drift from what gets cropped. */
+  /* Must match COVER_RATIO (4:1) in src/lib/cover-core.js so the overlay rect
+     lines up exactly with the pixels object-fit: cover reveals. A different
+     ratio here makes the selection drift from what gets cropped. */
   aspect-ratio: 4 / 1;
   width: 100%;
 }
@@ -231,12 +237,15 @@
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #e6e6ef;
+  aspect-ratio: 4 / 1;
+  width: 100%;
 }
 
 .previewBanner img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
 }
 
 .cropActions {

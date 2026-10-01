@@ -18,9 +18,13 @@
   margin: 20px 0 32px;
 }
 
+/* Must match COVER_RATIO (4:1) in src/lib/cover-core.js, the ratio covers are
+   cropped to on upload. A container ratio that disagrees letterboxes the image
+   and exposes .bannerBackdrop as blurred bars down each side. */
 .banner {
   position: relative;
-  height: 180px;
+  aspect-ratio: 4 / 1;
+  width: 100%;
   overflow: hidden;
 }
 
@@ -38,7 +42,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .header {
