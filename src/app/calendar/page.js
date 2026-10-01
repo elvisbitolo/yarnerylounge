@@ -15,7 +15,7 @@ export default async function CalendarPage() {
   return (
     <Nav role={userDoc?.role}>
       <div className={styles.container}>
-        <h1 className={styles.title}>Matchmaker Calendar</h1>
+        <h1 className={styles.title}>Calendar</h1>
         <p className={styles.subtitle}>
           Post when you&apos;ll be online, scout your favorite crowd&apos;s plans, and stitch along with members around the clock.
         </p>

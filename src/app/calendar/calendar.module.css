@@ -116,11 +116,51 @@
   opacity: 0.9;
 }
 
+.dateRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 16px;
+}
+
 .viewLabel {
   font-size: 15px;
   font-weight: 600;
   color: #d8d8e3;
-  margin: 4px 0 16px;
+  margin: 0;
+}
+
+.tzChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d8d8e3;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tzChip:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.tzSelect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  appearance: none;
 }
 
 .error {

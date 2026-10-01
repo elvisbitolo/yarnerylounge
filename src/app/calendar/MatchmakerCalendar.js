@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Plus, Trash2, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CalendarDays, Globe, Plus, Trash2, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   RECURRING_OPTIONS,
   recurringLabel,
@@ -18,6 +18,7 @@ import {
   formatDay,
   hourLabels,
   nowOffset,
+  timeZoneDisplay,
   windowHeightPx,
 } from "@/lib/calendar-core";
 import styles from "./calendar.module.css";
@@ -30,6 +31,41 @@ const ROOMS = [
 ];
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// A short list so members can pin the calendar to a home city rather than
+// whatever zone the device happens to report. Browser default is prepended.
+const EXTRA_ZONES = [
+  "Africa/Nairobi",
+  "Africa/Lagos",
+  "Africa/Johannesburg",
+  "Europe/London",
+  "Europe/Berlin",
+  "America/New_York",
+  "America/Chicago",
+  "America/Los_Angeles",
+  "America/Toronto",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "UTC",
+];
+
+const TIMEZONE_STORAGE_KEY = "yarnery-calendar-timezone";
+
+function browserTimeZone() {
+  if (typeof window === "undefined") return "UTC";
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function initialTimeZone() {
+  if (typeof window === "undefined") return "UTC";
+  try {
+    return window.localStorage.getItem(TIMEZONE_STORAGE_KEY) || browserTimeZone();
+  } catch {
+    return browserTimeZone();
+  }
+}
 
 function startOfDay(d) {
   const c = new Date(d);
@@ -60,12 +96,9 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const [view, setView] = useState("week");
   const [anchor, setAnchor] = useState(() => new Date());
   // The single zone every label and grid offset is derived from. Resolved on the
-  // client so the server's zone never leaks in; UTC until mounted.
-  const [timeZone, setTimeZone] = useState(() =>
-    typeof window !== "undefined"
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone
-      : "UTC"
-  );
+  // client so the server's zone never leaks in; UTC until mounted. Members can
+  // pin it to a home city via the chip.
+  const [timeZone, setTimeZone] = useState(() => initialTimeZone());
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -166,6 +199,12 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAllHours, view, timeZone]);
 
+  const zoneOptions = useMemo(
+    () => Array.from(new Set([browserTimeZone(), ...EXTRA_ZONES])),
+    []
+  );
+  const tz = timeZoneDisplay(timeZone);
+
   const blocksForDay = (day) => {
     const key = dayKeyFor(day, timeZone);
     return availability
@@ -250,6 +289,15 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     setAnchor(new Date());
   }
 
+  function changeTimeZone(next) {
+    setTimeZone(next);
+    try {
+      window.localStorage.setItem(TIMEZONE_STORAGE_KEY, next);
+    } catch {
+      // Private browsing or storage disabled: the session still works.
+    }
+  }
+
   const todayKey = dayKeyFor(new Date(), timeZone);
 
   return (
@@ -298,16 +346,37 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
         </button>
       </div>
 
-      <p className={styles.viewLabel}>
-        {view === "month"
-          ? formatDay(anchor, timeZone, {
-              month: "long",
-              year: "numeric",
-              weekday: undefined,
-              day: undefined,
-            })
-          : `${formatDay(days[0], timeZone)} — ${formatDay(days[days.length - 1], timeZone)}`}
-      </p>
+      <div className={styles.dateRow}>
+        <p className={styles.viewLabel}>
+          {view === "month"
+            ? formatDay(anchor, timeZone, {
+                month: "long",
+                year: "numeric",
+                weekday: undefined,
+                day: undefined,
+              })
+            : `${formatDay(days[0], timeZone)} — ${formatDay(days[days.length - 1], timeZone)}`}
+        </p>
+        <label className={styles.tzChip}>
+          <Globe size={14} aria-hidden="true" />
+          <span>
+            Times in {tz.city}
+            {tz.offset ? ` (${tz.offset})` : ""}
+          </span>
+          <select
+            className={styles.tzSelect}
+            value={timeZone}
+            onChange={(e) => changeTimeZone(e.target.value)}
+            aria-label="Time zone"
+          >
+            {zoneOptions.map((z) => (
+              <option key={z} value={z}>
+                {z.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {error && <p className={styles.error}>{error}</p>}
       {toast && <p className={styles.toast}>{toast}</p>}

@@ -164,6 +164,24 @@ export function nowOffset({
 }
 
 // Hour labels for the axis between two hours, inclusive of start and end.
+// Human label for a zone, for the "Times in …" chip: a city and its current UTC
+// offset. Falls back gracefully if the zone is unknown to the runtime.
+export function timeZoneDisplay(timeZone) {
+  if (!timeZone) return { city: "your time", offset: "" };
+  const city = timeZone.split("/").pop().replace(/_/g, " ");
+  let offset = "";
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      timeZoneName: "shortOffset",
+    }).formatToParts(new Date());
+    offset = parts.find((p) => p.type === "timeZoneName")?.value || "";
+  } catch {
+    offset = "";
+  }
+  return { city, offset };
+}
+
 export function hourLabels({ startHour = 0, endHour = 24 } = {}) {
   const out = [];
   for (let h = startHour; h <= endHour; h++) {

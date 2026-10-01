@@ -10,6 +10,7 @@ import {
   hourLabels,
   minutesIntoDay,
   nowOffset,
+  timeZoneDisplay,
   windowHeightPx,
   zonedParts,
 } from "../../calendar-core.js";
@@ -178,4 +179,18 @@ test("DST is handled by the zone, not by arithmetic", () => {
   const after = minutesIntoDay("2026-11-03T13:00:00.000Z", NEW_YORK);
   assert.equal(before, 9 * 60);
   assert.equal(after, 8 * 60);
+});
+
+test("timeZoneDisplay: names the city and shows an offset", () => {
+  const nairobi = timeZoneDisplay(NAIROBI);
+  assert.equal(nairobi.city, "Nairobi");
+  assert.match(nairobi.offset, /GMT\+3/);
+
+  const ny = timeZoneDisplay(NEW_YORK);
+  assert.equal(ny.city, "New York");
+  assert.match(ny.offset, /GMT-4|GMT-5/); // EDT or EST depending on the date
+});
+
+test("timeZoneDisplay: falls back when there is no zone", () => {
+  assert.deepEqual(timeZoneDisplay(null), { city: "your time", offset: "" });
 });
