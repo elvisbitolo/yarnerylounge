@@ -3,12 +3,9 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getConversation, listMessagesBefore, listConversations } from "@/lib/server/chat";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import Nav from "@/components/Nav";
-import BackButton from "@/components/BackButton";
 import ConversationRail from "../ConversationRail";
 import MobilePanels from "../MobilePanels";
-import Thread from "./Thread";
-import PresenceStatus from "../PresenceStatus";
-import styles from "../chat.module.css";
+import ConversationPane from "./ConversationPane";
 
 export const dynamic = "force-dynamic";
 
@@ -45,29 +42,17 @@ export default async function ConversationPage({ params }) {
           />
         }
         thread={
-          <div className={styles.thread}>
-            <div className={styles.threadHeader}>
-              <div className={styles.threadHeaderLeft}>
-                <div className={styles.threadBack}>
-                  <BackButton fallback="/chat" label="Chats" />
-                </div>
-                <h1 className={styles.threadTitle}>{conversation?.title || conversation?.name || "Member"}</h1>
-              </div>
-              {presenceIds.length > 0 && conversation.type === "dm" ? (
-                <PresenceStatus userId={presenceIds[0]} />
-              ) : presenceIds.length > 0 ? (
-                <PresenceStatus userIds={presenceIds} />
-              ) : null}
-            </div>
-            <Thread
-              conversationId={id}
-              uid={user.uid}
-              selfName={selfName}
-              initialMessages={messagePage.messages}
-              initialHasMore={!!messagePage.hasMore}
-              canWriteChat={canWriteChat(caps) || userDoc?.role === "owner" || userDoc?.role === "moderator"}
-            />
-          </div>
+          <ConversationPane
+            conversationId={id}
+            uid={user.uid}
+            selfName={selfName}
+            initialMessages={messagePage.messages}
+            initialHasMore={!!messagePage.hasMore}
+            canWriteChat={canWriteChat(caps) || userDoc?.role === "owner" || userDoc?.role === "moderator"}
+            title={conversation?.title || conversation?.name || "Member"}
+            participantIds={presenceIds}
+            conversationType={conversation?.type}
+          />
         }
       />
     </Nav>

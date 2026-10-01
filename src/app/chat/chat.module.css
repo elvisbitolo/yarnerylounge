@@ -188,7 +188,7 @@
 }
 
 .bubble {
-  max-width: min(75%, 560px);
+  max-width: min(70%, 560px);
   padding: 9px 13px;
   border-radius: 16px 16px 16px 4px;
   background: #26262e;
@@ -504,7 +504,113 @@
     font-size: 15px;
   }
 
-  .presenceStatus {
+.threadHeaderWrap {
+  border-bottom: 1px solid #27272a;
+}
+
+.threadHeaderWrap .threadHeader {
+  border-bottom: none;
+}
+
+.headerAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #2b2b35;
+  color: #f2f2f2;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.headerAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.headerIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.headerLounge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.typingLine {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.headerIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #3a3a45;
+  border-radius: 10px;
+  background: none;
+  color: #b6b6c2;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.headerIconBtn:hover {
+  color: #f2f2f2;
+  border-color: #9a9aa8;
+  background: #24242b;
+}
+
+.headerSearchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px 14px;
+}
+
+.headerSearchIcon {
+  color: #9a9aa8;
+  flex-shrink: 0;
+}
+
+.headerSearchInput {
+  flex: 1;
+  height: 38px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid #3a3a45;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #f5f5f5;
+  background: #24242b;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.headerSearchInput:focus {
+  border-color: var(--primary);
+}
+
+.presenceStatus {
     font-size: 11px;
     gap: 4px;
   }
@@ -550,10 +656,6 @@
 
   .emojiPicker {
     bottom: 52px;
-  }
-
-  .bubble {
-    max-width: 85%;
   }
 }
 

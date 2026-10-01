@@ -7,15 +7,23 @@ import tStyles from "./thread.module.css";
 import { renderRichText } from "@/lib/chat-render";
 import { subscribeConversation, openTypingChannel } from "@/lib/chat-realtime";
 import { chatTimeLabel, dayDividerLabel, isSameLocalDay } from "@/lib/chat-time";
-import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, Search, X } from "lucide-react";
+import {
+  publishTyping,
+  clearTyping,
+  typingLabel,
+  typingNamesFrom,
+  readTypingHidden,
+  TYPING_THROTTLE_MS,
+} from "@/lib/chat-typing-core";
+import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
 
 // Typing is ephemeral: a keystroke is broadcast at most once per throttle
 // window, and a recipient drops a sender who has gone quiet for the TTL.
-const TYPING_THROTTLE_MS = 1500;
-const TYPING_TTL_MS = 5000;
 const TYPING_PRUNE_MS = 1000;
+
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
 const MAX_FILE_RAW = 10 * 1024 * 1024;
 const MAX_IMAGE_RAW = 8 * 1024 * 1024;
@@ -125,7 +133,16 @@ function BubbleContent({ msg, searchQuery, isReply, onTag }) {
   return content ? <p className={bubbleTextClass}>{content}</p> : null;
 }
 
-export default function Thread({ conversationId, uid, selfName = "You", initialMessages, initialHasMore = false, canWriteChat = false }) {
+export default function Thread({
+  conversationId,
+  uid,
+  selfName = "You",
+  initialMessages,
+  initialHasMore = false,
+  canWriteChat = false,
+  searchQuery = "",
+  onSearchChange = () => {},
+}) {
   const [messages, setMessages] = useState(initialMessages);
   const [hasOlder, setHasOlder] = useState(initialHasMore);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -139,8 +156,8 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   const [replyText, setReplyText] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
   const [expandedThreads, setExpandedThreads] = useState({});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(null);
+  const longPressRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
   const bottomRef = useRef(null);
@@ -265,12 +282,9 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     const typingMap = typingMapRef.current;
 
     function publish() {
-      const now = Date.now();
-      const names = [];
-      for (const entry of typingMap.values()) {
-        if (now - entry.at < TYPING_TTL_MS && entry.userId !== uid) names.push(entry.name);
-      }
+      const names = typingNamesFrom([...typingMap.values()], { uid, now: Date.now() });
       setTypingUsers(names);
+      publishTyping(conversationId, names);
     }
 
     const prune = setInterval(publish, TYPING_PRUNE_MS);
@@ -279,6 +293,11 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       onTyping: (entry) => {
         if (disposed || document.visibilityState === "hidden") return;
         if (!entry || typeof entry.userId !== "string" || entry.userId === uid) return;
+        if (entry.stopped) {
+          typingMap.delete(entry.userId);
+          publish();
+          return;
+        }
         typingMap.set(entry.userId, {
           userId: entry.userId,
           name: typeof entry.name === "string" && entry.name ? entry.name : "Someone",
@@ -301,6 +320,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       clearInterval(prune);
       typingMap.clear();
       typingChannelRef.current = null;
+      clearTyping(conversationId);
       stop();
     };
   }, [conversationId, uid]);
@@ -445,6 +465,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       setText("");
       setAttachment(null);
       setShowEmoji(false);
+      stopTyping();
     }
 
     try {
@@ -549,6 +570,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   function handleTyping() {
     const channel = typingChannelRef.current;
     if (!channel) return;
+    if (readTypingHidden()) return;
     // react-hooks/purity reads this as render-phase, but handleTyping only runs
     // from the composer's onChange.
     // eslint-disable-next-line react-hooks/purity
@@ -556,6 +578,14 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
     if (now - typingSentAtRef.current < TYPING_THROTTLE_MS) return;
     typingSentAtRef.current = now;
     channel.send({ userId: uid, name: selfName, at: now });
+  }
+
+  // Tell the other side to drop our dots the moment we send, clear the box, or
+  // leave the field — don't make them wait out the TTL.
+  function stopTyping() {
+    typingSentAtRef.current = 0;
+    const channel = typingChannelRef.current;
+    if (channel) channel.send({ userId: uid, name: selfName, stopped: true });
   }
 
   function closeMentions() {
@@ -592,7 +622,8 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
   function handleComposerChange(e) {
     const value = e.target.value;
     setText(value);
-    handleTyping();
+    if (value.trim()) handleTyping();
+    else stopTyping();
     const mention = detectMention(value, e.target.selectionStart ?? value.length);
     if (mention) {
       setMentionQuery(mention);
@@ -695,61 +726,8 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
       })
     : messages;
 
-  const matchCount = searchQuery.trim()
-    ? filteredMessages.reduce((acc, m) => {
-        const q = searchQuery.toLowerCase();
-        let count = 0;
-        if ((m.text || "").toLowerCase().includes(q)) count++;
-        count += (m.replies || []).filter((r) =>
-          (r.text || "").toLowerCase().includes(q)
-        ).length;
-        return acc + count;
-      }, 0)
-    : 0;
-
   return (
     <div className={styles.threadBody}>
-      <div className={tStyles.searchBar}>
-        {searchOpen || searchQuery ? (
-          <>
-            <Search size={15} className={tStyles.searchIcon} aria-hidden="true" />
-            <input
-              className={tStyles.searchInput}
-              type="text"
-              placeholder="Search messages…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
-            />
-            {searchQuery.trim() && (
-              <p className={tStyles.searchCount}>
-                {matchCount} {matchCount === 1 ? "match" : "matches"}
-              </p>
-            )}
-            <button
-              type="button"
-              className={tStyles.searchIconBtn}
-              onClick={() => {
-                setSearchQuery("");
-                setSearchOpen(false);
-              }}
-              aria-label="Close search"
-            >
-              <X size={16} />
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className={tStyles.searchToggle}
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search messages"
-          >
-            <Search size={15} /> Search
-          </button>
-        )}
-      </div>
-
       {pinnedMessages.length > 0 && (
         <div className={tStyles.pinnedBar}>
           <span className={tStyles.pinnedLabel}><Pin size={12} /> Pinned</span>
@@ -784,28 +762,54 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
             msg.createdAt?.seconds * 1000 ||
             Number(msg.createdAt) ||
             0;
-          const prevMillis =
-            index > 0
-              ? filteredMessages[index - 1].createdAt?.toMillis?.() ||
-                filteredMessages[index - 1].createdAt?.seconds * 1000 ||
-                Number(filteredMessages[index - 1].createdAt) ||
-                0
-              : 0;
+          const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
+          const prevMillis = prevMsg
+            ? prevMsg.createdAt?.toMillis?.() ||
+              prevMsg.createdAt?.seconds * 1000 ||
+              Number(prevMsg.createdAt) ||
+              0
+            : 0;
           const showDayDivider = index === 0 || !isSameLocalDay(prevMillis, millis);
+          const grouped =
+            !showDayDivider &&
+            !!prevMsg &&
+            prevMsg.senderId === msg.senderId &&
+            !prevMsg.sending &&
+            millis - prevMillis < GROUP_WINDOW_MS;
           const replies = msg.replies || [];
           const readByOthers =
             !!msg.readBy && Object.keys(msg.readBy).some((readerId) => readerId !== uid);
           const isExpanded = expandedThreads[msg.id] || false;
           return (
-            <div key={msg.id} className={tStyles.threadMessage}>
+            <div
+              key={msg.id}
+              className={grouped ? `${tStyles.threadMessage} ${tStyles.grouped}` : tStyles.threadMessage}
+            >
               {showDayDivider && (
                 <div className={tStyles.dayDivider}>{dayDividerLabel(millis)}</div>
               )}
               <div
-                className={isMine ? `${styles.bubble} ${styles.mine}` : styles.bubble}
+                className={`${isMine ? `${styles.bubble} ${styles.mine}` : styles.bubble} ${
+                  actionsOpen === msg.id ? tStyles.actionsOpen : ""
+                }`}
+                onContextMenu={(e) => {
+                  if (window.matchMedia?.("(hover: none)").matches) {
+                    e.preventDefault();
+                    setActionsOpen(msg.id);
+                  }
+                }}
+                onTouchStart={() => {
+                  longPressRef.current = setTimeout(() => setActionsOpen(msg.id), 450);
+                }}
+                onTouchEnd={() => clearTimeout(longPressRef.current)}
+                onTouchMove={() => clearTimeout(longPressRef.current)}
+                onFocus={() => setActionsOpen(msg.id)}
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) setActionsOpen(null);
+                }}
               >
-                {!isMine && <p className={styles.bubbleName}>{msg?.senderName || "Member"}</p>}
-                <BubbleContent msg={msg} searchQuery={searchQuery.trim()} onTag={(tag) => setSearchQuery(tag)} />
+                {!isMine && !grouped && <p className={styles.bubbleName}>{msg?.senderName || "Member"}</p>}
+                <BubbleContent msg={msg} searchQuery={searchQuery.trim()} onTag={(tag) => onSearchChange(tag)} />
                 {msg.attachment?.kind === "image" && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -831,11 +835,17 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
                     <span className={styles.fileDownload}>Download</span>
                   </a>
                 )}
-                {msg.sending ? (
-                  <p className={tStyles.sendingNote}>Sending…</p>
-                ) : (
-                  <p className={styles.bubbleTime}>{chatTimeLabel(millis)}</p>
-                )}
+                <div className={tStyles.bubbleMeta}>
+                  <span className={styles.bubbleTime}>{chatTimeLabel(millis)}</span>
+                  {isMine &&
+                    (msg.sending ? (
+                      <Check size={13} className={tStyles.tickSent} aria-label="Sending" />
+                    ) : readByOthers ? (
+                      <CheckCheck size={13} className={tStyles.tickRead} aria-label="Read" />
+                    ) : (
+                      <CheckCheck size={13} className={tStyles.tickDelivered} aria-label="Delivered" />
+                    ))}
+                </div>
                 {canWriteChat && (
                 <div className={tStyles.replyActions}>
                   {replies.length > 0 && (
@@ -904,18 +914,6 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
                     ))}
                   </div>
                 )}
-                {isMine && !msg.sending && (
-                  <p
-                    className={`${tStyles.readReceipt} ${readByOthers ? tStyles.readReceiptRead : ""}`}
-                    title={readByOthers ? "Read" : "Sent"}
-                  >
-                    {readByOthers ? (
-                      <CheckCheck size={13} aria-hidden="true" />
-                    ) : (
-                      <Check size={13} aria-hidden="true" />
-                    )}
-                  </p>
-                )}
               </div>
 
               {isExpanded && replies.length > 0 && (
@@ -936,7 +934,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
                           className={`${tStyles.replyBubble} ${isReplyMine ? tStyles.replyMine : ""}`}
                         >
                           {!isReplyMine && <p className={styles.bubbleName}>{reply?.senderName || "Member"}</p>}
-                          <BubbleContent msg={reply} searchQuery={searchQuery.trim()} isReply onTag={(tag) => setSearchQuery(tag)} />
+                          <BubbleContent msg={reply} searchQuery={searchQuery.trim()} isReply onTag={(tag) => onSearchChange(tag)} />
                           <p className={styles.bubbleTime}>{chatTimeLabel(replyMillis)}</p>
                         </div>
                       </div>
@@ -982,11 +980,21 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
             </div>
           );
         })}
-        {typingUsers.length > 0 && (
-          <p className={tStyles.typingIndicator}>
-            {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing…
-          </p>
-        )}
+        <div className={tStyles.typingRow} aria-live="polite" aria-atomic="true">
+          {typingUsers.length > 0 && (
+            <>
+              <span className={tStyles.srOnly}>{typingLabel(typingUsers)}</span>
+              <div
+                className={`${styles.bubble} ${tStyles.typingBubble}`}
+                aria-hidden="true"
+              >
+                <span className={tStyles.typingDot} />
+                <span className={tStyles.typingDot} />
+                <span className={tStyles.typingDot} />
+              </div>
+            </>
+          )}
+        </div>
         <div ref={bottomRef} />
       </div>
 
@@ -1082,6 +1090,7 @@ export default function Thread({ conversationId, uid, selfName = "You", initialM
           value={text}
           onChange={handleComposerChange}
           onKeyDown={handleKeyDown}
+          onBlur={stopTyping}
           maxLength={2000}
         />
         <button
