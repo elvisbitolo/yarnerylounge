@@ -167,6 +167,35 @@ LiveKit surface is now gone:
   product direction (final state: no footer bar — Terms stays linked from the
   signup checkbox and the Welcome Vault).
 
+## Phase 10 — Calendar, groups & chat (PRD pass)
+
+Shipped as separate commits, each verified with `npm test` / `npm run lint`
+(0 errors; pre-existing `<img>`/`location.assign` warnings only) / `npm run build`.
+
+- **Calendar**
+  - Phase 1 (`a8260f3`, `0a8032c`): waking-hours window (08:00–19:00), now-line
+    + pip, today accent, sticky time column/day heads, bounded scroll;
+    timezone chip persisted in `localStorage` (`yarnery-calendar-timezone`).
+  - Phase 2 (`3dcf20e`): merges `/api/events` + `/api/availability` into one
+    grid with type colours, legend/filter chips, weekend shading and
+    overlap lanes via `layoutOverlaps()` in `src/lib/calendar-core.js`.
+  - Phase 3 (`fd9e04a`): up-next card, event details, reminders
+    (`localStorage` key `yarnery-calendar-reminders` + 15-min notification)
+    and RFC 5545 `.ics` export via `src/lib/ics-core.js`.
+  - Phase 4 (`ae1052a`): mobile agenda list (<768px), “Matches me” filter and
+    Escape-to-close `role="dialog" aria-modal="true"` details panel.
+- **Groups** (`a67cf97`, `2408a74`): dark detail theme, real Joined state in
+  `GroupJoinButton`, “Next hangout” card via `nextEventForRoom()` in
+  `src/lib/server/events.js`, and a hero fallback banner + member avatar stack
+  when a neighbourhood has no cover image.
+- **Chat**
+  - Phase 2a (`8db43d6`): hover/focus message actions (always visible on
+    touch), single/double delivery ticks, icon-expand search and an
+    All/Unread filter in the conversation rail.
+  - Phase 2b (`5b264ac`): “Live now” presence strip backed by
+    `GET /api/presence?online=1` + `src/lib/server/presence-core.js`
+    (10 node tests), and a rounded-tail bubble restyle.
+
 ## Housekeeping
 
 - Logged-in/meetings review on the marketing page (`secretyarnery.com/pages/speakeasy`)
