@@ -9,6 +9,12 @@ import {
   recurringDayMatches,
   recurringWeekday,
 } from "@/lib/server/availability-core";
+import {
+  blockGeometry,
+  dayKeyFor,
+  formatClock,
+  formatDay,
+} from "@/lib/calendar-core";
 import styles from "./calendar.module.css";
 
 const ROOMS = [
@@ -19,13 +25,6 @@ const ROOMS = [
 ];
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function toLocalKey(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 function startOfDay(d) {
   const c = new Date(d);
@@ -52,24 +51,16 @@ function snapToWeekday(start, recurring) {
   return d;
 }
 
-function fmtTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
-
-function fmtDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-}
-
-function fmtBlock(iso) {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} · ${fmtTime(iso)}`;
-}
-
 export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const [view, setView] = useState("week");
   const [anchor, setAnchor] = useState(() => new Date());
+  // The single zone every label and grid offset is derived from. Resolved on the
+  // client so the server's zone never leaks in; UTC until mounted.
+  const [timeZone, setTimeZone] = useState(() =>
+    typeof window !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : "UTC"
+  );
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -136,13 +127,13 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   );
 
   const blocksForDay = (day) => {
-    const key = toLocalKey(day);
+    const key = dayKeyFor(day, timeZone);
     return availability
       .filter((a) => {
         if (a.recurring !== "none" && a.recurring) {
           return recurringDayMatches(a, day);
         }
-        return toLocalKey(new Date(a.startAt)) === key;
+        return dayKeyFor(a.startAt, timeZone) === key;
       })
       .sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
   };
@@ -219,7 +210,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     setAnchor(new Date());
   }
 
-  const todayKey = toLocalKey(new Date());
+  const todayKey = dayKeyFor(new Date(), timeZone);
 
   return (
     <>
@@ -260,8 +251,13 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
 
       <p className={styles.viewLabel}>
         {view === "month"
-          ? anchor.toLocaleDateString([], { month: "long", year: "numeric" })
-          : `${fmtDate(days[0].toISOString())} — ${fmtDate(days[days.length - 1].toISOString())}`}
+          ? formatDay(anchor, timeZone, {
+              month: "long",
+              year: "numeric",
+              weekday: undefined,
+              day: undefined,
+            })
+          : `${formatDay(days[0], timeZone)} — ${formatDay(days[days.length - 1], timeZone)}`}
       </p>
 
       {error && <p className={styles.error}>{error}</p>}
@@ -281,23 +277,29 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                   </div>
                 ))}
               </div>
-              <div
-                className={view === "day" ? styles.dayCols : styles.weekCols}
-              >
+              <div className={view === "day" ? styles.dayCols : styles.weekCols}>
                 {days.map((day) => {
                   const blocks = blocksForDay(day);
-                  const key = toLocalKey(day);
+                  const key = dayKeyFor(day, timeZone);
                   return (
                     <div key={key} className={styles.dayCol}>
-                      <div className={`${styles.dayHead} ${key === todayKey ? styles.todayHead : ""}`}>
+                      <div
+                        className={`${styles.dayHead} ${key === todayKey ? styles.todayHead : ""}`}
+                      >
                         {WEEKDAYS[day.getDay()]} {day.getDate()}
                       </div>
                       <div className={styles.dayBody}>
                         {blocks.map((block) => {
-                          const start = new Date(block.startAt);
-                          const end = new Date(block.endAt);
-                          const top = start.getHours() * 60 + start.getMinutes();
-                          const span = Math.max(30, (end - start) / 60000);
+                          // One source for the label and the position: both
+                          // descend from the same instant → minutes conversion,
+                          // so a block can never sit on a different row from the
+                          // hour it is labelled with.
+                          const g = blockGeometry({
+                            startAt: block.startAt,
+                            endAt: block.endAt,
+                            timeZone,
+                          });
+                          if (!g) return null;
                           const isMine = mine.has(block.id);
                           return (
                             <button
@@ -305,8 +307,8 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                               type="button"
                               className={`${styles.block} ${isMine ? styles.blockMine : ""}`}
                               style={{
-                                top,
-                                minHeight: Math.max(30, span - 4),
+                                top: g.top,
+                                minHeight: g.height - 4,
                                 background: block.color,
                               }}
                               onClick={(e) => {
@@ -316,7 +318,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                             >
                               <span className={styles.blockTitle}>{block.title}</span>
                               <span className={styles.blockMeta}>
-                                {fmtTime(block.startAt)} · {block.roomName}
+                                {formatClock(block.startAt, timeZone)} · {block.roomName}
                               </span>
                             </button>
                           );
@@ -335,7 +337,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                 <div key={w} className={styles.monthWeekday}>{w}</div>
               ))}
               {days.map((day) => {
-                const key = toLocalKey(day);
+                const key = dayKeyFor(day, timeZone);
                 const blocks = blocksForDay(day);
                 const inMonth = day.getMonth() === anchor.getMonth();
                 return (
@@ -393,6 +395,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           block={selected}
           mine={mine.has(selected.id)}
           userId={userId}
+          timeZone={timeZone}
           onClose={() => setSelected(null)}
           onDelete={() => deleteSlot(selected.id).then(() => setSelected(null))}
           onToggle={() => toggleRsvp(selected)}
@@ -406,10 +409,16 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
 function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
   const [title, setTitle] = useState("");
   const [roomSlug, setRoomSlug] = useState("");
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date(defaultValue);
-    return d.toISOString().slice(0, 10);
-  });
+  // Seed the date picker from the viewer's own day. toISOString().slice(0,10)
+  // is UTC and pre-filled tomorrow for anyone east of Greenwich after local
+  // midnight but before the UTC date rolls over.
+  const browserZone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    []
+  );
+  const [startDate, setStartDate] = useState(
+    () => dayKeyFor(defaultValue, browserZone) || ""
+  );
   const [startTime, setStartTime] = useState("18:00");
   const [duration, setDuration] = useState("90");
   const [recurring, setRecurring] = useState("none");
@@ -432,8 +441,6 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
     setSaving(true);
     // `picked` above is parsed without an offset, so it means this browser's
     // wall clock. Ship the zone that interpretation relied on.
-    const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
     const ok = await onSave({
       title: title.trim(),
       roomSlug,
@@ -563,7 +570,7 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
   );
 }
 
-function SelectedModal({ block, mine, userId, onClose, onDelete, onToggle, busy }) {
+function SelectedModal({ block, mine, userId, timeZone, onClose, onDelete, onToggle, busy }) {
   return (
     <div className={styles.modalBackdrop} onMouseDown={onClose}>
       <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
@@ -572,9 +579,10 @@ function SelectedModal({ block, mine, userId, onClose, onDelete, onToggle, busy 
           <h2 className={styles.modalTitle}>{block.title}</h2>
         </div>
         <p className={styles.modalSub}>
-          <CalendarDays size={14} /> {fmtBlock(block.startAt)}
+          <CalendarDays size={14} /> {formatDay(block.startAt, timeZone)} ·{" "}
+          {formatClock(block.startAt, timeZone)}
           {String(block.recurring) !== "none" && ` — ${recurringLabel(block.recurring)}`}
-          {block.endAt && ` · ${fmtTime(block.endAt)} end`}
+          {block.endAt && ` · ${formatClock(block.endAt, timeZone)} end`}
         </p>
         {block.roomSlug && (
           <p className={styles.selRoom}>

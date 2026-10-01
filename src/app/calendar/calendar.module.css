@@ -174,10 +174,12 @@
   color: #9b9bab;
 }
 
+/* Day view renders a single column, so it gets one full-width track. It used to
+   share .weekCols' seven tracks and the lone day occupied a seventh of the row. */
 .dayCols {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(7, minmax(110px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .weekCols {
