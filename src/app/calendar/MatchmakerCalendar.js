@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Plus, Trash2, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
@@ -10,10 +10,15 @@ import {
   recurringWeekday,
 } from "@/lib/server/availability-core";
 import {
+  DEFAULT_WINDOW_END_MINUTES,
+  DEFAULT_WINDOW_START_MINUTES,
   blockGeometry,
   dayKeyFor,
   formatClock,
   formatDay,
+  hourLabels,
+  nowOffset,
+  windowHeightPx,
 } from "@/lib/calendar-core";
 import styles from "./calendar.module.css";
 
@@ -68,6 +73,10 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const [selected, setSelected] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [toast, setToast] = useState("");
+  // The week/day axis opens on waking hours instead of a dead 00:00–08:00.
+  const [showAllHours, setShowAllHours] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  const scrollRef = useRef(null);
 
   const refresh = useCallback(async () => {
     const from = new Date();
@@ -121,10 +130,41 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     return Array.from({ length: total }, (_, i) => addDays(first, i - first.getDay()));
   }, [view, viewStart, anchor]);
 
+  const windowStartHour = showAllHours ? 0 : DEFAULT_WINDOW_START_MINUTES / 60;
+  const windowEndHour = showAllHours ? 24 : DEFAULT_WINDOW_END_MINUTES / 60;
+  const windowStartMinutes = windowStartHour * 60;
+
   const hours = useMemo(
-    () => Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`),
-    []
+    () => hourLabels({ startHour: windowStartHour, endHour: windowEndHour }),
+    [windowStartHour, windowEndHour]
   );
+
+  // A ticking clock for the now-line. One minute is plenty.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nowPos = nowOffset({
+    now,
+    timeZone,
+    windowStartMinutes,
+  });
+
+  // Bring the current time into view on first paint and whenever the window
+  // changes, rather than dropping the member at 00:00. The position is read
+  // once inside the effect so the once-a-minute clock tick does not yank the
+  // viewport back while scrolling.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const pos = nowOffset({ now: new Date(), timeZone, windowStartMinutes });
+    if (pos == null) return;
+    el.scrollTop = Math.max(0, pos - el.clientHeight / 3);
+    // windowStartMinutes derives from showAllHours; view and timeZone are the
+    // other things that change what "now" should scroll to.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAllHours, view, timeZone]);
 
   const blocksForDay = (day) => {
     const key = dayKeyFor(day, timeZone);
@@ -234,6 +274,15 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           <button className={styles.iconBtn} onClick={() => navigate(1)} aria-label="Next">
             <ChevronRight size={18} />
           </button>
+          <button
+            type="button"
+            className={styles.todayBtn}
+            onClick={() => setShowAllHours((v) => !v)}
+            aria-pressed={showAllHours}
+            title={showAllHours ? "Show daytime hours only" : "Show all 24 hours"}
+          >
+            {showAllHours ? "Daytime" : "24h"}
+          </button>
         </div>
         <button
           type="button"
@@ -268,7 +317,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
       ) : (
         <>
           {(view === "week" || view === "day") && (
-            <div className={styles.timeGridWrap}>
+            <div className={styles.timeGridWrap} ref={scrollRef}>
               <div className={styles.timeCol}>
                 <div className={styles.timeSpacer} />
                 {hours.map((h) => (
@@ -281,14 +330,32 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                 {days.map((day) => {
                   const blocks = blocksForDay(day);
                   const key = dayKeyFor(day, timeZone);
+                  const isToday = key === todayKey;
                   return (
                     <div key={key} className={styles.dayCol}>
                       <div
-                        className={`${styles.dayHead} ${key === todayKey ? styles.todayHead : ""}`}
+                        className={`${styles.dayHead} ${isToday ? styles.todayHead : ""}`}
                       >
-                        {WEEKDAYS[day.getDay()]} {day.getDate()}
+                        <span>{WEEKDAYS[day.getDay()]}</span>
+                        <span
+                          className={`${styles.dayNum} ${isToday ? styles.todayNum : ""}`}
+                        >
+                          {day.getDate()}
+                        </span>
                       </div>
-                      <div className={styles.dayBody}>
+                      <div
+                        className={styles.dayBody}
+                        style={{ height: windowHeightPx({ startHour: windowStartHour, endHour: windowEndHour }) }}
+                      >
+                        {isToday && nowPos != null && (
+                          <div
+                            className={styles.nowLine}
+                            style={{ top: nowPos }}
+                            aria-hidden="true"
+                          >
+                            <span className={styles.nowDot} />
+                          </div>
+                        )}
                         {blocks.map((block) => {
                           // One source for the label and the position: both
                           // descend from the same instant → minutes conversion,
@@ -298,6 +365,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                             startAt: block.startAt,
                             endAt: block.endAt,
                             timeZone,
+                            windowStartMinutes,
                           });
                           if (!g) return null;
                           const isMine = mine.has(block.id);

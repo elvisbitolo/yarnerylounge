@@ -146,14 +146,25 @@
   margin-top: 16px;
 }
 
+/* The axis scrolls inside a bounded panel so the page does not grow to a full
+   24 hours. The time column and day headers stick, so an hour is always
+   readable while scrolling. */
 .timeGridWrap {
   display: flex;
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(68vh, 620px);
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
 }
 
 .timeCol {
   flex-shrink: 0;
-  width: 52px;
+  width: 56px;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #0d0d0d;
 }
 
 .timeSpacer {
@@ -170,8 +181,9 @@
   position: absolute;
   top: -8px;
   right: 8px;
-  font-size: 10px;
-  color: #9b9bab;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c4c4d4;
 }
 
 /* Day view renders a single column, so it gets one full-width track. It used to
@@ -194,23 +206,62 @@
 }
 
 .dayHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 700;
   color: #b8b8c8;
+  background: #0d0d0d;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .todayHead {
-  color: var(--secondary-light);
+  color: #ffffff;
+}
+
+.dayNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.todayNum {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.nowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ff4d6d;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.nowDot {
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d6d;
 }
 
 .dayBody {
   position: relative;
-  height: calc(24 * 48px);
 }
 
 .block {
