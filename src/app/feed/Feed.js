@@ -1598,7 +1598,11 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   });
 
   return (
-    <div className={styles.feedLayout}>
+    <div
+      className={`${styles.feedLayout} ${
+        !groupId && !spaceId ? styles.feedLayoutWithRail : ""
+      }`}
+    >
       <div className={styles.feed}>
       {!canWriteChat && !canModerate ? (
         <div className={styles.upgradePrompt}>

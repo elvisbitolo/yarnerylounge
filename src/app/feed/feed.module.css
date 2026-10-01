@@ -1281,11 +1281,18 @@
   transform: scale(1.15);
 }
 
+/* Single column by default. The 300px rail track only appears when a rail is
+   actually rendered (the home feed); a group feed kept this two-track grid with
+   an empty second column and was squeezed to a fraction of the width. */
 .feedLayout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 28px;
   align-items: start;
+}
+
+.feedLayoutWithRail {
+  grid-template-columns: minmax(0, 1fr) 300px;
 }
 
 .rail {
@@ -1369,7 +1376,7 @@
 }
 
 @media (max-width: 900px) {
-  .feedLayout {
+  .feedLayoutWithRail {
     grid-template-columns: minmax(0, 1fr);
   }
 
