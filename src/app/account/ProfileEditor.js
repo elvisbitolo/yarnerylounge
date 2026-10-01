@@ -4,12 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { dataUrlToBlob } from "@/lib/data-url";
-import {
-  COVER_RATIO,
-  coverWindow,
-  cropRatioFor,
-  defaultCoverCrop,
-} from "@/lib/cover-core";
 import { COUNTRIES, countryByCode } from "@/lib/profile/countries";
 import {
   SOCIAL_PLATFORMS,
@@ -63,6 +57,8 @@ const YEARS_OPTIONS = [
   "10+ years",
   "It's my whole personality",
 ];
+
+const COVER_RATIO = 4 / 1;
 
 const PALETTE_PRESETS = [
   { name: "Sunset Glow", colors: ["#ff6f61", "#ffb37b", "#ff8fab"] },
@@ -126,6 +122,14 @@ function loadImage(file) {
   });
 }
 
+function coverWindow(width, height, ratio = COVER_RATIO) {
+  const winW = Math.min(width, height * ratio);
+  const winH = Math.min(height, width / ratio);
+  const offX = (width - winW) / 2;
+  const offY = (height - winH) / 2;
+  return { winW, winH, offX, offY };
+}
+
 // The upload route answers its own failures with JSON, but the platform can
 // reject a request before it ever reaches the route -- 413 on an oversized
 // body, 504 on a timeout -- and reply with HTML. There is no message to show
@@ -135,38 +139,24 @@ function uploadErrorMessage(up, upData, fallback) {
   return up.status ? `${fallback} (HTTP ${up.status})` : fallback;
 }
 
-// A cover is stored at exactly COVER_RATIO, so it fills its slot with no
-// letterboxing and the blurred backdrop behind it is never visible. The inline
-// data-URL fallback (no Blob token configured) has a hard server-side cap, so
-// shrink until the encoded length fits rather than failing the upload.
-const COVER_MAX_WIDTH = 1200;
-const COVER_MIN_WIDTH = 480;
-const COVER_INLINE_LIMIT = 290000;
 function cropImageToBanner(img, rect) {
-  const draw = (width, quality) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = Math.round(width / COVER_RATIO);
-    canvas.getContext("2d").drawImage(
-      img,
-      rect.x,
-      rect.y,
-      rect.w,
-      rect.w / COVER_RATIO,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-    return canvas.toDataURL("image/jpeg", quality);
-  };
-  let width = Math.max(COVER_MIN_WIDTH, Math.min(COVER_MAX_WIDTH, Math.round(rect.w)));
-  let dataUrl = draw(width, 0.85);
-  while (dataUrl.length > COVER_INLINE_LIMIT && width > COVER_MIN_WIDTH) {
-    width = Math.max(COVER_MIN_WIDTH, Math.round(width * 0.8));
-    dataUrl = draw(width, 0.82);
-  }
-  return dataUrl;
+  const targetRatio = COVER_RATIO;
+  const scale = Math.min(1, 1200 / rect.w);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(rect.w * scale);
+  canvas.height = Math.round(rect.w * scale / targetRatio);
+  canvas.getContext("2d").drawImage(
+    img,
+    rect.x,
+    rect.y,
+    rect.w,
+    rect.w / targetRatio,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+  return canvas.toDataURL("image/jpeg", 0.85);
 }
 
 function cropImageToAvatar(img, rect) {
@@ -186,6 +176,33 @@ function cropImageToAvatar(img, rect) {
     target
   );
   return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+// Encodes the FULL image (aspect ratio preserved, nothing cropped) for the
+// cover slot. Shrinks / drops quality only when needed so the inline data-URL
+// fallback stays under the server's photo URL cap.
+const COVER_MAX_WIDTH = 1600;
+const COVER_INLINE_LIMIT = 290000;
+function encodeFullCover(img) {
+  let scale = Math.min(1, COVER_MAX_WIDTH / img.naturalWidth);
+  let canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.naturalWidth * scale);
+  canvas.height = Math.round(img.naturalHeight * scale);
+  canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+  let dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  while (dataUrl.length > COVER_INLINE_LIMIT && canvas.width > 640) {
+    scale *= 0.8;
+    canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+  }
+  return dataUrl;
+}
+
+function cropRatioFor(kind) {
+  return kind === "avatar" ? 1 : COVER_RATIO;
 }
 
 function toHandledLinks(links) {  if (!Array.isArray(links) || links.length === 0) return [];
@@ -500,20 +517,12 @@ export default function ProfileEditor({ initial, memberId }) {
       return;
     }
     setError("");
-    setCropKind("cover");
     try {
       const img = await loadImage(file);
-      openCoverCrop(img);
+      await saveCoverUpload(encodeFullCover(img.element));
     } catch (err) {
       setError(err.message || "Couldn't read that image");
     }
-  }
-
-  function openCoverCrop(img) {
-    setCropImage(img);
-    setCropRect(defaultCoverCrop(img.width, img.height));
-    setCropStage("adjust");
-    setCropOpen(true);
   }
 
   function getResizeMode(x, y, rect, img, tolerance) {
@@ -1179,11 +1188,9 @@ export default function ProfileEditor({ initial, memberId }) {
       <div className={styles.stepPane}>
       <div className={coverStyles.coverRow}>
         {coverPhotoURL ? (
+          // Same slot as the public banner: .coverImg is height:auto, so the
+          // preview matches what a visitor sees.
           <div className={coverStyles.coverPreview}>
-            <div
-              className={coverStyles.coverBackdrop}
-              style={{ backgroundImage: `url(${coverPhotoURL})` }}
-            />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className={coverStyles.coverImg} src={coverPhotoURL} alt="Cover" />
           </div>
@@ -1853,9 +1860,7 @@ export default function ProfileEditor({ initial, memberId }) {
             <>
               <h3 className={coverStyles.cropTitle}>Crop your cover photo</h3>
               <p className={coverStyles.cropHint}>
-                Your cover is a wide 4:1 banner, so anything outside the frame is
-                cropped away. Drag the frame to choose what to keep. The dashed
-                edge marks what a narrower screen drops.
+                This banner shows full-width on desktop but gets cropped on mobile, and your profile photo overlaps the bottom-left corner. Keep important content near the middle and out of the bottom-left and far-right edges.
               </p>
               <div
                 className={coverStyles.cropWrap}
@@ -1918,8 +1923,7 @@ export default function ProfileEditor({ initial, memberId }) {
             <>
               <h3 className={coverStyles.cropTitle}>Preview your cover</h3>
               <p className={coverStyles.cropHint}>
-                This is how the banner will look on your profile. When you&apos;re
-                happy, select &quot;Done&quot; to save it.
+                Keep the bottom-left corner clear so it isn&apos;t hidden by your profile photo. When you&apos;re happy, select &quot;Done&quot; to save it.
               </p>
               <div className={coverStyles.previewProfile}>
                 <div className={coverStyles.previewBanner}>

@@ -246,15 +246,17 @@ const coverUrl = member.coverPhotoURL || "";
         <BackButton fallback="/members" label="All members" />
 
         <div className={styles.profileCard}>
-          <div className={styles.banner} style={!coverUrl ? { background: bannerFallback } : undefined}>
-          {coverUrl && (
-            <>
-              <div className={styles.bannerBackdrop} style={{ backgroundImage: `url(${coverUrl})` }} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+          <div
+            className={styles.banner}
+            style={!coverUrl ? { background: bannerFallback } : undefined}
+          >
+            {coverUrl && (
+              // height:auto in CSS, so the banner takes the photo's own shape
+              // rather than letterboxing it into a fixed box.
+              // eslint-disable-next-line @next/next/no-img-element
               <img className={styles.bannerImg} src={coverUrl} alt="" />
-            </>
-          )}
-        </div>
+            )}
+          </div>
           <div className={styles.header}>
           <div className={styles.avatar}>
             {member.photoURL ? (

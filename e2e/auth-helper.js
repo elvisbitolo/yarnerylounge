@@ -102,4 +102,26 @@ async function createMember() {
   };
 }
 
-module.exports = { createMember, loadEnv };
+// Writes a cover straight onto the member row. Lets a render test assert how a
+// cover displays without depending on the upload store being reachable, which
+// is a separate concern from how it looks.
+async function setCoverPhoto(uid, coverPhotoURL) {
+  const env = loadEnv();
+  const pool = new pg.Pool({
+    connectionString:
+      env.DIRECT_URL ||
+      env.POSTGRES_URL_NON_POOLING ||
+      env.DATABASE_URL ||
+      env.POSTGRES_PRISMA_URL,
+  });
+  try {
+    await pool.query(`UPDATE "User" SET "coverPhotoURL" = $2 WHERE "id" = $1`, [
+      uid,
+      coverPhotoURL,
+    ]);
+  } finally {
+    await pool.end().catch(() => {});
+  }
+}
+
+module.exports = { createMember, loadEnv, setCoverPhoto };

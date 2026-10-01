@@ -18,30 +18,25 @@
   margin: 20px 0 32px;
 }
 
-/* Must match COVER_RATIO (4:1) in src/lib/cover-core.js, the ratio covers are
-   cropped to on upload. A container ratio that disagrees letterboxes the image
-   and exposes .bannerBackdrop as blurred bars down each side. */
+/* The banner takes the cover's own shape: .bannerImg is height:auto, so this
+   container grows to the image and the photo is never cropped or letterboxed.
+   Previously this pinned a height and used object-fit: contain, which letterboxed
+   narrow photos and left the blurred .bannerBackdrop showing as bars down each
+   side. The clamp only bites on portrait photos, where an uncapped natural
+   height would swamp the profile header; object-fit crops the overflow rather
+   than squashing it. */
 .banner {
   position: relative;
-  aspect-ratio: 4 / 1;
   width: 100%;
   overflow: hidden;
-}
-
-.bannerBackdrop {
-  position: absolute;
-  inset: -14px;
-  background-size: cover;
-  background-position: center;
-  filter: blur(22px) brightness(0.7);
-  transform: scale(1.2);
 }
 
 .bannerImg {
   position: relative;
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 420px;
   object-fit: cover;
 }
 
