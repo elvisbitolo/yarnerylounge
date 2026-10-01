@@ -339,6 +339,8 @@ function mapMessageRow(row) {
     parentId: row.parentId || null,
     replyCount: row.replyCount || 0,
     hasAttachment: !!row.hasAttachment,
+    reactions:
+      row.reactions && typeof row.reactions === "object" ? row.reactions : {},
   };
   if (row.attachment && typeof row.attachment === "object") {
     msg.attachment = {

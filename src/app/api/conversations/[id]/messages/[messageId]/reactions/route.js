@@ -5,8 +5,11 @@ import { getConversation } from "@/lib/server/chat";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
-
-const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉", "👏", "💯", "🧶", "⭐"];
+import {
+  isValidReactionEmoji,
+  nextReactionState,
+  normalizedReactionEmoji,
+} from "@/lib/server/reactions-core";
 
 export async function POST(req, { params }) {
   const { id: conversationId, messageId } = await params;
@@ -27,8 +30,8 @@ export async function POST(req, { params }) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const emoji = typeof body?.emoji === "string" ? body.emoji.trim() : "";
-  if (!emoji || !QUICK_EMOJIS.includes(emoji)) {
+  const emoji = normalizedReactionEmoji(body?.emoji);
+  if (!isValidReactionEmoji(emoji)) {
     return NextResponse.json({ error: "Invalid emoji" }, { status: 400 });
   }
 
@@ -48,19 +51,14 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
-  const reactions = message.reactions || {};
-  const alreadyReacted = reactions[emoji]?.[user.uid];
+  const { reactions: next } = nextReactionState(
+    message.reactions,
+    emoji,
+    user.uid
+  );
 
   try {
     const prisma = getPrisma();
-    const next = { ...reactions };
-    const bucket = { ...(next[emoji] || {}) };
-    if (alreadyReacted) {
-      delete bucket[user.uid];
-    } else {
-      bucket[user.uid] = true;
-    }
-    next[emoji] = bucket;
     await prisma.conversationMessage.update({
       where: { id: messageId },
       data: { reactions: next },
