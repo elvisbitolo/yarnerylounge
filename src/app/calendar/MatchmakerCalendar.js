@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Globe, Plus, Trash2, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CalendarDays, Globe, Plus, Trash2, Users, ChevronLeft, ChevronRight, X, Bell } from "lucide-react";
 import {
   RECURRING_OPTIONS,
   recurringLabel,
@@ -22,6 +22,7 @@ import {
   timeZoneDisplay,
   windowHeightPx,
 } from "@/lib/calendar-core";
+import { buildEventIcs, icsFilename } from "@/lib/ics-core";
 import styles from "./calendar.module.css";
 
 const ROOMS = [
@@ -65,6 +66,8 @@ const EXTRA_ZONES = [
 ];
 
 const TIMEZONE_STORAGE_KEY = "yarnery-calendar-timezone";
+
+const REMINDERS_STORAGE_KEY = "yarnery-calendar-reminders";
 
 function browserTimeZone() {
   if (typeof window === "undefined") return "UTC";
@@ -121,6 +124,8 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const [selected, setSelected] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [toast, setToast] = useState("");
+  const [reminders, setReminders] = useState(() => new Set());
+  const notifiedRef = useRef(new Set());
   // The week/day axis opens on waking hours instead of a dead 00:00–08:00.
   const [showAllHours, setShowAllHours] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -162,6 +167,18 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    // Read persisted reminders after mount so server and client first render
+    // agree (localStorage is not available on the server).
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(REMINDERS_STORAGE_KEY) || "[]");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydrate from storage
+      if (Array.isArray(stored) && stored.length) setReminders(new Set(stored));
+    } catch {
+      // Storage disabled: reminders simply start empty.
+    }
+  }, []);
+
   const mine = useMemo(() => {
     const set = new Set();
     availability.forEach((a) => {
@@ -201,8 +218,65 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     [items, filters]
   );
 
+  const nextUp = useMemo(() => {
+    const from = now.getTime();
+    return (
+      items
+        .map((item) => ({ item, at: new Date(item.startAt).getTime() }))
+        .filter(({ at }) => Number.isFinite(at) && at >= from)
+        .sort((a, b) => a.at - b.at)[0]?.item || null
+    );
+  }, [items, now]);
+
   function toggleFilter(kind) {
     setFilters((prev) => ({ ...prev, [kind]: !prev[kind] }));
+  }
+
+  function toggleReminder(block) {
+    if (!block.eventId) return;
+    const has = reminders.has(block.eventId);
+    setReminders((prev) => {
+      const next = new Set(prev);
+      if (has) next.delete(block.eventId);
+      else next.add(block.eventId);
+      try {
+        window.localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify([...next]));
+      } catch {
+        // Storage disabled: the reminder still applies for this session.
+      }
+      return next;
+    });
+    if (has) {
+      setToast("Reminder removed");
+      return;
+    }
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+    setToast("Reminder set — we'll nudge you 15 minutes before");
+  }
+
+  function downloadEvent(block) {
+    const ics = buildEventIcs({
+      id: block.eventId,
+      title: block.title,
+      description: block.note,
+      startTime: block.startAt,
+      endTime: block.endAt,
+      roomName: block.roomName,
+      url: typeof window === "undefined" ? "" : `${window.location.origin}/rooms/${block.roomSlug}`,
+    });
+    if (!ics) return;
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = icsFilename(block.title);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setToast("Calendar file downloaded");
   }
 
   const viewStart = useMemo(() => {
@@ -242,6 +316,24 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     timeZone,
     windowStartMinutes,
   });
+
+  // Fire "starting soon" reminders while the calendar is open. Notifications
+  // are best-effort: permission may be denied and the tab may be closed.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    const nowMs = now.getTime();
+    const soon = nowMs + 15 * 60 * 1000;
+    events.forEach((event) => {
+      if (!reminders.has(event.id) || notifiedRef.current.has(event.id)) return;
+      const start = new Date(event.startTime).getTime();
+      if (!Number.isFinite(start) || start <= nowMs || start > soon) return;
+      notifiedRef.current.add(event.id);
+      new Notification(`Starting soon: ${event.title}`, {
+        body: `${formatClock(event.startTime, timeZone)} · ${roomName(event.roomSlug)}`,
+      });
+    });
+  }, [now, events, reminders, timeZone]);
 
   // Bring the current time into view on first paint and whenever the window
   // changes, rather than dropping the member at 00:00. The position is read
@@ -452,6 +544,33 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
         ))}
       </div>
 
+      {nextUp && (
+        <div className={styles.upNext}>
+          <div className={styles.upNextMain}>
+            <span className={styles.upNextLabel}>Up next</span>
+            <span className={styles.upNextTitle}>{nextUp.title}</span>
+            <span className={styles.upNextWhen}>
+              {formatDay(nextUp.startAt, timeZone)} · {formatClock(nextUp.startAt, timeZone)}
+              {nextUp.roomName ? ` · ${nextUp.roomName}` : ""}
+            </span>
+          </div>
+          <div className={styles.upNextActions}>
+            {nextUp.kind === "event" && nextUp.roomSlug && (
+              <Link href={`/rooms/${nextUp.roomSlug}`} className={styles.upNextBtn}>
+                Join lounge
+              </Link>
+            )}
+            <button
+              type="button"
+              className={styles.upNextGhost}
+              onClick={() => setSelected(nextUp)}
+            >
+              Details
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && <p className={styles.error}>{error}</p>}
       {toast && <p className={styles.toast}>{toast}</p>}
 
@@ -619,7 +738,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
             </div>
           )}
 
-          {availability.length === 0 && (
+          {items.length === 0 && (
             <p className={styles.empty}>
               No availability yet. Click &ldquo;Add Availability&rdquo; to tell the community when you&apos;ll be online.
             </p>
@@ -644,9 +763,13 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           mine={mine.has(selected.id)}
           userId={userId}
           timeZone={timeZone}
+          now={now}
           onClose={() => setSelected(null)}
           onDelete={() => deleteSlot(selected.id).then(() => setSelected(null))}
           onToggle={() => toggleRsvp(selected)}
+          onRemind={() => toggleReminder(selected)}
+          onDownload={() => downloadEvent(selected)}
+          isReminded={Boolean(selected.eventId) && reminders.has(selected.eventId)}
           busy={busyId === selected.id}
         />
       )}
@@ -818,8 +941,22 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
   );
 }
 
-function SelectedModal({ block, mine, userId, timeZone, onClose, onDelete, onToggle, busy }) {
+function SelectedModal({
+  block,
+  mine,
+  userId,
+  timeZone,
+  now,
+  onClose,
+  onDelete,
+  onToggle,
+  onRemind,
+  onDownload,
+  isReminded,
+  busy,
+}) {
   const isEvent = block.kind === "event";
+  const started = new Date(block.startAt).getTime() <= now.getTime();
   const dotColor =
     block.kind === "event" ? "#e91e63" : block.kind === "course" ? "#a78bfa" : "#2dd4bf";
   return (
@@ -832,8 +969,8 @@ function SelectedModal({ block, mine, userId, timeZone, onClose, onDelete, onTog
         <p className={styles.modalSub}>
           <CalendarDays size={14} /> {formatDay(block.startAt, timeZone)} ·{" "}
           {formatClock(block.startAt, timeZone)}
+          {block.endAt && ` – ${formatClock(block.endAt, timeZone)}`}
           {String(block.recurring) !== "none" && ` — ${recurringLabel(block.recurring)}`}
-          {block.endAt && ` · ${formatClock(block.endAt, timeZone)} end`}
         </p>
         {block.roomSlug && (
           <p className={styles.selRoom}>
@@ -861,11 +998,16 @@ function SelectedModal({ block, mine, userId, timeZone, onClose, onDelete, onTog
         {block.note && <p className={styles.selNote}>{block.note}</p>}
         <div className={styles.modalActions}>
           {isEvent ? (
-            block.roomSlug && (
-              <Link href={`/rooms/${block.roomSlug}`} className={styles.saveBtn}>
-                <Users size={15} /> Join lounge
-              </Link>
-            )
+            <>
+              {block.roomSlug && (
+                <Link href={`/rooms/${block.roomSlug}`} className={styles.saveBtn}>
+                  <Users size={15} /> Join lounge
+                </Link>
+              )}
+              <button className={styles.cancelBtn} onClick={onDownload}>
+                <CalendarDays size={15} /> Add to calendar
+              </button>
+            </>
           ) : mine ? (
             <button className={styles.dangerBtn} onClick={onDelete}>
               <Trash2 size={15} /> Delete
@@ -873,6 +1015,15 @@ function SelectedModal({ block, mine, userId, timeZone, onClose, onDelete, onTog
           ) : (
             <button className={styles.saveBtn} onClick={onToggle} disabled={busy}>
               <Users size={15} /> {block.rsvpCount && block.rsvpCount > 0 ? `Stitching along (${block.rsvpCount})` : "Stitch Along"}
+            </button>
+          )}
+          {isEvent && !started && (
+            <button
+              className={`${styles.cancelBtn} ${isReminded ? styles.remindedBtn : ""}`}
+              onClick={onRemind}
+              aria-pressed={isReminded}
+            >
+              <Bell size={15} /> {isReminded ? "Reminder on" : "Remind me"}
             </button>
           )}
           <button className={styles.cancelBtn} onClick={onClose}>Close</button>
