@@ -663,6 +663,7 @@
   .threadTitle {
     font-size: 15px;
   }
+}
 
 .threadHeaderWrap {
   border-bottom: 1px solid #27272a;
@@ -770,7 +771,8 @@
   border-color: var(--primary);
 }
 
-.presenceStatus {
+@media (max-width: 560px) {
+  .presenceStatus {
     font-size: 11px;
     gap: 4px;
   }
