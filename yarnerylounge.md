@@ -244,6 +244,23 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
     `recordingOrientation`, `computeThumbnailSize`, `buildThumbnailPath`,
     `clampDimension`, `parseThumbnailDataUrl` and the new serialized media
     fields. 584 pass / 0 fail; lint 0 errors; build OK.
+- **Phase 2**: processing/failed cards, in-page player and Share.
+  - **Pipeline** — `listRecordings({ includeUnready })` returns
+    pending/processing/failed rows (newest-first, null dates last) and the
+    library polls `GET /api/recordings?include=all` every 8s while anything is
+    unready, so a card flips to playable without a reload. Non-ready cards show
+    an indeterminate bar; failed cards offer Retry.
+  - **Retry** — `POST /api/recordings/[id]/retry` (owner only) resets the row to
+    `pending` via `retryRecording` (rejects an expired 24h JaaS link with 410)
+    and re-runs `pullRecording` in `after()`; `maxDuration = 300`.
+  - **Player** — `RecordingPlayer.js` adds a 0.75–2× speed select, resume
+    position (`localStorage` key `yarnery-recording-pos:<id>`, skipped within 5s
+    of the end), volume, full screen and keyboard controls (space, ←/→ ±5s,
+    ↑/↓ volume, F). Vertical video fits whole (`object-fit: contain`).
+  - **Share / download** — “Share” copies a members-only deep link
+    `/recordings?rec=<id>`; opening that link auto-plays the recording. The play
+    route now also returns a `downloadUrl` attachment for owners and moderators.
+  - Lint 0 errors (28 warnings); build OK.
 
 ## Housekeeping
 
