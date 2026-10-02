@@ -864,6 +864,41 @@
   animation: pulse 1.6s ease-in-out infinite;
 }
 
+/* Live consent indicator: stronger than the "recording available" chip. */
+.recordLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #3a0d1a;
+  border: 1px solid #6d2133;
+  color: #ff9db0;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.recordingBanner {
+  margin: 0;
+  padding: 8px 14px;
+  background: rgba(217, 74, 74, 0.14);
+  border-bottom: 1px solid #3a2028;
+  color: #ffb3b3;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Join-screen notice: recording consent before the member enters. */
+.stageJoinRecording {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #c9a0a8;
+}
+
 /* Stage */
 
 .stageGallery {

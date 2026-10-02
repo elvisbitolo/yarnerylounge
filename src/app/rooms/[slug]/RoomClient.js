@@ -154,6 +154,8 @@ export default function RoomClient({
   const [inlineError, setInlineError] = useState("");
   const [connStatus, setConnStatus] = useState("connecting"); // connecting | connected | reconnecting | lost
   const [participantCount, setParticipantCount] = useState(0);
+  // True while JaaS reports an active recording, for the consent indicator.
+  const [recording, setRecording] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [mountKey, setMountKey] = useState(0);
@@ -609,6 +611,11 @@ export default function RoomClient({
     api.addEventListener("participantLeft", syncCount);
     api.addEventListener("participantJoined", refreshRemoteParticipants);
     api.addEventListener("participantLeft", refreshRemoteParticipants);
+    // Consent: surface a recording the moment it starts, for every participant
+    // (hosts and viewers alike), not just the member who started it.
+    api.addEventListener("recordingStatusChanged", (payload = {}) => {
+      setRecording(Boolean(payload.on ?? payload.recording));
+    });
     api.addEventListener("displayNameChange", () => refreshRemoteParticipants());
     api.addEventListener("participantMuted", ({ participantId, isMuted, mediaType } = {}) => {
       if (!participantId) return;
@@ -1110,13 +1117,25 @@ export default function RoomClient({
                 <span className={styles.liveDot} aria-hidden="true" />
                 {t("live")} · {participantCount}
               </span>
-              {canRecord && (
-                <span className={styles.recordChip} title={t("recordingAvail")}>
-                  <span className={styles.recordDot} aria-hidden="true" /> REC
+              {recording ? (
+                <span className={styles.recordLive} role="status">
+                  <span className={styles.recordDot} aria-hidden="true" /> {t("recordingNow")}
                 </span>
+              ) : (
+                canRecord && (
+                  <span className={styles.recordChip} title={t("recordingAvail")}>
+                    <span className={styles.recordDot} aria-hidden="true" /> REC
+                  </span>
+                )
               )}
             </div>
           </header>
+
+          {recording && (
+            <p className={styles.recordingBanner} role="status">
+              {t("recordingLive")}
+            </p>
+          )}
 
           <div
             className={
@@ -1165,6 +1184,7 @@ export default function RoomClient({
                         ? t("connectingElapsed", { seconds: String(connectSeconds) })
                         : t("connectingShortWait")}
                   </p>
+                  <p className={styles.stageJoinRecording}>{t("recordingJoinNotice")}</p>
                   {connStalled && (
                     <button type="button" className={styles.stageJoinRetry} onClick={reconnectNow}>
                       <RefreshCcw size={14} />

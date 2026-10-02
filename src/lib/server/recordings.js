@@ -13,10 +13,13 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import {
   buildStoragePath,
+  buildThumbnailPath,
+  clampDimension,
   clampSize,
   defaultRecordingTitle,
   isSourceExpired,
   parseRecordingUploaded,
+  THUMBNAIL_MAX_BYTES,
 } from "./recordings-core";
 
 export const RECORDINGS_BUCKET = "recordings";
@@ -317,6 +320,8 @@ export async function listRecordings({ roomId = null, limit = 60 } = {}) {
     where: {
       status: "ready",
       share: true,
+      // Soft-deleted rows live in the Trash until the 30-day purge.
+      deletedAt: null,
       ...(roomId ? { roomId } : {}),
     },
     // Array form, as Prisma 7 requires for more than one sort key. A plain
@@ -355,6 +360,103 @@ export async function signTranscriptUrl(recording, ttlSec = PLAYBACK_URL_TTL_SEC
   return data?.signedUrl || null;
 }
 
+/** Signed URL for a recording's poster frame, when one was captured. */
+export async function signThumbnailUrl(recording, ttlSec = PLAYBACK_URL_TTL_SEC) {
+  const path = recording?.thumbnailPath;
+  if (!path) return null;
+  const { data, error } = await supabaseAdmin.storage
+    .from(recording.storageBucket || RECORDINGS_BUCKET)
+    .createSignedUrl(path, ttlSec, { download: false });
+  if (error) {
+    logError("recordings:sign-thumbnail-failed", { id: recording.id, message: error?.message });
+    return null;
+  }
+  return data?.signedUrl || null;
+}
+
+/**
+ * Sign poster frames for a whole library page in one Storage call.
+ * Returns a `{ [thumbnailPath]: signedUrl }` map so the page can attach the
+ * right frame to each serialized row.
+ */
+export async function signThumbnailUrls(recordings, ttlSec = PLAYBACK_URL_TTL_SEC) {
+  const rows = (recordings || []).filter((r) => r?.thumbnailPath);
+  if (!rows.length) return {};
+  // createSignedUrls is bucket-scoped; all rows share the recordings bucket in
+  // practice, but group defensively in case a legacy row points elsewhere.
+  const byBucket = new Map();
+  for (const row of rows) {
+    const bucket = row.storageBucket || RECORDINGS_BUCKET;
+    if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+    byBucket.get(bucket).push({ path: row.thumbnailPath, key: row.id });
+  }
+  const urls = {};
+  for (const [bucket, entries] of byBucket) {
+    const { data, error } = await supabaseAdmin.storage
+      .from(bucket)
+      .createSignedUrls(entries.map((e) => e.path), ttlSec, { download: false });
+    if (error) {
+      logError("recordings:sign-thumbnails-failed", { message: error?.message });
+      continue;
+    }
+    data?.forEach((item, index) => {
+      const entry = entries[index];
+      if (entry && item?.signedUrl) urls[entry.key] = item.signedUrl;
+    });
+  }
+  return urls;
+}
+
+/**
+ * Persist a browser-captured poster frame and its intrinsic dimensions.
+ *
+ * Idempotent under a race: if another tab already stored a frame we keep it
+ * rather than overwriting, and return what is already there. A zero-byte or
+ * unreadable image is refused before it touches Storage.
+ */
+export async function saveThumbnail({ recording, image, width, height } = {}) {
+  if (!recording?.id) return { ok: false, error: "no_recording" };
+  if (recording.status !== "ready" || !recording.share || recording.deletedAt) {
+    return { ok: false, error: "not_readable" };
+  }
+
+  const prisma = getPrisma();
+  const existing = await prisma.recording.findUnique({ where: { id: recording.id } });
+  if (existing?.thumbnailPath) {
+    return { ok: true, thumbnailPath: existing.thumbnailPath, skipped: "exists" };
+  }
+
+  const buffer = image?.buffer;
+  if (!buffer?.length) return { ok: false, error: "empty_image" };
+  if (buffer.length > THUMBNAIL_MAX_BYTES) return { ok: false, error: "image_too_large" };
+
+  if (!(await ensureRecordingsBucket())) {
+    return { ok: false, error: "bucket_unavailable" };
+  }
+
+  const path = buildThumbnailPath({
+    recordingId: recording.id,
+    startedAt: recording.startedAt,
+  });
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(RECORDINGS_BUCKET)
+    .upload(path, buffer, { contentType: image.contentType || "image/jpeg", upsert: true });
+  if (uploadError) {
+    logError("recordings:thumbnail-upload-failed", { id: recording.id, message: uploadError.message });
+    return { ok: false, error: "upload_failed" };
+  }
+
+  await prisma.recording.update({
+    where: { id: recording.id },
+    data: {
+      thumbnailPath: path,
+      width: clampDimension(width) ?? existing?.width ?? null,
+      height: clampDimension(height) ?? existing?.height ?? null,
+    },
+  });
+  return { ok: true, thumbnailPath: path };
+}
+
 /**
  * Delete a recording and its stored objects. The DB row goes first: if the
  * storage delete fails we would otherwise have a row pointing at nothing.
@@ -363,7 +465,7 @@ export async function deleteRecording(recording) {
   if (!recording) return { ok: false, error: "no_recording" };
   const prisma = getPrisma();
   const bucket = recording.storageBucket || RECORDINGS_BUCKET;
-  const paths = [recording.storagePath, recording.transcriptPath].filter(Boolean);
+  const paths = [recording.storagePath, recording.transcriptPath, recording.thumbnailPath].filter(Boolean);
   if (paths.length) {
     const { error } = await supabaseAdmin.storage.from(bucket).remove(paths);
     if (error) logError("recordings:storage-delete-failed", { id: recording.id, message: error?.message });

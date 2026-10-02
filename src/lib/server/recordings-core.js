@@ -178,7 +178,15 @@ export function toDate(value) {
  * Presentation helpers live in a separate dependency-free module so the
  * browser player can import them too — see ../recordings-display.js.
  */
-export { defaultRecordingTitle, formatDuration, formatBytes } from "../recordings-display.js";
+export {
+  defaultRecordingTitle,
+  formatBytes,
+  formatDuration,
+  formatRecordingDate,
+  formatRecordingTime,
+  isNewRecording,
+  recordingOrientation,
+} from "../recordings-display.js";
 
 /**
  * Normalize a RECORDING_UPLOADED payload into the columns we persist.
@@ -250,6 +258,51 @@ export function buildStoragePath({ recordingId, startedAt, kind = "video", ext =
   return `${yyyy}/${mm}/${safeId}-${yyyy}${mm}${dd}T${time}Z-${kind}.${ext}`;
 }
 
+/** Poster-frame object key, stored beside the video as "...-thumb.jpg". */
+export function buildThumbnailPath({ recordingId, startedAt }) {
+  return buildStoragePath({ recordingId, startedAt, kind: "thumb", ext: "jpg" });
+}
+
+// A client-captured poster frame is a small JPEG; cap it so a hostile or buggy
+// upload cannot fill the bucket or the function's memory.
+export const THUMBNAIL_MAX_BYTES = 512 * 1024;
+// Intrinsic dimensions beyond this are nonsense for a video frame.
+const DIMENSION_MAX = 8192;
+
+/** Coerce a reported video dimension into 1..8192, or null. */
+export function clampDimension(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(Math.round(n), DIMENSION_MAX);
+}
+
+/** Magic-byte check: the declared mime is not trusted on its own. */
+function looksLikeImage(buffer) {
+  if (buffer.length < 12) return false;
+  const jpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const png = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  const webp =
+    buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+  return jpeg || png || webp;
+}
+
+/**
+ * Decode a canvas `toDataURL("image/jpeg")` string into bytes for Storage.
+ * Returns null for anything malformed, oversized, or not actually an image.
+ */
+export function parseThumbnailDataUrl(value, { maxBytes = THUMBNAIL_MAX_BYTES } = {}) {
+  if (typeof value !== "string") return null;
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\s]+)$/i.exec(value.trim());
+  if (!match) return null;
+  const base64 = match[2].replace(/\s+/g, "");
+  // 4 base64 chars -> 3 bytes. Reject on the estimate before allocating.
+  const approx = Math.floor((base64.length * 3) / 4);
+  if (approx <= 0 || approx > maxBytes) return null;
+  const buffer = Buffer.from(base64, "base64");
+  if (!buffer.length || buffer.length > maxBytes || !looksLikeImage(buffer)) return null;
+  return { buffer, contentType: match[1].toLowerCase() };
+}
+
 /** True once the 24h preAuthenticatedLink can no longer be used. */
 export function isSourceExpired(sourceExpiresAt, now = Date.now()) {
   const expiry = toEpoch(sourceExpiresAt);
@@ -281,6 +334,9 @@ export function serializeRecording(row) {
     durationSec: row.durationSec,
     sizeBytes: row.sizeBytes,
     sizeUnknown: row.sizeUnknown,
+    width: row.width ?? null,
+    height: row.height ?? null,
+    hasThumbnail: Boolean(row.thumbnailPath),
     participants: Array.isArray(row.participants) ? row.participants : [],
     startedAt: toIso(row.startedAt),
     endedAt: toIso(row.endedAt),

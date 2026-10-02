@@ -802,7 +802,10 @@
     "micInUse": "Votre micro est utilisé par une autre application.",
     "retryMic": "Réessayer le micro",
     "retry": "Réessayer",
-    "recordingAvail": "L'enregistrement est disponible pour ce salon."
+    "recordingAvail": "L'enregistrement est disponible pour ce salon.",
+    "recordingNow": "Enregistrement",
+    "recordingLive": "Cette session est enregistrée",
+    "recordingJoinNotice": "Ce salon peut être enregistré."
   },
   "recordings": {
     "title": "Enregistrements",
@@ -819,6 +822,10 @@
     "ownerNote": "Seuls les propriétaires peuvent supprimer les enregistrements.",
     "playbackFailed": "Cet enregistrement n’a pas pu être chargé.",
     "loadFailed": "Impossible de charger la bibliothèque d’enregistrements.",
-    "unavailable": "Cet enregistrement n’est plus disponible."
+    "unavailable": "Cet enregistrement n’est plus disponible.",
+    "hide": "Masquer",
+    "loading": "Chargement…",
+    "newBadge": "Nouveau",
+    "browseCalendar": "Voir le calendrier"
   }
 }

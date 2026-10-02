@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import {
   buildStoragePath,
+  buildThumbnailPath,
+  clampDimension,
   clampSize,
   extractMeetingName,
   findRoomByMeeting,
@@ -10,6 +12,7 @@ import {
   normalizeMeetingKey,
   parseJaasSignature,
   parseRecordingUploaded,
+  parseThumbnailDataUrl,
   serializeRecording,
   signJaasPayload,
   verifyJaasSignature,
@@ -387,4 +390,69 @@ test("serializeRecording: falls back through title then roomName", () => {
 
 test("serializeRecording: returns null for a missing row", () => {
   assert.equal(serializeRecording(null), null);
+});
+
+test("serializeRecording: exposes dimensions and thumbnail presence", () => {
+  const out = serializeRecording({ ...ROW, width: 1080, height: 1920, thumbnailPath: "2026/03/x-thumb.jpg" });
+  assert.equal(out.width, 1080);
+  assert.equal(out.height, 1920);
+  assert.equal(out.hasThumbnail, true);
+});
+
+test("serializeRecording: normalises missing media metadata", () => {
+  const out = serializeRecording({ ...ROW, width: undefined, height: null, thumbnailPath: null });
+  assert.equal(out.width, null);
+  assert.equal(out.height, null);
+  assert.equal(out.hasThumbnail, false);
+});
+
+// -------------------------------------------------------------- thumbnails
+
+test("buildThumbnailPath: stores the poster beside the video", () => {
+  const path = buildThumbnailPath({ recordingId: "abc123", startedAt: new Date(START) });
+  assert.equal(path, "2026/03/abc123-20260301T100000Z-thumb.jpg");
+});
+
+test("clampDimension: rounds sane values and rejects junk", () => {
+  assert.equal(clampDimension(1080.4), 1080);
+  assert.equal(clampDimension(9000), 8192);
+  assert.equal(clampDimension(0), null);
+  assert.equal(clampDimension("x"), null);
+});
+
+// A 16-byte JPEG-ish buffer and a 16-byte PNG-ish buffer: enough to satisfy
+// the magic-byte check without shipping a real image.
+function dataUrl(mime, bytes) {
+  return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+}
+const JPEG_BYTES = [0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const PNG_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0];
+
+test("parseThumbnailDataUrl: decodes a real data URL", () => {
+  const parsed = parseThumbnailDataUrl(dataUrl("image/jpeg", JPEG_BYTES));
+  assert.equal(parsed.contentType, "image/jpeg");
+  assert.equal(parsed.buffer.length, JPEG_BYTES.length);
+});
+
+test("parseThumbnailDataUrl: accepts PNG and WebP", () => {
+  const webp = [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0, 0, 0, 0];
+  assert.equal(parseThumbnailDataUrl(dataUrl("image/png", PNG_BYTES)).contentType, "image/png");
+  assert.equal(parseThumbnailDataUrl(dataUrl("image/webp", webp)).contentType, "image/webp");
+});
+
+test("parseThumbnailDataUrl: rejects a non-image payload", () => {
+  const text = Buffer.from("this is not an image at all").toString("base64");
+  assert.equal(parseThumbnailDataUrl(`data:image/jpeg;base64,${text}`), null);
+});
+
+test("parseThumbnailDataUrl: rejects malformed or disallowed data URLs", () => {
+  assert.equal(parseThumbnailDataUrl("nope"), null);
+  assert.equal(parseThumbnailDataUrl("data:image/gif;base64,R0lGOD"), null);
+  assert.equal(parseThumbnailDataUrl("data:image/jpeg,notbase64"), null);
+  assert.equal(parseThumbnailDataUrl(null), null);
+});
+
+test("parseThumbnailDataUrl: rejects anything over the byte cap", () => {
+  const big = dataUrl("image/jpeg", JPEG_BYTES);
+  assert.equal(parseThumbnailDataUrl(big, { maxBytes: 4 }), null);
 });

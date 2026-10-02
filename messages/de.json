@@ -802,7 +802,10 @@
     "micInUse": "Ihr Mikrofon wird von einer anderen Anwendung verwendet.",
     "retryMic": "Mikrofon erneut versuchen",
     "retry": "Erneut versuchen",
-    "recordingAvail": "Aufnahme ist für diese Lounge verfügbar."
+    "recordingAvail": "Aufnahme ist für diese Lounge verfügbar.",
+    "recordingNow": "Aufnahme läuft",
+    "recordingLive": "Diese Sitzung wird aufgezeichnet",
+    "recordingJoinNotice": "Diese Lounge kann aufgezeichnet werden."
   },
   "recordings": {
     "title": "Aufzeichnungen",
@@ -819,6 +822,10 @@
     "ownerNote": "Nur Eigentümer können Aufzeichnungen löschen.",
     "playbackFailed": "Diese Aufzeichnung konnte nicht geladen werden.",
     "loadFailed": "Die Aufzeichnungsbibliothek konnte nicht geladen werden.",
-    "unavailable": "Diese Aufzeichnung ist nicht mehr verfügbar."
+    "unavailable": "Diese Aufzeichnung ist nicht mehr verfügbar.",
+    "hide": "Ausblenden",
+    "loading": "Wird geladen…",
+    "newBadge": "Neu",
+    "browseCalendar": "Zum Kalender"
   }
 }

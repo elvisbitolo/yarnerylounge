@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  computeThumbnailSize,
   defaultRecordingTitle,
   formatBytes,
   formatDuration,
   formatRecordingDate,
+  formatRecordingTime,
+  isNewRecording,
+  recordingOrientation,
 } from "../../recordings-display.js";
 
 test("formatDuration: renders minutes and seconds", () => {
@@ -93,4 +97,57 @@ test("defaultRecordingTitle: falls back to now for a missing start time", () => 
 
 test("defaultRecordingTitle: tolerates being called with nothing", () => {
   assert.match(defaultRecordingTitle(), /^Lounge recording/);
+});
+
+test("formatRecordingTime: renders a locale clock time", () => {
+  const time = formatRecordingTime("2026-03-01T14:05:00.000Z");
+  assert.ok(/\d{1,2}:\d{2}/.test(time));
+});
+
+test("formatRecordingTime: returns null for junk input", () => {
+  assert.equal(formatRecordingTime(null), null);
+  assert.equal(formatRecordingTime("not-a-date"), null);
+});
+
+test("isNewRecording: true inside the 48h window", () => {
+  const now = Date.parse("2026-03-02T10:00:00.000Z");
+  const started = "2026-03-01T10:00:00.000Z";
+  assert.equal(isNewRecording(started, now), true);
+});
+
+test("isNewRecording: false once the window has passed", () => {
+  const now = Date.parse("2026-03-05T10:00:00.000Z");
+  assert.equal(isNewRecording("2026-03-01T10:00:00.000Z", now), false);
+});
+
+test("isNewRecording: rejects a future start and junk input", () => {
+  const now = Date.parse("2026-03-02T10:00:00.000Z");
+  assert.equal(isNewRecording("2026-03-03T10:00:00.000Z", now), false);
+  assert.equal(isNewRecording(null, now), false);
+  assert.equal(isNewRecording("nope", now), false);
+});
+
+test("recordingOrientation: picks vertical only when taller than wide", () => {
+  assert.equal(recordingOrientation(1920, 1080), "landscape");
+  assert.equal(recordingOrientation(1080, 1920), "vertical");
+  assert.equal(recordingOrientation(1080, 1080), "landscape");
+});
+
+test("recordingOrientation: falls back to landscape for unknown dimensions", () => {
+  assert.equal(recordingOrientation(null, null), "landscape");
+  assert.equal(recordingOrientation(0, 0), "landscape");
+  assert.equal(recordingOrientation("x", 720), "landscape");
+});
+
+test("computeThumbnailSize: caps the longest side at 640", () => {
+  assert.deepEqual(computeThumbnailSize(1920, 1080), { width: 640, height: 360 });
+  assert.deepEqual(computeThumbnailSize(1080, 1920), { width: 360, height: 640 });
+});
+
+test("computeThumbnailSize: never upscales a small frame", () => {
+  assert.deepEqual(computeThumbnailSize(320, 180), { width: 320, height: 180 });
+});
+
+test("computeThumbnailSize: falls back to 16:9 for unknown dimensions", () => {
+  assert.deepEqual(computeThumbnailSize(0, 0), { width: 640, height: 360 });
 });

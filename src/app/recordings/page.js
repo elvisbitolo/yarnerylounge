@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { listRecordings } from "@/lib/server/recordings";
+import { listRecordings, signThumbnailUrls } from "@/lib/server/recordings";
 import { serializeRecording } from "@/lib/server/recordings-core";
 import { logError } from "@/lib/server/log";
 import Nav from "@/components/Nav";
@@ -19,7 +19,12 @@ export default async function RecordingsPage() {
   let loadError = null;
   try {
     const rows = await listRecordings({ limit: 60 });
-    recordings = rows.map(serializeRecording);
+    // Sign every poster frame in one Storage call, then attach it by row id.
+    const thumbUrls = await signThumbnailUrls(rows);
+    recordings = rows.map((row) => ({
+      ...serializeRecording(row),
+      thumbnailUrl: thumbUrls[row.id] || null,
+    }));
   } catch (error) {
     // An empty library and a broken query look identical otherwise, and a
     // silent empty state would be misread as "nothing has been recorded yet".

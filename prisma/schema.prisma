@@ -743,6 +743,13 @@ model Recording {
   sizeBytes     Int?
   sizeUnknown   Boolean   @default(false)
   durationSec   Int?
+  // Intrinsic video dimensions, reported by the browser when it captures the
+  // thumbnail. Drives the card's 16:9 vs 9:16 frame without re-probing the file.
+  width         Int?
+  height        Int?
+  // Object key of the poster frame in the recordings bucket. Captured
+  // client-side: the serverless runtime has no ffmpeg.
+  thumbnailPath String?
   // Transcript file from TRANSCRIPTION_UPLOADED, when the meeting transcribed.
   transcriptPath String?
   // [{ id, name, avatar }] exactly as JaaS reported it, for the credits list.
@@ -760,6 +767,10 @@ model Recording {
   pulledAt         DateTime?
   attempts        Int       @default(0)
   lastError       String?
+  // Trash window: set when an owner deletes, cleared by Undo. The library
+  // hides anything with a value here; storage is purged after 30 days.
+  deletedAt       DateTime?
+  deletedBy       String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -768,6 +779,7 @@ model Recording {
   @@index([roomId, createdAt(sort: Desc)])
   @@index([status])
   @@index([createdAt(sort: Desc)])
+  @@index([deletedAt])
 }
 
 // ---------------------------------------------------------------------------

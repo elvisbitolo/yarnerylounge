@@ -802,7 +802,10 @@
     "micInUse": "Your microphone is being used by another application.",
     "retryMic": "Retry mic",
     "retry": "Retry",
-    "recordingAvail": "Recording is available for this lounge."
+    "recordingAvail": "Recording is available for this lounge.",
+    "recordingNow": "Recording",
+    "recordingLive": "This session is being recorded",
+    "recordingJoinNotice": "This lounge may be recorded."
   },
   "recordings": {
     "title": "Recordings",
@@ -819,6 +822,10 @@
     "ownerNote": "Only owners can delete recordings.",
     "playbackFailed": "This recording could not be loaded.",
     "loadFailed": "Could not load the recordings library.",
-    "unavailable": "This recording is no longer available."
+    "unavailable": "This recording is no longer available.",
+    "hide": "Hide",
+    "loading": "Loading…",
+    "newBadge": "New",
+    "browseCalendar": "See what's on the calendar"
   }
 }
