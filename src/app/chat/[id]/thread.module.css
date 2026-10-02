@@ -650,6 +650,48 @@
   }
 }
 
+/* Jump-to-latest, floats over the message list just above the composer */
+.jumpLatest {
+  position: absolute;
+  right: 20px;
+  bottom: 84px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #3a3a45;
+  border-radius: 999px;
+  background: #26262e;
+  color: #e8e8ec;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.jumpLatest:hover {
+  background: #2f2f39;
+  transform: translateY(-1px);
+}
+
+.jumpCount {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

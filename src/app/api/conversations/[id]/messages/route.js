@@ -12,6 +12,8 @@ import { validateReplyText } from "@/lib/server/chat-core";
 
 const MAX_ATTACHMENT_LENGTH = 700_000;
 const IMAGE_MIME = /^image\/(png|jpe?g|gif|webp|avif)$/;
+const VOICE_MIME = new Set(["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"]);
+const MAX_VOICE_PEAKS = 64;
 const ALLOWED_FILE_MIME = new Set([
   "application/octet-stream",
   "application/pdf",
@@ -48,10 +50,16 @@ function validateAttachment(attachment) {
     return { error: "Attachment name required" };
   }
   const cleanMime = typeof mime === "string" ? mime.toLowerCase().trim() : "";
+  const baseMime = cleanMime.split(";")[0].trim();
   const isImage = kind === "image";
+  const isAudio = kind === "audio";
   if (isImage) {
     if (!IMAGE_MIME.test(cleanMime)) {
       return { error: "Only PNG, JPEG, GIF, WEBP or AVIF images are allowed" };
+    }
+  } else if (isAudio) {
+    if (!VOICE_MIME.has(baseMime)) {
+      return { error: "That audio format isn't supported" };
     }
   } else if (kind !== "file" || (!isBlobUrl && !ALLOWED_FILE_MIME.has(cleanMime))) {
     return { error: "That file type isn't allowed yet" };
@@ -59,21 +67,33 @@ function validateAttachment(attachment) {
   // The payload must actually match the declared type — blocks MIME smuggling
   // and non-data payloads (e.g. javascript: URLs). Blob URLs are already
   // validated by the server-side upload route.
-  if (!isBlobUrl && !dataUrl.startsWith(`data:${cleanMime};base64,`)) {
+  if (!isBlobUrl && !dataUrl.startsWith(`data:${isAudio ? baseMime : cleanMime};base64,`)) {
     return { error: "Attachment payload doesn't match its file type" };
   }
-  return {
-    ok: true,
-    attachment: {
-      name: name.slice(0, 120),
-      mime: cleanMime.slice(0, 100),
-      kind: isImage ? "image" : "file",
-      size: Number.isFinite(attachment.size) && attachment.size > 0
-        ? Math.round(Math.min(attachment.size, 50 * 1024 * 1024))
-        : 0,
-      dataUrl,
-    },
+  const attachmentOut = {
+    name: name.slice(0, 120),
+    mime: (isAudio ? baseMime : cleanMime).slice(0, 100),
+    kind: isImage ? "image" : isAudio ? "audio" : "file",
+    size: Number.isFinite(attachment.size) && attachment.size > 0
+      ? Math.round(Math.min(attachment.size, 50 * 1024 * 1024))
+      : 0,
+    dataUrl,
   };
+  if (isAudio) {
+    attachmentOut.durationMs = Number.isFinite(attachment.durationMs) && attachment.durationMs > 0
+      ? Math.round(Math.min(attachment.durationMs, 15 * 60 * 1000))
+      : 0;
+    if (Array.isArray(attachment.peaks)) {
+      attachmentOut.peaks = attachment.peaks
+        .slice(0, MAX_VOICE_PEAKS)
+        .map((p) => {
+          const n = Number(p);
+          if (!Number.isFinite(n)) return 0;
+          return Math.max(0, Math.min(1, Math.round(n * 100) / 100));
+        });
+    }
+  }
+  return { ok: true, attachment: attachmentOut };
 }
 
 export async function GET(req, { params }) {

@@ -519,13 +519,27 @@ export async function addMessage(conversationId, sender, text, attachment = null
         hasAttachment: false,
       };
       if (attachment) {
+        const kind = attachment.kind === "image" ? "image" : attachment.kind === "audio" ? "audio" : "file";
         msgData.attachment = {
           name: String(attachment.name || "").slice(0, 120),
           mime: String(attachment.mime || "").slice(0, 100),
-          kind: attachment.kind === "image" ? "image" : "file",
+          kind,
           size: Number.isFinite(attachment.size) && attachment.size > 0 ? Math.round(attachment.size) : 0,
           dataUrl: encryptText(attachment.dataUrl),
         };
+        if (kind === "audio") {
+          msgData.attachment.durationMs = Number.isFinite(attachment.durationMs) && attachment.durationMs > 0
+            ? Math.round(Math.min(attachment.durationMs, 15 * 60 * 1000))
+            : 0;
+          if (Array.isArray(attachment.peaks)) {
+            msgData.attachment.peaks = attachment.peaks
+              .slice(0, 64)
+              .map((p) => {
+                const n = Number(p);
+                return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
+              });
+          }
+        }
         msgData.hasAttachment = true;
       }
       const created = await prisma.conversationMessage.create({ data: msgData });
@@ -534,9 +548,11 @@ export async function addMessage(conversationId, sender, text, attachment = null
         text ||
         (attachment?.kind === "image"
           ? "Photo"
-          : attachment?.name
-            ? `${attachment.name}`
-            : "");
+          : attachment?.kind === "audio"
+            ? "Voice message"
+            : attachment?.name
+              ? `${attachment.name}`
+              : "");
       await prisma.conversation.update({
         where: { id: conversationId },
         data: {

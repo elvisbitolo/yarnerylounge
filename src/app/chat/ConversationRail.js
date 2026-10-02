@@ -3,10 +3,17 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCheck } from "lucide-react";
+import { CheckCheck, Eye, EyeOff } from "lucide-react";
 import { subscribeInbox } from "@/lib/chat-realtime";
 import { chatListTime } from "@/lib/chat-time";
-import { subscribeTyping, getTypingState } from "@/lib/chat-typing-core";
+import {
+  subscribeTyping,
+  getTypingState,
+  subscribeTypingHidden,
+  getTypingHidden,
+  getTypingHiddenServer,
+  setTypingHidden,
+} from "@/lib/chat-typing-core";
 import styles from "./chat.module.css";
 
 const EMPTY_TYPING = {};
@@ -53,6 +60,13 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
     subscribeTyping,
     getTypingState,
     () => EMPTY_TYPING
+  );
+
+  // Privacy setting: when hidden, we stop broadcasting our own typing dots.
+  const typingHidden = useSyncExternalStore(
+    subscribeTypingHidden,
+    getTypingHidden,
+    getTypingHiddenServer
   );
 
   useEffect(() => {
@@ -182,14 +196,26 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
       <div className={styles.railHead}>
         <div className={styles.railTitleRow}>
           <h1 className={styles.railTitle}>Chats</h1>
-          <button
-            type="button"
-            className={styles.newChatBtn}
-            onClick={() => setShowNewChat((v) => !v)}
-            aria-expanded={showNewChat}
-          >
-            {showNewChat ? "Done" : "+ New chat"}
-          </button>
+          <div className={styles.railTitleActions}>
+            <button
+              type="button"
+              className={styles.iconToggle}
+              onClick={() => setTypingHidden(!typingHidden)}
+              aria-pressed={typingHidden}
+              aria-label={typingHidden ? "Show my typing indicator" : "Hide my typing indicator"}
+              title={typingHidden ? "Show my typing indicator" : "Hide my typing indicator"}
+            >
+              {typingHidden ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button
+              type="button"
+              className={styles.newChatBtn}
+              onClick={() => setShowNewChat((v) => !v)}
+              aria-expanded={showNewChat}
+            >
+              {showNewChat ? "Done" : "+ New chat"}
+            </button>
+          </div>
         </div>
         <input
           className={styles.railSearch}

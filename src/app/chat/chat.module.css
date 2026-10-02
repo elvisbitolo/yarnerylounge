@@ -199,6 +199,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 .messages {
@@ -453,6 +454,141 @@
 
 .mine .fileDownload {
   color: #ffffff;
+}
+
+.voiceNote {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.08);
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.mine .voiceNote {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.voicePlay {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.voicePlay:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.voiceWave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.voiceBar {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  transition: background 0.1s ease;
+}
+
+.voiceBarPlayed {
+  background: var(--primary);
+}
+
+.mine .voiceBar {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.mine .voiceBarPlayed {
+  background: #ffffff;
+}
+
+.voiceDuration {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.voiceAudioHidden {
+  display: none;
+}
+
+.recordingBar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #3a3a45;
+  border-radius: 999px;
+  background: #24242b;
+}
+
+.recordingDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ef4444;
+  animation: recordPulse 1s ease-in-out infinite;
+}
+
+.recordingTime {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f2f2f2;
+}
+
+.recordingHint {
+  flex: 1;
+  font-size: 12px;
+  color: #9a9aa4;
+}
+
+.recordingCancel {
+  border: none;
+  background: transparent;
+  color: #b9b9c2;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recordingCancel:hover {
+  color: #f2f2f2;
+}
+
+@keyframes recordPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recordingDot {
+    animation: none;
+  }
 }
 
 .attachError {
@@ -841,6 +977,39 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.railTitleActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.iconToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #3a3a45;
+  border-radius: 999px;
+  background: #24242b;
+  color: #b9b9c2;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.iconToggle:hover,
+.iconToggle[aria-pressed="true"] {
+  background: #2c2c35;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.iconToggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .railTitle {

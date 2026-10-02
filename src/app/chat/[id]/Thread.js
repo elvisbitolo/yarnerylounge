@@ -15,7 +15,7 @@ import {
   readTypingHidden,
   TYPING_THROTTLE_MS,
 } from "@/lib/chat-typing-core";
-import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck } from "lucide-react";
+import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, ChevronDown, Mic, Play, Pause } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -45,6 +45,124 @@ function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatVoiceDuration(ms) {
+  const total = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function pickVoiceMime() {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+  return candidates.find((m) => MediaRecorder.isTypeSupported(m)) || "";
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Couldn't read that voice note"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Downsample the recorded waveform into `buckets` 0–1 amplitudes so recipients
+// can render it without downloading the audio first.
+async function computePeaks(blob, buckets = 40) {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return [];
+    const ctx = new AudioCtx();
+    const buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const data = buffer.getChannelData(0);
+    const block = Math.max(1, Math.floor(data.length / buckets));
+    const peaks = [];
+    for (let i = 0; i < buckets; i++) {
+      let sum = 0;
+      const start = i * block;
+      for (let j = 0; j < block; j++) sum += Math.abs(data[start + j] || 0);
+      peaks.push(Math.min(1, (sum / block) * 3));
+    }
+    await ctx.close?.();
+    return peaks;
+  } catch {
+    return [];
+  }
+}
+
+const DEFAULT_VOICE_BARS = Array.from({ length: 40 }, (_, i) =>
+  Math.round((0.25 + 0.6 * Math.abs(Math.sin(i * 0.7))) * 100) / 100
+);
+
+function VoiceNote({ url, peaks, durationMs, label }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const bars = Array.isArray(peaks) && peaks.length ? peaks : DEFAULT_VOICE_BARS;
+
+  function toggle() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) audio.play().catch(() => {});
+    else audio.pause();
+  }
+
+  function seek(e) {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * audio.duration;
+    setProgress(ratio);
+  }
+
+  return (
+    <div className={styles.voiceNote}>
+      <button
+        type="button"
+        className={styles.voicePlay}
+        onClick={toggle}
+        aria-label={playing ? "Pause voice note" : "Play voice note"}
+      >
+        {playing ? <Pause size={15} /> : <Play size={15} />}
+      </button>
+      <button
+        type="button"
+        className={styles.voiceWave}
+        onClick={seek}
+        aria-label={`Seek voice note, ${formatVoiceDuration(durationMs)}`}
+      >
+        {bars.map((p, i) => (
+          <span
+            key={i}
+            className={`${styles.voiceBar} ${i / bars.length <= progress ? styles.voiceBarPlayed : ""}`}
+            style={{ height: `${Math.max(12, Math.round((p || 0.3) * 100))}%` }}
+          />
+        ))}
+      </button>
+      <span className={styles.voiceDuration}>{formatVoiceDuration(durationMs)}</span>
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setProgress(0);
+        }}
+        onTimeUpdate={() => {
+          const audio = audioRef.current;
+          if (audio && audio.duration) setProgress(audio.currentTime / audio.duration);
+        }}
+        aria-label={label}
+        className={styles.voiceAudioHidden}
+      />
+    </div>
+  );
 }
 
 function resizeImage(file, maxSize = 1600) {
@@ -152,6 +270,9 @@ export default function Thread({
   const [attachment, setAttachment] = useState(null);
   const [attachError, setAttachError] = useState("");
   const [sendError, setSendError] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [recordMs, setRecordMs] = useState(0);
+  const [recordError, setRecordError] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
@@ -161,13 +282,23 @@ export default function Thread({
   const inputRef = useRef(null);
   const fileRef = useRef(null);
   const bottomRef = useRef(null);
+  const messagesRef = useRef(null);
+  const atBottomRef = useRef(true);
   const emojiRef = useRef(null);
   const replyInputRef = useRef(null);
   const typingSentAtRef = useRef(0);
   const typingChannelRef = useRef(null);
   const typingMapRef = useRef(new Map());
+  const recorderRef = useRef(null);
+  const recordChunksRef = useRef([]);
+  const recordTimerRef = useRef(null);
+  const recordStartedAtRef = useRef(0);
+  const recordStreamRef = useRef(null);
+  const discardRef = useRef(false);
 
   const [typingUsers, setTypingUsers] = useState([]);
+  const [showJump, setShowJump] = useState(false);
+  const [lastSeenCount, setLastSeenCount] = useState(initialMessages.length);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [reactionsOpen, setReactionsOpen] = useState(null);
   const [pendingId, setPendingId] = useState(null);
@@ -331,7 +462,9 @@ export default function Thread({
     const lastId = messages[messages.length - 1]?.id;
     if (lastId && lastId !== lastMsgIdRef.current) {
       lastMsgIdRef.current = lastId;
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      if (atBottomRef.current) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
   }, [messages]);
 
@@ -344,6 +477,13 @@ export default function Thread({
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [showEmoji]);
+
+  useEffect(() => {
+    return () => {
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+      recordStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   useEffect(() => {
     if (replyingTo && replyInputRef.current) {
@@ -409,6 +549,103 @@ export default function Thread({
     }
   }
 
+  function cleanupRecording() {
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+    const stream = recordStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      recordStreamRef.current = null;
+    }
+    recorderRef.current = null;
+    setRecording(false);
+    setRecordMs(0);
+  }
+
+  async function startRecording() {
+    setRecordError("");
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
+      setRecordError("Voice notes aren't supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = pickVoiceMime();
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      recorderRef.current = recorder;
+      recordChunksRef.current = [];
+      discardRef.current = false;
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => finalizeRecording(recorder.mimeType || mime || "audio/webm");
+      recorder.start();
+      // eslint-disable-next-line react-hooks/purity
+      recordStartedAtRef.current = Date.now();
+      recordStreamRef.current = stream;
+      setRecordMs(0);
+      setRecording(true);
+      recordTimerRef.current = setInterval(() => {
+        setRecordMs(Date.now() - recordStartedAtRef.current);
+      }, 250);
+    } catch {
+      setRecordError("Microphone access was blocked.");
+    }
+  }
+
+  function stopRecording(cancel) {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    discardRef.current = !!cancel;
+    try {
+      recorder.stop();
+    } catch {
+      cleanupRecording();
+    }
+  }
+
+  async function finalizeRecording(mime) {
+    const chunks = recordChunksRef.current;
+    recordChunksRef.current = [];
+    const discarded = discardRef.current;
+    cleanupRecording();
+    if (discarded || chunks.length === 0) return;
+    const baseMime = (mime || "audio/webm").split(";")[0].trim() || "audio/webm";
+    const blob = new Blob(chunks, { type: baseMime });
+    if (!blob.size) return;
+    // eslint-disable-next-line react-hooks/purity
+    const durationMs = Math.max(0, Date.now() - recordStartedAtRef.current);
+    try {
+      let dataUrl;
+      if (blob.size > MAX_DATA_URL) {
+        const ext = baseMime.includes("ogg") ? "ogg" : baseMime.includes("mp4") ? "m4a" : "webm";
+        const file = new File([blob], `voice-note.${ext}`, { type: baseMime });
+        dataUrl = await uploadToBlob(file);
+      } else {
+        dataUrl = await blobToDataUrl(blob);
+      }
+      if (!dataUrl) throw new Error("Couldn't process that voice note.");
+      const peaks = await computePeaks(blob, 40);
+      await sendMessage("", {
+        name: `Voice note (${formatVoiceDuration(durationMs)})`,
+        mime: baseMime,
+        kind: "audio",
+        size: blob.size,
+        durationMs,
+        peaks,
+        dataUrl,
+      });
+    } catch (err) {
+      setRecordError(err.message || "Couldn't process that voice note.");
+    }
+  }
+
   function insertEmoji(emoji) {
     const el = inputRef.current;
     if (!el) {
@@ -426,10 +663,11 @@ export default function Thread({
     });
   }
 
-  async function handleSend(e) {
-    e.preventDefault();
-    const trimmed = text.trim();
-    if ((!trimmed && !attachment) || busy) return;
+  // Shared by the composer and voice notes: optimistic append, persist, then
+  // reconcile with the saved copy.
+  async function sendMessage(payloadText, att) {
+    const trimmed = (payloadText || "").trim();
+    if ((!trimmed && !att) || busy) return;
     setBusy(true);
     setSendError("");
 
@@ -437,10 +675,10 @@ export default function Thread({
     // persists; the realtime event + refresh() reconcile it with the saved
     // copy (and the other member's screen updates the same moment it lands).
     let tempId = null;
-    if (trimmed || attachment) {
-      // react-hooks/purity reads this as render-phase, but handleSend only runs
-      // from the composer's onSubmit/onKeyDown. One read also keeps the
-      // optimistic id and createdAt on the same millisecond.
+    if (trimmed || att) {
+      // react-hooks/purity reads this as render-phase, but sendMessage only
+      // runs from event handlers. One read also keeps the optimistic id and
+      // createdAt on the same millisecond.
       // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
       tempId = `sending-${now}`;
@@ -455,10 +693,10 @@ export default function Thread({
         replies: [],
         replyCount: 0,
         parentId: null,
-        hasAttachment: !!attachment,
+        hasAttachment: !!att,
         sending: true,
       };
-      if (attachment) tempMsg.attachment = attachment;
+      if (att) tempMsg.attachment = att;
       setMessages((prev) => [...prev, tempMsg]);
       setPendingId(tempId);
       pendingIdRef.current = tempId;
@@ -474,7 +712,7 @@ export default function Thread({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: trimmed,
-          attachment,
+          attachment: att,
         }),
       });
       if (!res.ok) {
@@ -497,6 +735,11 @@ export default function Thread({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleSend(e) {
+    e.preventDefault();
+    await sendMessage(text, attachment);
   }
 
   async function handleReplySend(parentId) {
@@ -586,6 +829,34 @@ export default function Thread({
     typingSentAtRef.current = 0;
     const channel = typingChannelRef.current;
     if (channel) channel.send({ userId: uid, name: selfName, stopped: true });
+  }
+
+  // Track whether the reader is pinned to the newest message. When they've
+  // scrolled up, new arrivals don't yank the view — instead the jump button
+  // surfaces a count of what they haven't seen.
+  function handleScroll() {
+    const el = messagesRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distance < 120;
+    if (nearBottom) {
+      atBottomRef.current = true;
+      setLastSeenCount(messages.length);
+      setShowJump(false);
+    } else {
+      if (atBottomRef.current) {
+        setLastSeenCount(messages.length);
+      }
+      atBottomRef.current = false;
+      setShowJump(true);
+    }
+  }
+
+  function jumpToLatest() {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    atBottomRef.current = true;
+    setLastSeenCount(messages.length);
+    setShowJump(false);
   }
 
   function closeMentions() {
@@ -726,6 +997,8 @@ export default function Thread({
       })
     : messages;
 
+  const newBelow = showJump ? Math.max(0, messages.length - lastSeenCount) : 0;
+
   return (
     <div className={styles.threadBody}>
       {pinnedMessages.length > 0 && (
@@ -739,7 +1012,7 @@ export default function Thread({
         </div>
       )}
 
-      <div className={styles.messages}>
+      <div className={styles.messages} ref={messagesRef} onScroll={handleScroll}>
         {hasOlder && (
           <button
             type="button"
@@ -818,7 +1091,15 @@ export default function Thread({
                     alt={msg.attachment.name || "Shared image"}
                   />
                 )}
-                {msg.attachment && msg.attachment.kind !== "image" && (
+                {msg.attachment?.kind === "audio" && (
+                  <VoiceNote
+                    url={msg.attachment.dataUrl}
+                    peaks={msg.attachment.peaks}
+                    durationMs={msg.attachment.durationMs}
+                    label={msg.attachment.name || "Voice note"}
+                  />
+                )}
+                {msg.attachment && msg.attachment.kind !== "image" && msg.attachment.kind !== "audio" && (
                   <a
                     className={styles.fileChip}
                     href={msg.attachment.dataUrl}
@@ -998,7 +1279,22 @@ export default function Thread({
         <div ref={bottomRef} />
       </div>
 
+      {showJump && (
+        <button
+          type="button"
+          className={tStyles.jumpLatest}
+          onClick={jumpToLatest}
+          aria-label={newBelow > 0 ? `Jump to latest, ${newBelow} new` : "Jump to latest"}
+        >
+          <ChevronDown size={16} />
+          {newBelow > 0 && (
+            <span className={tStyles.jumpCount}>{newBelow > 99 ? "99+" : newBelow}</span>
+          )}
+        </button>
+      )}
+
       {attachError && <p className={styles.attachError}>{attachError}</p>}
+      {recordError && <p className={styles.attachError}>{recordError}</p>}
       {sendError && <p className={styles.attachError}>{sendError}</p>}
 
       {attachment && (
@@ -1082,24 +1378,58 @@ export default function Thread({
         >
           <Paperclip size={18} />
         </button>
-        <textarea
-          ref={inputRef}
-          className={styles.input}
-          rows={1}
-          placeholder="Type a message…"
-          value={text}
-          onChange={handleComposerChange}
-          onKeyDown={handleKeyDown}
-          onBlur={stopTyping}
-          maxLength={2000}
-        />
-        <button
-          className={styles.send}
-          type="submit"
-          disabled={(!text.trim() && !attachment) || busy}
-        >
-          {busy ? "Sending…" : "Send"}
-        </button>
+        {recording ? (
+          <div className={styles.recordingBar}>
+            <span className={styles.recordingDot} aria-hidden="true" />
+            <span className={styles.recordingTime}>{formatVoiceDuration(recordMs)}</span>
+            <span className={styles.recordingHint}>Recording…</span>
+            <button
+              type="button"
+              className={styles.recordingCancel}
+              onClick={() => stopRecording(true)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles.send}
+              onClick={() => stopRecording(false)}
+            >
+              Send
+            </button>
+          </div>
+        ) : (
+          <>
+            <textarea
+              ref={inputRef}
+              className={styles.input}
+              rows={1}
+              placeholder="Type a message…"
+              value={text}
+              onChange={handleComposerChange}
+              onKeyDown={handleKeyDown}
+              onBlur={stopTyping}
+              maxLength={2000}
+            />
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={startRecording}
+              disabled={busy}
+              aria-label="Record a voice note"
+              title="Record a voice note"
+            >
+              <Mic size={18} />
+            </button>
+            <button
+              className={styles.send}
+              type="submit"
+              disabled={(!text.trim() && !attachment) || busy}
+            >
+              {busy ? "Sending…" : "Send"}
+            </button>
+          </>
+        )}
         <input
           ref={fileRef}
           type="file"

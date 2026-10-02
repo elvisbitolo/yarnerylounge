@@ -86,3 +86,25 @@ export function writeTypingHidden(hidden) {
     // storage unavailable — the setting simply doesn't persist
   }
 }
+
+// Tiny external store so UI toggles stay in sync with the persisted flag and
+// with the server snapshot (always false) during hydration.
+const hiddenListeners = new Set();
+
+export function subscribeTypingHidden(listener) {
+  hiddenListeners.add(listener);
+  return () => hiddenListeners.delete(listener);
+}
+
+export function getTypingHidden() {
+  return readTypingHidden();
+}
+
+export function getTypingHiddenServer() {
+  return false;
+}
+
+export function setTypingHidden(hidden) {
+  writeTypingHidden(hidden);
+  for (const listener of hiddenListeners) listener();
+}
