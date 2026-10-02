@@ -826,6 +826,22 @@
     "hide": "Ausblenden",
     "loading": "Wird geladen…",
     "newBadge": "Neu",
-    "browseCalendar": "Zum Kalender"
+    "browseCalendar": "Zum Kalender",
+    "processing": "In wenigen Minuten verfügbar",
+    "failed": "Diese Aufzeichnung konnte nicht verarbeitet werden.",
+    "retry": "Erneut versuchen",
+    "retrying": "Wird erneut versucht…",
+    "retryQueued": "Aufzeichnung wird erneut verarbeitet.",
+    "retryFailed": "Die Aufzeichnung konnte nicht erneut verarbeitet werden.",
+    "share": "Teilen",
+    "linkCopied": "Link kopiert.",
+    "copyFailed": "Der Link konnte nicht kopiert werden.",
+    "download": "Herunterladen",
+    "speed": "Tempo",
+    "pause": "Pause",
+    "mute": "Stumm",
+    "unmute": "Ton an",
+    "fullscreen": "Vollbild",
+    "playerLabel": "Aufzeichnung-Player"
   }
 }

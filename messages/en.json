@@ -826,6 +826,22 @@
     "hide": "Hide",
     "loading": "Loading…",
     "newBadge": "New",
-    "browseCalendar": "See what's on the calendar"
+    "browseCalendar": "See what's on the calendar",
+    "processing": "Available in a few minutes",
+    "failed": "This recording couldn't be processed.",
+    "retry": "Retry",
+    "retrying": "Retrying…",
+    "retryQueued": "Retrying this recording.",
+    "retryFailed": "Couldn't retry this recording.",
+    "share": "Share",
+    "linkCopied": "Link copied.",
+    "copyFailed": "Couldn't copy the link.",
+    "download": "Download",
+    "speed": "Speed",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "fullscreen": "Full screen",
+    "playerLabel": "Recording player"
   }
 }

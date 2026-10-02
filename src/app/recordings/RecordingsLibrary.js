@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Film, Play } from "lucide-react";
+import { AlertTriangle, Film, Play } from "lucide-react";
 import {
   formatBytes,
   formatDuration,
@@ -14,14 +13,19 @@ import {
   recordingOrientation,
 } from "@/lib/recordings-display";
 import { captureVideoFrame } from "@/lib/recording-thumbnail";
+import RecordingPlayer from "./RecordingPlayer";
 import styles from "./recordings.module.css";
+
+// How often to check for a recording that finished pulling.
+const POLL_MS = 8000;
 
 export default function RecordingsLibrary({ recordings, loadError, canDelete }) {
   const t = useTranslations("recordings");
-  const router = useRouter();
+  const [items, setItems] = useState(recordings);
   const [activeId, setActiveId] = useState(null);
   const [playback, setPlayback] = useState({});
   const [busyId, setBusyId] = useState(null);
+  const [retryingId, setRetryingId] = useState(null);
   const [notice, setNotice] = useState(null);
   // Poster frames already signed by the server, plus any captured this session.
   const [thumbs, setThumbs] = useState(() =>
@@ -33,6 +37,7 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
   const gridRef = useRef(null);
   const inFlightRef = useRef(new Set());
   const failedRef = useRef(new Set());
+  const deepLinkedRef = useRef(false);
 
   const play = useCallback(
     async (recording) => {
@@ -59,6 +64,16 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
     [activeId, playback, t]
   );
 
+  // Deep link from a copied share URL: /recordings?rec=<id>.
+  useEffect(() => {
+    if (deepLinkedRef.current) return;
+    deepLinkedRef.current = true;
+    const id = new URLSearchParams(window.location.search).get("rec");
+    if (!id) return;
+    const target = items.find((r) => r.id === id && r.status === "ready");
+    if (target) play(target);
+  }, [items, play]);
+
   async function remove(recording) {
     if (!window.confirm(t("deleteConfirm"))) return;
     setBusyId(recording.id);
@@ -67,9 +82,9 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
       const res = await fetch(`/api/recordings/${recording.id}`, { method: "DELETE" });
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || t("deleteFailed"));
+      setItems((prev) => prev.filter((r) => r.id !== recording.id));
+      if (activeId === recording.id) setActiveId(null);
       setNotice({ type: "ok", text: t("deleted") });
-      // Re-fetch from the server so the card disappears along with the file.
-      router.refresh();
     } catch (error) {
       setNotice({ type: "error", text: error?.message || t("deleteFailed") });
     } finally {
@@ -77,9 +92,38 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
     }
   }
 
-  // Capture a poster frame for a recording that has none. Sequential by
-  // construction: inFlightRef gates a second request for the same row, and a
-  // failed row is never retried in the same session.
+  async function retry(recording) {
+    setRetryingId(recording.id);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/recordings/${recording.id}/retry`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || t("retryFailed"));
+      setItems((prev) =>
+        prev.map((r) => (r.id === recording.id ? { ...r, status: "pending" } : r))
+      );
+      setNotice({ type: "ok", text: t("retryQueued") });
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || t("retryFailed") });
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  async function copyLink(recording) {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/recordings?rec=${recording.id}`
+      );
+      setNotice({ type: "ok", text: t("linkCopied") });
+    } catch {
+      setNotice({ type: "error", text: t("copyFailed") });
+    }
+  }
+
+  // Capture a poster frame for a recording that has none. inFlightRef gates a
+  // second request for the same row, and a failed row is not retried this
+  // session.
   const requestThumbnail = useCallback(async (recording) => {
     if (inFlightRef.current.has(recording.id) || failedRef.current.has(recording.id)) return;
     inFlightRef.current.add(recording.id);
@@ -118,15 +162,33 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
           observer.unobserve(entry.target);
           const id = entry.target.getAttribute("data-recording-id");
           if (!id || thumbs[id]) continue;
-          const recording = recordings.find((r) => r.id === id);
-          if (recording && !recording.hasThumbnail) requestThumbnail(recording);
+          const recording = items.find((r) => r.id === id);
+          if (recording && recording.status === "ready" && !recording.hasThumbnail) {
+            requestThumbnail(recording);
+          }
         }
       },
       { rootMargin: "250px" }
     );
     node.querySelectorAll("[data-thumb-target]").forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, [recordings, thumbs, requestThumbnail]);
+  }, [items, thumbs, requestThumbnail]);
+
+  // Auto-refresh while anything is still pulling, so a processing card becomes
+  // playable without a manual reload.
+  const hasUnready = items.some((r) => r.status !== "ready");
+  useEffect(() => {
+    if (!hasUnready) return undefined;
+    const timer = setInterval(() => {
+      fetch("/api/recordings?include=all&limit=60", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          if (json?.ok && Array.isArray(json.data)) setItems(json.data);
+        })
+        .catch(() => {});
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [hasUnready]);
 
   if (loadError) {
     return (
@@ -137,8 +199,16 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
     );
   }
 
-  const active = recordings.find((r) => r.id === activeId) || null;
+  const active = items.find((r) => r.id === activeId) || null;
   const media = activeId ? playback[activeId] : null;
+
+  // Processing/failed cards lead, then ready recordings newest-first.
+  const ordered = [...items].sort((a, b) => {
+    const aReady = a.status === "ready" ? 1 : 0;
+    const bReady = b.status === "ready" ? 1 : 0;
+    if (aReady !== bReady) return aReady - bReady;
+    return (Date.parse(b.startedAt) || 0) - (Date.parse(a.startedAt) || 0);
+  });
 
   return (
     <div>
@@ -149,47 +219,9 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
         <p className={notice.type === "error" ? styles.error : styles.notice}>{notice.text}</p>
       )}
 
-      {active && (
-        <section className={styles.playerPanel} aria-label={active.title}>
-          <div className={styles.playerHead}>
-            <h2 className={styles.playerTitle}>{active.title}</h2>
-            <button
-              type="button"
-              className={styles.playerClose}
-              onClick={() => setActiveId(null)}
-              aria-label={t("hide")}
-            >
-              ×
-            </button>
-          </div>
-          {media?.url ? (
-            <video
-              className={styles.video}
-              src={media.url}
-              controls
-              autoPlay
-              playsInline
-              preload="metadata"
-            />
-          ) : media?.error ? (
-            <p className={styles.error}>{t("unavailable")}</p>
-          ) : (
-            <p className={styles.loading}>{t("loading")}</p>
-          )}
-          {media?.transcriptUrl && (
-            <a
-              className={styles.transcriptLink}
-              href={media.transcriptUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t("transcript")}
-            </a>
-          )}
-        </section>
-      )}
+      {active && <RecordingPlayer recording={active} media={media} onClose={() => setActiveId(null)} />}
 
-      {recordings.length === 0 ? (
+      {items.length === 0 ? (
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>{t("empty")}</p>
           <p className={styles.emptyHint}>{t("emptyHint")}</p>
@@ -199,7 +231,40 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
         </div>
       ) : (
         <ul className={styles.grid} ref={gridRef}>
-          {recordings.map((recording) => {
+          {ordered.map((recording) => {
+            if (recording.status !== "ready") {
+              const failed = recording.status === "failed";
+              return (
+                <li key={recording.id} className={styles.card}>
+                  <div className={styles.pipelineThumb}>
+                    {failed ? (
+                      <AlertTriangle size={24} aria-hidden="true" />
+                    ) : (
+                      <span className={styles.progressTrack} aria-hidden="true">
+                        <span className={styles.progressFill} />
+                      </span>
+                    )}
+                  </div>
+                  <div className={styles.cardBody}>
+                    <h2 className={styles.cardTitle}>{recording.title}</h2>
+                    <p className={styles.cardMeta}>{failed ? t("failed") : t("processing")}</p>
+                    {failed && canDelete && (
+                      <div className={styles.actions}>
+                        <button
+                          type="button"
+                          className={styles.playButton}
+                          onClick={() => retry(recording)}
+                          disabled={retryingId === recording.id}
+                        >
+                          {retryingId === recording.id ? t("retrying") : t("retry")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            }
+
             // A missing length/duration is normal: JaaS omits them for some
             // sessions, and "0:00" would read as a broken recording.
             const duration = recording.durationSec ? formatDuration(recording.durationSec) : null;
@@ -256,6 +321,13 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
                     >
                       {activeId === recording.id ? t("hide") : t("play")}
                     </button>
+                    <button
+                      type="button"
+                      className={styles.shareButton}
+                      onClick={() => copyLink(recording)}
+                    >
+                      {t("share")}
+                    </button>
                     {canDelete && (
                       <button
                         type="button"
@@ -274,9 +346,7 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
         </ul>
       )}
 
-      {canDelete && recordings.length > 0 && (
-        <p className={styles.footnote}>{t("ownerNote")}</p>
-      )}
+      {canDelete && items.length > 0 && <p className={styles.footnote}>{t("ownerNote")}</p>}
     </div>
   );
 }

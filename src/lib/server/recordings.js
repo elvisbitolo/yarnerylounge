@@ -313,20 +313,32 @@ export async function attachTranscript({ jaasSessionId, sourceLink }) {
   }
 }
 
-/** Recordings the library shows: pulled and shareable, newest first. */
-export async function listRecordings({ roomId = null, limit = 60 } = {}) {
+/**
+ * Recordings the library shows: pulled and shareable, newest first.
+ *
+ * `includeUnready` also returns pending/processing/failed rows so the library
+ * can render a progress or error card while the pull is still running. Rows
+ * without a start time (the webhook never supplied one) sort last instead of
+ * floating to the top, which is what a plain DESC ordering would do.
+ */
+export async function listRecordings({ roomId = null, limit = 60, includeUnready = false } = {}) {
   const prisma = getPrisma();
   const rows = await prisma.recording.findMany({
-    where: {
-      status: "ready",
-      share: true,
-      // Soft-deleted rows live in the Trash until the 30-day purge.
-      deletedAt: null,
-      ...(roomId ? { roomId } : {}),
-    },
+    where: includeUnready
+      ? {
+          // Soft-deleted rows live in the Trash until the 30-day purge.
+          deletedAt: null,
+          ...(roomId ? { roomId } : {}),
+        }
+      : {
+          status: "ready",
+          share: true,
+          deletedAt: null,
+          ...(roomId ? { roomId } : {}),
+        },
     // Array form, as Prisma 7 requires for more than one sort key. A plain
     // object here is a validation error, not a silent fallback.
-    orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ startedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     take: Math.min(Math.max(1, limit), 200),
   });
   return rows;
@@ -337,17 +349,35 @@ export async function getRecording(id) {
   return getPrisma().recording.findUnique({ where: { id } });
 }
 
-/** Short-lived signed URL for playback. */
-export async function signPlaybackUrl(recording, ttlSec = PLAYBACK_URL_TTL_SEC) {
+/**
+ * Short-lived signed URL for playback. Pass `download: true` for an
+ * attachment URL (owners/hosts only — the caller enforces that).
+ */
+export async function signPlaybackUrl(recording, ttlSec = PLAYBACK_URL_TTL_SEC, { download = false } = {}) {
   if (!recording?.storagePath || !recording.share) return null;
   const { data, error } = await supabaseAdmin.storage
     .from(recording.storageBucket || RECORDINGS_BUCKET)
-    .createSignedUrl(recording.storagePath, ttlSec, { download: false });
+    .createSignedUrl(recording.storagePath, ttlSec, { download });
   if (error) {
     logError("recordings:sign-failed", { id: recording.id, message: error?.message });
     return null;
   }
   return data?.signedUrl || null;
+}
+
+/**
+ * Reset a failed recording so the ingest sweep picks it up again. Only useful
+ * while the 24h JaaS link is still live; returns false once it has expired.
+ */
+export async function retryRecording(recording) {
+  if (!recording?.id || !recording.sourceLink) return { ok: false, error: "not_retryable" };
+  if (recording.status === "ready") return { ok: false, error: "already_ready" };
+  if (isSourceExpired(recording.sourceExpiresAt)) return { ok: false, error: "source_expired" };
+  await getPrisma().recording.update({
+    where: { id: recording.id },
+    data: { status: "pending", lastError: null },
+  });
+  return { ok: true };
 }
 
 /** Signed URL for the VTT sidecar, when the meeting was transcribed. */

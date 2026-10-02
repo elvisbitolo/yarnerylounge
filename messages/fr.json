@@ -826,6 +826,22 @@
     "hide": "Masquer",
     "loading": "Chargement…",
     "newBadge": "Nouveau",
-    "browseCalendar": "Voir le calendrier"
+    "browseCalendar": "Voir le calendrier",
+    "processing": "Disponible dans quelques minutes",
+    "failed": "Cet enregistrement n’a pas pu être traité.",
+    "retry": "Réessayer",
+    "retrying": "Nouvelle tentative…",
+    "retryQueued": "Nouvelle tentative pour cet enregistrement.",
+    "retryFailed": "Impossible de réessayer cet enregistrement.",
+    "share": "Partager",
+    "linkCopied": "Lien copié.",
+    "copyFailed": "Impossible de copier le lien.",
+    "download": "Télécharger",
+    "speed": "Vitesse",
+    "pause": "Pause",
+    "mute": "Muet",
+    "unmute": "Activer le son",
+    "fullscreen": "Plein écran",
+    "playerLabel": "Lecteur d’enregistrement"
   }
 }

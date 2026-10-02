@@ -214,6 +214,7 @@
 }
 
 .playButton,
+.shareButton,
 .deleteButton {
   border-radius: 999px;
   padding: 7px 16px;
@@ -228,6 +229,12 @@
   color: #16161f;
 }
 
+.shareButton {
+  background: transparent;
+  color: #c9c9d4;
+  border-color: #3a3a4a;
+}
+
 .deleteButton {
   background: transparent;
   color: #e08a8a;
@@ -237,6 +244,46 @@
 .deleteButton:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Processing / failed cards */
+
+.pipelineThumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0e0e14;
+  color: #8a8a9c;
+}
+
+.progressTrack {
+  display: block;
+  width: 60%;
+  height: 4px;
+  border-radius: 999px;
+  background: #26263a;
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: #c9b6f0;
+  animation: recordingSlide 1.4s ease-in-out infinite;
+}
+
+@keyframes recordingSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
 }
 
 .playerPanel {
@@ -275,12 +322,69 @@
   flex-shrink: 0;
 }
 
+.playerStage {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.playerStage:focus-visible {
+  outline: 2px solid #c9b6f0;
+  outline-offset: 2px;
+}
+
 .video {
   width: 100%;
   max-height: 70vh;
   border-radius: 8px;
   background: #000;
   display: block;
+  /* Vertical recordings fit whole rather than being cropped. */
+  object-fit: contain;
+}
+
+.playerControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.controlButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #2c2c3a;
+  background: transparent;
+  color: #d8d8e2;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.controlButton:hover {
+  border-color: #4a4a5c;
+}
+
+.speedLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #9b9bab;
+}
+
+.speedSelect {
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid #2c2c3a;
+  background: #0e0e14;
+  color: #d8d8e2;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .loading {
@@ -314,5 +418,9 @@
 @media (prefers-reduced-motion: reduce) {
   .playOverlay {
     transition: none;
+  }
+
+  .progressFill {
+    animation: none;
   }
 }

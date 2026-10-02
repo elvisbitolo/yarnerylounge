@@ -16,9 +16,12 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const roomId = searchParams.get("roomId") || null;
   const limit = Number(searchParams.get("limit")) || 60;
+  // The library polls with include=all so a processing card can flip to ready
+  // without a manual refresh.
+  const includeUnready = searchParams.get("include") === "all";
 
   try {
-    const rows = await listRecordings({ roomId, limit });
+    const rows = await listRecordings({ roomId, limit, includeUnready });
     return NextResponse.json({ ok: true, data: rows.map(serializeRecording) });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Failed to load recordings" }, { status: 500 });
