@@ -220,25 +220,6 @@ function participantName(candidate) {
   return "Member";
 }
 
-async function loadNames(ids) {
-  const names = {};
-  if (ids.length === 0) return names;
-
-  const prisma = getPrisma();
-  if (prisma) {
-    try {
-      const rows = await prisma.user.findMany({ where: { id: { in: ids } } });
-      for (const row of rows) {
-        names[row.id] = participantName(row) || row.email?.split("@")[0] || "Member";
-      }
-      return names;
-    } catch (err) {
-      logError("chat.prisma_load_names_failed", { error: err.message });
-    }
-  }
-  return names;
-}
-
 // Resolves display name + avatar for a set of participants. Used by the chat
 // list, which needs a real avatar next to every DM row.
 async function loadProfiles(ids) {
@@ -369,6 +350,33 @@ export async function listConversations(uid) {
   return [];
 }
 
+// A conversation carries no avatar of its own: a DM borrows the other member's
+// photo, while a group or space borrows the linked Group/Space image.
+async function resolveConversationPhoto(row, fallback = "") {
+  if (fallback) return fallback;
+  const prisma = getPrisma();
+  if (!prisma) return "";
+  try {
+    if (row.type === "group" && row.groupId) {
+      const group = await prisma.group.findUnique({
+        where: { id: row.groupId },
+        select: { avatar: true, imageUrl: true },
+      });
+      return group?.avatar || group?.imageUrl || "";
+    }
+    if (row.type === "space" && row.spaceId) {
+      const space = await prisma.space.findUnique({
+        where: { id: row.spaceId },
+        select: { avatar: true },
+      });
+      return space?.avatar || "";
+    }
+  } catch (err) {
+    logError("chat.prisma_conv_photo_failed", { error: err.message });
+  }
+  return "";
+}
+
 export async function getConversation(id, uid) {
   const prisma = getPrisma();
   if (prisma) {
@@ -378,9 +386,11 @@ export async function getConversation(id, uid) {
         const pids = row.participantIds || [];
         if (!pids.includes(uid)) return null;
         const ids = uniqueIds(pids.filter((vid) => vid !== uid));
-        const names = await loadNames(ids);
+        const profiles = await loadProfiles(ids);
         const otherId = pids.filter((v) => v !== uid)[0] || "";
-        const resolvedName = otherId ? names[otherId] : "";
+        const profile = otherId ? profiles[otherId] : null;
+        const resolvedName = profile?.name || "";
+        const photoURL = await resolveConversationPhoto(row, profile?.photoURL);
         return {
           ...mapConversationRow(row),
           participantIds: pids,
@@ -388,6 +398,7 @@ export async function getConversation(id, uid) {
             row.type === "dm"
               ? (resolvedName || (otherId ? "Member" : "Chat"))
               : row.name || "Group chat",
+          photoURL,
           createdAt: toMillisValue(row.createdAt),
         };
       }

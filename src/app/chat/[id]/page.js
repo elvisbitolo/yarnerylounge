@@ -50,6 +50,7 @@ export default async function ConversationPage({ params }) {
             initialHasMore={!!messagePage.hasMore}
             canWriteChat={canWriteChat(caps) || userDoc?.role === "owner" || userDoc?.role === "moderator"}
             title={conversation?.title || conversation?.name || "Member"}
+            photoURL={conversation?.photoURL || ""}
             participantIds={presenceIds}
             conversationType={conversation?.type}
           />
