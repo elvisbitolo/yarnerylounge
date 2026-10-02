@@ -40,6 +40,10 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
   const [notice, setNotice] = useState(null);
   const [query, setQuery] = useState("");
   const [lounge, setLounge] = useState("all");
+  const [undo, setUndo] = useState(null);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [deletedItems, setDeletedItems] = useState([]);
+  const [trashLoading, setTrashLoading] = useState(false);
   // Captured once per mount so "this week/month" does not shift mid-render.
   const [now] = useState(() => Date.now());
   // Poster frames already signed by the server, plus any captured this session.
@@ -89,6 +93,16 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
     if (target) play(target);
   }, [items, play]);
 
+  async function reloadLibrary() {
+    try {
+      const res = await fetch("/api/recordings?limit=60", { cache: "no-store" });
+      const json = await res.json();
+      if (json?.ok && Array.isArray(json.data)) setItems(json.data);
+    } catch {
+      /* keep the current list if the refresh fails */
+    }
+  }
+
   async function remove(recording) {
     if (!window.confirm(t("deleteConfirm"))) return;
     setBusyId(recording.id);
@@ -99,11 +113,56 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
       if (!res.ok || !json?.ok) throw new Error(json?.error || t("deleteFailed"));
       setItems((prev) => prev.filter((r) => r.id !== recording.id));
       if (activeId === recording.id) setActiveId(null);
-      setNotice({ type: "ok", text: t("deleted") });
+      setUndo({ id: recording.id, title: recording.title });
+      setNotice({ type: "ok", text: t("movedToTrash") });
     } catch (error) {
       setNotice({ type: "error", text: error?.message || t("deleteFailed") });
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function undoDelete() {
+    if (!undo) return;
+    const { id } = undo;
+    setUndo(null);
+    try {
+      const res = await fetch(`/api/recordings/${id}/restore`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || t("restoreFailed"));
+      setNotice({ type: "ok", text: t("restored") });
+      await reloadLibrary();
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || t("restoreFailed") });
+    }
+  }
+
+  async function openTrash() {
+    setTrashOpen(true);
+    setTrashLoading(true);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/recordings?trash=1&limit=60", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || t("trashFailed"));
+      setDeletedItems(json.data);
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || t("trashFailed") });
+    } finally {
+      setTrashLoading(false);
+    }
+  }
+
+  async function restoreTrashed(recording) {
+    try {
+      const res = await fetch(`/api/recordings/${recording.id}/restore`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || t("restoreFailed"));
+      setDeletedItems((prev) => prev.filter((r) => r.id !== recording.id));
+      setNotice({ type: "ok", text: t("restored") });
+      await reloadLibrary();
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || t("restoreFailed") });
     }
   }
 
@@ -205,6 +264,13 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
     return () => clearInterval(timer);
   }, [hasUnready]);
 
+  // The Trash is permanent after the toast fades; auto-dismiss the Undo prompt.
+  useEffect(() => {
+    if (!undo) return undefined;
+    const timer = setTimeout(() => setUndo(null), 12000);
+    return () => clearTimeout(timer);
+  }, [undo]);
+
   const active = items.find((r) => r.id === activeId) || null;
   const media = activeId ? playback[activeId] : null;
 
@@ -279,9 +345,55 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
         <p className={notice.type === "error" ? styles.error : styles.notice}>{notice.text}</p>
       )}
 
+      {undo && (
+        <div className={styles.undoToast} role="status">
+          <span>{t("movedToTrash")}</span>
+          <button type="button" className={styles.undoButton} onClick={undoDelete}>
+            {t("undo")}
+          </button>
+        </div>
+      )}
+
       {active && <RecordingPlayer recording={active} media={media} onClose={() => setActiveId(null)} />}
 
-      {items.length === 0 ? (
+      {trashOpen ? (
+        <div className={styles.trashPanel}>
+          <div className={styles.trashHead}>
+            <h2 className={styles.trashTitle}>{t("trashTitle")}</h2>
+            <button
+              type="button"
+              className={styles.clearButton}
+              onClick={() => setTrashOpen(false)}
+            >
+              {t("backToLibrary")}
+            </button>
+          </div>
+          <p className={styles.trashHint}>{t("trashHint")}</p>
+          {trashLoading ? (
+            <p className={styles.loading}>{t("loading")}</p>
+          ) : deletedItems.length === 0 ? (
+            <p className={styles.noResults}>{t("trashEmpty")}</p>
+          ) : (
+            <ul className={styles.trashList}>
+              {deletedItems.map((recording) => (
+                <li key={recording.id} className={styles.trashRow}>
+                  <span className={styles.trashName}>{recording.title}</span>
+                  <span className={styles.trashMeta}>
+                    {formatRecordingDate(recording.startedAt)}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.playButton}
+                    onClick={() => restoreTrashed(recording)}
+                  >
+                    {t("restore")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : items.length === 0 ? (
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>{t("empty")}</p>
           <p className={styles.emptyHint}>{t("emptyHint")}</p>
@@ -347,6 +459,11 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
                 <List size={16} />
               </button>
             </div>
+            {canDelete && (
+              <button type="button" className={styles.trashButton} onClick={openTrash}>
+                {t("trash")}
+              </button>
+            )}
           </div>
 
           <div className={styles.chips} role="group" aria-label={t("filtersLabel")}>
@@ -506,7 +623,9 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
         </>
       )}
 
-      {canDelete && items.length > 0 && <p className={styles.footnote}>{t("ownerNote")}</p>}
+      {canDelete && !trashOpen && items.length > 0 && (
+        <p className={styles.footnote}>{t("ownerNote")}</p>
+      )}
     </div>
   );
 }

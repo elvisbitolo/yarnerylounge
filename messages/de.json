@@ -860,6 +860,17 @@
     "chipVertical": "Hochformat",
     "chipShared": "Mit mir geteilt",
     "clearFilters": "Filter zurücksetzen",
-    "noResults": "Keine Aufzeichnungen passen zu deinen Filtern."
+    "noResults": "Keine Aufzeichnungen passen zu deinen Filtern.",
+    "trash": "Papierkorb",
+    "trashTitle": "Papierkorb",
+    "trashHint": "Gelöschte Aufzeichnungen werden 30 Tage aufbewahrt und danach endgültig entfernt.",
+    "trashEmpty": "Der Papierkorb ist leer.",
+    "backToLibrary": "Zurück zur Bibliothek",
+    "restore": "Wiederherstellen",
+    "restored": "Aufzeichnung wiederhergestellt.",
+    "restoreFailed": "Die Aufzeichnung konnte nicht wiederhergestellt werden.",
+    "trashFailed": "Der Papierkorb konnte nicht geladen werden.",
+    "movedToTrash": "Aufzeichnung in den Papierkorb verschoben.",
+    "undo": "Rückgängig"
   }
 }

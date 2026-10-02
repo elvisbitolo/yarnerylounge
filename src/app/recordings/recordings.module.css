@@ -120,6 +120,103 @@
   padding: 24px 0;
 }
 
+.undoToast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #3a3a4a;
+  border-radius: 10px;
+  background: #1c1c28;
+  color: #f0f0f5;
+  font-size: 14px;
+}
+
+.undoButton {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid #c9b6f0;
+  background: transparent;
+  color: #c9b6f0;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trashButton {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #4a2a2a;
+  background: transparent;
+  color: #e08a8a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.trashPanel {
+  border: 1px solid #2c2c3a;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.trashHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trashTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f5f5f5;
+  margin: 0;
+}
+
+.trashHint {
+  color: #9b9bab;
+  font-size: 13px;
+  margin: 6px 0 16px;
+}
+
+.trashList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trashRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #2c2c3a;
+  border-radius: 10px;
+}
+
+.trashName {
+  flex: 1;
+  min-width: 0;
+  color: #f0f0f5;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trashMeta {
+  color: #9b9bab;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .notice {
   font-size: 14px;
   color: #8fd3a8;

@@ -860,6 +860,17 @@
     "chipVertical": "Vertical",
     "chipShared": "Partagés avec moi",
     "clearFilters": "Effacer les filtres",
-    "noResults": "Aucun enregistrement ne correspond à vos filtres."
+    "noResults": "Aucun enregistrement ne correspond à vos filtres.",
+    "trash": "Corbeille",
+    "trashTitle": "Corbeille",
+    "trashHint": "Les enregistrements supprimés sont conservés 30 jours, puis leurs fichiers sont définitivement supprimés.",
+    "trashEmpty": "La corbeille est vide.",
+    "backToLibrary": "Retour à la bibliothèque",
+    "restore": "Restaurer",
+    "restored": "Enregistrement restauré.",
+    "restoreFailed": "Impossible de restaurer cet enregistrement.",
+    "trashFailed": "Impossible de charger la corbeille.",
+    "movedToTrash": "Enregistrement déplacé vers la corbeille.",
+    "undo": "Annuler"
   }
 }

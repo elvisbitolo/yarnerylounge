@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/recording-ingest",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/recording-purge",
+      "schedule": "30 3 * * *"
     }
   ]
 }

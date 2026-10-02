@@ -487,11 +487,53 @@ export async function saveThumbnail({ recording, image, width, height } = {}) {
   return { ok: true, thumbnailPath: path };
 }
 
+/** How long a trashed recording stays recoverable before its bytes are purged. */
+export const TRASH_RETENTION_DAYS = 30;
+const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
 /**
- * Delete a recording and its stored objects. The DB row goes first: if the
- * storage delete fails we would otherwise have a row pointing at nothing.
+ * Move a recording to the Trash. The bytes stay in Storage and the row stays
+ * joinable, so Undo is a single field clear; the purge sweep removes storage
+ * after the retention window.
  */
-export async function deleteRecording(recording) {
+export async function softDeleteRecording(recording, deletedBy = null) {
+  if (!recording?.id) return { ok: false, error: "no_recording" };
+  await getPrisma().recording.update({
+    where: { id: recording.id },
+    data: { deletedAt: new Date(), deletedBy: deletedBy || null },
+  });
+  return { ok: true };
+}
+
+/** Bring a trashed recording back. A no-op if it was never deleted. */
+export async function restoreRecording(id) {
+  if (!id) return { ok: false, error: "no_recording" };
+  const prisma = getPrisma();
+  const recording = await prisma.recording.findUnique({ where: { id } });
+  if (!recording) return { ok: false, error: "not_found" };
+  if (!recording.deletedAt) return { ok: true, skipped: "not_deleted" };
+  await prisma.recording.update({
+    where: { id },
+    data: { deletedAt: null, deletedBy: null },
+  });
+  return { ok: true };
+}
+
+/** Trash listing for owners: newest deletions first. */
+export async function listDeletedRecordings({ limit = 60 } = {}) {
+  return getPrisma().recording.findMany({
+    where: { deletedAt: { not: null } },
+    orderBy: { deletedAt: "desc" },
+    take: Math.min(Math.max(1, limit), 200),
+  });
+}
+
+/**
+ * Remove a recording and its stored objects for good. The DB row goes first:
+ * if the storage delete fails we would otherwise have a row pointing at
+ * nothing.
+ */
+async function hardDeleteRecording(recording) {
   if (!recording) return { ok: false, error: "no_recording" };
   const prisma = getPrisma();
   const bucket = recording.storageBucket || RECORDINGS_BUCKET;
@@ -502,4 +544,28 @@ export async function deleteRecording(recording) {
   }
   await prisma.recording.delete({ where: { id: recording.id } });
   return { ok: true };
+}
+
+/**
+ * Purge trashed recordings past the retention window. Batched so one sweep
+ * cannot sit on the request for an unbounded number of storage deletes.
+ */
+export async function purgeExpiredRecordings({
+  retentionMs = TRASH_RETENTION_MS,
+  now = Date.now(),
+  batchSize = 25,
+} = {}) {
+  const prisma = getPrisma();
+  const cutoff = new Date(now - retentionMs);
+  const expired = await prisma.recording.findMany({
+    where: { deletedAt: { not: null, lte: cutoff } },
+    orderBy: { deletedAt: "asc" },
+    take: Math.min(Math.max(1, batchSize), 100),
+  });
+  let purged = 0;
+  for (const recording of expired) {
+    const result = await hardDeleteRecording(recording);
+    if (result.ok) purged += 1;
+  }
+  return { purged };
 }

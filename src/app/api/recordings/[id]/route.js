@@ -1,10 +1,9 @@
-// Deleting a recording is owner-only and irreversible: the file is removed from
-// storage, not hidden. There is no soft-delete or recycle bin, because a
-// recording of a real conversation is the kind of thing a member may need gone
-// completely.
+// Deleting a recording is owner-only. It moves the recording to the Trash
+// rather than erasing it: the library hides it immediately, Undo restores it,
+// and the purge sweep removes the bytes after 30 days.
 
 import { NextResponse } from "next/server";
-import { deleteRecording, getRecording } from "@/lib/server/recordings";
+import { getRecording, softDeleteRecording } from "@/lib/server/recordings";
 import { guardJson, requireActiveMember } from "@/lib/server/authorize";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +20,7 @@ export async function DELETE(req, { params }) {
   }
 
   try {
-    const result = await deleteRecording(recording);
+    const result = await softDeleteRecording(recording, auth.user?.uid || null);
     if (!result.ok) {
       return NextResponse.json({ error: "Delete failed" }, { status: 500 });
     }
