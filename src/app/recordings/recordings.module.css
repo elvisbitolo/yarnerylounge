@@ -120,6 +120,34 @@
   padding: 24px 0;
 }
 
+.storage {
+  margin: 0 0 24px;
+}
+
+.storageBar {
+  height: 6px;
+  border-radius: 999px;
+  background: #26263a;
+  overflow: hidden;
+}
+
+.storageFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #c9b6f0;
+}
+
+.storageFillWarn {
+  background: #e0b36a;
+}
+
+.storageText {
+  margin: 6px 0 0;
+  color: #9b9bab;
+  font-size: 13px;
+}
+
 .undoToast {
   display: flex;
   align-items: center;

@@ -871,6 +871,8 @@
     "restoreFailed": "Couldn't restore this recording.",
     "trashFailed": "Couldn't load the Trash.",
     "movedToTrash": "Recording moved to Trash.",
-    "undo": "Undo"
+    "undo": "Undo",
+    "storageUsage": "{used} of {limit} used",
+    "storageWarning": "Nearly full"
   }
 }

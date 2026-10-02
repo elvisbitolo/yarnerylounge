@@ -28,7 +28,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 const MONTH_MS = 30 * DAY_MS;
 
-export default function RecordingsLibrary({ recordings, loadError, canDelete, currentUserId = null }) {
+export default function RecordingsLibrary({
+  recordings,
+  loadError,
+  canDelete,
+  currentUserId = null,
+  storage = null,
+}) {
   const t = useTranslations("recordings");
   const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const { sort, view, chip } = prefs;
@@ -340,6 +346,24 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete, cu
     <div>
       <h1 className={styles.title}>{t("title")}</h1>
       <p className={styles.subtitle}>{t("subtitle")}</p>
+
+      {storage && (
+        <div className={styles.storage}>
+          <div className={styles.storageBar}>
+            <span
+              className={`${styles.storageFill} ${storage.warning ? styles.storageFillWarn : ""}`}
+              style={{ width: `${Math.min(100, Math.round(storage.ratio * 100))}%` }}
+            />
+          </div>
+          <p className={styles.storageText}>
+            {t("storageUsage", {
+              used: formatBytes(storage.usedBytes),
+              limit: formatBytes(storage.limitBytes),
+            })}
+            {storage.warning ? ` · ${t("storageWarning")}` : ""}
+          </p>
+        </div>
+      )}
 
       {notice && (
         <p className={notice.type === "error" ? styles.error : styles.notice}>{notice.text}</p>

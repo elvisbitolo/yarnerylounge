@@ -519,6 +519,30 @@ export async function restoreRecording(id) {
   return { ok: true };
 }
 
+/** Total recording storage budget, overridable per deployment. */
+export const RECORDINGS_STORAGE_LIMIT_BYTES =
+  (Number(process.env.RECORDINGS_STORAGE_LIMIT_GB) || 5) * 1024 ** 3;
+
+/**
+ * Sum the bytes still held in Storage. Trashed recordings count too: their
+ * files stay until the purge sweep removes them.
+ */
+export async function getRecordingsStorageUsage() {
+  const prisma = getPrisma();
+  const agg = await prisma.recording.aggregate({
+    _sum: { sizeBytes: true },
+    where: { storagePath: { not: null } },
+  });
+  const usedBytes = agg?._sum?.sizeBytes || 0;
+  const limitBytes = RECORDINGS_STORAGE_LIMIT_BYTES;
+  return {
+    usedBytes,
+    limitBytes,
+    ratio: limitBytes > 0 ? usedBytes / limitBytes : 0,
+    warning: limitBytes > 0 && usedBytes / limitBytes >= 0.8,
+  };
+}
+
 /** Trash listing for owners: newest deletions first. */
 export async function listDeletedRecordings({ limit = 60 } = {}) {
   return getPrisma().recording.findMany({

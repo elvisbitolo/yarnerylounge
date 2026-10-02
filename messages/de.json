@@ -871,6 +871,8 @@
     "restoreFailed": "Die Aufzeichnung konnte nicht wiederhergestellt werden.",
     "trashFailed": "Der Papierkorb konnte nicht geladen werden.",
     "movedToTrash": "Aufzeichnung in den Papierkorb verschoben.",
-    "undo": "Rückgängig"
+    "undo": "Rückgängig",
+    "storageUsage": "{used} von {limit} belegt",
+    "storageWarning": "Fast voll"
   }
 }

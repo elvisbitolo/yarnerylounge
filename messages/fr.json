@@ -871,6 +871,8 @@
     "restoreFailed": "Impossible de restaurer cet enregistrement.",
     "trashFailed": "Impossible de charger la corbeille.",
     "movedToTrash": "Enregistrement déplacé vers la corbeille.",
-    "undo": "Annuler"
+    "undo": "Annuler",
+    "storageUsage": "{used} sur {limit} utilisés",
+    "storageWarning": "Presque plein"
   }
 }
