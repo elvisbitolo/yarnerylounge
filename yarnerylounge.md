@@ -195,6 +195,23 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
   - Phase 2b (`5b264ac`): “Live now” presence strip backed by
     `GET /api/presence?online=1` + `src/lib/server/presence-core.js`
     (10 node tests), and a rounded-tail bubble restyle.
+  - PRD Phase 1 (`1cfbd29`): content-fit bubbles (max 70%), connection grouping,
+    centred date pills, in-bubble time + 3-state ticks, long-press actions,
+    per-conversation typing (header subtitle + animated thread bubble) via
+    `src/lib/chat-typing-core.js`, and expanded header + inline search.
+  - PRD Phase 2 (`5948c0b`): inbox filter chips (All/Unread/Lounges/Groups),
+    unread count badges, own-last-message ticks, enriched `listConversations`
+    (title/photoURL/lastSenderId/unreadCount), and a compact “Live now” lounge
+    strip from `GET /api/rooms/live` with per-room viewer counts.
+  - PRD Phase 3 (`0f4bed8`): in-lounge presence — `activeRoomsForUsers()` in
+    `src/lib/server/room-presence.js`, `room` on `GET /api/presence?ids=` and an
+    “In <Lounge>” join link in `PresenceStatus`; removed dead call buttons.
+  - Voice notes (`d860fa4`): `MediaRecorder` capture with live timer, waveform
+    peaks computed via `decodeAudioData`, an inline play/seek `VoiceNote`
+    player, audio attachment validation in the messages route, and `kind:
+    "audio"` persistence (duration + peaks) in `addMessage`.
+  - Scroll-to-latest jump button with an unread-count chip, and a typing-privacy
+    toggle (eye button in the rail) persisted under `yarnery-typing-hidden`.
 
 ## Housekeeping
 
