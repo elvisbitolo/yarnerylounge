@@ -261,6 +261,23 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
     `/recordings?rec=<id>`; opening that link auto-plays the recording. The play
     route now also returns a `downloadUrl` attachment for owners and moderators.
   - Lint 0 errors (28 warnings); build OK.
+- **Phase 3**: search/filters, a Trash and the storage bar.
+  - **Find** — a toolbar searches title/lounge/attendee and filters by lounge,
+    with sort (Newest/Oldest/Longest/Largest), quick chips (All, This week, This
+    month, Vertical, Shared with me) and a Grid/List toggle. Sort + view are
+    remembered in `localStorage` through `useSyncExternalStore`
+    (`src/lib/recordings-view.js`) so there is no mount-effect setState and no
+    hydration mismatch.
+  - **Trash** — deleting now soft-deletes (`softDeleteRecording` sets
+    `deletedAt`/`deletedBy`). The library hides it, shows an Undo toast, and an
+    owner-only Trash panel (`GET /api/recordings?trash=1`,
+    `POST /api/recordings/[id]/restore`) can restore it.
+    `purgeExpiredRecordings` frees Storage after `TRASH_RETENTION_DAYS = 30`,
+    driven by the daily `/api/cron/recording-purge` cron.
+  - **Storage bar** — `getRecordingsStorageUsage` sums the bytes still held
+    (trashed files count) against `RECORDINGS_STORAGE_LIMIT_BYTES`
+    (`RECORDINGS_STORAGE_LIMIT_GB`, default 5) and warns at 80%.
+  - Lint 0 errors (28 warnings); build OK.
 
 ## Housekeeping
 
