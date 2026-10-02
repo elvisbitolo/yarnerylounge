@@ -278,6 +278,19 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
     (trashed files count) against `RECORDINGS_STORAGE_LIMIT_BYTES`
     (`RECORDINGS_STORAGE_LIMIT_GB`, default 5) and warns at 80%.
   - Lint 0 errors (28 warnings); build OK.
+- **Phase 4 (partial, per scope decision)**: attendee avatars and sharing into
+  chat/groups. Retention auto-delete and server-side re-encode were intentionally
+  left out: re-encode needs ffmpeg, which the serverless runtime does not have.
+  - **Avatars** — `ParticipantStack.js` shows overlapping attendee avatars
+    (initial fallback, `+N`) on ready cards and in the player header, from the
+    `participants` JSON JaaS already reports. Rendered as background images, so
+    a broken URL degrades to the initial.
+  - **Share** — the card Share menu offers Copy link plus a fetched conversation
+    list (`GET /api/conversations`, self-chat excluded) to send to. The message
+    carries a new `recording` attachment kind (`dataUrl` is the internal
+    `/recordings?rec=<id>` link, validated server-side against a strict pattern
+    in the messages route) and renders as an Open chip in the thread; a plain
+    link in the text would not be clickable, which is why it is an attachment.
 
 ## Housekeeping
 
