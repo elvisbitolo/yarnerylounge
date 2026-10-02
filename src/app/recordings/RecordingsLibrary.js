@@ -20,6 +20,7 @@ import {
   updateRecordingView,
 } from "@/lib/recordings-view";
 import RecordingPlayer from "./RecordingPlayer";
+import ParticipantStack from "./ParticipantStack";
 import styles from "./recordings.module.css";
 
 // How often to check for a recording that finished pulling.
@@ -611,6 +612,7 @@ export default function RecordingsLibrary({
                 <div className={styles.cardBody}>
                   <h2 className={styles.cardTitle}>{recording.title}</h2>
                   <p className={styles.cardMeta}>{meta}</p>
+                  <ParticipantStack participants={recording.participants} />
                   <div className={styles.actions}>
                     <button
                       type="button"

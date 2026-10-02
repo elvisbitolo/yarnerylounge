@@ -120,6 +120,49 @@
   padding: 24px 0;
 }
 
+.avatars {
+  display: inline-flex;
+  align-items: center;
+  margin: 6px 0 2px;
+}
+
+.avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #16161f;
+  margin-left: -8px;
+  background-color: #2c2c3a;
+  background-size: cover;
+  background-position: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #d8d8e2;
+}
+
+.avatar:first-child {
+  margin-left: 0;
+}
+
+.avatarMore {
+  background: #26263a;
+  color: #9b9bab;
+}
+
+.playerHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.playerHeading .avatars {
+  margin: 0;
+}
+
 .storage {
   margin: 0 0 24px;
 }

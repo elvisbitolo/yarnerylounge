@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Download, Maximize, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import ParticipantStack from "./ParticipantStack";
 import styles from "./recordings.module.css";
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
@@ -112,7 +113,10 @@ export default function RecordingPlayer({ recording, media, onClose }) {
   return (
     <section className={styles.playerPanel} aria-label={t("playerLabel")}>
       <div className={styles.playerHead}>
-        <h2 className={styles.playerTitle}>{recording.title}</h2>
+        <div className={styles.playerHeading}>
+          <h2 className={styles.playerTitle}>{recording.title}</h2>
+          <ParticipantStack participants={recording.participants} />
+        </div>
         <button
           type="button"
           className={styles.playerClose}
