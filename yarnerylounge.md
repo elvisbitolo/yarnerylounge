@@ -213,6 +213,38 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
   - Scroll-to-latest jump button with an unread-count chip, and a typing-privacy
     toggle (eye button in the rail) persisted under `yarnery-typing-hidden`.
 
+## Phase 11 — Recordings library (PRD pass)
+
+- **Phase 1** (`db5e1a8`): poster frames, duration badges, a 4/2/1 responsive
+  card grid, title cleanup, a 48h NEW badge, vertical (9:16) framing and a live
+  “This session is being recorded” consent indicator.
+  - **Schema** — migration `19_recording_media_meta` adds `thumbnailPath`,
+    `width`, `height`, `deletedAt`, `deletedBy` (+ index) to `Recording`.
+    Applied to Supabase alongside the long-pending
+    `11_add_conversation_message_reactions` (fixes chat reactions, which were
+    failing on a missing column) and `12_ephemeral_typing` (drops the dead
+    `Typing` table now that typing uses Realtime Broadcast). `db:status` clean.
+  - **Thumbnails** — captured in the browser: there is no ffmpeg on the
+    serverless runtime. `src/lib/recording-thumbnail.js` seeks a signed video
+    ~3s in, draws a 640px-longest-side JPEG to a canvas, and POSTs it to
+    `/api/recordings/[id]/thumbnail`; `saveThumbnail` stores it once
+    (idempotent) beside the video and records the intrinsic dimensions. Frames
+    load lazily via `IntersectionObserver`, so only visible cards pay to decode
+    a video, and `page.js` signs every frame in one Storage call
+    (`signThumbnailUrls`). Magic-byte/size validation lives in
+    `parseThumbnailDataUrl`.
+  - **Grid** — `RecordingsLibrary.js` + `recordings.module.css`: thumbnail with
+    play overlay, duration badge, NEW badge (last 48h), date+time/size meta
+    (lounge hidden when the title already names it), a signed-URL player panel,
+    and an empty state linking to the calendar.
+  - **Consent** — `RoomClient` listens for Jitsi `recordingStatusChanged` and
+    shows a header “Recording” chip and banner to every participant, plus a
+    join-screen notice (PRD 4.7).
+  - **Tests** — `recordings-display` + `recordings-core` cover `isNewRecording`,
+    `recordingOrientation`, `computeThumbnailSize`, `buildThumbnailPath`,
+    `clampDimension`, `parseThumbnailDataUrl` and the new serialized media
+    fields. 584 pass / 0 fail; lint 0 errors; build OK.
+
 ## Housekeeping
 
 - Logged-in/meetings review on the marketing page (`secretyarnery.com/pages/speakeasy`)
