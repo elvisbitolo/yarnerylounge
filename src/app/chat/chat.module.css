@@ -214,7 +214,7 @@
 
 .bubble {
   max-width: min(70%, 560px);
-  padding: 9px 13px;
+  padding: 6px 13px;
   border-radius: 16px 16px 16px 4px;
   background: #26262e;
   align-self: flex-start;
@@ -251,7 +251,7 @@
 
 .bubbleTime {
   font-size: 11px;
-  margin: 4px 0 0;
+  margin: 1px 0 0;
   opacity: 0.6;
 }
 
