@@ -51,6 +51,10 @@ export default function RecordingsLibrary({
   const [trashOpen, setTrashOpen] = useState(false);
   const [deletedItems, setDeletedItems] = useState([]);
   const [trashLoading, setTrashLoading] = useState(false);
+  const [shareId, setShareId] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [convosLoaded, setConvosLoaded] = useState(false);
+  const [sendingTo, setSendingTo] = useState(null);
   // Captured once per mount so "this week/month" does not shift mid-render.
   const [now] = useState(() => Date.now());
   // Poster frames already signed by the server, plus any captured this session.
@@ -199,6 +203,54 @@ export default function RecordingsLibrary({
       setNotice({ type: "ok", text: t("linkCopied") });
     } catch {
       setNotice({ type: "error", text: t("copyFailed") });
+    }
+  }
+
+  async function openShare(recording) {
+    if (shareId === recording.id) {
+      setShareId(null);
+      return;
+    }
+    setShareId(recording.id);
+    setNotice(null);
+    if (convosLoaded) return;
+    try {
+      const res = await fetch("/api/conversations", { cache: "no-store" });
+      const json = await res.json();
+      const list = Array.isArray(json?.conversations) ? json.conversations : [];
+      // A self-chat ("notes") is not a place to share with anyone.
+      setConversations(list.filter((conversation) => !conversation.selfChat));
+      setConvosLoaded(true);
+    } catch {
+      setConvosLoaded(true);
+    }
+  }
+
+  async function sendToChat(recording, conversationId) {
+    setSendingTo(conversationId);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "",
+          attachment: {
+            kind: "recording",
+            name: recording.title,
+            mime: "text/uri-list",
+            dataUrl: `/recordings?rec=${recording.id}`,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || t("sendFailed"));
+      setNotice({ type: "ok", text: t("sentToChat") });
+      setShareId(null);
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || t("sendFailed") });
+    } finally {
+      setSendingTo(null);
     }
   }
 
@@ -625,7 +677,8 @@ export default function RecordingsLibrary({
                     <button
                       type="button"
                       className={styles.shareButton}
-                      onClick={() => copyLink(recording)}
+                      onClick={() => openShare(recording)}
+                      aria-expanded={shareId === recording.id}
                     >
                       {t("share")}
                     </button>
@@ -640,6 +693,40 @@ export default function RecordingsLibrary({
                       </button>
                     )}
                   </div>
+                  {shareId === recording.id && (
+                    <div className={styles.shareMenu}>
+                      <button
+                        type="button"
+                        className={styles.shareMenuCopy}
+                        onClick={() => copyLink(recording)}
+                      >
+                        {t("copyLink")}
+                      </button>
+                      <p className={styles.shareMenuLabel}>{t("sendToChat")}</p>
+                      {!convosLoaded ? (
+                        <p className={styles.shareMenuEmpty}>{t("loading")}</p>
+                      ) : conversations.length === 0 ? (
+                        <p className={styles.shareMenuEmpty}>{t("noChats")}</p>
+                      ) : (
+                        <ul className={styles.shareMenuList}>
+                          {conversations.map((conversation) => (
+                            <li key={conversation.id}>
+                              <button
+                                type="button"
+                                className={styles.shareMenuChat}
+                                onClick={() => sendToChat(recording, conversation.id)}
+                                disabled={sendingTo === conversation.id}
+                              >
+                                {sendingTo === conversation.id
+                                  ? t("sending")
+                                  : conversation.title}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
               </li>
             );

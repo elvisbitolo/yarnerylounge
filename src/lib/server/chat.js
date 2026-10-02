@@ -519,7 +519,14 @@ export async function addMessage(conversationId, sender, text, attachment = null
         hasAttachment: false,
       };
       if (attachment) {
-        const kind = attachment.kind === "image" ? "image" : attachment.kind === "audio" ? "audio" : "file";
+        const kind =
+          attachment.kind === "image"
+            ? "image"
+            : attachment.kind === "audio"
+              ? "audio"
+              : attachment.kind === "recording"
+                ? "recording"
+                : "file";
         msgData.attachment = {
           name: String(attachment.name || "").slice(0, 120),
           mime: String(attachment.mime || "").slice(0, 100),
@@ -550,9 +557,11 @@ export async function addMessage(conversationId, sender, text, attachment = null
           ? "Photo"
           : attachment?.kind === "audio"
             ? "Voice message"
-            : attachment?.name
-              ? `${attachment.name}`
-              : "");
+            : attachment?.kind === "recording"
+              ? "Recording"
+              : attachment?.name
+                ? `${attachment.name}`
+                : "");
       await prisma.conversation.update({
         where: { id: conversationId },
         data: {

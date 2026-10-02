@@ -873,6 +873,12 @@
     "movedToTrash": "Recording moved to Trash.",
     "undo": "Undo",
     "storageUsage": "{used} of {limit} used",
-    "storageWarning": "Nearly full"
+    "storageWarning": "Nearly full",
+    "copyLink": "Copy link",
+    "sendToChat": "Send to chat",
+    "noChats": "No conversations yet.",
+    "sending": "Sending…",
+    "sentToChat": "Sent to chat.",
+    "sendFailed": "Couldn't send to chat."
   }
 }

@@ -15,7 +15,7 @@ import {
   readTypingHidden,
   TYPING_THROTTLE_MS,
 } from "@/lib/chat-typing-core";
-import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, ChevronDown, Mic, Play, Pause } from "lucide-react";
+import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, ChevronDown, Mic, Play, Pause, Video } from "lucide-react";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -1099,7 +1099,21 @@ export default function Thread({
                     label={msg.attachment.name || "Voice note"}
                   />
                 )}
-                {msg.attachment && msg.attachment.kind !== "image" && msg.attachment.kind !== "audio" && (
+                {msg.attachment?.kind === "recording" && (
+                  <a
+                    className={styles.fileChip}
+                    href={msg.attachment.dataUrl}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className={styles.fileIcon}><Video size={13} /></span>
+                    <span className={styles.fileMeta}>
+                      <span className={styles.fileName}>{msg.attachment.name}</span>
+                      <span className={styles.fileSize}>Recording</span>
+                    </span>
+                    <span className={styles.fileDownload}>Open</span>
+                  </a>
+                )}
+                {msg.attachment && msg.attachment.kind !== "image" && msg.attachment.kind !== "audio" && msg.attachment.kind !== "recording" && (
                   <a
                     className={styles.fileChip}
                     href={msg.attachment.dataUrl}

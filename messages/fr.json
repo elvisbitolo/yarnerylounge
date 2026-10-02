@@ -873,6 +873,12 @@
     "movedToTrash": "Enregistrement déplacé vers la corbeille.",
     "undo": "Annuler",
     "storageUsage": "{used} sur {limit} utilisés",
-    "storageWarning": "Presque plein"
+    "storageWarning": "Presque plein",
+    "copyLink": "Copier le lien",
+    "sendToChat": "Envoyer dans le chat",
+    "noChats": "Aucune conversation pour l’instant.",
+    "sending": "Envoi…",
+    "sentToChat": "Envoyé dans le chat.",
+    "sendFailed": "Impossible d’envoyer dans le chat."
   }
 }

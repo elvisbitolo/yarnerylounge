@@ -28,6 +28,8 @@ const ALLOWED_FILE_MIME = new Set([
   "audio/ogg",
   "audio/wav",
 ]);
+// Shared recordings travel as an app-relative deep link, never a data payload.
+const RECORDING_LINK = /^\/recordings\?rec=[A-Za-z0-9_-]+$/;
 
 function validateAttachment(attachment) {
   if (!attachment || typeof attachment !== "object") {
@@ -53,6 +55,7 @@ function validateAttachment(attachment) {
   const baseMime = cleanMime.split(";")[0].trim();
   const isImage = kind === "image";
   const isAudio = kind === "audio";
+  const isRecording = kind === "recording";
   if (isImage) {
     if (!IMAGE_MIME.test(cleanMime)) {
       return { error: "Only PNG, JPEG, GIF, WEBP or AVIF images are allowed" };
@@ -61,19 +64,24 @@ function validateAttachment(attachment) {
     if (!VOICE_MIME.has(baseMime)) {
       return { error: "That audio format isn't supported" };
     }
+  } else if (isRecording) {
+    // A shared recording is an internal deep link, not an uploaded file.
+    if (!RECORDING_LINK.test(dataUrl)) {
+      return { error: "Invalid recording link" };
+    }
   } else if (kind !== "file" || (!isBlobUrl && !ALLOWED_FILE_MIME.has(cleanMime))) {
     return { error: "That file type isn't allowed yet" };
   }
   // The payload must actually match the declared type — blocks MIME smuggling
   // and non-data payloads (e.g. javascript: URLs). Blob URLs are already
   // validated by the server-side upload route.
-  if (!isBlobUrl && !dataUrl.startsWith(`data:${isAudio ? baseMime : cleanMime};base64,`)) {
+  if (!isRecording && !isBlobUrl && !dataUrl.startsWith(`data:${isAudio ? baseMime : cleanMime};base64,`)) {
     return { error: "Attachment payload doesn't match its file type" };
   }
   const attachmentOut = {
     name: name.slice(0, 120),
-    mime: (isAudio ? baseMime : cleanMime).slice(0, 100),
-    kind: isImage ? "image" : isAudio ? "audio" : "file",
+    mime: (isRecording ? "text/uri-list" : isAudio ? baseMime : cleanMime).slice(0, 100),
+    kind: isImage ? "image" : isAudio ? "audio" : isRecording ? "recording" : "file",
     size: Number.isFinite(attachment.size) && attachment.size > 0
       ? Math.round(Math.min(attachment.size, 50 * 1024 * 1024))
       : 0,
