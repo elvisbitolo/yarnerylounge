@@ -842,6 +842,24 @@
     "mute": "Stumm",
     "unmute": "Ton an",
     "fullscreen": "Vollbild",
-    "playerLabel": "Aufzeichnung-Player"
+    "playerLabel": "Aufzeichnung-Player",
+    "searchPlaceholder": "Aufzeichnungen durchsuchen",
+    "allLounges": "Alle Lounges",
+    "sortLabel": "Sortieren",
+    "sortNewest": "Neueste zuerst",
+    "sortOldest": "Älteste zuerst",
+    "sortLongest": "Längste zuerst",
+    "sortLargest": "Größte zuerst",
+    "viewLabel": "Ansicht",
+    "viewGrid": "Rasteransicht",
+    "viewList": "Listenansicht",
+    "filtersLabel": "Schnellfilter",
+    "chipAll": "Alle",
+    "chipWeek": "Diese Woche",
+    "chipMonth": "Dieser Monat",
+    "chipVertical": "Hochformat",
+    "chipShared": "Mit mir geteilt",
+    "clearFilters": "Filter zurücksetzen",
+    "noResults": "Keine Aufzeichnungen passen zu deinen Filtern."
   }
 }

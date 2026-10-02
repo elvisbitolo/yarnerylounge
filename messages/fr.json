@@ -842,6 +842,24 @@
     "mute": "Muet",
     "unmute": "Activer le son",
     "fullscreen": "Plein écran",
-    "playerLabel": "Lecteur d’enregistrement"
+    "playerLabel": "Lecteur d’enregistrement",
+    "searchPlaceholder": "Rechercher des enregistrements",
+    "allLounges": "Tous les salons",
+    "sortLabel": "Trier",
+    "sortNewest": "Plus récents",
+    "sortOldest": "Plus anciens",
+    "sortLongest": "Plus longs",
+    "sortLargest": "Plus volumineux",
+    "viewLabel": "Affichage",
+    "viewGrid": "Vue grille",
+    "viewList": "Vue liste",
+    "filtersLabel": "Filtres rapides",
+    "chipAll": "Tous",
+    "chipWeek": "Cette semaine",
+    "chipMonth": "Ce mois-ci",
+    "chipVertical": "Vertical",
+    "chipShared": "Partagés avec moi",
+    "clearFilters": "Effacer les filtres",
+    "noResults": "Aucun enregistrement ne correspond à vos filtres."
   }
 }

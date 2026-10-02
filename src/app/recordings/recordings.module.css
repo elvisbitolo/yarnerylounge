@@ -17,6 +17,109 @@
   margin: 0 0 28px;
 }
 
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.searchField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid #2c2c3a;
+  border-radius: 10px;
+  background: #0e0e14;
+  color: #8a8a9c;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #f0f0f5;
+  font-size: 14px;
+  outline: none;
+}
+
+.select {
+  padding: 8px 10px;
+  border: 1px solid #2c2c3a;
+  border-radius: 10px;
+  background: #0e0e14;
+  color: #d8d8e2;
+  font-size: 14px;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.viewToggle {
+  display: inline-flex;
+  border: 1px solid #2c2c3a;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.viewButton,
+.viewButtonActive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: #8a8a9c;
+  cursor: pointer;
+}
+
+.viewButtonActive {
+  background: #26263a;
+  color: #f0f0f5;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.chip,
+.clearButton {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #2c2c3a;
+  background: transparent;
+  color: #c9c9d4;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chipActive {
+  background: #c9b6f0;
+  border-color: #c9b6f0;
+  color: #16161f;
+}
+
+.clearButton {
+  color: #9b9bab;
+  border-style: dashed;
+}
+
+.noResults {
+  color: #9b9bab;
+  font-size: 14px;
+  padding: 24px 0;
+}
+
 .notice {
   font-size: 14px;
   color: #8fd3a8;
@@ -82,6 +185,46 @@
   .grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;
+  }
+}
+
+/* List view: a compact row per recording with a small fixed poster. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.list .card {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.list .thumb {
+  flex: 0 0 220px;
+  width: 220px;
+  aspect-ratio: 16 / 9;
+}
+
+.list .cardVertical .thumb {
+  aspect-ratio: 9 / 16;
+  max-height: none;
+}
+
+.list .cardBody {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+@media (max-width: 620px) {
+  .list .card {
+    flex-direction: column;
+  }
+
+  .list .thumb {
+    flex: 0 0 auto;
+    width: 100%;
   }
 }
 

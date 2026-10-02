@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { AlertTriangle, Film, Play } from "lucide-react";
+import { AlertTriangle, Film, LayoutGrid, List, Play, Search } from "lucide-react";
 import {
   formatBytes,
   formatDuration,
@@ -13,20 +13,35 @@ import {
   recordingOrientation,
 } from "@/lib/recordings-display";
 import { captureVideoFrame } from "@/lib/recording-thumbnail";
+import {
+  getServerSnapshot,
+  getSnapshot,
+  subscribe,
+  updateRecordingView,
+} from "@/lib/recordings-view";
 import RecordingPlayer from "./RecordingPlayer";
 import styles from "./recordings.module.css";
 
 // How often to check for a recording that finished pulling.
 const POLL_MS = 8000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+const MONTH_MS = 30 * DAY_MS;
 
-export default function RecordingsLibrary({ recordings, loadError, canDelete }) {
+export default function RecordingsLibrary({ recordings, loadError, canDelete, currentUserId = null }) {
   const t = useTranslations("recordings");
+  const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { sort, view, chip } = prefs;
   const [items, setItems] = useState(recordings);
   const [activeId, setActiveId] = useState(null);
   const [playback, setPlayback] = useState({});
   const [busyId, setBusyId] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [query, setQuery] = useState("");
+  const [lounge, setLounge] = useState("all");
+  // Captured once per mount so "this week/month" does not shift mid-render.
+  const [now] = useState(() => Date.now());
   // Poster frames already signed by the server, plus any captured this session.
   const [thumbs, setThumbs] = useState(() =>
     Object.fromEntries(
@@ -190,6 +205,62 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
     return () => clearInterval(timer);
   }, [hasUnready]);
 
+  const active = items.find((r) => r.id === activeId) || null;
+  const media = activeId ? playback[activeId] : null;
+
+  // Distinct lounges for the filter dropdown, alphabetically.
+  const lounges = useMemo(
+    () => [...new Set(items.map((r) => r.roomName).filter(Boolean))].sort(),
+    [items]
+  );
+
+  const ordered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const weekCut = now - WEEK_MS;
+    const monthCut = now - MONTH_MS;
+    const matched = items.filter((r) => {
+      if (lounge !== "all" && r.roomName !== lounge) return false;
+      const started = Date.parse(r.startedAt) || 0;
+      if (chip === "week" && started < weekCut) return false;
+      if (chip === "month" && started < monthCut) return false;
+      if (chip === "vertical" && recordingOrientation(r.width, r.height) !== "vertical") return false;
+      if (
+        chip === "shared" &&
+        !(Array.isArray(r.participants) &&
+          r.participants.some((participant) => participant?.id === currentUserId))
+      ) {
+        return false;
+      }
+      if (needle) {
+        const haystack = [r.title, r.roomName, ...(r.participants || []).map((p) => p?.name)]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      return true;
+    });
+
+    // Processing/failed cards lead, then the chosen sort within each group.
+    return matched.sort((a, b) => {
+      const aReady = a.status === "ready" ? 1 : 0;
+      const bReady = b.status === "ready" ? 1 : 0;
+      if (aReady !== bReady) return aReady - bReady;
+      switch (sort) {
+        case "oldest":
+          return (Date.parse(a.startedAt) || Infinity) - (Date.parse(b.startedAt) || Infinity);
+        case "longest":
+          return (b.durationSec || 0) - (a.durationSec || 0);
+        case "largest":
+          return (b.sizeBytes || 0) - (a.sizeBytes || 0);
+        default:
+          return (Date.parse(b.startedAt) || 0) - (Date.parse(a.startedAt) || 0);
+      }
+    });
+  }, [items, lounge, chip, query, sort, now, currentUserId]);
+
+  const filtersActive = Boolean(query.trim()) || lounge !== "all" || chip !== "all";
+
   if (loadError) {
     return (
       <div>
@@ -198,17 +269,6 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
       </div>
     );
   }
-
-  const active = items.find((r) => r.id === activeId) || null;
-  const media = activeId ? playback[activeId] : null;
-
-  // Processing/failed cards lead, then ready recordings newest-first.
-  const ordered = [...items].sort((a, b) => {
-    const aReady = a.status === "ready" ? 1 : 0;
-    const bReady = b.status === "ready" ? 1 : 0;
-    if (aReady !== bReady) return aReady - bReady;
-    return (Date.parse(b.startedAt) || 0) - (Date.parse(a.startedAt) || 0);
-  });
 
   return (
     <div>
@@ -230,7 +290,105 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
           </Link>
         </div>
       ) : (
-        <ul className={styles.grid} ref={gridRef}>
+        <>
+          <div className={styles.toolbar}>
+            <label className={styles.searchField}>
+              <Search size={16} aria-hidden="true" />
+              <input
+                type="search"
+                className={styles.searchInput}
+                placeholder={t("searchPlaceholder")}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label={t("searchPlaceholder")}
+              />
+            </label>
+            <select
+              className={styles.select}
+              value={lounge}
+              onChange={(event) => setLounge(event.target.value)}
+              aria-label={t("allLounges")}
+            >
+              <option value="all">{t("allLounges")}</option>
+              {lounges.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
+              value={sort}
+              onChange={(event) => updateRecordingView({ sort: event.target.value })}
+              aria-label={t("sortLabel")}
+            >
+              <option value="newest">{t("sortNewest")}</option>
+              <option value="oldest">{t("sortOldest")}</option>
+              <option value="longest">{t("sortLongest")}</option>
+              <option value="largest">{t("sortLargest")}</option>
+            </select>
+            <div className={styles.viewToggle} role="group" aria-label={t("viewLabel")}>
+              <button
+                type="button"
+                className={view === "grid" ? styles.viewButtonActive : styles.viewButton}
+                onClick={() => updateRecordingView({ view: "grid" })}
+                aria-pressed={view === "grid"}
+                aria-label={t("viewGrid")}
+              >
+                <LayoutGrid size={16} />
+              </button>
+              <button
+                type="button"
+                className={view === "list" ? styles.viewButtonActive : styles.viewButton}
+                onClick={() => updateRecordingView({ view: "list" })}
+                aria-pressed={view === "list"}
+                aria-label={t("viewList")}
+              >
+                <List size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.chips} role="group" aria-label={t("filtersLabel")}>
+            {[
+              ["all", t("chipAll")],
+              ["week", t("chipWeek")],
+              ["month", t("chipMonth")],
+              ["vertical", t("chipVertical")],
+              ["shared", t("chipShared")],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={`${styles.chip} ${chip === value ? styles.chipActive : ""}`}
+                onClick={() => updateRecordingView({ chip: value })}
+                aria-pressed={chip === value}
+              >
+                {label}
+              </button>
+            ))}
+            {filtersActive && (
+              <button
+                type="button"
+                className={styles.clearButton}
+                onClick={() => {
+                  setQuery("");
+                  setLounge("all");
+                  updateRecordingView({ chip: "all" });
+                }}
+              >
+                {t("clearFilters")}
+              </button>
+            )}
+          </div>
+
+          {ordered.length === 0 ? (
+            <p className={styles.noResults}>{t("noResults")}</p>
+          ) : (
+            <ul
+              className={`${styles.grid} ${view === "list" ? styles.list : ""}`}
+              ref={gridRef}
+            >
           {ordered.map((recording) => {
             if (recording.status !== "ready") {
               const failed = recording.status === "failed";
@@ -343,7 +501,9 @@ export default function RecordingsLibrary({ recordings, loadError, canDelete }) 
               </li>
             );
           })}
-        </ul>
+            </ul>
+          )}
+        </>
       )}
 
       {canDelete && items.length > 0 && <p className={styles.footnote}>{t("ownerNote")}</p>}

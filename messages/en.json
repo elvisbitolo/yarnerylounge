@@ -842,6 +842,24 @@
     "mute": "Mute",
     "unmute": "Unmute",
     "fullscreen": "Full screen",
-    "playerLabel": "Recording player"
+    "playerLabel": "Recording player",
+    "searchPlaceholder": "Search recordings",
+    "allLounges": "All lounges",
+    "sortLabel": "Sort",
+    "sortNewest": "Newest first",
+    "sortOldest": "Oldest first",
+    "sortLongest": "Longest first",
+    "sortLargest": "Largest first",
+    "viewLabel": "View",
+    "viewGrid": "Grid view",
+    "viewList": "List view",
+    "filtersLabel": "Quick filters",
+    "chipAll": "All",
+    "chipWeek": "This week",
+    "chipMonth": "This month",
+    "chipVertical": "Vertical",
+    "chipShared": "Shared with me",
+    "clearFilters": "Clear filters",
+    "noResults": "No recordings match your filters."
   }
 }

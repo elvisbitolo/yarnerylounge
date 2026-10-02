@@ -41,6 +41,7 @@ export default async function RecordingsPage() {
           recordings={recordings}
           loadError={loadError}
           canDelete={userDoc?.role === "owner"}
+          currentUserId={user.uid}
         />
       </div>
     </Nav>
