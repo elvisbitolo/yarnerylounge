@@ -163,6 +163,30 @@
   box-shadow: 0 0 0 3px rgba(46, 189, 104, 0.16);
 }
 
+.presenceLounge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2ebd68;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.presenceLounge:hover {
+  text-decoration: underline;
+}
+
+.presenceLounge .presenceDot {
+  background: #2ebd68;
+  box-shadow: 0 0 0 3px rgba(46, 189, 104, 0.16);
+}
+
+.presenceLounge:hover .presenceDot {
+  box-shadow: 0 0 0 4px rgba(46, 189, 104, 0.24);
+}
+
 .threadTitle {
   font-size: 18px;
   font-weight: 700;

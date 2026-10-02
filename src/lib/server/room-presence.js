@@ -94,6 +94,38 @@ export async function activeRoomMemberCounts(roomIds = [], now = Date.now()) {
   return counts;
 }
 
+// Which lounge each of these users is currently in, keyed by userId. When a
+// member has more than one active session, the most recently active lounge
+// wins. Powers the "In <Lounge>" presence line and join affordance in chat.
+export async function activeRoomsForUsers(userIds = [], now = Date.now()) {
+  const map = {};
+  if (userIds.length === 0) return map;
+  const prisma = getPrisma();
+  if (!prisma) return map;
+  try {
+    const rows = await prisma.roomPresence.findMany({
+      where: { leftAt: null, lastSeenAt: { gt: cutoffDate(now) }, userId: { in: userIds } },
+      select: { userId: true, roomId: true },
+    });
+    const roomIds = [...new Set(rows.map((row) => row.roomId))];
+    const rooms = roomIds.length
+      ? await prisma.room.findMany({
+          where: { id: { in: roomIds } },
+          select: { id: true, slug: true, name: true },
+        })
+      : [];
+    const byId = new Map(rooms.map((room) => [room.id, room]));
+    for (const row of rows) {
+      if (map[row.userId]) continue;
+      const room = byId.get(row.roomId);
+      if (room) map[row.userId] = { slug: room.slug, name: room.name };
+    }
+  } catch (err) {
+    logError("room-presence.user_rooms_failed", { error: err.message });
+  }
+  return map;
+}
+
 export async function touchRoomPresence({ sessionId, roomId, userId }) {
   const prisma = getPrisma();
   if (!prisma) return { error: "Database unavailable" };

@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import BackButton from "@/components/BackButton";
 import PresenceStatus from "../PresenceStatus";
-import { Search, X, Phone, Video } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { subscribeTyping, getTypingState, typingLabel } from "@/lib/chat-typing-core";
 import styles from "../chat.module.css";
 
@@ -64,24 +64,6 @@ export default function ChatHeader({
           </div>
         </div>
         <div className={styles.headerActions}>
-          {isGroup && (
-            <button
-              type="button"
-              className={styles.headerIconBtn}
-              aria-label="Start a call"
-              title="Start a call"
-            >
-              <Video size={17} />
-            </button>
-          )}
-          <button
-            type="button"
-            className={styles.headerIconBtn}
-            aria-label="Voice call"
-            title="Voice call"
-          >
-            <Phone size={16} />
-          </button>
           <button
             type="button"
             className={styles.headerIconBtn}

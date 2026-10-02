@@ -4,6 +4,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { isOnlineRow, onlineMembers } from "@/lib/server/presence-core";
+import { activeRoomsForUsers } from "@/lib/server/room-presence";
 
 function parseIds(value) {
   return [...new Set(String(value || "").split(",").map((id) => id.trim()).filter(Boolean))].slice(0, 50);
@@ -65,8 +66,9 @@ export async function GET(req) {
   try {
     const rows = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, extra: true } });
     const now = Date.now();
+    const rooms = await activeRoomsForUsers(ids, now);
     const presence = Object.fromEntries(
-      rows.map((row) => [row.id, { online: isOnlineRow(row, now) }])
+      rows.map((row) => [row.id, { online: isOnlineRow(row, now), room: rooms[row.id] || null }])
     );
     return NextResponse.json({ presence });
   } catch (err) {
