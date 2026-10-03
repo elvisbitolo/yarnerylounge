@@ -22,7 +22,10 @@ export default async function RecordingsPage() {
   let recordings = [];
   let loadError = null;
   try {
-    const rows = await listRecordings({ limit: 60 });
+    // includeUnready so pending/processing/failed cards render on first paint
+    // and the library's auto-refresh poll arms; without it a still-pulling
+    // recording is invisible and only appears after a manual reload.
+    const rows = await listRecordings({ limit: 60, includeUnready: true });
     // Sign every poster frame in one Storage call, then attach it by row id.
     const thumbUrls = await signThumbnailUrls(rows);
     recordings = rows.map((row) => ({

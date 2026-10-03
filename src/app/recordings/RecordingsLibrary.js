@@ -25,6 +25,9 @@ import styles from "./recordings.module.css";
 
 // How often to check for a recording that finished pulling.
 const POLL_MS = 8000;
+// When nothing is mid-pull we still check periodically, so a recording that
+// lands from the JaaS webhook shows up without a manual reload.
+const IDLE_POLL_MS = 60000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 const MONTH_MS = 30 * DAY_MS;
@@ -307,11 +310,13 @@ export default function RecordingsLibrary({
     return () => observer.disconnect();
   }, [items, thumbs, requestThumbnail]);
 
-  // Auto-refresh while anything is still pulling, so a processing card becomes
-  // playable without a manual reload.
+  // Keep the library live: a fast cadence while a pull is in flight, a slow
+  // background check otherwise, so a recording that lands from the JaaS webhook
+  // appears without a manual reload. Every poll includes unready rows, which is
+  // also how the first non-ready row arms the faster cadence.
   const hasUnready = items.some((r) => r.status !== "ready");
   useEffect(() => {
-    if (!hasUnready) return undefined;
+    const delay = hasUnready ? POLL_MS : IDLE_POLL_MS;
     const timer = setInterval(() => {
       fetch("/api/recordings?include=all&limit=60", { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
@@ -319,7 +324,7 @@ export default function RecordingsLibrary({
           if (json?.ok && Array.isArray(json.data)) setItems(json.data);
         })
         .catch(() => {});
-    }, POLL_MS);
+    }, delay);
     return () => clearInterval(timer);
   }, [hasUnready]);
 
