@@ -827,17 +827,6 @@
   white-space: nowrap;
 }
 
-.recordingBanner {
-  margin: 0;
-  padding: 8px 14px;
-  background: rgba(217, 74, 74, 0.14);
-  border-bottom: 1px solid #3a2028;
-  color: #ffb3b3;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-}
-
 .recordNotice {
   margin: 0;
   padding: 8px 14px;

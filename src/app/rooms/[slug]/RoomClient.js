@@ -38,6 +38,16 @@ const VIEWER_TOOLBAR = [
   "security",
 ];
 
+// Publishers get the viewer set plus camera/mic — and nothing else. The default
+// Jitsi toolbar also carries screen share, participants, invite and recording,
+// which made camera-on lounges like Happy Hour Hub show buttons the others
+// didn't. One explicit list keeps every lounge identical.
+const PUBLISHER_TOOLBAR = [
+  "microphone",
+  "camera",
+  ...VIEWER_TOOLBAR,
+];
+
 // Device detection is intentionally capped: modest resolution warms the device
 // quickly and keeps the camera prompt/track fast, which is the root cause of the
 // "Connecting your camera" stall on higher-end cameras.
@@ -1015,7 +1025,7 @@ export default function RoomClient({
     },
     disableSimulcast: true,
     resolution: 720,
-    toolbarButtons: viewer || audioLocked ? VIEWER_TOOLBAR : undefined,
+    toolbarButtons: viewer || audioLocked ? VIEWER_TOOLBAR : PUBLISHER_TOOLBAR,
   };
 
   const interfaceConfigOverwrite = {
@@ -1213,12 +1223,6 @@ export default function RoomClient({
               )}
             </div>
           </header>
-
-          {recording && (
-            <p className={styles.recordingBanner} role="status">
-              {t("recordingLive")}
-            </p>
-          )}
 
           {recordNotice && (
             <p className={styles.recordNotice} role="status">
