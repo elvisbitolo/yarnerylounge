@@ -149,6 +149,11 @@ export default function MembersDirectory({
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [hover, setHover] = useState(null);
   const [matchTarget, setMatchTarget] = useState(null);
+  // Real-time online presence (heartbeat window), seeded from the server render
+  // and refreshed on an interval so dots track members coming and going.
+  const [onlineUids, setOnlineUids] = useState(
+    () => new Set(members.filter((m) => m.online).map((m) => m.id))
+  );
   const hideTimer = useRef(null);
 
   const patchFilters = useCallback(
@@ -188,6 +193,26 @@ export default function MembersDirectory({
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await fetch("/api/presence?online=1", { cache: "no-store" });
+        const data = response.ok ? await response.json() : null;
+        if (active && Array.isArray(data?.uids)) setOnlineUids(new Set(data.uids));
+      } catch {
+        // Leave the last known set in place; a presence blip should not blank
+        // every dot.
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 30_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const preset = PRESETS[viewportKey];
@@ -427,7 +452,11 @@ export default function MembersDirectory({
                         )}
                       </span>
                     </span>
-                    {member.live && <span className={styles.liveDot} />}
+                    {member.live ? (
+                      <span className={styles.liveDot} title="In a lounge now" />
+                    ) : onlineUids.has(member.id) ? (
+                      <span className={styles.onlineDot} title="Online now" />
+                    ) : null}
                   </Link>
                 );
               })}
@@ -469,7 +498,11 @@ export default function MembersDirectory({
                 @{hover.member.username || "member"}
               </p>
             </div>
-            {hover.member.live && <span className={styles.tooltipLiveBadge}>● Live</span>}
+            {hover.member.live ? (
+              <span className={styles.tooltipLiveBadge}>● Live</span>
+            ) : onlineUids.has(hover.member.id) ? (
+              <span className={styles.tooltipOnlineBadge}>● Online</span>
+            ) : null}
           </div>
           {hover.member.headline && <p className={styles.tooltipHeadline}>{hover.member.headline}</p>}
           {hover.member.bio && <p className={styles.tooltipBio}>{hover.member.bio}</p>}

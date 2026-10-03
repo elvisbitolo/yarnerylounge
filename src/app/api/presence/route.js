@@ -47,13 +47,20 @@ export async function GET(req) {
 
   if (wantsOnline) {
     try {
+      // Newest-updated first: a heartbeat bumps updatedAt, so currently-online
+      // members are near the top and this stays a small read rather than a full
+      // table scan.
       const rows = await prisma.user.findMany({
-        take: 200,
+        take: 500,
         where: { suspended: { not: true } },
         orderBy: { updatedAt: "desc" },
         select: { id: true, name: true, photoURL: true, extra: true },
       });
-      return NextResponse.json({ members: onlineMembers(rows, { excludeId: user.uid }) });
+      const now = Date.now();
+      const uids = rows
+        .filter((row) => row.id !== user.uid && isOnlineRow(row, now))
+        .map((row) => row.id);
+      return NextResponse.json({ members: onlineMembers(rows, { excludeId: user.uid }), uids });
     } catch (err) {
       logError("presence.online_failed", { error: err.message });
       return NextResponse.json({ error: "Presence unavailable" }, { status: 503 });

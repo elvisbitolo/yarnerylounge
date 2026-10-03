@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { listActiveRoomMemberIds } from "@/lib/server/room-presence";
+import { isOnline } from "@/lib/server/presence-core";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
 import Nav from "@/components/Nav";
@@ -121,6 +122,7 @@ export default async function MembersPage({ searchParams }) {
         expiresAt: m.expiresAt ? m.expiresAt.getTime() : 0,
         foundingMember: !!m.foundingMember,
         live: liveUids.has(m.id),
+        online: isOnline(extra.lastActiveAt, nowMs),
         points: gami.get(m.id)?.points || 0,
         lastVisitDate: gami.get(m.id)?.lastVisitDate || "",
         createdAt: m.createdAt ? m.createdAt.getTime() : 0,
