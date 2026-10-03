@@ -10,7 +10,6 @@ import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
 import RoomDataProvider from "./RoomDataProvider";
 import RoomChat from "./RoomChat";
-import useDraggableFloat from "@/lib/use-draggable-float";
 import styles from "./room.module.css";
 import {
   JITSI_ERROR,
@@ -204,16 +203,6 @@ export default function RoomClient({
 
   const isBroadcast = kind === "broadcast";
 
-  const chatDrag = useDraggableFloat({
-    storageKey: "yarnerylounge-chat-fab-pos",
-    defaultPos: {
-      right: typeof window !== "undefined" ? Math.round((window.innerWidth - 110) / 2) : 90,
-      bottom: 66,
-    },
-    width: 110,
-    height: 40,
-    minBottom: 60,
-  });
   const isStaff = role === "owner" || role === "moderator";
   const viewerOnly = isBroadcast && !isHost && !isCoHost;
   const planCanPublish = canPublishPlan || isStaff || isHost || isCoHost;
@@ -1266,25 +1255,6 @@ export default function RoomClient({
                   />
                 </RoomDataProvider>
               </div>
-            </div>
-          )}
-
-          {!showChat && (
-            <div style={chatDrag.style}>
-              <button
-                type="button"
-                className={styles.chatFab}
-                {...chatDrag.handlers}
-                onClick={() => {
-                  if (chatDrag.wasDragged()) return;
-                  setShowChat(true);
-                }}
-                aria-label={t("showChat")}
-                title={t("showChat")}
-              >
-                <MessagesSquare size={19} />
-                <span>Chat</span>
-              </button>
             </div>
           )}
 

@@ -6,7 +6,6 @@ import Providers from "@/components/Providers";
 import PushSetup from "@/components/PushSetup";
 import GlobalTheme from "@/components/GlobalTheme";
 import LoungeExpiryGuard from "@/components/LoungeExpiryGuard";
-import ThemePicker from "@/components/ThemePicker";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -76,7 +75,6 @@ export default async function RootLayout({ children }) {
           <LoungeExpiryGuard />
           <PushSetup />
           <GlobalTheme />
-          <ThemePicker />
           {children}
         </Providers>
         <Analytics />

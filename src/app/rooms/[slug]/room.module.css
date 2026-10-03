@@ -459,30 +459,6 @@
   min-height: 0;
 }
 
-.chatFab {
-  position: relative;
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 999px;
-  border: none;
-  background: linear-gradient(90deg, var(--primary, #e91e63), var(--primary-hover, #c2185b));
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: grab;
-  box-shadow: 0 10px 26px rgba(233, 30, 99, 0.45);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  user-select: none;
-}
-
-.chatFab:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 32px rgba(233, 30, 99, 0.55);
-}
-
 .roomActionBar {
   flex-shrink: 0;
   display: flex;
@@ -764,11 +740,6 @@
 
   .controlsVolume input[type="range"] {
     width: 64px;
-  }
-
-  .chatFab {
-    bottom: 60px;
-    padding: 9px 16px;
   }
 
   .roomActionBtn {
