@@ -324,6 +324,29 @@ the 24h link expires.
 > it on Pro (up to 500 GB) to match the app's `MAX_UPLOAD_BYTES` (2 GiB). Longer
 > recordings also hit the `MAX_IN_MEMORY_BYTES` (384 MiB) buffer cap.
 
+## Lounge & gallery polish
+
+- **Thumbnails** — the `recordings` bucket rejected `image/jpeg`/`png`/`webp`
+  (`mime type ... is not supported`), so poster uploads failed with 503. The
+  allowed MIME list now includes images and `ensureRecordingsBucket()` self-heals
+  an existing bucket that lacks them (`7e7d10e`).
+- **Storage bar** — `RECORDINGS_STORAGE_LIMIT_GB` (default 5) is documented in
+  `.env.example`; set it in Vercel to match the project's Supabase quota.
+- **Member badges** — one `TIER_BADGE` table in `plans.js` is the single source
+  for the Flirting (sparkles), Hooking Up (crown) and Moving In (gem) badges;
+  `components/TierIcon.js` maps the semantic icon names to lucide glyphs.
+  Rendered on the member profile and in Match. The directory had shown the
+  viewer's role pill on every member and now passes each member's own role
+  (`ffe4cef`, `5ed2a0a`).
+- **Gallery** — the photo modal gains **Save** and **Delete**; delete reuses
+  `DELETE /api/posts/[id]` (author or owner/moderator), and the seeded crochet
+  images stay non-deletable (`2383c3d`).
+- **Record control** — the header's passive REC chip became a real Start/Stop
+  recording button for hosts/co-hosts/staff, driven by
+  `startRecording`/`stopRecording` and confirmed through
+  `recordingStatusChanged`, with a transient failure notice; non-recorders keep
+  a read-only live indicator (`236f33d`).
+
 ## Housekeeping
 
 - Logged-in/meetings review on the marketing page (`secretyarnery.com/pages/speakeasy`)
