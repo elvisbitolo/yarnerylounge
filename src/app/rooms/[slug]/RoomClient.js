@@ -4,12 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, MessagesSquare, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, SlidersHorizontal, Volume2, VolumeX } from "lucide-react";
+import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, SlidersHorizontal, Volume2, VolumeX } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
-import RoomDataProvider from "./RoomDataProvider";
-import RoomChat from "./RoomChat";
 import styles from "./room.module.css";
 import {
   JITSI_ERROR,
@@ -122,8 +120,6 @@ export default function RoomClient({
   isHost,
   isCoHost,
   canPublishPlan = true,
-  canWriteChatPlan = false,
-  planKey = "flirting",
   alwaysOn,
   vibeMode = "",
   vibeRule = "",
@@ -155,7 +151,6 @@ export default function RoomClient({
   const [participantCount, setParticipantCount] = useState(0);
   // True while JaaS reports an active recording, for the consent indicator.
   const [recording, setRecording] = useState(false);
-  const [showChat, setShowChat] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [mountKey, setMountKey] = useState(0);
   const [connectAt, setConnectAt] = useState(0);
@@ -206,7 +201,6 @@ export default function RoomClient({
   const isStaff = role === "owner" || role === "moderator";
   const viewerOnly = isBroadcast && !isHost && !isCoHost;
   const planCanPublish = canPublishPlan || isStaff || isHost || isCoHost;
-  const canWriteChat = canWriteChatPlan || isStaff || isHost || isCoHost;
   const viewer = !planCanPublish || viewerOnly;
   const audioLocked = disableAudio || forceMuteOnJoin;
   const canRecord = isStaff || isHost || isCoHost;
@@ -1215,48 +1209,6 @@ export default function RoomClient({
               </div>
             )}
           </div>
-
-          {showChat && (
-            <div className={styles.chatSheet}>
-              <div className={styles.chatSheetHeader}>
-                <span className={styles.chatSheetTitle}>
-                  <MessagesSquare size={15} />
-                  Lounge chat
-                </span>
-                <button
-                  type="button"
-                  className={styles.chatSheetClose}
-                  onClick={() => setShowChat(false)}
-                  aria-label={t("closeChat")}
-                >
-                  ×
-                </button>
-              </div>
-              <div className={styles.chatSheetBody}>
-                <RoomDataProvider
-                  key={roomId}
-                  roomId={roomId}
-                  currentUserId={userId}
-                  currentUserName={userName}
-                  currentUserAvatar={userAvatar}
-                  canModerate={isStaff || isHost || isCoHost}
-                  isHost={isHost}
-                  onMuteParticipant={muteRemoteParticipant}
-                >
-                  <RoomChat
-                    hostId={hostId}
-                    currentUserId={userId}
-                    participantCount={participantCount}
-                    roomConnected={connStatus === "connected"}
-                    currentUserName={userName}
-                    currentUserAvatar={userAvatar}
-                    canWriteChat={canWriteChat}
-                    planKey={planKey}
-                  />
-                </RoomDataProvider>
-              </div>
-            </div>
-          )}
 
           <div className={styles.roomActionBar}>
             {canRecord && (

@@ -55,8 +55,6 @@ export default async function RoomPage({ params }) {
         isHost={rights.isHost}
         isCoHost={rights.isCoHost}
         canPublishPlan={caps.video.canPublish}
-        canWriteChatPlan={caps.chat.write}
-        planKey={caps.key}
         alwaysOn={!!room.alwaysOn}
         vibe={room.vibe || ""}
         vibeMode={room.vibeMode || ""}
