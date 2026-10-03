@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, SlidersHorizontal, Volume2, VolumeX } from "lucide-react";
+import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -172,10 +172,11 @@ export default function RoomClient({
   const [connectAt, setConnectAt] = useState(0);
   const [connStalled, setConnStalled] = useState(false);
 
-  // ---- Host controls (moderator-only mute + volume management) ----
-  const [hostControlsOpen, setHostControlsOpen] = useState(false);
+  // ---- People panel (per-participant volume for all; moderator mute + block) ----
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const [remoteParticipants, setRemoteParticipants] = useState([]);
   const [participantVolumes, setParticipantVolumes] = useState({});
+  const [blockedEmails, setBlockedEmails] = useState(() => new Set());
   const [controlsNotice, setControlsNotice] = useState("");
 
   // ---- Media state (camera/mic live their own lifecycle) ----
@@ -791,6 +792,7 @@ export default function RoomClient({
         .map((p) => ({
           participantId: p.participantId || p.id || "",
           displayName: p.formattedDisplayName || p.displayName || "",
+          email: p.email || "",
           avatarUrl: p.avatarUrl || "",
           muted: !!participantMutedRef.current[p.participantId || p.id || ""],
         }));
@@ -800,7 +802,7 @@ export default function RoomClient({
     }
   }
 
-  function hostMuteAll() {
+  function muteAllRemote() {
     const api = apiRef.current;
     if (!api) return;
     try {
@@ -812,7 +814,7 @@ export default function RoomClient({
     refreshRemoteParticipants();
   }
 
-  function hostMuteParticipant(participantId) {
+  function muteRemote(participantId) {
     const api = apiRef.current;
     if (!api || !participantId) return;
     try {
@@ -823,7 +825,7 @@ export default function RoomClient({
     refreshRemoteParticipants();
   }
 
-  function hostSetVolume(participantId, volume) {
+  function setRemoteVolume(participantId, volume) {
     const api = apiRef.current;
     if (!api || !participantId) return;
     setParticipantVolumes((v) => ({ ...v, [participantId]: volume }));
@@ -834,8 +836,39 @@ export default function RoomClient({
     }
   }
 
-  function openHostControls() {
-    setHostControlsOpen(true);
+  async function toggleBlock(participant) {
+    const email = participant?.email;
+    if (!email) {
+      setControlsNotice(t("blockNoEmail"));
+      return;
+    }
+    const wasBlocked = blockedEmails.has(email);
+    try {
+      const res = await fetch("/api/members/safety", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, action: wasBlocked ? "unblock" : "block" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || t("blockFail"));
+      setBlockedEmails((prev) => {
+        const next = new Set(prev);
+        if (data.iBlocked) next.add(email);
+        else next.delete(email);
+        return next;
+      });
+      setControlsNotice(
+        data.iBlocked
+          ? t("blockDone", { name: participant.displayName || t("member") })
+          : t("unblockDone", { name: participant.displayName || t("member") })
+      );
+    } catch (err) {
+      setControlsNotice(err?.message || t("blockFail"));
+    }
+  }
+
+  function openPeople() {
+    setPeopleOpen(true);
     setControlsNotice("");
     refreshRemoteParticipants();
   }
@@ -1321,33 +1354,31 @@ export default function RoomClient({
           </div>
 
           <div className={styles.roomActionBar}>
-            {canRecord && (
-              <button
-                type="button"
-                className={`${styles.roomActionBtn} ${hostControlsOpen ? styles.roomActionBtnOn : ""}`}
-                onClick={() => (hostControlsOpen ? setHostControlsOpen(false) : openHostControls())}
-              >
-                <SlidersHorizontal size={18} />
-                <span>{t("hostControls")}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              className={`${styles.roomActionBtn} ${peopleOpen ? styles.roomActionBtnOn : ""}`}
+              onClick={() => (peopleOpen ? setPeopleOpen(false) : openPeople())}
+            >
+              <Users size={18} />
+              <span>{t("people")}</span>
+            </button>
             <button type="button" className={`${styles.roomActionBtn} ${styles.roomActionLeave}`} onClick={handleLeave}>
               <LogOut size={18} />
               <span>{t("leave")}</span>
             </button>
           </div>
 
-          {canRecord && hostControlsOpen && (
-            <div className={styles.controlsSheet} role="dialog" aria-label={t("hostControls")}>
+          {peopleOpen && (
+            <div className={styles.controlsSheet} role="dialog" aria-label={t("people")}>
               <div className={styles.controlsSheetHeader}>
                 <span className={styles.controlsSheetTitle}>
-                  <SlidersHorizontal size={15} />
-                  {t("hostControls")}
+                  <Users size={15} />
+                  {t("people")}
                 </span>
                 <button
                   type="button"
                   className={styles.controlsSheetClose}
-                  onClick={() => setHostControlsOpen(false)}
+                  onClick={() => setPeopleOpen(false)}
                   aria-label={t("close")}
                 >
                   ×
@@ -1359,61 +1390,88 @@ export default function RoomClient({
                   <span className={styles.controlsCount}>
                     {t("peopleInRoom", { count: remoteParticipants.length })}
                   </span>
-                  <button type="button" className={styles.controlsMuteAll} onClick={hostMuteAll}>
-                    <VolumeX size={14} />
-                    {t("muteAll")}
-                  </button>
+                  {canRecord && (
+                    <button type="button" className={styles.controlsMuteAll} onClick={muteAllRemote}>
+                      <VolumeX size={14} />
+                      {t("muteAll")}
+                    </button>
+                  )}
                 </div>
 
                 {remoteParticipants.length === 0 ? (
                   <p className={styles.controlsEmpty}>{t("noParticipants")}</p>
                 ) : (
                   <ul className={styles.controlsList}>
-                    {remoteParticipants.map((p) => (
-                      <li key={p.participantId} className={styles.controlsRow}>
-                        <span className={styles.controlsAvatar} aria-hidden="true">
-                          {p.avatarUrl ? (
-                            <img
-                              className={styles.controlsAvatarImg}
-                              src={p.avatarUrl}
-                              alt=""
-                            />
-                          ) : (
-                            String(p.displayName || "?").charAt(0).toUpperCase()
-                          )}
-                        </span>
-                        <span className={styles.controlsName} title={p.displayName}>
-                          {p.displayName || "Member"}
-                          {p.muted && (
-                            <span className={styles.controlsMutedBadge}>
-                              <MicOff size={11} />
-                              {t("muted")}
-                            </span>
-                          )}
-                        </span>
-                        <div className={styles.controlsActions}>
-                          <button
-                            type="button"
-                            className={styles.controlsMuteBtn}
-                            title={t("muteParticipant")}
-                            onClick={() => hostMuteParticipant(p.participantId)}
-                          >
-                            <MicOff size={13} />
-                          </button>
-                          <span className={styles.controlsVolume}>
-                            <Volume2 size={12} />
-                            <input
-                              type="range"
-                              min={0}
-                              max={100}
-                              value={participantVolumes[p.participantId] ?? 100}
-                              onChange={(e) => hostSetVolume(p.participantId, Number(e.target.value))}
-                              aria-label={`${t("volume")} ${p.displayName}`}
-                            />
+                    {remoteParticipants.map((p) => {
+                      const localMuted = (participantVolumes[p.participantId] ?? 100) === 0;
+                      const isBlocked = Boolean(p.email) && blockedEmails.has(p.email);
+                      return (
+                        <li key={p.participantId} className={styles.controlsRow}>
+                          <span className={styles.controlsAvatar} aria-hidden="true">
+                            {p.avatarUrl ? (
+                              <img
+                                className={styles.controlsAvatarImg}
+                                src={p.avatarUrl}
+                                alt=""
+                              />
+                            ) : (
+                              String(p.displayName || "?").charAt(0).toUpperCase()
+                            )}
                           </span>
-                        </div>
-                      </li>
-                    ))}
+                          <span className={styles.controlsName} title={p.displayName}>
+                            {p.displayName || t("member")}
+                            {p.muted && (
+                              <span className={styles.controlsMutedBadge}>
+                                <MicOff size={11} />
+                                {t("muted")}
+                              </span>
+                            )}
+                          </span>
+                          <div className={styles.controlsActions}>
+                            {canRecord && (
+                              <button
+                                type="button"
+                                className={styles.controlsMuteBtn}
+                                title={t("muteParticipant")}
+                                onClick={() => muteRemote(p.participantId)}
+                              >
+                                <MicOff size={13} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className={styles.controlsMuteBtn}
+                              title={localMuted ? t("unmuteLocally") : t("muteLocally")}
+                              disabled={!p.participantId}
+                              onClick={() => setRemoteVolume(p.participantId, localMuted ? 100 : 0)}
+                            >
+                              {localMuted ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                            </button>
+                            <span className={styles.controlsVolume}>
+                              <Volume2 size={12} />
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                value={participantVolumes[p.participantId] ?? 100}
+                                onChange={(e) => setRemoteVolume(p.participantId, Number(e.target.value))}
+                                aria-label={`${t("volume")} ${p.displayName}`}
+                              />
+                            </span>
+                            {p.email && (
+                              <button
+                                type="button"
+                                className={`${styles.controlsMuteBtn} ${isBlocked ? styles.controlsBlockOn : ""}`}
+                                title={isBlocked ? t("unblockMember") : t("blockMember")}
+                                onClick={() => toggleBlock(p)}
+                              >
+                                <Ban size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

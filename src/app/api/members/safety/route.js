@@ -21,14 +21,32 @@ export async function POST(req) {
   if (limited) return limited;
 
   const body = await req.json().catch(() => ({}));
-  const targetId = typeof body.targetId === "string" ? body.targetId.trim() : "";
   const action = body.action;
   const kind = action === "block" || action === "unblock" ? "block" : action === "mute" || action === "unmute" ? "mute" : "";
-  if (!targetId || targetId === auth.user.uid || !kind) {
+  if (!kind) {
     return NextResponse.json({ error: "Invalid member action" }, { status: 400 });
   }
+
   try {
-    const target = await getPrisma().user.findUnique({ where: { id: targetId }, select: { id: true } });
+    const prisma = getPrisma();
+
+    // The lounge only knows a participant's display name and email, so accept an
+    // email as an alternative to the id. Jitsi already exposes participant
+    // emails to everyone in the room, so this is not a new disclosure.
+    let targetId = typeof body.targetId === "string" ? body.targetId.trim() : "";
+    const targetEmail = typeof body.email === "string" ? body.email.trim() : "";
+    if (!targetId && targetEmail) {
+      const byEmail = await prisma.user.findFirst({
+        where: { email: { equals: targetEmail, mode: "insensitive" } },
+        select: { id: true },
+      });
+      targetId = byEmail?.id || "";
+    }
+    if (!targetId || targetId === auth.user.uid) {
+      return NextResponse.json({ error: "Invalid member action" }, { status: 400 });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
     if (!target) return NextResponse.json({ error: "Member not found" }, { status: 404 });
     const safety = await setMemberSafety(auth.user.uid, targetId, kind, !action.startsWith("un"));
     return NextResponse.json(safety);

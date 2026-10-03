@@ -650,6 +650,18 @@
   background: #fff0f4;
 }
 
+.controlsMuteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controlsBlockOn,
+.controlsBlockOn:hover {
+  border-color: #b91c1c;
+  background: #b91c1c;
+  color: #fff;
+}
+
 .controlsVolume {
   display: inline-flex;
   align-items: center;
