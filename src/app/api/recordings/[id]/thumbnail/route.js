@@ -63,7 +63,7 @@ export async function POST(req, { params }) {
     replace,
   });
   if (!saved.ok) {
-    return NextResponse.json({ error: "Could not save preview" }, { status: 503 });
+    return NextResponse.json({ error: "Could not save preview", code: saved.error }, { status: 503 });
   }
 
   return NextResponse.json({

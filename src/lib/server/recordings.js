@@ -24,6 +24,21 @@ import {
 
 export const RECORDINGS_BUCKET = "recordings";
 
+// The bucket accepts the media we pull plus the browser-captured poster frame.
+// The storage API rejects any upload whose content type is outside this list, so
+// a bucket provisioned before thumbnails existed silently 503s every JPEG. Keep
+// image/jpeg in sync with recording-thumbnail.js's toDataURL output.
+const RECORDINGS_ALLOWED_MIME_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "text/vtt",
+  "text/plain",
+  "application/json",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
 // Playback URLs are handed to a member's browser; keep them short enough that
 // a leaked link stops working quickly, but long enough to survive a page load.
 const PLAYBACK_URL_TTL_SEC = 60 * 60;
@@ -85,6 +100,25 @@ export async function ensureRecordingsBucket() {
         note: SIZE_LIMIT_NOTE,
       });
     }
+    // A bucket created before poster frames were supported still rejects
+    // image/jpeg. Heal it in place rather than making every thumbnail 503 until
+    // someone remembers the dashboard. A null/empty allow-list means "any type",
+    // so there is nothing to fix there.
+    const allowed = Array.isArray(data.allowed_mime_types) ? data.allowed_mime_types : null;
+    const missing = allowed ? RECORDINGS_ALLOWED_MIME_TYPES.filter((m) => !allowed.includes(m)) : [];
+    if (missing.length) {
+      const { error: updateError } = await supabaseAdmin.storage.updateBucket(RECORDINGS_BUCKET, {
+        allowedMimeTypes: [...new Set([...allowed, ...RECORDINGS_ALLOWED_MIME_TYPES])],
+      });
+      if (updateError) {
+        logError("recordings:bucket-mime-update-failed", {
+          message: updateError?.message,
+          missing,
+        });
+      } else {
+        logError("recordings:bucket-mime-updated", { missing });
+      }
+    }
     return true;
   }
   // Deliberately no fileSizeLimit: the Storage API rejects any value above
@@ -93,7 +127,7 @@ export async function ensureRecordingsBucket() {
   // project default. See SIZE_LIMIT_NOTE for how the ceiling is actually set.
   const { error: createError } = await supabaseAdmin.storage.createBucket(RECORDINGS_BUCKET, {
     public: false,
-    allowedMimeTypes: ["video/mp4", "video/webm", "text/vtt", "text/plain", "application/json"],
+    allowedMimeTypes: RECORDINGS_ALLOWED_MIME_TYPES,
   });
   // Already-exists is a benign race between two cold instances.
   if (createError && !/already exists/i.test(createError.message || "")) {
