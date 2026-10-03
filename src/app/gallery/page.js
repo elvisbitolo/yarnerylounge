@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { canModerate, getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import Nav from "@/components/Nav";
 import GalleryGrid from "./GalleryGrid";
@@ -97,7 +97,11 @@ export default async function GalleryPage() {
         <p style={{ fontSize: 14, color: "#9b9bab", margin: "0 0 28px" }}>
           Click any photo to see the project and its maker.
         </p>
-        <GalleryGrid photos={allPhotos} />
+        <GalleryGrid
+          photos={allPhotos}
+          currentUserId={user.uid}
+          canModerate={canModerate(userDoc)}
+        />
       </div>
     </Nav>
   );
