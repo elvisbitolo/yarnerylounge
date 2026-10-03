@@ -173,6 +173,8 @@ export default function RoomClient({
 
   const apiRef = useRef(null);
   const tileForcedRef = useRef(false);
+  // Latest tile-view visibility reported by Jitsi; null until the first event.
+  const tileViewRef = useRef(null);
   const previewVideoRef = useRef(null);
   const activeStreamRef = useRef(null);
   const mountKeyRef = useRef(0);
@@ -399,6 +401,7 @@ export default function RoomClient({
     apiRef.current = null;
     apiReadyRef.current = false;
     tileForcedRef.current = false;
+    tileViewRef.current = null;
   }
 
   // ---- Device preflight (independent of the JaaS connection) ----
@@ -597,7 +600,14 @@ export default function RoomClient({
     // Consent: surface a recording the moment it starts, for every participant
     // (hosts and viewers alike), not just the member who started it.
     api.addEventListener("recordingStatusChanged", (payload = {}) => {
-      setRecording(Boolean(payload.on ?? payload.recording));
+      const on = Boolean(payload.on ?? payload.recording);
+      setRecording(on);
+      // JaaS records the view of whoever starts the recording. If this client is
+      // showing the blurred stage view, switch it to the gallery so the file
+      // isn't a portrait speaker padded with blur.
+      if (on && tileViewRef.current === false) {
+        api.executeCommand("toggleTileView");
+      }
     });
     api.addEventListener("displayNameChange", () => refreshRemoteParticipants());
     api.addEventListener("participantMuted", ({ participantId, isMuted, mediaType } = {}) => {
@@ -696,6 +706,7 @@ export default function RoomClient({
 
     // Gallery view by default: correct Jitsi once if it lands on stage/film view.
     api.addEventListener("tileViewChanged", ({ visible }) => {
+      tileViewRef.current = !!visible;
       if (!visible && !tileForcedRef.current) {
         tileForcedRef.current = true;
         api.executeCommand("toggleTileView");
@@ -941,6 +952,10 @@ export default function RoomClient({
     HIDE_INVITE_MORE_HEADER: true,
     MOBILE_APP_PROMO: false,
     GENERATE_ROOMNAMES_ON_WITHOUT_JOIN: false,
+    // Jitsi pads a mismatched video with an enlarged blurred copy. JaaS records
+    // the recorder's view, so this blur ended up baked into recordings; show a
+    // solid backdrop instead.
+    DISABLE_VIDEO_BACKGROUND: true,
   };
 
   const waitScreen = (
