@@ -746,16 +746,60 @@
   animation: pulse 1.6s ease-in-out infinite;
 }
 
-.recordChip {
+.recordBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 11px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: #f4e4e8;
-  color: #ad1457;
+  border: 1px solid rgba(217, 74, 74, 0.35);
+  background: rgba(217, 74, 74, 0.1);
+  color: #ffb3b3;
+  font-family: inherit;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.recordBtn:hover:not(:disabled) {
+  background: rgba(217, 74, 74, 0.2);
+  border-color: rgba(217, 74, 74, 0.6);
+}
+
+.recordBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.recordBtnLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #6d2133;
+  background: #3a0d1a;
+  color: #ff9db0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.recordBtnLive:hover:not(:disabled) {
+  background: #4d1224;
+  border-color: #8a2b42;
+}
+
+.recordBtnLive:disabled {
+  opacity: 0.7;
+  cursor: default;
 }
 
 .recordDot {
@@ -766,7 +810,7 @@
   animation: pulse 1.6s ease-in-out infinite;
 }
 
-/* Live consent indicator: stronger than the "recording available" chip. */
+/* Read-only live indicator, shown to members who cannot control recording. */
 .recordLive {
   display: inline-flex;
   align-items: center;
@@ -789,6 +833,17 @@
   background: rgba(217, 74, 74, 0.14);
   border-bottom: 1px solid #3a2028;
   color: #ffb3b3;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.recordNotice {
+  margin: 0;
+  padding: 8px 14px;
+  background: rgba(217, 74, 74, 0.22);
+  border-bottom: 1px solid #5a2530;
+  color: #ffd0d0;
   font-size: 13px;
   font-weight: 600;
   text-align: center;

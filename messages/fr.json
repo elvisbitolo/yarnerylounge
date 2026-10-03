@@ -805,7 +805,13 @@
     "recordingAvail": "L'enregistrement est disponible pour ce salon.",
     "recordingNow": "Enregistrement",
     "recordingLive": "Cette session est enregistrée",
-    "recordingJoinNotice": "Ce salon peut être enregistré."
+    "recordingJoinNotice": "Ce salon peut être enregistré.",
+    "recordingStart": "Enregistrer",
+    "recordingStop": "Arrêter l'enregistrement",
+    "recordingWorking": "En cours…",
+    "recordingStartHint": "Enregistrer ce salon",
+    "recordingStopHint": "Arrêter l'enregistrement",
+    "recordFail": "Impossible de modifier l'état de l'enregistrement. Veuillez réessayer."
   },
   "recordings": {
     "title": "Enregistrements",

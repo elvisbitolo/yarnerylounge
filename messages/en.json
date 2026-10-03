@@ -805,7 +805,13 @@
     "recordingAvail": "Recording is available for this lounge.",
     "recordingNow": "Recording",
     "recordingLive": "This session is being recorded",
-    "recordingJoinNotice": "This lounge may be recorded."
+    "recordingJoinNotice": "This lounge may be recorded.",
+    "recordingStart": "Record",
+    "recordingStop": "Stop recording",
+    "recordingWorking": "Working…",
+    "recordingStartHint": "Start recording this lounge",
+    "recordingStopHint": "Stop recording",
+    "recordFail": "Couldn't change the recording state. Please try again."
   },
   "recordings": {
     "title": "Recordings",

@@ -805,7 +805,13 @@
     "recordingAvail": "Aufnahme ist für diese Lounge verfügbar.",
     "recordingNow": "Aufnahme läuft",
     "recordingLive": "Diese Sitzung wird aufgezeichnet",
-    "recordingJoinNotice": "Diese Lounge kann aufgezeichnet werden."
+    "recordingJoinNotice": "Diese Lounge kann aufgezeichnet werden.",
+    "recordingStart": "Aufnehmen",
+    "recordingStop": "Aufnahme stoppen",
+    "recordingWorking": "Wird verarbeitet…",
+    "recordingStartHint": "Diese Lounge aufnehmen",
+    "recordingStopHint": "Aufnahme beenden",
+    "recordFail": "Der Aufnahmestatus konnte nicht geändert werden. Bitte erneut versuchen."
   },
   "recordings": {
     "title": "Aufzeichnungen",

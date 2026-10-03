@@ -151,6 +151,12 @@ export default function RoomClient({
   const [participantCount, setParticipantCount] = useState(0);
   // True while JaaS reports an active recording, for the consent indicator.
   const [recording, setRecording] = useState(false);
+  // True between pressing Record and JaaS confirming it via
+  // recordingStatusChanged, so the control reflects the round-trip.
+  const [recordingPending, setRecordingPending] = useState(false);
+  // Transient message shown when a recording command fails (the host-controls
+  // notice is hidden unless that sheet is open, which it isn't here).
+  const [recordNotice, setRecordNotice] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [mountKey, setMountKey] = useState(0);
   const [connectAt, setConnectAt] = useState(0);
@@ -179,6 +185,8 @@ export default function RoomClient({
   const activeStreamRef = useRef(null);
   const mountKeyRef = useRef(0);
   const participantMutedRef = useRef({});
+  const recordingPendingTimerRef = useRef(null);
+  const recordNoticeTimerRef = useRef(null);
 
   // Mirror refs so timers/event handlers always read fresh values.
   const phaseRef = useRef("idle");
@@ -393,6 +401,14 @@ export default function RoomClient({
   }
 
   function disposeApi() {
+    if (recordingPendingTimerRef.current) {
+      clearTimeout(recordingPendingTimerRef.current);
+      recordingPendingTimerRef.current = null;
+    }
+    if (recordNoticeTimerRef.current) {
+      clearTimeout(recordNoticeTimerRef.current);
+      recordNoticeTimerRef.current = null;
+    }
     try {
       apiRef.current?.dispose?.();
     } catch {
@@ -602,6 +618,7 @@ export default function RoomClient({
     api.addEventListener("recordingStatusChanged", (payload = {}) => {
       const on = Boolean(payload.on ?? payload.recording);
       setRecording(on);
+      clearRecordingPending();
       // JaaS records the view of whoever starts the recording. If this client is
       // showing the blurred stage view, switch it to the gallery so the file
       // isn't a portrait speaker padded with blur.
@@ -640,12 +657,14 @@ export default function RoomClient({
     api.addEventListener("videoConferenceLeft", () => {
       stopRoomPresence();
       clearWatchdogs();
+      clearRecordingPending();
       connectAtRef.current = 0;
       setConnectAt(0);
       setConnStalled(false);
       setConnStatus("connecting");
       setPhase("idle");
       setInlineError("");
+      setRecording(false);
     });
 
     api.addEventListener("connectionEstablished", () => {
@@ -809,6 +828,61 @@ export default function RoomClient({
     setHostControlsOpen(true);
     setControlsNotice("");
     refreshRemoteParticipants();
+  }
+
+  // ---- Recording control (staff / host / co-host) ----
+  // JaaS confirms asynchronously through recordingStatusChanged, so the button
+  // shows a pending state and only trusts the event — with a timeout so a
+  // silent failure can't leave the control stuck.
+  function clearRecordingPending() {
+    if (recordingPendingTimerRef.current) {
+      clearTimeout(recordingPendingTimerRef.current);
+      recordingPendingTimerRef.current = null;
+    }
+    setRecordingPending(false);
+  }
+
+  function armRecordingPendingTimeout(ms) {
+    if (recordingPendingTimerRef.current) clearTimeout(recordingPendingTimerRef.current);
+    recordingPendingTimerRef.current = setTimeout(() => setRecordingPending(false), ms);
+  }
+
+  function flashRecordNotice(message) {
+    setRecordNotice(message);
+    if (recordNoticeTimerRef.current) clearTimeout(recordNoticeTimerRef.current);
+    recordNoticeTimerRef.current = setTimeout(() => setRecordNotice(""), 6000);
+  }
+
+  function startRecording() {
+    const api = apiRef.current;
+    if (!api) return;
+    setRecordNotice("");
+    setControlsNotice("");
+    setRecordingPending(true);
+    try {
+      api.executeCommand("startRecording", { mode: "file", shouldShare: true });
+    } catch {
+      flashRecordNotice(t("recordFail"));
+      clearRecordingPending();
+      return;
+    }
+    armRecordingPendingTimeout(12000);
+  }
+
+  function stopRecording() {
+    const api = apiRef.current;
+    if (!api) return;
+    setRecordNotice("");
+    setControlsNotice("");
+    setRecordingPending(true);
+    try {
+      api.executeCommand("stopRecording", "file");
+    } catch {
+      flashRecordNotice(t("recordFail"));
+      clearRecordingPending();
+      return;
+    }
+    armRecordingPendingTimeout(8000);
   }
 
   function dismissError() {
@@ -1115,14 +1189,25 @@ export default function RoomClient({
                 <span className={styles.liveDot} aria-hidden="true" />
                 {t("live")} · {participantCount}
               </span>
-              {recording ? (
-                <span className={styles.recordLive} role="status">
-                  <span className={styles.recordDot} aria-hidden="true" /> {t("recordingNow")}
-                </span>
+              {canRecord ? (
+                <button
+                  type="button"
+                  className={recording ? styles.recordBtnLive : styles.recordBtn}
+                  onClick={recording ? stopRecording : startRecording}
+                  disabled={phase !== "connected" || recordingPending}
+                  title={recording ? t("recordingStopHint") : t("recordingStartHint")}
+                >
+                  <span className={styles.recordDot} aria-hidden="true" />
+                  {recordingPending
+                    ? t("recordingWorking")
+                    : recording
+                      ? t("recordingStop")
+                      : t("recordingStart")}
+                </button>
               ) : (
-                canRecord && (
-                  <span className={styles.recordChip} title={t("recordingAvail")}>
-                    <span className={styles.recordDot} aria-hidden="true" /> REC
+                recording && (
+                  <span className={styles.recordLive} role="status">
+                    <span className={styles.recordDot} aria-hidden="true" /> {t("recordingNow")}
                   </span>
                 )
               )}
@@ -1132,6 +1217,12 @@ export default function RoomClient({
           {recording && (
             <p className={styles.recordingBanner} role="status">
               {t("recordingLive")}
+            </p>
+          )}
+
+          {recordNotice && (
+            <p className={styles.recordNotice} role="status">
+              {recordNotice}
             </p>
           )}
 
