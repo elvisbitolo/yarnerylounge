@@ -101,6 +101,16 @@ export async function ensureRecordingsBucket() {
 }
 
 /**
+ * Read-only readiness probe: does the recordings bucket already exist? Unlike
+ * ensureRecordingsBucket this never creates it, so an unauthenticated health
+ * check cannot provision infrastructure.
+ */
+export async function recordingsBucketExists() {
+  const { data, error } = await supabaseAdmin.storage.getBucket(RECORDINGS_BUCKET);
+  return Boolean(!error && data);
+}
+
+/**
  * Record a RECORDING_UPLOADED webhook. Returns { recording, created } where
  * `created` is false when this delivery was a duplicate — JaaS documents that
  * a repeated idempotencyKey must be ignored.

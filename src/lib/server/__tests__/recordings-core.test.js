@@ -16,6 +16,7 @@ import {
   serializeRecording,
   signJaasPayload,
   verifyJaasSignature,
+  webhookReadiness,
 } from "../recordings-core.js";
 
 const SECRET = "whsec_test_secret";
@@ -105,6 +106,39 @@ test("verifyJaasSignature: accepts a second matching v1 during secret rotation",
   const mine = crypto.createHmac("sha256", SECRET).update(`${timestamp}.${body}`).digest("base64");
   const header = `t=${timestamp},v1=${other},v1=${mine}`;
   assert.equal(verifyJaasSignature({ header, body, secret: SECRET }), true);
+});
+
+// ------------------------------------------------------------- readiness
+
+test("webhookReadiness: ready only when every credential is present", () => {
+  assert.deepEqual(
+    webhookReadiness({
+      hasWebhookSecret: true,
+      hasAppId: true,
+      hasApiKeyId: true,
+      hasPrivateKey: true,
+    }),
+    { ready: true, missing: [] },
+  );
+});
+
+test("webhookReadiness: lists the missing credentials in fix order", () => {
+  const result = webhookReadiness({ hasAppId: true });
+  assert.equal(result.ready, false);
+  assert.deepEqual(result.missing, [
+    "JITSI_WEBHOOK_SECRET",
+    "JITSI_API_KEY_ID",
+    "JITSI_PRIVATE_KEY",
+  ]);
+});
+
+test("webhookReadiness: an empty environment lists everything", () => {
+  assert.deepEqual(webhookReadiness().missing, [
+    "JITSI_WEBHOOK_SECRET",
+    "JITSI_APP_ID",
+    "JITSI_API_KEY_ID",
+    "JITSI_PRIVATE_KEY",
+  ]);
 });
 
 // ------------------------------------------------------------- meeting names

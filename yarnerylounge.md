@@ -292,6 +292,27 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
     in the messages route) and renders as an Open chip in the thread; a plain
     link in the text would not be clickable, which is why it is an attachment.
 
+### Activating the Jitsi ingest pipeline
+
+JaaS is webhook-only: a recording lives 24h behind a `preAuthenticatedLink`
+delivered on `RECORDING_UPLOADED`, and there is **no list/fetch API to poll**.
+`/recordings` therefore fills from this pipeline:
+
+1. JaaS console → **Webhooks → Add endpoint** →
+   `https://www.christasspeakeasy.com/api/webhooks/jitsi`; select
+   `RECORDING_UPLOADED` (+ `RECORDING_STARTED/ENDED`, `TRANSCRIPTION_UPLOADED`);
+   leave Authorization blank.
+2. Select the endpoint → **Reveal secret** → put it in `JITSI_WEBHOOK_SECRET`
+   (Vercel env + `.env.local`). Without it the route answers `503` and nothing
+   is ingested.
+3. Verify with `GET /api/webhooks/jitsi`: public response reports
+   `{ ready, missing: [...] }`. Add `Authorization: Bearer $CRON_SECRET` for
+   live `{ recordings: { status: count }, storageBucket }` diagnostics.
+
+Once configured, the webhook pulls the file in `after()`, and
+`/api/cron/recording-ingest` (every 6h) retries anything the pull missed before
+the 24h link expires.
+
 ## Housekeeping
 
 - Logged-in/meetings review on the marketing page (`secretyarnery.com/pages/speakeasy`)

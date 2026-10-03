@@ -20,9 +20,15 @@ import {
   attachTranscript,
   pullRecording,
   recordUploadedEvent,
+  recordingsBucketExists,
 } from "@/lib/server/recordings";
-import { extractMeetingName, findRoomByMeeting, verifyJaasSignature } from "@/lib/server/recordings-core";
-import { getJitsiAppId } from "@/lib/server/jitsi";
+import {
+  extractMeetingName,
+  findRoomByMeeting,
+  verifyJaasSignature,
+  webhookReadiness,
+} from "@/lib/server/recordings-core";
+import { getJitsiApiKeyId, getJitsiAppId, getJitsiPrivateKey } from "@/lib/server/jitsi";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError, logInfo } from "@/lib/server/log";
 
@@ -192,13 +198,48 @@ async function resolveRoom(meetingName) {
 }
 
 // Deployment check, used before pointing the JaaS console at this route so we
-// never collect a run of 404s. Strictly read-only: this endpoint is
-// unauthenticated, so a GET must not create infrastructure. The bucket is
-// created lazily on the first signed-in request instead.
-export async function GET() {
-  return NextResponse.json({
+// never collect a run of 404s.
+//
+// The public response is limited to configuration booleans. Live pipeline
+// diagnostics (row counts, bucket presence) are gated behind CRON_SECRET:
+// this endpoint is unauthenticated, so a GET must never provision the bucket
+// (it is created lazily on the first signed-in request) nor hand an anonymous
+// caller free database work.
+export async function GET(req) {
+  const readiness = webhookReadiness({
+    hasWebhookSecret: Boolean(process.env.JITSI_WEBHOOK_SECRET),
+    hasAppId: Boolean(getJitsiAppId()),
+    hasApiKeyId: Boolean(getJitsiApiKeyId()),
+    hasPrivateKey: getJitsiPrivateKey().startsWith("-----BEGIN"),
+  });
+
+  const body = {
     ok: true,
     service: "jitsi-webhook",
     configured: Boolean(process.env.JITSI_WEBHOOK_SECRET),
-  });
+    ready: readiness.ready,
+    missing: readiness.missing,
+  };
+
+  const scheduled =
+    Boolean(process.env.CRON_SECRET) &&
+    req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
+  if (!scheduled) return NextResponse.json(body);
+
+  // Authorized: enough state to tell an empty library apart from a broken
+  // ingest without shelling into the database.
+  try {
+    const prisma = getPrisma();
+    const grouped = await prisma.recording.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    });
+    body.recordings = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
+    body.storageBucket = await recordingsBucketExists();
+  } catch (error) {
+    body.ok = false;
+    body.diagnostics = "failed";
+    logError("jaas.webhook.diagnostic_failed", { message: error?.message });
+  }
+  return NextResponse.json(body);
 }
