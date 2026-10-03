@@ -15,6 +15,12 @@
 //   free  -> Flirting  (no lounges, read-only chat, no matchmaker, no hosting, no neighborhoods)
 //   paid  -> Hooking Up + Moving In  (full video/audio, read+write chat, matchmaker, join neighborhoods)
 //   host  -> Moving In  (create & name rooms, build sub-groups / neighborhoods)
+//
+// The badges come from plans.js (the single source of truth) rather than being
+// re-declared here, so a tier can never advertise a different badge than the one
+// the member directory, profile and Match render.
+import { tierBadge } from "./plans.js";
+
 export const CAPABILITIES = {
   free: {
     key: "flirting",
@@ -28,7 +34,7 @@ export const CAPABILITIES = {
     matchmaker: false,
     hosting: false,
     neighborhoods: { join: false, build: false },
-    profileBadge: null,
+    profileBadge: tierBadge("flirting"),
   },
   paid: {
     key: "hooking-up",
@@ -38,7 +44,7 @@ export const CAPABILITIES = {
     matchmaker: true,
     hosting: false,
     neighborhoods: { join: true, build: false },
-    profileBadge: { icon: "👑", color: "#d4a017" },
+    profileBadge: tierBadge("hooking-up"),
   },
   host: {
     key: "moving-in",
@@ -48,7 +54,7 @@ export const CAPABILITIES = {
     matchmaker: true,
     hosting: true,
     neighborhoods: { join: true, build: true },
-    profileBadge: { icon: "💎", color: "#3b82f6" },
+    profileBadge: tierBadge("moving-in"),
   },
 };
 

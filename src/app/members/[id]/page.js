@@ -12,6 +12,7 @@ import { roleBadgeLabel } from "@/lib/profile/roles";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import FollowButton from "@/components/FollowButton";
+import MemberBadge from "@/components/MemberBadge";
 import RecognitionForm from "./RecognitionForm";
 import StickerDisplay from "./StickerDisplay";
 import YarnProfile from "./YarnProfile";
@@ -269,6 +270,7 @@ const coverUrl = member.coverPhotoURL || "";
           <div className={styles.headerBody}>
             <h1 className={styles.title}>
               {member.name}
+              <MemberBadge plan={member.plan} size={16} showHost={false} />
               {member.role === "owner" && (
                 <span className={styles.ownerBadge}>{roleBadgeLabel(member.role, member.roleLabel)}</span>
               )}

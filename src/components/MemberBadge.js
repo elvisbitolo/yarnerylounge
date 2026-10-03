@@ -1,32 +1,40 @@
 "use client";
 
 import { useMembership } from "@/lib/membership";
+import { tierBadge } from "@/lib/server/plans";
+import TierIcon from "./TierIcon";
 
-const TIER_BADGES = {
-  "hooking-up": { icon: "👑", color: "#d4a017", label: "Hooking Up" },
-  "moving-in": { icon: "💎", color: "#3b82f6", label: "Moving In" },
-};
-
-// Shared member tier badge + host pill. Renders a small icon/dot by tier
-// (crown for hooking-up, diamond for moving-in) and an optional "HOST" pill
-// for owners/moderators/scoped hosts.
+// Shared member tier badge + host pill. The tier badge comes from plans.js
+// (the single source of truth) and renders a lucide glyph: sparkles for
+// Flirting, a crown for Hooking Up, a gem for Moving In. An optional "OWNER" /
+// "HOST" pill follows for owners/moderators/scoped hosts.
 //
-// plan    — member's plan key ("flirting" | "hooking-up" | "moving-in");
-//           falls back to the shared (cached) MembershipProvider when omitted
-// role    — "owner" | "moderator" | "host" | "member"
-// isHost  — explicit host flag (scoped hosts) when role is not enough
-// size    — base font size in px
-// tooltip — show a title attribute describing the tier
-export default function MemberBadge({ plan, role, isHost = false, size = 14, tooltip = true }) {
+// plan      — member's plan key ("flirting" | "hooking-up" | "moving-in");
+//             falls back to the shared (cached) MembershipProvider when omitted
+// role      — "owner" | "moderator" | "host" | "member"
+// isHost    — explicit host flag (scoped hosts) when role is not enough
+// size      — base font size in px
+// tooltip   — show a title attribute describing the tier
+// showHost  — set false to render the tier badge only (e.g. when the caller
+//             already renders its own role pill)
+export default function MemberBadge({
+  plan,
+  role,
+  isHost = false,
+  size = 14,
+  tooltip = true,
+  showHost = true,
+}) {
   const { membership } = useMembership();
   const resolvedPlan = plan || membership?.planKey || "flirting";
   const resolvedRole = role || membership?.role || "member";
-  const badge = TIER_BADGES[resolvedPlan];
-  const showTier = badge && resolvedPlan !== "flirting";
-  const showHost =
-    isHost || resolvedRole === "owner" || resolvedRole === "moderator" || resolvedRole === "host";
+  const badge = tierBadge(resolvedPlan);
+  const showTier = Boolean(badge);
+  const showHostPill =
+    showHost &&
+    (isHost || resolvedRole === "owner" || resolvedRole === "moderator" || resolvedRole === "host");
 
-  if (!showTier && !showHost) return null;
+  if (!showTier && !showHostPill) return null;
 
   const hostLabel = resolvedRole === "owner" ? "OWNER" : "HOST";
   const hostColor = resolvedRole === "owner" ? "#f5b301" : "#e91e63";
@@ -45,7 +53,7 @@ export default function MemberBadge({ plan, role, isHost = false, size = 14, too
             color: badge.color,
           }}
         >
-          <span>{badge.icon}</span>
+          <TierIcon name={badge.icon} size={size} />
           <span
             style={{
               display: "inline-block",
@@ -59,7 +67,7 @@ export default function MemberBadge({ plan, role, isHost = false, size = 14, too
           />
         </span>
       )}
-      {showHost && (
+      {showHostPill && (
         <span
           title={tooltip ? hostLabel : undefined}
           style={{

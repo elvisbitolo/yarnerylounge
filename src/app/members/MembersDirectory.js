@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import MemberBadge from "@/components/MemberBadge";
 import { roleBadgeLabel } from "@/lib/profile/roles";
+import { tierLabel } from "@/lib/server/plans";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { composeLayout, LAYOUT_NOW } from "./avatarLayout";
 import MembersMap from "./MembersMap";
@@ -416,10 +417,10 @@ export default function MembersDirectory({
                         {member.foundingMember && (
                           <span className={`${styles.hostDot} ${styles.foundDot}`} title="Founding Yarnie">🧶</span>
                         )}
-                        {(member.plan === "hooking-up" || member.plan === "moving-in") && slot.size >= 34 && (
+                        {slot.size >= 34 && (
                           <span
                             className={styles.tierDot}
-                            title={member.plan === "moving-in" ? "Moving In member" : "Hooking Up member"}
+                            title={`${tierLabel(member.plan)} member`}
                           >
                             <MemberBadge plan={member.plan} size={12} tooltip={false} />
                           </span>

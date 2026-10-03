@@ -5,6 +5,7 @@ import { getSubscription } from "@/lib/server/subscription";
 import { subscriptionStatus } from "@/lib/server/billing";
 import { isOpenAccess } from "@/lib/server/access-policy";
 import { SHOPIFY_UPGRADE_URL } from "@/lib/server/shopify";
+import TierIcon from "@/components/TierIcon";
 import styles from "./membership.module.css";
 
 // This page used to be a bare redirect to the Shopify storefront, so it showed
@@ -94,7 +95,8 @@ export default async function MembershipPage() {
                   className={styles.badge}
                   style={{ color: caps.profileBadge.color }}
                 >
-                  {caps.profileBadge.icon} {STATUS_TEXT[subscriptionStatus(sub)] || "Active"}
+                  <TierIcon name={caps.profileBadge.icon} size={14} />{" "}
+                  {STATUS_TEXT[subscriptionStatus(sub)] || "Active"}
                 </span>
               )}
             </div>
@@ -132,7 +134,9 @@ export default async function MembershipPage() {
               >
                 <div className={styles.tierTop}>
                   <h3 className={styles.tierName}>
-                    {tierCaps.profileBadge ? `${tierCaps.profileBadge.icon} ` : ""}
+                    {tierCaps.profileBadge && (
+                      <TierIcon name={tierCaps.profileBadge.icon} size={18} />
+                    )}{" "}
                     {tierCaps.label}
                   </h3>
                   {isCurrent && <span className={styles.youAre}>Your plan</span>}

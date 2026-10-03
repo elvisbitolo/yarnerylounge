@@ -36,9 +36,14 @@ export function tierForRole(role) {
   return TIER_FOR_ROLE[String(role).trim().toLowerCase()] || null;
 }
 
+// One badge per tier, keyed by the canonical tier so the shape never drifts.
+// `icon` is a semantic name (serializable, like the rest of this module) that
+// components/TierIcon.js resolves to a lucide-react glyph on render — this
+// module stays pure for the node:test runner and never imports a component.
 export const TIER_BADGE = {
-  "hooking-up": { icon: "👑", color: "#d4a017", label: "Hooking Up" },
-  "moving-in": { icon: "💎", color: "#3b82f6", label: "Moving In" },
+  flirting: { icon: "sparkles", color: "#ec4899", label: "Flirting" },
+  "hooking-up": { icon: "crown", color: "#d4a017", label: "Hooking Up" },
+  "moving-in": { icon: "gem", color: "#3b82f6", label: "Moving In" },
 };
 
 function normalize(tier) {

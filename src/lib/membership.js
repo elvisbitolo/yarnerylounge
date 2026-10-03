@@ -2,11 +2,14 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
+import { tierBadge } from "@/lib/server/plans";
 
 const CACHE_PREFIX = "yarnery:membership:";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 // Hardcoded fallback so the app never depends on the API for badges/locked UI.
+// The tier badge is pulled from plans.js so the fallback matches the tier the
+// server would resolve.
 export const FREE_MEMBERSHIP = {
   planKey: "flirting",
   label: "Flirting",
@@ -18,9 +21,9 @@ export const FREE_MEMBERSHIP = {
     matchmaker: false,
     hosting: false,
     neighborhoods: { join: false, build: false },
-    profileBadge: null,
+    profileBadge: tierBadge("flirting"),
   },
-  profileBadge: null,
+  profileBadge: tierBadge("flirting"),
   theme: null,
 };
 

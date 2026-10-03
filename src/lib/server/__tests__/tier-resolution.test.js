@@ -54,16 +54,16 @@ test("co-host is a per-room assignment role, not a global top tier", () => {
 
 test("every top-tier role carries the Diamond badge in the capability matrix", () => {
   for (const role of Object.keys(TIER_FOR_ROLE)) {
-    assert.equal(CAPS_BY_TIER.host.profileBadge?.icon, "💎");
-    assert.equal(capsForPlanKey(tierForRole(role)).profileBadge?.icon, "💎", `role ${role} lost its badge`);
+    assert.equal(CAPS_BY_TIER.host.profileBadge?.icon, "gem");
+    assert.equal(capsForPlanKey(tierForRole(role)).profileBadge?.icon, "gem", `role ${role} lost its badge`);
   }
 });
 
 test("a plain member never gains a badge or host rights", () => {
   assert.equal(tierForRole("member"), null);
-  assert.equal(CAPS_BY_TIER.free.profileBadge, null);
+  assert.equal(CAPS_BY_TIER.free.profileBadge?.icon, "sparkles");
   assert.equal(CAPS_BY_TIER.free.hosting, false);
-  assert.equal(capsForPlanKey("flirting").profileBadge, null);
+  assert.equal(capsForPlanKey("flirting").profileBadge?.icon, "sparkles");
 });
 
 test("the Flirting tier is view-only: joins, cannot publish, muted", () => {
@@ -149,7 +149,7 @@ test("a host role is Moving In, not Flirting, when the paywall is enforced", () 
   const m = withOpenAccess("false", () => deriveMembership({ role: "host", plan: "flirting" }));
   assert.equal(m.planKey, "moving-in");
   assert.equal(m.label, "Moving In");
-  assert.equal(m.profileBadge?.icon, "💎");
+  assert.equal(m.profileBadge?.icon, "gem");
   assert.equal(m.capabilities.hosting, true);
 });
 
@@ -157,7 +157,7 @@ test("owner and moderator still resolve to Moving In", () => {
   for (const role of ["owner", "moderator"]) {
     const m = withOpenAccess("false", () => deriveMembership({ role, plan: "flirting" }));
     assert.equal(m.planKey, "moving-in", `role ${role} lost the top tier`);
-    assert.equal(m.profileBadge?.icon, "💎", `role ${role} lost its badge`);
+    assert.equal(m.profileBadge?.icon, "gem", `role ${role} lost its badge`);
   }
 });
 
@@ -168,23 +168,23 @@ test("a top-tier role overrides a stale free plan", () => {
   assert.equal(m.planKey, "moving-in");
 });
 
-test("an ordinary member on a free plan is Flirting and badgeless", () => {
+test("an ordinary member on a free plan is Flirting with the sparkles badge", () => {
   const m = withOpenAccess("false", () => deriveMembership({ role: "member", plan: "flirting" }));
   assert.equal(m.planKey, "flirting");
   assert.equal(m.label, "Flirting");
-  assert.equal(m.profileBadge, null);
+  assert.equal(m.profileBadge?.icon, "sparkles");
   assert.equal(m.capabilities.video.canPublish, false);
 });
 
 test("paid plans map to the right tier once the paywall is enforced", () => {
   const hooking = withOpenAccess("false", () => deriveMembership({ role: "member", plan: "hooking-up" }));
   assert.equal(hooking.planKey, "hooking-up");
-  assert.equal(hooking.profileBadge?.icon, "👑");
+  assert.equal(hooking.profileBadge?.icon, "crown");
   assert.equal(hooking.capabilities.hosting, false);
 
   const moving = withOpenAccess("false", () => deriveMembership({ role: "member", plan: "moving-in" }));
   assert.equal(moving.planKey, "moving-in");
-  assert.equal(moving.profileBadge?.icon, "💎");
+  assert.equal(moving.profileBadge?.icon, "gem");
   assert.equal(moving.capabilities.hosting, true);
 });
 
@@ -193,7 +193,7 @@ test("an expired paid plan falls back to Flirting", () => {
     deriveMembership({ role: "member", plan: "hooking-up", expiresAt: Date.now() - 1000 })
   );
   assert.equal(m.planKey, "flirting");
-  assert.equal(m.profileBadge, null);
+  assert.equal(m.profileBadge?.icon, "sparkles");
 });
 
 test("an unset access override means strict access, not open", () => {
@@ -201,7 +201,7 @@ test("an unset access override means strict access, not open", () => {
   // regardless of plan. The default is now strict, so the plan decides.
   const m = withOpenAccess(null, () => deriveMembership({ role: "member", plan: "flirting" }));
   assert.equal(m.planKey, "flirting");
-  assert.equal(m.profileBadge, null);
+  assert.equal(m.profileBadge?.icon, "sparkles");
   assert.equal(canJoinLounge(m.capabilities), false);
 });
 
@@ -209,7 +209,7 @@ test("the override still admits every signed-in member at the top tier", () => {
   // The emergency path, when explicitly switched on.
   const m = withOpenAccess("true", () => deriveMembership({ role: "member", plan: "flirting" }));
   assert.equal(m.planKey, "moving-in");
-  assert.equal(m.profileBadge?.icon, "💎");
+  assert.equal(m.profileBadge?.icon, "gem");
 });
 
 test("a null user doc does not throw", () => {
@@ -353,7 +353,7 @@ test("the 28 stale open-access members land on Flirting, not Moving In", () => {
   const effective = effectiveSubscription(stale) || { tier: "flirting" };
   const m = withOpenAccess("false", () => deriveMembership({ role: "member", plan: effective.tier }));
   assert.equal(m.planKey, "flirting");
-  assert.equal(m.profileBadge, null);
+  assert.equal(m.profileBadge?.icon, "sparkles");
   assert.equal(canJoinLounge(m.capabilities), false);
 });
 

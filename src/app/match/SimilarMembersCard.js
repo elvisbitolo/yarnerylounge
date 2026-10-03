@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Users, MessageCircle } from "lucide-react";
+import MemberBadge from "@/components/MemberBadge";
 import styles from "./match.module.css";
 import { initialsFor } from "./match-utils";
 
@@ -54,7 +55,10 @@ export default function SimilarMembersCard({ similarMembers, topMatches, similar
                         {initialsFor(member.name)}
                       </span>
                     )}
-                    <span className={styles.matchTileName}>{member.name || "Member"}</span>
+                    <span className={styles.matchTileName}>
+                      {member.name || "Member"}
+                      <MemberBadge plan={member.plan} role={member.role} size={12} tooltip={false} />
+                    </span>
                     {typeof member.score === "number" && (
                       <span className={styles.matchScore}>{member.score}% match</span>
                     )}

@@ -21,5 +21,10 @@ export async function GET(req) {
 
   const { member, ...summary } = pick;
   const decision = await getMatchDecision(auth.user.uid, summary.date);
-  return NextResponse.json({ member: summary, decision: decision?.decision || null });
+  // Fold the picked member's tier into the summary so the card can render their
+  // badge without a second request.
+  return NextResponse.json({
+    member: { ...summary, plan: member?.plan || "flirting", role: member?.role || "member" },
+    decision: decision?.decision || null,
+  });
 }

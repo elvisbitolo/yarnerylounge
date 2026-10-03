@@ -282,6 +282,9 @@
 }
 
 .matchTileName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 700;
   color: #17171c;
@@ -343,6 +346,9 @@
 }
 
 .matchName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 15px;
   font-weight: 700;
   color: #17171c;

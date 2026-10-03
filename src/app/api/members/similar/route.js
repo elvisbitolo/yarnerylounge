@@ -133,6 +133,8 @@ export async function GET(req) {
   const userSelect = {
     id: true,
     name: true,
+    role: true,
+    plan: true,
     headline: true,
     country: true,
     photoURL: true,
@@ -182,6 +184,8 @@ export async function GET(req) {
     .map(({ score, ...member }) => ({
       id: member.id,
       name: member.name || "Member",
+      role: member.role || "member",
+      plan: member.plan || "flirting",
       headline: member.headline || "",
       country: member.country || "",
       photoURL: member.photoURL || "",

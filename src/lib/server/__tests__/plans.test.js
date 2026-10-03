@@ -35,12 +35,12 @@ test("tierLabel maps tiers and defaults", () => {
   assert.equal(tierLabel("nope"), "Flirting");
 });
 
-test("tierBadge: flirting has none, paid tiers have icon", () => {
-  assert.equal(tierBadge("flirting"), null);
-  assert.equal(tierBadge("hooking-up").icon, "👑");
-  assert.equal(tierBadge("moving-in").icon, "💎");
-  assert.equal(tierBadge("lounge"), null);
-  assert.equal(tierBadge("host").icon, "💎");
+test("tierBadge: every tier has a distinct icon", () => {
+  assert.equal(tierBadge("flirting").icon, "sparkles");
+  assert.equal(tierBadge("hooking-up").icon, "crown");
+  assert.equal(tierBadge("moving-in").icon, "gem");
+  assert.equal(tierBadge("lounge").icon, "sparkles");
+  assert.equal(tierBadge("host").icon, "gem");
 });
 
 test("meetsTier: no requirement or flirting requirement is always met", () => {

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { HeartHandshake, MessageCircle, Check, X, Sparkles } from "lucide-react";
+import MemberBadge from "@/components/MemberBadge";
 import styles from "./match.module.css";
 import { initialsFor } from "./match-utils";
 
@@ -63,7 +64,10 @@ export default function DailyMatchCard({ dailyMatch, dailyDecision, onDecision, 
                 </div>
               )}
               <div className={styles.matchIdentity}>
-                <div className={styles.matchName}>{dailyMatch.memberName || "Member"}</div>
+                <div className={styles.matchName}>
+                  {dailyMatch.memberName || "Member"}
+                  <MemberBadge plan={dailyMatch.plan} role={dailyMatch.role} size={12} tooltip={false} />
+                </div>
                 {dailyMatch.headline && <div className={styles.matchHeadline}>{dailyMatch.headline}</div>}
               </div>
             </div>
