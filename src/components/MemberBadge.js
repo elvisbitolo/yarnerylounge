@@ -1,7 +1,7 @@
 "use client";
 
 import { useMembership } from "@/lib/membership";
-import { tierBadge } from "@/lib/server/plans";
+import { tierBadge, displayTier } from "@/lib/server/plans";
 import TierIcon from "./TierIcon";
 
 // Shared member tier badge + host pill. The tier badge comes from plans.js
@@ -26,7 +26,9 @@ export default function MemberBadge({
   showHost = true,
 }) {
   const { membership } = useMembership();
-  const resolvedPlan = plan || membership?.planKey || "flirting";
+  // displayTier applies the shared role-over-plan precedence; the membership
+  // provider's resolved tier is the fallback when the plan prop is omitted.
+  const resolvedPlan = displayTier(plan || membership?.planKey, role);
   const resolvedRole = role || membership?.role || "member";
   const badge = tierBadge(resolvedPlan);
   const showTier = Boolean(badge);

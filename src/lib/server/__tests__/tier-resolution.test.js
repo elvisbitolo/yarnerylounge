@@ -4,7 +4,7 @@ import { CAPABILITIES, canPublishRemote, canJoinLounge } from "../capabilities-c
 import { deriveMembership } from "../membership.js";
 import { isOpenAccess } from "../access-policy.js";
 import { isOpenAccessRow, effectiveSubscription } from "../subscription-core.js";
-import { tierForRole, TIER_FOR_ROLE, tierLabel } from "../plans.js";
+import { tierForRole, displayTier, TIER_FOR_ROLE, tierLabel } from "../plans.js";
 
 // Guards the invariant that broke once already: three modules answer "what tier
 // is this member?" and they drifted. membership.js honoured owner/moderator
@@ -64,6 +64,23 @@ test("a plain member never gains a badge or host rights", () => {
   assert.equal(CAPS_BY_TIER.free.profileBadge?.icon, "sparkles");
   assert.equal(CAPS_BY_TIER.free.hosting, false);
   assert.equal(capsForPlanKey("flirting").profileBadge?.icon, "sparkles");
+});
+
+test("displayTier lets a top-tier role outrank a stale plan string", () => {
+  // The production bug this guards: an owner whose user row still said
+  // "flirting" rendered the free sparkles while their plan label said Moving
+  // In, because MemberBadge trusted the raw plan.
+  assert.equal(displayTier("flirting", "owner"), "moving-in");
+  assert.equal(displayTier("flirting", "moderator"), "moving-in");
+  assert.equal(displayTier(undefined, "host"), "moving-in");
+});
+
+test("displayTier falls back to the plan for ordinary members and legacy aliases", () => {
+  assert.equal(displayTier("hooking-up", "member"), "hooking-up");
+  assert.equal(displayTier("moving-in", "member"), "moving-in");
+  assert.equal(displayTier("free", "member"), "flirting");
+  assert.equal(displayTier(undefined, "member"), "flirting");
+  assert.equal(displayTier("something-unknown", "member"), "flirting");
 });
 
 test("the Flirting tier is view-only: joins, cannot publish, muted", () => {

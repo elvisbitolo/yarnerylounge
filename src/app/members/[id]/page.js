@@ -270,7 +270,7 @@ const coverUrl = member.coverPhotoURL || "";
           <div className={styles.headerBody}>
             <h1 className={styles.title}>
               {member.name}
-              <MemberBadge plan={member.plan} size={16} showHost={false} />
+              <MemberBadge plan={member.plan} role={member.role} size={16} showHost={false} />
               {member.role === "owner" && (
                 <span className={styles.ownerBadge}>{roleBadgeLabel(member.role, member.roleLabel)}</span>
               )}

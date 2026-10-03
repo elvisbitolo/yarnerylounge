@@ -87,6 +87,15 @@ export function tierBadge(tier) {
   return TIER_BADGE[normalize(tier)] || null;
 }
 
+// The tier a badge should show for a member. A top-tier role (owner/moderator/
+// host) outranks the raw plan string — the same precedence deriveMembership and
+// getCapabilities use — so an owner whose user row still says plan "flirting"
+// renders the Moving In glyph, not the free sparkles. Accepts legacy aliases
+// and falls back to Flirting for anything unrecognised.
+export function displayTier(plan, role) {
+  return tierForRole(role) || normalize(plan) || "flirting";
+}
+
 export function tierRank(tier) {
   return TIER_RANK[normalize(tier)] ?? -1;
 }
