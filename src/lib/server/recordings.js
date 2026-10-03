@@ -31,16 +31,21 @@ const PLAYBACK_URL_TTL_SEC = 60 * 60;
 // A single recording can be several hundred MB. Cap the pull so a pathological
 // or spoofed payload cannot exhaust the function's memory/disk.
 //
-// The bucket's own file_size_limit is the real ceiling (50GiB on the Pro plan,
-// raised directly in storage.buckets because the createBucket API rejects a
-// limit above 50MiB). 2GiB is a deliberate ceiling well under that: a JaaS
-// session can run 6h, and an unbounded pull would be a denial-of-service
-// vector. Raise with RECORDINGS_MAX_UPLOAD_BYTES if you need more.
+// The effective ceiling is the project's GLOBAL "Storage > Settings > Global
+// file size limit": a bucket-level file_size_limit can never exceed it, and the
+// createBucket API additionally rejects any value above 50MiB. Free caps the
+// global limit at 50MB; Pro/Team allow up to 500GB. A recording just over 50MB
+// therefore fails with "The object exceeded the maximum allowed size" even when
+// storage.buckets.file_size_limit already looks generous. 2GiB is a deliberate
+// app-level ceiling well under the Pro global: a JaaS session can run 6h, and an
+// unbounded pull would be a denial-of-service vector. Raise with
+// RECORDINGS_MAX_UPLOAD_BYTES if you need more.
 const DEFAULT_MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 const SIZE_LIMIT_NOTE =
-  "storage.buckets.file_size_limit cannot be raised through the Storage API (it rejects " +
-  "any value above 50MiB). Set it with SQL: UPDATE storage.buckets SET file_size_limit = " +
-  "53687091200 WHERE id = 'recordings';";
+  "Raise the project Global file size limit first (Storage > Settings; Free caps at " +
+  "50MB, Pro/Team allow up to 500GB), then lift the bucket with SQL: UPDATE " +
+  "storage.buckets SET file_size_limit = 53687091200 WHERE id = 'recordings'; " +
+  "(the storage API's createBucket rejects any value above 50MiB).";
 const configuredMax = Number(process.env.RECORDINGS_MAX_UPLOAD_BYTES);
 export const MAX_UPLOAD_BYTES =
   Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : DEFAULT_MAX_UPLOAD_BYTES;

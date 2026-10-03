@@ -313,6 +313,13 @@ Once configured, the webhook pulls the file in `after()`, and
 `/api/cron/recording-ingest` (every 6h) retries anything the pull missed before
 the 24h link expires.
 
+> **Gotcha — Supabase size limit.** A pull over 50 MB fails with
+> `storage_upload_failed: The object exceeded the maximum allowed size` even
+> though `storage.buckets.file_size_limit` is 50 GiB. The project **Global file
+> size limit** (Storage → Settings) takes precedence and defaults to 50 MB; raise
+> it on Pro (up to 500 GB) to match the app's `MAX_UPLOAD_BYTES` (2 GiB). Longer
+> recordings also hit the `MAX_IN_MEMORY_BYTES` (384 MiB) buffer cap.
+
 ## Housekeeping
 
 - Logged-in/meetings review on the marketing page (`secretyarnery.com/pages/speakeasy`)
