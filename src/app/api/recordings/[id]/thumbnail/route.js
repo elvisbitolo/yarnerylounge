@@ -4,12 +4,14 @@
 // ~3s in, draws the frame to a canvas and POSTs the JPEG here. Any active
 // member may contribute a frame for a shared recording, but only the first one
 // wins: saveThumbnail keeps an existing frame, so the write is idempotent and
-// cannot be churned by repeated visits.
+// cannot be churned by repeated visits. An explicit `replace: true` (the
+// owner/moderator/host "create thumbnail" button) overwrites the stored frame.
 
 import { NextResponse } from "next/server";
 import { getRecording, saveThumbnail, signThumbnailUrl } from "@/lib/server/recordings";
 import { parseThumbnailDataUrl } from "@/lib/server/recordings-core";
 import { guardJson, requireActiveMember } from "@/lib/server/authorize";
+import { canManageRecordings } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +48,19 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Invalid image" }, { status: 400 });
   }
 
+  // Overwriting a frame already on file is privileged; first-write stays open
+  // to any active member so the auto-capture path keeps working.
+  const replace = Boolean(body?.replace);
+  if (replace && !canManageRecordings(auth.userDoc)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const saved = await saveThumbnail({
     recording,
     image,
     width: body?.width,
     height: body?.height,
+    replace,
   });
   if (!saved.ok) {
     return NextResponse.json({ error: "Could not save preview" }, { status: 503 });

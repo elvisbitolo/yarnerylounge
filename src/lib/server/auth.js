@@ -117,6 +117,12 @@ export function canModerate(userDoc) {
   return ["owner", "moderator"].includes(userDoc?.role);
 }
 
+// Who may explicitly (re)generate a recording's poster frame. Auto-capture stays
+// open to every active member; only these roles can overwrite an existing frame.
+export function canManageRecordings(userDoc) {
+  return ["owner", "moderator", "host"].includes(userDoc?.role);
+}
+
 export function isOwner(userDoc) {
   return userDoc?.role === "owner";
 }

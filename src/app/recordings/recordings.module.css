@@ -519,6 +519,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
   padding-top: 8px;
@@ -526,6 +527,7 @@
 
 .playButton,
 .shareButton,
+.thumbnailButton,
 .deleteButton {
   border-radius: 999px;
   padding: 7px 16px;
@@ -544,6 +546,17 @@
   background: transparent;
   color: #c9c9d4;
   border-color: #3a3a4a;
+}
+
+.thumbnailButton {
+  background: transparent;
+  color: #b9a7e0;
+  border-color: #3a3350;
+}
+
+.thumbnailButton:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .deleteButton {
@@ -786,6 +799,8 @@
 
 .thumb:focus-visible,
 .playButton:focus-visible,
+.shareButton:focus-visible,
+.thumbnailButton:focus-visible,
 .deleteButton:focus-visible,
 .playerClose:focus-visible,
 .emptyLink:focus-visible {

@@ -455,11 +455,12 @@ export async function signThumbnailUrls(recordings, ttlSec = PLAYBACK_URL_TTL_SE
 /**
  * Persist a browser-captured poster frame and its intrinsic dimensions.
  *
- * Idempotent under a race: if another tab already stored a frame we keep it
- * rather than overwriting, and return what is already there. A zero-byte or
+ * Auto-capture is idempotent under a race: if another tab already stored a
+ * frame we keep it rather than overwriting. A privileged regenerate passes
+ * `replace: true` to overwrite the stored frame in place. A zero-byte or
  * unreadable image is refused before it touches Storage.
  */
-export async function saveThumbnail({ recording, image, width, height } = {}) {
+export async function saveThumbnail({ recording, image, width, height, replace = false } = {}) {
   if (!recording?.id) return { ok: false, error: "no_recording" };
   if (recording.status !== "ready" || !recording.share || recording.deletedAt) {
     return { ok: false, error: "not_readable" };
@@ -467,7 +468,7 @@ export async function saveThumbnail({ recording, image, width, height } = {}) {
 
   const prisma = getPrisma();
   const existing = await prisma.recording.findUnique({ where: { id: recording.id } });
-  if (existing?.thumbnailPath) {
+  if (existing?.thumbnailPath && !replace) {
     return { ok: true, thumbnailPath: existing.thumbnailPath, skipped: "exists" };
   }
 

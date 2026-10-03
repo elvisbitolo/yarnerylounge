@@ -36,6 +36,7 @@ export default function RecordingsLibrary({
   recordings,
   loadError,
   canDelete,
+  canManageThumbnails = false,
   currentUserId = null,
   storage = null,
 }) {
@@ -46,6 +47,7 @@ export default function RecordingsLibrary({
   const [activeId, setActiveId] = useState(null);
   const [playback, setPlayback] = useState({});
   const [busyId, setBusyId] = useState(null);
+  const [thumbBusyId, setThumbBusyId] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
   const [notice, setNotice] = useState(null);
   const [query, setQuery] = useState("");
@@ -257,12 +259,14 @@ export default function RecordingsLibrary({
     }
   }
 
-  // Capture a poster frame for a recording that has none. inFlightRef gates a
-  // second request for the same row, and a failed row is not retried this
-  // session.
-  const requestThumbnail = useCallback(async (recording) => {
-    if (inFlightRef.current.has(recording.id) || failedRef.current.has(recording.id)) return;
+  // Capture a poster frame for a recording. Auto-capture (replace=false) fills a
+  // missing frame once per session and stops after a failure; the privileged
+  // manual button passes replace=true to regenerate, with its own busy/notice.
+  const requestThumbnail = useCallback(async (recording, { replace = false } = {}) => {
+    if (inFlightRef.current.has(recording.id)) return;
+    if (!replace && failedRef.current.has(recording.id)) return;
     inFlightRef.current.add(recording.id);
+    if (replace) setThumbBusyId(recording.id);
     try {
       const res = await fetch(`/api/recordings/${recording.id}/play`, { cache: "no-store" });
       const json = await res.json();
@@ -275,17 +279,22 @@ export default function RecordingsLibrary({
           image: frame.dataUrl,
           width: frame.width,
           height: frame.height,
+          replace,
         }),
       });
       const saved = await upload.json();
       if (!upload.ok || !saved?.thumbnailUrl) throw new Error("upload_failed");
+      failedRef.current.delete(recording.id);
       setThumbs((prev) => ({ ...prev, [recording.id]: saved.thumbnailUrl }));
+      if (replace) setNotice({ type: "ok", text: t("thumbnailSaved") });
     } catch {
-      failedRef.current.add(recording.id);
+      if (!replace) failedRef.current.add(recording.id);
+      if (replace) setNotice({ type: "error", text: t("thumbnailFailed") });
     } finally {
       inFlightRef.current.delete(recording.id);
+      if (replace) setThumbBusyId(null);
     }
-  }, []);
+  }, [t]);
 
   // Only pay to decode a video for cards the member can actually see.
   useEffect(() => {
@@ -687,6 +696,20 @@ export default function RecordingsLibrary({
                     >
                       {t("share")}
                     </button>
+                    {canManageThumbnails && recording.status === "ready" && (
+                      <button
+                        type="button"
+                        className={styles.thumbnailButton}
+                        onClick={() => requestThumbnail(recording, { replace: true })}
+                        disabled={thumbBusyId === recording.id}
+                      >
+                        {thumbBusyId === recording.id
+                          ? t("savingThumbnail")
+                          : thumb
+                            ? t("regenerateThumbnail")
+                            : t("createThumbnail")}
+                      </button>
+                    )}
                     {canDelete && (
                       <button
                         type="button"

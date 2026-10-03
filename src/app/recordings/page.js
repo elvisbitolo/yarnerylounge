@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { canManageRecordings, getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import {
   getRecordingsStorageUsage,
   listRecordings,
@@ -56,6 +56,7 @@ export default async function RecordingsPage() {
           recordings={recordings}
           loadError={loadError}
           canDelete={userDoc?.role === "owner"}
+          canManageThumbnails={canManageRecordings(userDoc)}
           currentUserId={user.uid}
           storage={storage}
         />
