@@ -27,27 +27,27 @@
 
 .prejoin {
   width: 100%;
-  max-width: 480px;
+  max-width: 420px;
   background: #ffffff;
   border: 1px solid #e5d9dc;
-  border-radius: 18px;
-  padding: 32px 32px 28px;
+  border-radius: 16px;
+  padding: 22px 22px 18px;
   text-align: center;
   box-shadow: 0 28px 56px -32px rgba(37, 35, 41, 0.3);
 }
 
 .title {
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 800;
   color: #252329;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .subtitle {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
   color: #716a70;
-  margin: 0 0 24px;
+  margin: 0 0 14px;
 }
 
 .error {
@@ -62,7 +62,7 @@
 
 .join {
   width: 100%;
-  height: 48px;
+  height: 44px;
   background: #c2185b;
   color: #ffffff;
   border: none;
@@ -88,10 +88,11 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: 14px;
+  max-height: 200px;
+  border-radius: 12px;
   overflow: hidden;
   background: #2a2026;
-  margin: 0 0 20px;
+  margin: 0 0 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -211,8 +212,8 @@
 .prejoinToggles {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .prejoinToggle,
@@ -221,7 +222,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 44px;
+  height: 40px;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;

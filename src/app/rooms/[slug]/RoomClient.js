@@ -25,27 +25,25 @@ const JaaSMeeting = dynamic(
   { ssr: false }
 );
 
-// Jitsi toolbar buttons: remove camera/mic so view-only tiers and muted-by-design
-// rooms cannot unmute through the Jitsi UI (server-side gating stays authoritative).
-const VIEWER_TOOLBAR = [
-  "chat",
-  "raisehand",
-  "fullscreen",
-  "filmstrip",
-  "tileview",
-  "settings",
-  "videoquality",
-  "security",
-];
-
-// Publishers get the viewer set plus camera/mic — and nothing else. The default
-// Jitsi toolbar also carries screen share, participants, invite and recording,
-// which made camera-on lounges like Happy Hour Hub show buttons the others
-// didn't. One explicit list keeps every lounge identical.
-const PUBLISHER_TOOLBAR = [
+// One toolbar for every lounge. The explicit list (rather than Jitsi's default)
+// keeps the set identical across rooms and drops recording/livestreaming, which
+// the app drives from its own header control. Muted-by-design rooms still start
+// muted and the JaaS token stays the authoritative gate on publishing.
+const ROOM_TOOLBAR = [
   "microphone",
   "camera",
-  ...VIEWER_TOOLBAR,
+  "desktop",
+  "chat",
+  "raisehand",
+  "participants-pane",
+  "tileview",
+  "filmstrip",
+  "invite",
+  "fullscreen",
+  "videoquality",
+  "stats",
+  "security",
+  "settings",
 ];
 
 // Device detection is intentionally capped: modest resolution warms the device
@@ -1058,7 +1056,7 @@ export default function RoomClient({
     },
     disableSimulcast: true,
     resolution: 720,
-    toolbarButtons: viewer || audioLocked ? VIEWER_TOOLBAR : PUBLISHER_TOOLBAR,
+    toolbarButtons: ROOM_TOOLBAR,
   };
 
   const interfaceConfigOverwrite = {
