@@ -422,7 +422,7 @@ export default function MembersDirectory({
                             className={styles.tierDot}
                             title={`${tierLabel(member.plan)} member`}
                           >
-                            <MemberBadge plan={member.plan} size={12} tooltip={false} />
+                            <MemberBadge plan={member.plan} role={member.role} size={12} tooltip={false} showHost={false} />
                           </span>
                         )}
                       </span>
