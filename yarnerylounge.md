@@ -246,10 +246,11 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
     fields. 584 pass / 0 fail; lint 0 errors; build OK.
 - **Phase 2**: processing/failed cards, in-page player and Share.
   - **Pipeline** — `listRecordings({ includeUnready })` returns
-    pending/processing/failed rows (newest-first, null dates last) and the
-    library polls `GET /api/recordings?include=all` every 8s while anything is
-    unready, so a card flips to playable without a reload. Non-ready cards show
-    an indeterminate bar; failed cards offer Retry.
+    pending/processing/failed rows (newest-first, null dates last); the page
+    renders them on first paint and the library always polls
+    `GET /api/recordings?include=all` (every 8s while anything is unready, every
+    60s when idle) so a card appears and flips to playable without a reload.
+    Non-ready cards show an indeterminate bar; failed cards offer Retry.
   - **Retry** — `POST /api/recordings/[id]/retry` (owner only) resets the row to
     `pending` via `retryRecording` (rejects an expired 24h JaaS link with 410)
     and re-runs `pullRecording` in `after()`; `maxDuration = 300`.
