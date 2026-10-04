@@ -10,7 +10,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test \"src/lib/server/__tests__/**/*.test.js\"",
+    "test": "node --test \"src/lib/**/__tests__/**/*.test.js\"",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default function Page() {
   return (
-    <RequireOwner what="question management">
+    <RequireOwner what="the audit log">
       <ClientPage />
     </RequireOwner>
   );

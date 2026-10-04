@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin console — design mockup (not real data)</title>
+<style>
+  :root{
+    --pink:#ec4899; --gold:#d4a017; --blue:#3b82f6;
+    --bg:#0d0d12; --panel:#15151d; --panel2:#1c1c26; --line:#2a2a38;
+    --text:#eceaf2; --muted:#9a97ab; --dim:#6f6c82;
+    --green:#22c55e; --red:#ef4444; --amber:#f59e0b;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  a{color:inherit;text-decoration:none}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}
+
+  /* banner so this can never be mistaken for the real app */
+  .banner{background:repeating-linear-gradient(45deg,#7c2d12,#7c2d12 12px,#92400e 12px,#92400e 24px);
+    color:#fff;font-size:12px;padding:7px 16px;text-align:center;font-weight:600;letter-spacing:.02em}
+
+  .shell{display:grid;grid-template-columns:236px 1fr;min-height:calc(100vh - 30px)}
+
+  /* sidebar */
+  .side{background:var(--panel);border-right:1px solid var(--line);padding:14px 10px;position:sticky;top:0;height:calc(100vh - 30px);overflow-y:auto}
+  .brand{font-weight:700;font-size:15px;padding:6px 10px 2px;letter-spacing:-.01em}
+  .brand span{color:var(--pink)}
+  .whoami{margin:10px 8px 14px;padding:9px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px}
+  .whoami b{display:block;font-size:13px}
+  .whoami small{color:var(--dim);font-size:11px}
+  .roleToggle{display:flex;gap:4px;margin-top:8px}
+  .roleToggle button{flex:1;font-size:11px;padding:5px;border-radius:7px;border:1px solid var(--line);
+    background:#0b0b10;color:var(--muted);cursor:pointer;font-weight:600}
+  .roleToggle button.on{background:var(--pink);border-color:var(--pink);color:#fff}
+
+  .grp{margin:14px 0 5px;padding:0 10px;font-size:10px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--dim);font-weight:700}
+  .nav{display:block;padding:7px 10px;border-radius:8px;color:var(--muted);font-size:13px;
+    display:flex;align-items:center;gap:9px;cursor:pointer;border:1px solid transparent}
+  .nav:hover{background:var(--panel2);color:var(--text)}
+  .nav.active{background:rgba(236,72,153,.13);border-color:rgba(236,72,153,.32);color:#fff;font-weight:600}
+  .nav .dot{width:6px;height:6px;border-radius:50%;background:var(--blue);flex:none}
+  .nav .new{font-size:9px;font-weight:800;padding:1px 5px;border-radius:20px;
+    background:var(--green);color:#04220f;letter-spacing:.04em}
+  .nav.ownerOnly{opacity:.34}
+  .nav.ownerOnly::after{content:"OWNER";font-size:8px;margin-left:auto;color:var(--amber);font-weight:800;letter-spacing:.05em}
+
+  /* main */
+  .main{padding:22px 26px 60px;max-width:1180px}
+  .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+  h1{font-size:22px;margin:0;letter-spacing:-.02em}
+  .crumb{color:var(--dim);font-size:12px;margin-bottom:5px}
+  .search{flex:1;min-width:230px;position:relative}
+  .search input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--text);
+    padding:9px 12px 9px 32px;border-radius:9px;font-size:13px;outline:none}
+  .search input:focus{border-color:var(--pink)}
+  .search::before{content:"⌕";position:absolute;left:11px;top:6px;color:var(--dim);font-size:16px}
+
+  .btn{padding:8px 13px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--text);font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap}
+  .btn:hover{border-color:var(--dim)}
+  .btn.pri{background:var(--pink);border-color:var(--pink);color:#fff}
+  .btn.danger{color:#fca5a5;border-color:rgba(239,68,68,.4)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px}
+  .grid{display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));margin-bottom:22px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px}
+  .stat b{display:block;font-size:23px;letter-spacing:-.02em}
+  .stat span{color:var(--dim);font-size:11.5px}
+  .stat.up b{color:var(--green)} .stat.warn b{color:var(--amber)} .stat.bad b{color:var(--red)}
+
+  .qa{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+  .qa a{padding:8px 13px;background:var(--panel);border:1px solid var(--line);border-radius:9px;font-size:13px}
+  .qa a:hover{border-color:var(--pink)}
+
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
+    margin:26px 0 10px;font-weight:700}
+  table{width:100%;border-collapse:collapse;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);
+    padding:10px 13px;border-bottom:1px solid var(--line);background:var(--panel2);font-weight:700}
+  td{padding:11px 13px;border-bottom:1px solid rgba(42,42,56,.55);font-size:13px;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.018)}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2.5px 8px;border-radius:20px;
+    border:1px solid transparent;letter-spacing:.02em}
+  .p-owner{background:rgba(236,72,153,.16);color:#f9a8d4;border-color:rgba(236,72,153,.35)}
+  .p-mod{background:rgba(59,130,246,.16);color:#93c5fd;border-color:rgba(59,130,246,.35)}
+  .p-member{background:rgba(154,151,171,.13);color:var(--muted);border-color:var(--line)}
+  .p-tier{background:rgba(59,130,246,.13);color:#93c5fd;border-color:rgba(59,130,246,.3)}
+  .p-live{background:rgba(34,197,94,.14);color:#86efac;border-color:rgba(34,197,94,.32)}
+  .p-draft{background:rgba(245,158,11,.14);color:#fcd34d;border-color:rgba(245,158,11,.32)}
+  .p-susp{background:rgba(239,68,68,.14);color:#fca5a5;border-color:rgba(239,68,68,.32)}
+  .muted{color:var(--muted)} .dim{color:var(--dim)} .mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+  .row-actions{display:flex;gap:6px;justify-content:flex-end}
+  .row-actions button{font-size:11px;padding:4px 9px;border-radius:7px;border:1px solid var(--line);
+    background:transparent;color:var(--muted);cursor:pointer;font-weight:600}
+  .row-actions button:hover{color:var(--text);border-color:var(--dim)}
+
+  .note{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.26);
+    border-radius:var(--radius);padding:13px 15px;margin-bottom:20px;font-size:13px;color:#c7d8f5}
+  .note b{color:#fff}
+  .note.warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.28);color:#fde3b0}
+  .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px}
+  .chip{padding:5px 11px;border-radius:20px;border:1px solid var(--line);background:var(--panel);
+    font-size:12px;cursor:pointer;color:var(--muted);font-weight:600}
+  .chip.on{background:#fff;color:#0d0d12;border-color:#fff}
+  .audit td:first-child{white-space:nowrap;color:var(--dim);font-size:12px}
+  .empty{padding:34px;text-align:center;color:var(--dim)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<div class="banner">
+  DESIGN MOCKUP — static HTML, fake data, nothing here is wired to the database.
+  File: design/admin-console-mockup.html
+</div>
+
+<div class="shell">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="side">
+    <div class="brand">The Secret <span>Yarnery</span></div>
+    <div class="whoami">
+      <b>Elvis Bitolo</b>
+      <small id="roleLbl">owner · full access</small>
+      <div class="roleToggle" onclick="setRole(this)">
+        <button data-role="owner" class="on">Owner</button>
+        <button data-role="moderator">Moderator</button>
+      </div>
+    </div>
+
+    <div class="grp">Overview</div>
+    <a class="nav active" data-view="overview"><span class="dot"></span>Dashboard</a>
+    <a class="nav" data-view="content"><span class="dot"></span>All content</a>
+    <a class="nav" data-view="audit"><span class="dot"></span>Audit log</a>
+
+    <div class="grp">Community</div>
+    <a class="nav" data-view="members"><span class="dot"></span>Members</a>
+    <a class="nav" data-view="moderation"><span class="dot"></span>Moderation</a>
+    <a class="nav" data-view="groups"><span class="dot"></span>Groups</a>
+    <a class="nav" data-view="spaces"><span class="dot"></span>Spaces</a>
+
+    <div class="grp">Editorial &nbsp;<span class="new">NEW</span></div>
+    <a class="nav" data-view="articles"><span class="dot"></span>Articles</a>
+    <a class="nav" data-view="announcements"><span class="dot"></span>Announcements</a>
+    <a class="nav" data-view="collections"><span class="dot"></span>Collections</a>
+
+    <div class="grp">Live</div>
+    <a class="nav" data-view="rooms"><span class="dot"></span>Lounges</a>
+    <a class="nav" data-view="recordings"><span class="dot"></span>Recordings</a>
+    <a class="nav" data-view="music"><span class="dot"></span>Music library</a>
+    <a class="nav" data-view="events"><span class="dot"></span>Events</a>
+
+    <div class="grp">Learning</div>
+    <a class="nav" data-view="courses"><span class="dot"></span>Courses</a>
+    <a class="nav" data-view="questions"><span class="dot"></span>Questions</a>
+
+    <div class="grp">System</div>
+    <a class="nav" data-view="hosts"><span class="dot"></span>Hosts</a>
+    <a class="nav" data-view="automations"><span class="dot"></span>Automations</a>
+    <a class="nav" data-view="analytics"><span class="dot"></span>Analytics</a>
+    <a class="nav ownerOnly" data-view="settings"><span class="dot"></span>Settings</a>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <div class="top">
+      <div style="flex:1;min-width:200px">
+        <div class="crumb" id="crumb">Overview</div>
+        <h1 id="title">Dashboard</h1>
+      </div>
+      <div class="search"><input id="q" placeholder="Search members, posts, articles, rooms…" oninput="render()" /></div>
+      <button class="btn pri" onclick="newItem()">+ Create</button>
+    </div>
+
+    <div id="view"></div>
+  </main>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ *
+ * All data below is INVENTED for the mockup.
+ * ------------------------------------------------------------------ */
+const DATA = {
+  overview:{ crumb:"Overview", title:"Dashboard" },
+  content:{ crumb:"Overview", title:"All content" },
+  audit:{ crumb:"Overview", title:"Audit log" },
+  members:{ crumb:"Community", title:"Members" },
+  moderation:{ crumb:"Community", title:"Moderation" },
+  articles:{ crumb:"Editorial", title:"Articles", isNew:true },
+  announcements:{ crumb:"Editorial", title:"Announcements" },
+  rooms:{ crumb:"Live", title:"Lounges" },
+  recordings:{ crumb:"Live", title:"Recordings", isNew:true },
+  music:{ crumb:"Live", title:"Music library", isNew:true },
+  events:{ crumb:"Live", title:"Events" },
+  courses:{ crumb:"Learning", title:"Courses" },
+  settings:{ crumb:"System", title:"Settings", ownerOnly:true }
+};
+
+const MEMBERS = [
+  ["Elvis Bitolo","elvisbitolo11@gmail.com","owner","Moving In","paid"],
+  ["Christa Patel","secretyarnery@gmail.com","owner","Moving In","paid"],
+  ["Christa Patel","mamameer@gmail.com","moderator","Moving In","paid"],
+  ["Donna","donnavaughan@live.com.au","moderator","Moving In","active"],
+  ["Caroline Dodds","neithete@gmail.com","moderator","Moving In","active"],
+  ["Clare","clare.loney@gmail.com","moderator","Moving In","active"],
+  ["Traci Seger","tracisegert@aol.com","moderator","Moving In","active"],
+  ["Joseph Ncube","joseph@example.com","member","Hooking Up","paid"],
+  ["Amara Osei","amara@example.com","member","Moving In","active"],
+  ["Linh Tran","linh@example.com","member","Flirting","—"],
+  ["Ruth Mbeki","ruth@example.com","member","Flirting","suspended"],
+  ["Tomas Vidal","tomas@example.com","member","Hooking Up","paid"]
+];
+
+// "kind" powers the unified All-content table — this is the "see everything" view
+const CONTENT = [
+  ["Post","Crochet a granny square blanket — progress thread","Joseph Ncube","feed","published","2h ago"],
+  ["Post","Finally finished my second shawl!","Amara Osei","feed","published","5h ago"],
+  ["Article","How tension works in Tunisian crochet","Elvis Bitolo","articles","published","1d ago"],
+  ["Article","Draft: choosing your first yarn weight","Elvis Bitolo","articles","draft","2d ago"],
+  ["Room","Tuesday Evening Stitch & Chat","Christa Patel","rooms","live","now"],
+  ["Room","Fibre Friday Open Room","Elvis Bitolo","rooms","scheduled","Fri"],
+  ["Group","Advanced Techniques","Caroline Dodds","groups","published","3d ago"],
+  ["Space","Pattern Library","Elvis Bitolo","spaces","published","6d ago"],
+  ["Course","Crochet Foundations","Elvis Bitolo","courses","published","12d ago"],
+  ["Course","Amigurume Masterclass","Donna","courses","draft","4d ago"],
+  ["Event","Spring Yarn Market Meetup","Christa Patel","events","scheduled","Mar 14"],
+  ["Recording","Stitch & Chat — Mar 02","(auto)","recordings","ready","Mar 02"],
+  ["Announcement","Maintenance window Mar 8","Elvis Bitolo","announcements","published","Mar 05"],
+  ["Collection","Beginner-friendly patterns","Elvis Bitolo","collections","published","Feb 20"],
+  ["Comment","on “Tension in Tunisian crochet”","Linh Tran","articles","published","1d ago"],
+  ["Music","Lo-fi beats for stitch night","Elvis Bitolo","music","ready","Feb 02"]
+];
+
+const AUDIT = [
+  ["2026-10-04 11:33","Elvis Bitolo","member.role_changed","74f31134…","mamameer@gmail.com → moderator"],
+  ["2026-10-04 11:33","Elvis Bitolo","member.deleted","1kLuTguI…","Mamameer@gmail.com"],
+  ["2026-10-04 11:33","Elvis Bitolo","member.deleted","749Whb2H…","syarnery@gmail.com"],
+  ["2026-10-02 09:14","Christa Patel","announcement.published","—","Maintenance window Mar 8"],
+  ["2026-10-01 16:40","Elvis Bitolo","course.created","crs_8fa2","Crochet Foundations"],
+  ["2026-09-30 11:02","Donna","room.created","rm_lounge_7","Fibre Friday Open Room"],
+  ["2026-09-28 14:21","Elvis Bitolo","member.role_changed","b72871d4…","Donna → moderator"],
+  ["2026-09-26 08:55","Christa Patel","event.created","evt_spring","Spring Yarn Market Meetup"]
+];
+
+const MODERATION = [
+  ["Post","Link to external yarn shop (possible spam)","Joseph Ncube","open"],
+  ["Comment","Argumentative reply in Advanced Techniques","Ruth Mbeki","open"],
+  ["Profile photo","Uploaded image appears unrelated","Linh Tran","open"],
+  ["Post","Duplicate of an existing thread","Amara Osei","open"]
+];
+
+let role = "owner";
+let view = "overview";
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const q = () => document.getElementById('q').value.trim().toLowerCase();
+
+function setRole(el){
+  role = el.dataset.role;
+  [...el.parentNode.children].forEach(b => b.classList.toggle('on', b === el));
+  document.getElementById('roleLbl').textContent =
+    role === 'owner' ? 'owner · full access' : 'moderator · limited';
+  // Demonstrates the gating fix: owner-only items grey out for moderators
+  document.querySelectorAll('.nav').forEach(n => {
+    const meta = DATA[n.dataset.view];
+    n.classList.toggle('ownerOnly', !!(meta && meta.ownerOnly) && role !== 'owner');
+  });
+  render();
+}
+
+function go(v){
+  view = v;
+  document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.view === v));
+  document.getElementById('q').value = '';
+  render();
+}
+document.querySelectorAll('.nav').forEach(n => n.onclick = () => go(n.dataset.view));
+
+function newItem(){ alert('Mockup only.\n\nThis button would open the create form for: ' + (DATA[view]?.title || view)); }
+function row(label){ return `<div class="row-actions"><button>${label}</button></div>`; }
+
+function head(cols){ return `<tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`; }
+
+/* --------------------------- views --------------------------- */
+function overview(){
+  const qy = q();
+  const stats = [
+    ["Members","34",""],["Live now","7","up"],["Posts","412",""],["Articles","9","warn"],
+    ["Lounges","12",""],["Groups","6",""],["Spaces","5",""],["Courses","4",""],
+    ["Events","3",""],["Open reports","4","bad"],["Storage","18.4 GB",""],["MRR","$2,140","up"]
+  ].filter(s => !qy || s[0].toLowerCase().includes(qy));
+
+  return `
+  <div class="note">
+    <b>Reflects instantly.</b> Every content route is <code>force-dynamic</code>, so anything you create
+    here is live on the public site on the next page load. No publish step, no deploy.
+  </div>
+
+  <div class="grid">
+    ${stats.map(([l,v,k])=>`<div class="stat ${k}"><b>${v}</b><span>${l}</span></div>`).join("") ||
+      `<div class="empty">No stat matches “${esc(qy)}”.</div>`}
+  </div>
+
+  <h2>Quick actions</h2>
+  <div class="qa">
+    <a onclick="go('articles')">+ Article</a>
+    <a onclick="go('rooms')">+ Lounge</a>
+    <a onclick="go('courses')">+ Course</a>
+    <a onclick="go('events')">+ Event</a>
+    <a onclick="go('groups')">+ Group</a>
+    <a onclick="go('announcements')">+ Announcement</a>
+    <a onclick="go('members')">+ Member</a>
+    <a onclick="go('music')">+ Music track</a>
+  </div>
+
+  <h2>Needs attention</h2>
+  <table>${head(["Type","Subject","By","Age","",""])}
+    ${MODERATION.map(m=>`<tr>
+      <td class="mono">${esc(m[0])}</td><td>${esc(m[1])}</td>
+      <td class="muted">${esc(m[2])}</td><td class="dim">${esc(m[3])}</td>
+      <td>${row("Review")}</td><td>${row("Dismiss")}</td></tr>`).join("")}
+  </table>
+
+  <h2>Recent activity</h2>
+  <table class="audit">${head(["When","Who","Action","Target","Detail",""])}
+    ${AUDIT.slice(0,5).map(a=>`<tr>
+      <td class="mono">${esc(a[0])}</td><td>${esc(a[1])}</td>
+      <td class="mono">${esc(a[2])}</td><td class="mono dim">${esc(a[3])}</td>
+      <td class="muted">${esc(a[4])}</td><td>${row("Open")}</td></tr>`).join("")}
+  </table>`;
+}
+
+function contentView(){
+  const qy = q();
+  const kinds = ["All","Post","Article","Room","Group","Space","Course","Event","Recording","Announcement","Collection","Comment","Music"];
+  const rows = CONTENT
+    .filter(c => !qy || c.join(" ").toLowerCase().includes(qy))
+    .map(c => {
+      const st = c[4] === 'live' ? 'p-live' : c[4] === 'draft' ? 'p-draft' :
+                 c[4] === 'suspended' ? 'p-susp' : 'p-mod';
+      return `<tr>
+        <td><span class="pill p-member">${esc(c[0])}</span></td>
+        <td>${esc(c[1])}</td>
+        <td class="muted">${esc(c[2])}</td>
+        <td class="mono dim">${esc(c[3])}</td>
+        <td><span class="pill ${st}">${esc(c[4])}</span></td>
+        <td class="dim">${esc(c[5])}</td>
+        <td><div class="row-actions">${row("Edit")}${row("⋯")}</div></td></tr>`;
+    }).join("");
+
+  return `
+  <div class="note">
+    <b>This is the piece you're missing today.</b> One searchable index across every content type
+    on the site — not a raw table editor. Each row opens a real form for that type, so you can't
+    produce a broken row the way a generic grid would.
+  </div>
+
+  <div class="filters">${kinds.map((k,i)=>
+    `<span class="chip ${i===0?'on':''}" onclick="this.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));this.classList.add('on')">${k}</span>`).join("")}
+  </div>
+
+  <table>${head(["Type","Title","Author","Section","Status","Updated",""])}
+    ${rows || `<tr><td colspan="7" class="empty">Nothing matches “${esc(qy)}”.</td></tr>`}
+  </table>`;
+}
+
+function auditView(){
+  const qy = q();
+  return `<div class="note">Every admin write lands here — the same <code>AuditLog</code> the admin API already writes to. This is the trail for “who changed what, when”.</div>
+  <table class="audit">${head(["When","Who","Action","Target","Detail",""])}
+  ${AUDIT.filter(a=>!qy||a.join(" ").toLowerCase().includes(qy)).map(a=>`<tr>
+    <td class="mono">${esc(a[0])}</td><td>${esc(a[1])}</td>
+    <td class="mono">${esc(a[2])}</td><td class="mono dim">${esc(a[3])}</td>
+    <td class="muted">${esc(a[4])}</td><td>${row("Inspect")}</td></tr>`).join("")}
+  </table>`;
+}
+
+function membersView(){
+  const qy = q();
+  const rows = MEMBERS.filter(m => !qy || m.join(" ").toLowerCase().includes(qy)).map(m => {
+    const rp = m[2]==='owner' ? 'p-owner' : m[2]==='moderator' ? 'p-mod' : 'p-member';
+    const bp = m[4]==='suspended' ? 'p-susp' : 'p-tier';
+    const isOwner = m[2]==='owner';
+    // owner rows are protected: no role change, no suspend — matches the API guards
+    const acts = isOwner
+      ? `<span class="dim" style="font-size:11px">protected</span>`
+      : `<div class="row-actions">${row("Edit")}${row(m[4]==='suspended'?'Unban':'Suspend')}${
+          role==='owner' ? row('Role ▾') : `<span class="dim" style="font-size:11px">role: owner only</span>`}</div>`;
+    return `<tr>
+      <td><b>${esc(m[0])}</b><div class="dim mono">${esc(m[1])}</div></td>
+      <td><span class="pill ${rp}">${esc(m[2])}</span></td>
+      <td><span class="pill ${bp}">${esc(m[3])}</span></td>
+      <td class="dim">${esc(m[4])}</td><td>${acts}</td></tr>`;
+  }).join("");
+
+  return `<div class="note ${role==='moderator'?'warn':''}">
+    ${role==='owner'
+      ? '<b>Owner view.</b> You can change roles. Note the two owner rows are inert — the API rejects changing an owner\'s role, and so does this screen.'
+      : '<b>Moderator view.</b> Role changes are owner-only, so that control is gone. Toggle back to Owner at the top left to compare.'}
+  </div>
+  <table>${head(["Member","Role","Tier","Billing","Actions"])}${rows}</table>`;
+}
+
+function moderationView(){
+  return `<div class="note warn"><b>Sensitive.</b> These actions delete or hide member content, so each one writes an <code>AuditLog</code> row with your user id. Bulk actions would apply the same guard.</div>
+  <table>${head(["Type","Subject","Reported member","State","",""])}
+  ${MODERATION.map(m=>`<tr><td class="mono">${esc(m[0])}</td><td>${esc(m[1])}</td>
+    <td class="muted">${esc(m[2])}</td><td><span class="pill p-draft">${esc(m[3])}</span></td>
+    <td>${row("Keep")}</td><td>${row("Remove")}</td></tr>`).join("")}</table>`;
+}
+
+function articlesView(){
+  return `<div class="note warn">
+    <b>Open question for you.</b> Today <code>POST /api/articles</code> is <code>requireUser()</code> — any
+    signed-in member can create an article. Should this screen be <b>staff-only publishing</b>, or do members
+    keep writing their own? It changes the guard I write.
+  </div>
+  <table>${head(["Title","Author","Status","Updated","",""])}
+  ${CONTENT.filter(c=>c[0]==='Article'||c[0]==='Comment').map(c=>{
+    const st = c[4]==='draft'?'p-draft':'p-mod';
+    return `<tr><td>${esc(c[1])}</td><td class="muted">${esc(c[2])}</td>
+      <td><span class="pill ${st}">${esc(c[4])}</span></td><td class="dim">${esc(c[5])}</td>
+      <td>${row("Edit")}</td><td>${row("Unpublish")}</td></tr>`;}).join("")}</table>`;
+}
+
+function recordingsView(){
+  return `<div class="note">
+    Recordings arrive automatically from Jitsi webhooks — there's no “create” for these.
+    The screen is for <b>retrying a failed ingest, restoring, and cleaning up</b>.
+    Already owner-only in the API; this makes it visible instead of code-only.
+  </div>
+  <table>${head(["Recording","Length","Status","Recorded","",""])}
+  ${[["Stitch & Chat — Mar 02","48 min","ready","Mar 02"],
+     ["Fibre Friday Open Room","1 h 12 min","ready","Feb 28"],
+     ["Crochet Club Q&A","32 min","ready","Feb 21"],
+     ["Stitch & Chat — Feb 14","—","failed ingest","Feb 14"],
+     ["Advanced Techniques","22 min","archived","Feb 10"]].map(r=>{
+    const st = r[2]==='failed ingest'?'p-susp': r[2]==='archived'?'p-member':'p-live';
+    const acts = r[2]==='failed ingest'
+      ? `<div class="row-actions">${row("Retry ingest")}</div>`
+      : `<div class="row-actions">${row("Play")}${row("Archive")}${row("Delete")}</div>`;
+    return `<tr><td>${esc(r[0])}</td><td class="dim">${esc(r[1])}</td>
+      <td><span class="pill ${st}">${esc(r[2])}</span></td><td class="dim">${esc(r[3])}</td><td>${acts}</td></tr>`;
+  }).join("")}</table>`;
+}
+
+function musicView(){
+  return `<div class="note">Uploaded from the room UI today, via <code>/api/rooms/music/upload</code>. This screen is the library view and lets staff remove a track that shouldn't be playing in a lounge.</div>
+  <table>${head(["Track","Added by","Used in","",""])}
+  ${[["Lo-fi beats for stitch night","Elvis Bitolo","3 lounges"],
+     ["Soft acoustic morning","Elvis Bitolo","1 lounge"],
+     ["Rainy day piano","Donna","—"],
+     ["70s folk (community pick)","Caroline Dodds","2 lounges"]].map(r=>`<tr>
+    <td>${esc(r[0])}</td><td class="muted">${esc(r[1])}</td><td class="dim">${esc(r[2])}</td>
+    <td><div class="row-actions">${row("Play")}${row("Remove")}</div></td></tr>`).join("")}</table>`;
+}
+
+function genericView(v){
+  const map = {
+    groups:["Groups",CONTENT.filter(c=>c[0]==='Group')],
+    spaces:["Spaces",CONTENT.filter(c=>c[0]==='Space')],
+    announcements:["Announcements",CONTENT.filter(c=>c[0]==='Announcement')],
+    collections:["Collections",CONTENT.filter(c=>c[0]==='Collection')],
+    events:["Events",CONTENT.filter(c=>c[0]==='Event')],
+    courses:["Courses",CONTENT.filter(c=>c[0]==='Course')],
+    rooms:["Lounges",CONTENT.filter(c=>c[0]==='Room')],
+    questions:["Questions",[
+      ["Community questions","Elvis Bitolo","0 answers","open","2d ago"],
+      ["How do I keep edges from curling?","Linh Tran","3 answers","answered","3d ago"],
+      ["Best yarn for a first Tunisian piece?","Joseph Ncube","1 answer","answered","5d ago"]
+    ]],
+    hosts:["Hosts",[
+      ["Fibre Friday Open Room","Donna","room + co-host","active","2d ago"],
+      ["Tuesday Stitch & Chat","Caroline Dodds","room + co-host","active","3d ago"],
+      ["Advanced Techniques","Traci Seger","scoped host","active","1w ago"],
+      ["Crochet Foundations course","Clare","course host","active","2w ago"]
+    ]],
+    automations:["Automations",[
+      ["Welcome new members","Elvis Bitolo","ran 12 times","active","1h ago"],
+      ["Flag dormant memberships","Elvis Bitolo","ran 4 times","active","2d ago"],
+      ["Weekly lounge digest","Donna","scheduled Mon","scheduled","—"]
+    ]],
+    analytics:["Analytics",[
+      ["Signups, last 30 days","+18","vs previous 30","up","live"],
+      ["Paid conversion","7.4%","target 6%","up","live"],
+      ["Active members, 7d","31","of 34","up","live"],
+      ["Lounge hours watched","212 h","last 30 days","up","live"],
+      ["Churn risk","4 members","flagged by automation","warn","live"]
+    ]],
+    settings:["Settings",[
+      ["Open access mode","on","everybody admitted","active","—"],
+      ["Join approval","manual","new signups reviewed","active","—"],
+      ["Default tier","moving-in","applies to staff","active","—"],
+      ["Recording retention","90 days","auto-purge","active","—"],
+      ["Session max age","30 days","sliding","active","—"]
+    ]]
+  };
+  const [label, rows] = map[v] || [DATA[v]?.title || v, []];
+  const locked = DATA[v]?.ownerOnly && role !== 'owner';
+  if (locked) return `<div class="note warn"><b>Owner only.</b> ${esc(label)} is restricted to owners. As a moderator you would not see this page at all — that's the gating fix.</div>`;
+
+  const cols = v === 'analytics' ? ["Metric","Value","Context","Trend",""] : ["Name","Owner","Detail","Updated",""];
+  const list = rows.length ? rows : [["No items yet","—","—","—","—"]];
+
+  return `<table>${head(cols)}
+  ${list.map(c=>`<tr>
+    <td>${esc(c[1])}</td><td class="muted">${esc(c[2])}</td>
+    <td>${esc(c[3])}</td>
+    <td class="dim">${esc(c[4])}</td>
+    <td><div class="row-actions">${row("Edit")}</div></td></tr>`).join("")}</table>`;
+}
+
+const VIEWS = { overview, content:contentView, audit:auditView, members:membersView,
+  moderation:moderationView, articles:articlesView, recordings:recordingsView,
+  music:musicView, questions:genericView, hosts:genericView, automations:genericView,
+  analytics:genericView, settings:genericView };
+
+function render(){
+  const meta = DATA[view] || { crumb:"", title:view };
+  document.getElementById('crumb').textContent = meta.crumb;
+  document.getElementById('title').textContent = meta.title;
+  document.getElementById('view').innerHTML = (VIEWS[view] || genericView)(view);
+}
+document.getElementById('q').addEventListener('input', render);
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+.shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+.rail {
+  width: 216px;
+  flex: 0 0 216px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-right: 1px solid #e6e6ef;
+  padding: 18px 10px 40px;
+}
+
+.brand {
+  font-size: 14px;
+  font-weight: 800;
+  color: #17171c;
+  padding: 0 10px 4px;
+  letter-spacing: -0.01em;
+}
+
+.brandAccent {
+  color: #f42e79;
+}
+
+.who {
+  margin: 12px 6px 16px;
+  padding: 10px 11px;
+  background: #fafaff;
+  border: 1px solid #e6e6ef;
+  border-radius: 10px;
+}
+
+.whoName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #17171c;
+  margin: 0;
+}
+
+.whoRole {
+  font-size: 11px;
+  color: #71718a;
+  margin: 2px 0 0;
+}
+
+.group {
+  margin: 16px 0 6px;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #9a97ab;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #4a4a5e;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+
+.link:hover {
+  background: #f7f7fc;
+  color: #17171c;
+}
+
+.linkActive {
+  background: rgba(244, 46, 121, 0.09);
+  border-color: rgba(244, 46, 121, 0.28);
+  color: #17171c;
+  font-weight: 700;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d5d4e3;
+  flex: none;
+}
+
+.linkActive .dot {
+  background: #f42e79;
+}
+
+.newTag {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 20px;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
