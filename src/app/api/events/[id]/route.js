@@ -5,6 +5,7 @@ import { canManageScope } from "@/lib/server/hosts";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { updateContent } from "@/lib/server/admin-content";
 
 export async function PATCH(req, { params }) {
   const { id } = await params;
@@ -19,28 +20,15 @@ export async function PATCH(req, { params }) {
   if (!(await canManageScope(user.uid, "event", id))) {
     return NextResponse.json({ error: "Event host access required" }, { status: 403 });
   }
-  const { publicPreview } = await req.json();
-  if (typeof publicPreview !== "boolean") {
-    return NextResponse.json({ error: "publicPreview must be a boolean" }, { status: 400 });
+  // Hosts keep their existing scope access; the fields themselves are limited to
+  // the shared allow list so a host request cannot write unrelated columns.
+  const result = await updateContent("event", id, await req.json().catch(() => null), {
+    ...user,
+  });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  try {
-    const prisma = getPrisma();
-    await prisma.event.update({
-      where: { id },
-      data: { publicPreview },
-    });
-    await logAudit({
-      actorId: user.uid,
-      actorName: user.displayName || user.email || "",
-      action: "event.updated",
-      targetId: id,
-      metadata: { publicPreview },
-    });
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    logError("event.update_failed", { error: err.message });
-    return NextResponse.json({ error: "Failed to update event" }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true, changed: result.changed });
 }
 
 export async function DELETE(req, { params }) {

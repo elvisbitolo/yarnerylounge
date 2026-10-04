@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
+import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "./admin.module.css";
 
 export default function AdminRoomsPage() {
@@ -22,6 +23,7 @@ export default function AdminRoomsPage() {
   const [groups, setGroups] = useState([]);
   const [spaces, setSpaces] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [editing, setEditing] = useState(null);
   const [role, setRole] = useState("member");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -324,6 +326,12 @@ export default function AdminRoomsPage() {
                   >
                     {room.publicPreview ? "On explore" : "Off explore"}
                   </button>
+                  <button
+                    className={styles.toggle}
+                    onClick={() => setEditing(editing === rooms.id ? null : rooms.id)}
+                  >
+                    {editing === rooms.id ? "Close" : "Edit"}
+                  </button>
                   <button className={styles.delete} onClick={() => handleDelete(room.id)}>
                     Delete
                   </button>
@@ -331,6 +339,20 @@ export default function AdminRoomsPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {rooms.map((r) =>
+          editing === r.id ? (
+            <ContentEditor
+              key={r.id}
+              kind="room"
+              record={r}
+              onCancel={() => setEditing(null)}
+              onSaved={(id, patch) => {
+                setRooms((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+              }}
+            />
+          ) : null
         )}
       </div>
 </Nav>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
+import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "../rooms/admin.module.css";
 
 const FEATURES = [
@@ -27,6 +28,7 @@ export default function AdminSpacesPage() {
   const [publicPreview, setPublicPreview] = useState(false);
   const [features, setFeatures] = useState(DEFAULT_FEATURES);
   const [spaces, setSpaces] = useState([]);
+  const [editing, setEditing] = useState(null);
   const [role, setRole] = useState("member");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -234,6 +236,12 @@ export default function AdminSpacesPage() {
                   >
                     {space.publicPreview ? "On explore" : "Off explore"}
                   </button>
+                  <button
+                    className={styles.toggle}
+                    onClick={() => setEditing(editing === space.id ? null : space.id)}
+                  >
+                    {editing === space.id ? "Close" : "Edit"}
+                  </button>
                   <button className={styles.delete} onClick={() => handleDelete(space.id)}>
                     Delete
                   </button>
@@ -241,6 +249,20 @@ export default function AdminSpacesPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {spaces.map((sp) =>
+          editing === sp.id ? (
+            <ContentEditor
+              key={sp.id}
+              kind="space"
+              record={sp}
+              onCancel={() => setEditing(null)}
+              onSaved={(id, patch) => {
+                setSpaces((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+              }}
+            />
+          ) : null
         )}
       </div>
 </Nav>

@@ -3,6 +3,8 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { deleteWhere, deletePostWithComments } from "@/lib/server/delete";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { updateContent } from "@/lib/server/admin-content";
+import { requireOwner, guardJson } from "@/lib/server/authorize";
 
 export async function DELETE(req, { params }) {
   const { id } = await params;
@@ -37,4 +39,19 @@ export async function DELETE(req, { params }) {
     logError("group.delete_failed", { error: err.message });
     return NextResponse.json({ error: "Could not delete group" }, { status: 500 });
   }
+}
+
+/** Editing group copy is owner-only, matching the existing delete guard below. */
+export async function PATCH(req, { params }) {
+  const { id } = await params;
+  const auth = await requireOwner();
+  const denied = guardJson(auth);
+  if (denied) return denied;
+
+  const body = await req.json().catch(() => null);
+  const result = await updateContent("group", id, body, { ...auth.user, ...auth.userDoc });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+  return NextResponse.json({ ok: true, changed: result.changed });
 }
