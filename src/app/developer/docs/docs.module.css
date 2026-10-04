@@ -1,0 +1,61 @@
+.container {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.header p {
+  margin: 0;
+  color: #9b9bab;
+}
+
+.card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #15151a;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.card p {
+  margin: 0;
+  color: #bcbcc8;
+}
+
+.codeBlock {
+  background: #111;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  white-space: pre;
+}
+
+@media (max-width: 680px) {
+  .container {
+    padding: 16px;
+  }
+}

@@ -130,7 +130,8 @@ model User {
   // principal's identity — same id, name, role and email — so everything they
   // do is attributed to the principal.
   grantsGiven     AccountGrant[] @relation("AccountGrantPrincipal")
-  grantsReceived AccountGrant[] @relation("AccountGrantGrantee")
+  grantsReceived  AccountGrant[] @relation("AccountGrantGrantee")
+  apiTokens       ApiToken[]
 
   // Back-references for the "who actually did this" columns. Named, because
   // User already relates to these three models as an author.
@@ -212,6 +213,30 @@ model Session {
   @@index([userId])
   @@index([familyId])
   @@index([expiresAt])
+}
+
+// A member-issued personal access token for the public /api/v1 surface.
+//
+// Only a SHA-256 hash of the secret is stored: the plaintext is shown exactly
+// once at creation and never again. `prefix` is a non-secret head of the token
+// (e.g. "yry_live_ab12cd") kept in clear so the developer page can identify and
+// revoke a token without holding the secret. `scopes` gates which read
+// endpoints the token may call.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  prefix     String
+  tokenHash  String    @unique
+  scopes     String[]  @default([])
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
 }
 
 model Follow {
