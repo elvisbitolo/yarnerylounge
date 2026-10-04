@@ -134,7 +134,11 @@ export async function listAnnouncements(limit = 20) {
           id: row.id,
           scopeType: row.spaceId,
           scopeId: row.spaceId,
+          // message is kept for the existing admin list; title/body are what the
+          // shared ContentEditor reads when editing this announcement.
           message: row.body || "",
+          title: row.title || "",
+          body: row.body || "",
           sentCount: 0,
           actorId: row.authorId || "",
           createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : 0,

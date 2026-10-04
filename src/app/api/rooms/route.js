@@ -47,10 +47,15 @@ export async function POST(req) {
   if (groupId && spaceId) {
     return NextResponse.json({ error: "A lounge belongs to a group OR a space, not both" }, { status: 400 });
   }
+  // Moving In sells "host privileges to create, name, and schedule your own public
+  // or private live video rooms". Previously only staff or an existing scoped host
+  // assignment could create one, so the tier paid for nothing here. Additive: staff
+  // and scoped hosts keep working exactly as before.
   const staff = isStaff(auth);
-  if (!staff && !(await canCreateInScope(auth.user.uid, groupId, spaceId))) {
+  const tierCanHost = canHost(await getCapabilities(auth.user.uid));
+  if (!staff && !tierCanHost && !(await canCreateInScope(auth.user.uid, groupId, spaceId))) {
     return NextResponse.json(
-      { error: "Only staff or the host of the room's group or space can create rooms" },
+      { error: "Creating a lounge requires a Moving In membership, or being staff or the host of its group or space" },
       { status: 403 }
     );
   }

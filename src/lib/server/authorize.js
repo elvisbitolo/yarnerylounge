@@ -4,6 +4,7 @@ import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { getScopedHostRights } from "@/lib/server/hosts";
+import { getCapabilities, canHost } from "@/lib/server/capabilities";
 
 function deny(status, error) {
   return { ok: false, status, error };
@@ -23,9 +24,16 @@ export async function authorize(options = {}) {
 
   if (host) {
     const sub = await getAccessSub(user.uid);
-    const isHost =
+    let isHost =
       userDoc?.role === "owner" ||
       (userDoc?.role === "host" && isActiveSub(sub));
+    // The Moving In tier sells "host privileges to create ... live video rooms" and
+    // "launch independent crochet circles". Those were role-only, so a paying
+    // customer with role "member" was denied while a free member manually given
+    // role "host" was allowed - the plan bought nothing. Grant the tier too.
+    if (!isHost) {
+      isHost = canHost(await getCapabilities(user.uid));
+    }
     if (!isHost) return deny(403, "Host access required");
   }
 

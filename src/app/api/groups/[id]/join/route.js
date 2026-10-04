@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
+import { getCapabilities, canJoinNeighborhoods } from "@/lib/server/capabilities";
 import { syncGroupChatParticipants } from "@/lib/server/chat";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
@@ -38,6 +39,20 @@ export async function POST(req, { params }) {
   try {
     const existing = await prisma.groupMember.findUnique({ where: { id: memberId } });
     const joined = !!existing;
+
+    // "Full access to join Neighborhood Groups" is sold as a Hooking Up perk and
+    // /api/spaces/[id]/join already enforces it; groups were the ungated twin, so a
+    // free Flirting member could join a paid group. Gated on the JOINING direction
+    // only - never trap someone in a group they can no longer afford.
+    if (!joined) {
+      const caps = await getCapabilities(user.uid);
+      if (!canJoinNeighborhoods(caps)) {
+        return NextResponse.json(
+          { error: "Joining groups requires a Hooking Up membership" },
+          { status: 403 }
+        );
+      }
+    }
 
     if (joined) {
       await prisma.groupMember.deleteMany({ where: { id: memberId } });

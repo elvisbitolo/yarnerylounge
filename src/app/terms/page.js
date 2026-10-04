@@ -55,6 +55,7 @@ export default function TermsPage() {
             <span className={styles.brandWord}>Secret Yarnery</span>
           </a>
           <div className={styles.navLinks}>
+            <Link className={styles.navLink} href="/privacy">Privacy Policy</Link>
             <Link className={styles.navLink} href="/login">Sign in</Link>
             <Link className={styles.navLink} href="/signup">Create account</Link>
           </div>
@@ -95,6 +96,7 @@ export default function TermsPage() {
           <a className={styles.link} href="mailto:christa@secretyarnery.com">
             christa@secretyarnery.com
           </a>
+          . Read our <Link className={styles.link} href="/privacy">Privacy Policy</Link>.
         </p>
 
         <div className={styles.ctaBlock}>
