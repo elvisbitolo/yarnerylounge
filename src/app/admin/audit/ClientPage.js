@@ -97,7 +97,8 @@ export default function AdminAuditPage() {
           {entries.length === 0 && !loading ? (
             <div className={styles.empty}>Nothing recorded yet.</div>
           ) : (
-            <table className={styles.table}>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
               <thead>
                 <tr>
                   <th className={styles.th}>When</th>
@@ -129,7 +130,8 @@ export default function AdminAuditPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       </div>

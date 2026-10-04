@@ -141,7 +141,8 @@ export default function AdminContentPage() {
                 : `Nothing matches “${query.trim()}”.`}
             </div>
           ) : (
-            <table className={styles.table}>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
               <thead>
                 <tr>
                   <th className={styles.th}>Type</th>
@@ -171,7 +172,8 @@ export default function AdminContentPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
 
           {data?.truncated ? (

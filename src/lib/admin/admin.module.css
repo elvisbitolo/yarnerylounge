@@ -109,3 +109,73 @@
   flex: 1;
   min-width: 0;
 }
+
+@media (max-width: 900px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .rail {
+    width: 100%;
+    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid #e6e6ef;
+    padding: 12px 0 8px;
+  }
+
+  .brand {
+    padding: 0 14px;
+  }
+
+  .who {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 10px 12px 4px;
+    padding: 8px 10px;
+  }
+
+  .whoRole {
+    margin: 0;
+  }
+
+  .railScroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 6px 12px 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .group {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .group::after {
+    content: "\2022";
+    font-size: 18px;
+    line-height: 1;
+    color: #d5d4e3;
+  }
+
+  .link {
+    white-space: nowrap;
+    flex: none;
+    border: 1px solid #e6e6ef;
+    background: #ffffff;
+  }
+
+  .newTag {
+    margin-left: 4px;
+  }
+}

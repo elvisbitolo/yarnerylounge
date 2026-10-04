@@ -205,3 +205,31 @@
   overflow-wrap: anywhere;
   max-width: 380px;
 }
+
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 14px;
+}
+
+.table {
+  min-width: 560px;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 22px 14px 48px;
+  }
+
+  .title {
+    font-size: 21px;
+  }
+
+  .sub {
+    font-size: 12.5px;
+  }
+
+  .table {
+    min-width: 480px;
+  }
+}

@@ -25,22 +25,24 @@ export default function AdminRail({ role, name, email }) {
         </p>
       </div>
 
-      {sections.map((section) => (
-        <div key={section.label}>
-          <div className={styles.group}>{section.label}</div>
-          {section.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.link} ${isActive(item.href) ? styles.linkActive : ""}`}
-            >
-              <span className={styles.dot} />
-              {item.label}
-              {item.isNew ? <span className={styles.newTag}>NEW</span> : null}
-            </Link>
-          ))}
-        </div>
-      ))}
+      <div className={styles.railScroll}>
+        {sections.map((section) => (
+          <div key={section.label}>
+            <div className={styles.group}>{section.label}</div>
+            {section.items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.link} ${isActive(item.href) ? styles.linkActive : ""}`}
+              >
+                <span className={styles.dot} />
+                {item.label}
+                {item.isNew ? <span className={styles.newTag}>NEW</span> : null}
+              </Link>
+            ))}
+          </div>
+        ))}
+      </div>
     </nav>
   );
 }
