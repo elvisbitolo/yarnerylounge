@@ -426,7 +426,6 @@ export default function Nav({ role, children }) {
               <SidebarGroup id="lounges" label={t("connect")} items={LOUNGE_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <SidebarGroup id="learn" label={t("learn")} items={LEARN_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <Link className={styles.sidebarLink} href="/calendar" onClick={close}>{t("calendar")}</Link>
-              <Link className={styles.sidebarLink} href="/developer" onClick={close}>{t("developer")}</Link>
 
               {collections.length > 0 && (
                 <SidebarGroup id="collections" label={t("collections")} open={openGroups} onToggle={toggleGroup} t={t} close={close}>
