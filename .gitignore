@@ -51,3 +51,7 @@ next-env.d.ts
 # One-off pre-migration data snapshots (pre-shift timestamps, PII). Kept locally
 # as a rollback aid for the timestamptz migration, not in version control.
 *-pre-timestamptz-backup.json
+
+# Role-change backups written by scripts/limit-owners.mjs before it writes to
+# the User table. They contain member names and emails, so they stay local.
+scripts/.role-backup-*.json
