@@ -776,3 +776,25 @@
     font-size: 26px;
   }
 }
+
+/* Builder-only controls: "Remove this sub-group" and "Cancel". Deliberately
+   quiet next to the solid .topicBtn, so the primary action stays obvious. */
+.topicLinkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.topicLinkBtn:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.topicLinkBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}

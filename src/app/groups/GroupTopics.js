@@ -5,7 +5,7 @@ import styles from "./groups.module.css";
 
 const EMOJI = { "🌱": "Future WIMPs", "🧶": "Current WIMPs", "📐": "Pattern help", "✨": "Inspiration" };
 
-export default function GroupTopics({ groupId, canPost, uid, userName }) {
+export default function GroupTopics({ groupId, canPost, canBuildTopics = false, uid, userName }) {
   const [topics, setTopics] = useState([]);
   const [openKey, setOpenKey] = useState("");
   const [threads, setThreads] = useState([]);
@@ -18,6 +18,10 @@ export default function GroupTopics({ groupId, canPost, uid, userName }) {
   const [newReply, setNewReply] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftDesc, setDraftDesc] = useState("");
+  const [draftEmoji, setDraftEmoji] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -101,6 +105,63 @@ export default function GroupTopics({ groupId, canPost, uid, userName }) {
     }
   }
 
+  async function refreshTopics() {
+    const res = await fetch(`/api/groups/${groupId}/topics`);
+    const data = await res.json();
+    if (res.ok) setTopics(data.topics || []);
+  }
+
+  async function handleCreateTopic(e) {
+    e.preventDefault();
+    if (!canBuildTopics || !draftName.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/groups/${groupId}/topics`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: draftName, description: draftDesc, emoji: draftEmoji }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Couldn't create the sub-group");
+        return;
+      }
+      setDraftName("");
+      setDraftDesc("");
+      setDraftEmoji("");
+      setShowCreate(false);
+      await refreshTopics();
+    } catch {
+      setError("Couldn't create the sub-group");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteTopic(key, name) {
+    if (!canBuildTopics) return;
+    if (!window.confirm(`Remove the sub-group "${name}"? Conversations inside it stay put.`)) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/groups/${groupId}/topics?key=${encodeURIComponent(key)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Couldn't remove the sub-group");
+        return;
+      }
+      if (openKey === key) setOpenKey("");
+      await refreshTopics();
+    } catch {
+      setError("Couldn't remove the sub-group");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleReply(e, threadId) {
     e.preventDefault();
     if (!canPost) return;
@@ -164,6 +225,18 @@ export default function GroupTopics({ groupId, canPost, uid, userName }) {
             {openKey === topic.key && (
               <div className={styles.topicBody}>
                 <p className={styles.topicDesc}>{topic.description}</p>
+                {canBuildTopics && (
+                  <p>
+                    <button
+                      type="button"
+                      className={styles.topicLinkBtn}
+                      onClick={() => handleDeleteTopic(topic.key, topic.name)}
+                      disabled={busy}
+                    >
+                      Remove this sub-group
+                    </button>
+                  </p>
+                )}
                 {threadsLoading ? (
                   <p className={styles.topicHint}>Loading conversations…</p>
                 ) : threads.length === 0 ? (
@@ -240,6 +313,52 @@ export default function GroupTopics({ groupId, canPost, uid, userName }) {
           </li>
         ))}
       </ul>
+      {canBuildTopics && (
+        <div className={styles.newThreadForm}>
+          {!showCreate ? (
+            <button type="button" className={styles.topicBtn} onClick={() => setShowCreate(true)}>
+              New sub-group
+            </button>
+          ) : (
+            <form onSubmit={handleCreateTopic}>
+              <input
+                className={styles.topicInput}
+                value={draftEmoji}
+                onChange={(e) => setDraftEmoji(e.target.value)}
+                placeholder="Emoji (optional)"
+                maxLength={8}
+              />
+              <input
+                className={styles.topicInput}
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                placeholder="Sub-group name, e.g. Amigurumi Help"
+                maxLength={60}
+              />
+              <input
+                className={styles.topicInput}
+                value={draftDesc}
+                onChange={(e) => setDraftDesc(e.target.value)}
+                placeholder="What is this sub-group for? (optional)"
+                maxLength={200}
+              />
+              <button className={styles.topicBtn} disabled={busy || !draftName.trim()}>
+                {busy ? "Creating…" : "Create sub-group"}
+              </button>{" "}
+              <button
+                type="button"
+                className={styles.topicLinkBtn}
+                onClick={() => {
+                  setShowCreate(false);
+                  setError("");
+                }}
+              >
+                Cancel
+              </button>
+            </form>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

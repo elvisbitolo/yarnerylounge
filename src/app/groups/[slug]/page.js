@@ -11,6 +11,8 @@ import BackButton from "@/components/BackButton";
 import Feed from "@/app/feed/Feed";
 import GroupJoinButton from "../GroupJoinButton";
 import GroupTopics from "../GroupTopics";
+import { getCapabilities, canBuildNeighborhoods } from "@/lib/server/capabilities";
+import { getScopedHostRights } from "@/lib/server/hosts";
 import styles from "../groups.module.css";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +44,17 @@ export default async function GroupPage({ params }) {
   const groupRooms = await listRoomsForGroup(group.id);
   const activeGroupRooms = groupRooms.filter((room) => room.status === "active");
   const nextHangout = await nextEventForRoom(group.hangoutRoomSlug);
+
+  // Same two conditions the create endpoint enforces, so the UI never offers a
+  // button the server will refuse: the Moving In tier, and authority over this
+  // specific group.
+  const [caps, groupRights] = await Promise.all([
+    getCapabilities(user.uid),
+    getScopedHostRights(user.uid, "group", group.id),
+  ]);
+  const canBuildTopics =
+    canBuildNeighborhoods(caps) &&
+    (groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
 
   return (
       <Nav role={userDoc?.role}>
@@ -185,6 +198,7 @@ export default async function GroupPage({ params }) {
           <GroupTopics
             groupId={group.id}
             canPost={!!membership || userDoc?.role === "owner"}
+            canBuildTopics={canBuildTopics}
             uid={user.uid}
             userName={userDoc?.name || user.name || "Member"}
           />
