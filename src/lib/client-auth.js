@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { forgetCachedMembership } from "@/lib/membership";
 import { auth, beginExplicitLogout, endExplicitLogout } from "@/lib/auth-client";
+import { oauthAuthorizeOptions } from "@/lib/oauth-providers";
 
 // Canonical origin for all auth redirect targets. Must be the single public
 // host (www.christasspeakeasy.com) — NOT window.location.origin — so an OAuth
@@ -133,26 +134,18 @@ export async function loginWithSupabaseEmail(email, password) {
   return { user: null };
 }
 
-export async function loginWithGoogle() {
+export async function loginWithOAuthProvider(provider) {
   await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      scopes: "profile email openid",
-      prompt: "select_account",
-      redirectTo: `${APP_URL}/login?provider=google`,
-    },
+    provider,
+    options: oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP_URL }),
   });
   return { user: null };
 }
 
-export async function loginWithSupabaseGoogle() {
+export async function loginWithSupabaseOAuthProvider(provider) {
   const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      scopes: "profile email openid",
-      prompt: "select_account",
-      redirectTo: `${APP_URL}/login?provider=google`,
-    },
+    provider,
+    options: oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP_URL }),
   });
   if (error) throw supabaseError(error);
   return { user: null };
@@ -196,20 +189,33 @@ export async function signupWithEmail(name, email, password) {
   return { user: null };
 }
 
-export async function signupWithGoogle() {
+export async function signupWithOAuthProvider(provider) {
   await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      scopes: "profile email openid",
-      prompt: "select_account",
-      redirectTo: `${APP_URL}/signup?provider=google`,
-    },
+    provider,
+    options: oauthAuthorizeOptions({ provider, mode: "signup", appUrl: APP_URL }),
   });
   return { user: null };
 }
 
-export async function completeSupabaseGoogle() {
-  const { data } = supabase.auth.getSession();
+export async function loginWithGoogle() {
+  return loginWithOAuthProvider("google");
+}
+
+export async function loginWithSupabaseGoogle() {
+  return loginWithSupabaseOAuthProvider("google");
+}
+
+export async function signupWithGoogle() {
+  return signupWithOAuthProvider("google");
+}
+
+// Finishes any provider's return leg. Nothing here is Google-specific: GoTrue
+// has already exchanged the tokens by the time this runs, so the only job left
+// is handing the resulting session to createSession(). Named for the provider
+// that was the only one wired up when this was written, not because it depends
+// on it.
+export async function completeOAuthReturn() {
+  const { data } = await supabase.auth.getSession();
   let session = data?.session;
   // Supabase parses the OAuth URL fragment asynchronously after the redirect
   // returns, so getSession() can be empty on first read even though the tokens
@@ -228,6 +234,11 @@ export async function completeSupabaseGoogle() {
     supabaseRefreshToken: session.refresh_token || undefined,
   });
   return true;
+}
+
+// Kept for the existing callers that still import the Google-named spelling.
+export async function completeSupabaseGoogle() {
+  return completeOAuthReturn();
 }
 
 export async function sendPasswordReset(email) {

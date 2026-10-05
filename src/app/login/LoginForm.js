@@ -3,10 +3,10 @@
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import {
+  completeOAuthReturn,
   completePasswordRecovery,
-  completeSupabaseGoogle,
   isPasswordRecovery,
-  loginWithGoogle,
+  loginWithOAuthProvider,
   loginWithSupabaseEmail,
   reconcileSessionCookie,
   refreshSession,
@@ -14,6 +14,8 @@ import {
   sendPasswordReset,
 } from "@/lib/client-auth";
 import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
+import { oauthFailedKey } from "@/lib/oauth-providers";
+import FacebookIcon from "@/components/FacebookIcon";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -174,14 +176,17 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
       // let the form render — isStaleProviderLink() already released the
       // spinner for it, so there is nothing to set here.
       if (!isOAuthReturn()) return;
-      // Returned from the Google OAuth redirect; exchange the Supabase session
-      // for the httpOnly cookie and reload into the app. The oauthPending
-      // snapshot above already shows the centered signing-in state, so this
-      // exchange runs behind an instant spinner — never a bare form.
+      // Returned from an OAuth redirect (Google, Facebook, ...); exchange the
+      // Supabase session for the httpOnly cookie and reload into the app. The
+      // oauthPending snapshot above already shows the centered signing-in state,
+      // so this exchange runs behind an instant spinner — never a bare form.
+      // The marker says which provider came back, so the failure below names the
+      // right one instead of always blaming Google.
+      const failedKey = oauthFailedKey(params.get("provider"));
       let cancelled = false;
       (async () => {
         try {
-          const ok = await completeSupabaseGoogle();
+          const ok = await completeOAuthReturn();
           if (!cancelled && ok) {
             // Signing-in screen keeps the post-OAuth handoff feeling smooth
             // while the fresh session cookie is read server-side.
@@ -192,14 +197,14 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
             // the form is usable again.
             window.history.replaceState({}, "", "/login");
             setOauthFailed(true);
-            setError(t("googleFailed"));
+            setError(t(failedKey));
           }
         } catch (err) {
           if (!cancelled) {
             if (err.code === "not_prepaid" && err.redirect) {
               window.location.assign(err.redirect);
             } else if (err.code === "not_prepaid") {
-              // The Google account isn't (and can't) be registered as a member
+              // The provider account isn't (and can't) be registered as a member
               // yet — say so plainly and point at sign-up instead of leaving
               // the member guessing on a dismissed error.
               window.history.replaceState({}, "", "/login");
@@ -210,7 +215,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
               // error instead of staying on the spinner forever.
               window.history.replaceState({}, "", "/login");
               setOauthFailed(true);
-              setError(err.message || t("googleFailed"));
+              setError(err.message || t(failedKey));
             }
           }
         } finally {
@@ -236,19 +241,29 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
     }
   }
 
-  async function handleGoogle() {
+  // Provider buttons share one handler: the only per-provider difference is
+  // which authorize options get sent, and that lives in client-auth.js.
+  async function handleProvider(provider) {
     setError("");
     setVerifyNotice("");
     setNoAccount(false);
-    setBusy("google");
+    setBusy(provider);
     try {
-      // Full-page Google OAuth redirect through Supabase; the mount-time
-      // completeSupabaseGoogle() finalizer exchanges the session on return.
-      await loginWithGoogle();
+      // Full-page OAuth redirect through Supabase; the mount-time
+      // completeOAuthReturn() finalizer exchanges the session on return.
+      await loginWithOAuthProvider(provider);
     } catch (err) {
-      setError(err.message || t("googleFailed"));
+      setError(err.message || t(oauthFailedKey(provider)));
       setBusy("");
     }
+  }
+
+  async function handleGoogle() {
+    return handleProvider("google");
+  }
+
+  async function handleFacebook() {
+    return handleProvider("facebook");
   }
 
   async function handleSubmit(e) {
@@ -455,7 +470,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
   );
 }
 
-  if (resolvingWall || busy === "email" || busy === "google" || waitingOnOAuth) {
+  if (resolvingWall || busy === "email" || busy === "google" || busy === "facebook" || waitingOnOAuth) {
     return (
       <main className={styles.signingInScreen}>
         <BrandMark />
@@ -485,7 +500,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
           {noAccount && (
             <div className={styles.verifyBox}>
               <p className={styles.verifyText}>
-                There&apos;s no Secret Yarnery account linked to this Google account yet.
+                There&apos;s no Secret Yarnery account linked to this account yet.
                 Create one to join the community.
               </p>
               <a
@@ -501,8 +516,22 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
             </div>
           )}
 
-          <button className={styles.googleButton} onClick={handleGoogle} disabled={!!busy}>
+          <button
+            className={styles.oauthButton}
+            onClick={handleGoogle}
+            disabled={!!busy}
+            type="button"
+          >
             <GoogleIcon /> {t("continueWithGoogle")}
+          </button>
+
+          <button
+            className={styles.oauthButton}
+            onClick={handleFacebook}
+            disabled={!!busy}
+            type="button"
+          >
+            <FacebookIcon /> {t("continueWithFacebook")}
           </button>
 
           <div className={styles.divider}>{tc("or")}</div>

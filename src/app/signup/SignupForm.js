@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
-  completeSupabaseGoogle,
-  signupWithGoogle,
+  completeOAuthReturn,
+  signupWithOAuthProvider,
   signupWithSupabaseEmail,
   reconcileSessionCookie,
   refreshSession,
@@ -14,6 +14,8 @@ import {
   resendSignupVerification,
 } from "@/lib/client-auth";
 import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
+import { oauthFailedKey } from "@/lib/oauth-providers";
+import FacebookIcon from "@/components/FacebookIcon";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -148,17 +150,20 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   }, []);
 
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has("provider")) return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("provider")) return;
     // The marker alone is not a return leg. With no return material there is no
     // session to exchange, so skip the retry window and show the form —
     // isStaleProviderLink() has already released the spinner, so nothing to set.
     if (!isOAuthReturn()) return;
-    // Returned from the Google OAuth redirect; exchange the Supabase session
-    // for the httpOnly cookie and reload into the app.
+    // Returned from an OAuth redirect (Google, Facebook, ...); exchange the
+    // Supabase session for the httpOnly cookie and reload into the app. The
+    // marker names the provider, so a failure blames the right one.
+    const failedKey = oauthFailedKey(params.get("provider"));
     let cancelled = false;
     (async () => {
       try {
-        const ok = await completeSupabaseGoogle();
+        const ok = await completeOAuthReturn();
         if (!cancelled && ok) {
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
           window.location.assign("/signing-in");
@@ -168,7 +173,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
           // the form is usable again.
           window.history.replaceState({}, "", "/signup");
           setOauthFailed(true);
-          setError(t("googleFailed"));
+          setError(t(failedKey));
         }
       } catch (err) {
         if (!cancelled) {
@@ -179,7 +184,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
             // error instead of staying on the spinner forever.
             window.history.replaceState({}, "", "/signup");
             setOauthFailed(true);
-            setError(err.message || t("googleFailed"));
+            setError(err.message || t(failedKey));
           }
         }
       }
@@ -189,17 +194,27 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     };
   }, [t]);
 
-  async function handleGoogle() {
+  // Provider buttons share one handler: the only per-provider difference is
+  // which authorize options get sent, and that lives in client-auth.js.
+  async function handleProvider(provider) {
     setError("");
-    setBusy("google");
+    setBusy(provider);
     try {
-      // Full-page Google OAuth redirect through Supabase; the mount-time
-      // completeSupabaseGoogle() finalizer exchanges the session on return.
-      await signupWithGoogle();
+      // Full-page OAuth redirect through Supabase; the mount-time
+      // completeOAuthReturn() finalizer exchanges the session on return.
+      await signupWithOAuthProvider(provider);
     } catch (err) {
-      setError(err.message || t("googleFailed"));
+      setError(err.message || t(oauthFailedKey(provider)));
       setBusy("");
     }
+  }
+
+  async function handleGoogle() {
+    return handleProvider("google");
+  }
+
+  async function handleFacebook() {
+    return handleProvider("facebook");
   }
 
   async function handleSubmit(e) {
@@ -298,7 +313,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     );
   }
 
-  if (resolvingWall || busy === "email" || busy === "google" || waitingOnOAuth) {
+  if (resolvingWall || busy === "email" || busy === "google" || busy === "facebook" || waitingOnOAuth) {
     return (
       <main className={styles.signingInScreen}>
         <BrandMark />
@@ -325,8 +340,22 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
 
           {error && <p className={styles.error}>{error}</p>}
 
-          <button className={styles.googleButton} onClick={handleGoogle} disabled={!!busy}>
+          <button
+            className={styles.oauthButton}
+            onClick={handleGoogle}
+            disabled={!!busy}
+            type="button"
+          >
             <GoogleIcon /> {t("continueWithGoogle")}
+          </button>
+
+          <button
+            className={styles.oauthButton}
+            onClick={handleFacebook}
+            disabled={!!busy}
+            type="button"
+          >
+            <FacebookIcon /> {t("continueWithFacebook")}
           </button>
 
           <div className={styles.divider}>{tc("or")}</div>

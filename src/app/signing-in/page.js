@@ -71,7 +71,7 @@ export default function SigningInPage() {
         if (params.has("session_refresh")) {
           ready = await refreshSession();
         } else if (params.has("provider")) {
-          ready = await (await import("@/lib/client-auth")).completeSupabaseGoogle();
+          ready = await (await import("@/lib/client-auth")).completeOAuthReturn();
         } else {
           ready = await reconcileSessionCookie();
         }

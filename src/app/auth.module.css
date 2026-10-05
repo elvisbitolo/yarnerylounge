@@ -182,7 +182,10 @@
   margin: 0 0 28px;
 }
 
-.googleButton {
+/* One shared style for every provider button (Google, Facebook, ...). Per-
+   provider classes used to be needed when only Google existed; the buttons are
+   visually identical, so they share one. */
+.oauthButton {
   width: 100%;
   height: 48px;
   display: flex;
@@ -199,12 +202,18 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.googleButton:hover:not(:disabled) {
+/* Space between stacked provider buttons, but not after the last one — the
+   divider below the stack already owns the space after it. */
+.oauthButton:not(:last-of-type) {
+  margin-bottom: 10px;
+}
+
+.oauthButton:hover:not(:disabled) {
   border-color: var(--primary);
   box-shadow: 0 1px 6px rgba(37, 99, 235, 0.15);
 }
 
-.googleButton:disabled {
+.oauthButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

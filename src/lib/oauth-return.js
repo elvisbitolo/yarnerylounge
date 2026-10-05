@@ -1,13 +1,16 @@
-// Telling a real Google OAuth *return* apart from a stale `?provider=google`
+// Telling a real OAuth *return* apart from a stale `?provider=google`
 // link that someone bookmarked, reloaded, or shared.
+//
+// Nothing in here is Google-specific any more — the marker is just
+// `?provider=<id>` — but Google is still what the comments illustrate with.
 //
 // The two are indistinguishable on the server. The app puts `?provider=google`
 // in the `redirectTo` it hands Supabase, so every genuine return carries it —
-// but the credentials that actually prove the member came back with Google live
-// in the URL *fragment*, and fragments are never sent to the server. A server
-// reading `?provider=google` therefore cannot tell "mid-exchange" from "tokens
-// already spent", and waiting on the second produced a 3-second spinner
-// followed by "Google sign-in failed" on a link that could never succeed.
+// but the credentials that actually prove the member came back live in the URL
+// *fragment*, and fragments are never sent to the server. A server reading
+// `?provider=google` therefore cannot tell "mid-exchange" from "tokens already
+// spent", and waiting on the second produced a 3-second spinner followed by a
+// sign-in failure on a link that could never succeed.
 //
 // The client can do better, because it can read the fragment. Return material is
 // the part that cannot survive: GoTrue exchanges the tokens and cleans the URL
