@@ -57,7 +57,13 @@ export async function POST(req) {
 
   // The form built its ISO string in the browser's own zone, so the browser's
   // zone is what that string meant. Fall back to the stored profile zone.
-  const timeZone = normalizeTimeZone(body.timeZone) || normalizeTimeZone(userDoc.timezone);
+  // The stored zone lives in the User.timezone column for anyone onboarded
+  // since it started being written, and in extra.timezone for everyone onboarded
+  // before that. Check both, or the "stored profile zone" fallback silently
+  // never fires for existing members.
+  const storedZone = userDoc.timezone || (userDoc.extra && typeof userDoc.extra === "object" ? userDoc.extra.timezone : "");
+  const timeZone =
+    normalizeTimeZone(body.timeZone) || normalizeTimeZone(storedZone);
 
   // Opt-in promotion: the block is created first, then a meetup is derived from
   // it and the two are linked. Doing it in this order means a failure while

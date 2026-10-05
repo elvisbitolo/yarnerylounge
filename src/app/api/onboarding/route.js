@@ -43,6 +43,9 @@ export async function POST(req) {
   const craftInterests = body.craftInterests.filter((c) => VALID_CRAFTS.includes(c));
   const projectTypes = body.projectTypes.filter((p) => VALID_PROJECTS.includes(p));
   const communityGoals = body.communityGoals.filter((g) => VALID_GOALS.includes(g));
+  // Keep the raw string rather than normalising: onboarding runs before an
+  // availability block exists, and normalizeTimeZone rejects "UTC"/"GMT" as
+  // meaningless, which would silently drop a perfectly valid stored zone.
   const timezone = typeof body.timezone === "string" && body.timezone.length <= 80
     ? body.timezone.trim()
     : "";
@@ -65,10 +68,20 @@ export async function POST(req) {
     });
     const extra = { ...(existing?.extra && typeof existing.extra === "object" ? existing.extra : {}) };
     if (timezone) extra.timezone = timezone;
+    // Write the User.timezone column as well as extra.timezone. The column was
+    // declared in the schema but no route ever populated it, so every reader
+    // that used it (notably /api/availability) was reading a permanent null.
+    // Both are written: the column for typed queries, extra for the profile
+    // blob that member-safety and the member map already read.
     if (existing) {
       await prisma.user.update({
         where: { id: auth.user.uid },
-        data: { ...profile, extra, updatedAt: new Date() },
+        data: {
+          ...profile,
+          extra,
+          ...(timezone ? { timezone } : {}),
+          updatedAt: new Date(),
+        },
       });
     } else {
       await prisma.user.create({
@@ -76,6 +89,7 @@ export async function POST(req) {
           id: auth.user.uid,
           name: auth.user.name || auth.user.email || "",
           extra: timezone ? { timezone } : undefined,
+          ...(timezone ? { timezone } : {}),
           ...profile,
         },
       });

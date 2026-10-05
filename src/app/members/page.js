@@ -83,7 +83,11 @@ export default async function MembersPage({ searchParams }) {
         headline: m.headline || "",
         location: m.location || "",
         country: m.country || "",
-        timezone: extra.timezone || "",
+        // The User.timezone column is canonical (added and backfilled by
+        // prisma/migrations/10_instants_and_user_timezone). extra.timezone is a
+        // second, older location that is empty for every real member, so reading
+        // it alone meant the map showed nobody's timezone at all.
+        timezone: m.timezone || extra.timezone || "",
         bio: m.bio || "",
         photoURL: m.photoURL || "",
         favoriteColors: Array.isArray(m.favoriteColors) ? m.favoriteColors : [],
@@ -148,7 +152,7 @@ export default async function MembersPage({ searchParams }) {
           viewer={{
             country: userDoc?.country || "",
             location: userDoc?.location || "",
-            timezone: userDoc?.extra?.timezone || "",
+            timezone: userDoc?.timezone || userDoc?.extra?.timezone || "",
             goToYarn: userDoc?.goToYarn || "",
             favoriteHookSize: userDoc?.favoriteHookSize || "",
             skillLevel: userDoc?.extra?.skillLevel || userDoc?.skillLevel || "",
