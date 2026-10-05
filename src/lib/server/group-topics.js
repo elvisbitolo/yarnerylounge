@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { validateTopicDraft, uniqueTopicKey, nextTopicOrder } from "./group-topics-core.js";
 
 export const TOPIC_DEFS = [
   {
@@ -93,8 +94,10 @@ export async function listGroupTopics(groupId) {
   const prisma = getPrisma();
   if (prisma) {
     try {
+      // `not: "deleted"` rather than status: "active", because rows seeded
+      // before the status default existed can hold null and must keep showing.
       const topics = await prisma.groupTopic.findMany({
-        where: { groupId },
+        where: { groupId, status: { not: "deleted" } },
         orderBy: { order: "asc" },
       });
       const threadCounts = await prisma.topicThread.groupBy({
@@ -289,4 +292,64 @@ export async function addThreadReply({ threadId, groupId, topicKey, uid, userNam
     }
   }
   return { id: "" };
+}
+
+// Create a member-defined sub-group. Backs the Moving In promise to "launch
+// independent circles and sub-groups": until now a group could only ever hold
+// the four seeded TOPIC_DEFS rows.
+//
+// Returns { ok: true, topic } or { ok: false, error }. Validation and key
+// collision handling live in group-topics-core.js so they are unit-testable.
+export async function createGroupTopic(groupId, draft) {
+  const prisma = getPrisma();
+  if (!prisma || !groupId) return { ok: false, error: "Group not found" };
+
+  const parsed = validateTopicDraft(draft || {});
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  const existing = await prisma.groupTopic.findMany({
+    where: { groupId },
+    select: { key: true, order: true },
+  });
+  const key = uniqueTopicKey(parsed.value.name, existing.map((t) => t.key));
+  const order = nextTopicOrder(existing);
+
+  try {
+    const created = await prisma.groupTopic.create({
+      data: {
+        id: topicDocId(groupId, key),
+        groupId,
+        key,
+        name: parsed.value.name,
+        description: parsed.value.description,
+        emoji: parsed.value.emoji,
+        order,
+        status: "active",
+        createdAt: new Date(),
+      },
+      select: { id: true, key: true, name: true, description: true, emoji: true, order: true },
+    });
+    return { ok: true, topic: { ...created, description: created.description || "", emoji: created.emoji || "", threadCount: 0 } };
+  } catch (err) {
+    logError("group-topics.prisma_create_failed", { error: err.message, groupId, key });
+    return { ok: false, error: "Could not create the sub-group" };
+  }
+}
+
+// Soft delete, so existing threads and their replies keep working. Also bumps
+// lastActivityAt on the group topic's thread list sort.
+export async function deleteGroupTopic(groupId, topicKey) {
+  const prisma = getPrisma();
+  if (!prisma || !groupId || !topicKey) return { ok: false, error: "Not found" };
+  try {
+    const result = await prisma.groupTopic.updateMany({
+      where: { groupId, key: topicKey, status: "active" },
+      data: { status: "deleted" },
+    });
+    if (!result.count) return { ok: false, error: "Not found" };
+    return { ok: true };
+  } catch (err) {
+    logError("group-topics.prisma_delete_failed", { error: err.message, groupId, topicKey });
+    return { ok: false, error: "Could not remove the sub-group" };
+  }
 }
