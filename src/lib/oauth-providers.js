@@ -28,6 +28,12 @@
 const OAUTH_AUTHORIZE = {
   google: { scopes: "profile email openid", prompt: "select_account" },
   facebook: {},
+  // OIDC variant, not the legacy `linkedin`. Legacy asks for
+  // r_emailaddress/r_liteprofile and hardcodes Verified: true; OIDC asks for
+  // openid/email/profile and reads email_verified from the ID token
+  // (provider/oidc.go). LinkedIn is sunsetting the legacy flow, and the
+  // provider key here must be the one Supabase exposes as `linkedin_oidc`.
+  linkedin: { scopes: "openid email profile" },
 };
 
 // Failure copy for the return leg, keyed off the `?provider=` marker. Without
@@ -36,6 +42,11 @@ const OAUTH_AUTHORIZE = {
 const OAUTH_FAILED_KEYS = {
   google: "googleFailed",
   facebook: "facebookFailed",
+  // Derived, not literal: the GoTrue provider key is lowercase (`linkedin`)
+  // while the message key reads `linkedInFailed`, so they cannot both be
+  // `provider + "Failed"`. Keep this explicit rather than clever — a wrong
+  // key renders as a raw string in the UI, not an error.
+  linkedin: "linkedInFailed",
 };
 
 // Builds the `options` for a signInWithOAuth call.

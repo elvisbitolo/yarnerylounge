@@ -360,7 +360,9 @@
     "tosRequired": "Veuillez accepter les Conditions de service pour continuer.",
     "onlyPaidMembers": "Ce compte nécessite un abonnement Speakeasy payant avant de rejoindre le salon.",
     "signupFailed": "Échec de la création du compte",
-    "preparingSignIn": "Préparation de votre connexion…"
+    "preparingSignIn": "Préparation de votre connexion…",
+    "continueWithLinkedIn": "Continuer avec LinkedIn",
+    "linkedInFailed": "Échec de la connexion LinkedIn"
   },
   "landing": {
     "liveCommunities": "Communautés en direct · Cours · Événements",

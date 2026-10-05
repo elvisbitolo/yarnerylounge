@@ -360,7 +360,9 @@
     "tosRequired": "Please accept the Terms of Service to continue.",
     "onlyPaidMembers": "This account needs a paid Speakeasy membership before joining.",
     "signupFailed": "Sign-up failed",
-    "preparingSignIn": "Preparing your sign-in…"
+    "preparingSignIn": "Preparing your sign-in…",
+    "continueWithLinkedIn": "Continue with LinkedIn",
+    "linkedInFailed": "LinkedIn sign-in failed"
   },
   "landing": {
     "liveCommunities": "Live communities · Courses · Events",

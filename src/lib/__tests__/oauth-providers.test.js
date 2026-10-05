@@ -19,7 +19,7 @@ test("signup returns to /signup carrying the provider marker", () => {
 // The marker is what lets the return leg tell a real return from a stale link
 // and which provider's failure copy to show, so it must never be dropped.
 test("the provider marker survives for every provider", () => {
-  for (const provider of ["google", "facebook"]) {
+  for (const provider of ["google", "facebook", "linkedin"]) {
     for (const mode of ["login", "signup"]) {
       const { redirectTo } = oauthAuthorizeOptions({ provider, mode, appUrl: APP });
       assert.ok(redirectTo.includes(`?provider=${provider}`), `${provider}/${mode}`);
@@ -84,4 +84,40 @@ test("an unknown marker still gets real copy", () => {
   assert.equal(oauthFailedKey("spotify"), "googleFailed");
   assert.equal(oauthFailedKey(undefined), "googleFailed");
   assert.equal(oauthFailedKey(null), "googleFailed");
+});
+
+// --- linkedin --------------------------------------------------------
+
+// LinkedIn must ask for OIDC scopes only. The legacy flow requested
+// r_emailaddress/r_liteprofile, which LinkedIn is sunsetting, and mixing the two
+// scope sets fails the authorize call outright.
+test("linkedin asks for OIDC scopes and no account chooser", () => {
+  const options = oauthAuthorizeOptions({ provider: "linkedin", mode: "login", appUrl: APP });
+  assert.equal(options.scopes, "openid email profile");
+  assert.equal(options.prompt, undefined);
+});
+
+// Spotify remains the documented exclusion, so the throw is now load-bearing:
+// it proves the guard rejects the one provider that can never pass the
+// verified-email check rather than rendering a dead button.
+test("spotify stays rejected while the supported three are accepted", () => {
+  for (const provider of ["google", "facebook", "linkedin"]) {
+    assert.ok(oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP }).redirectTo, provider);
+  }
+  assert.throws(
+    () => oauthAuthorizeOptions({ provider: "spotify", mode: "login", appUrl: APP }),
+    /Unsupported sign-in provider: spotify/
+  );
+});
+
+// The GoTrue key is lowercase `linkedin` but the message key is `linkedInFailed`.
+// A wrong key renders as a literal string in the UI, so this is pinned per
+// provider rather than derived from `provider + "Failed"`.
+test("linkedin reports its own failure", () => {
+  assert.equal(oauthFailedKey("linkedin"), "linkedInFailed");
+});
+
+test("every supported provider has a distinct failure key", () => {
+  const keys = ["google", "facebook", "linkedin"].map(oauthFailedKey);
+  assert.equal(new Set(keys).size, keys.length);
 });

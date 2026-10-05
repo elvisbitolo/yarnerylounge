@@ -16,6 +16,7 @@ import {
 import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
 import { oauthFailedKey } from "@/lib/oauth-providers";
 import FacebookIcon from "@/components/FacebookIcon";
+import LinkedInIcon from "@/components/LinkedInIcon";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -266,6 +267,10 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
     return handleProvider("facebook");
   }
 
+  async function handleLinkedIn() {
+    return handleProvider("linkedin");
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -470,7 +475,14 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
   );
 }
 
-  if (resolvingWall || busy === "email" || busy === "google" || busy === "facebook" || waitingOnOAuth) {
+  if (
+    resolvingWall ||
+    busy === "email" ||
+    busy === "google" ||
+    busy === "facebook" ||
+    busy === "linkedin" ||
+    waitingOnOAuth
+  ) {
     return (
       <main className={styles.signingInScreen}>
         {/* Logo deliberately omitted here: this screen replaces the whole page
@@ -534,6 +546,15 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
             type="button"
           >
             <FacebookIcon /> {t("continueWithFacebook")}
+          </button>
+
+          <button
+            className={styles.oauthButton}
+            onClick={handleLinkedIn}
+            disabled={!!busy}
+            type="button"
+          >
+            <LinkedInIcon /> {t("continueWithLinkedIn")}
           </button>
 
           <div className={styles.divider}>{tc("or")}</div>

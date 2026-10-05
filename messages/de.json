@@ -360,7 +360,9 @@
     "tosRequired": "Bitte akzeptiere die Nutzungsbedingungen, um fortzufahren.",
     "onlyPaidMembers": "Dieses Konto benötigt eine kostenpflichtige Speakeasy-Mitgliedschaft, um beizutreten.",
     "signupFailed": "Kontoerstellung fehlgeschlagen",
-    "preparingSignIn": "Anmeldung wird vorbereitet…"
+    "preparingSignIn": "Anmeldung wird vorbereitet…",
+    "continueWithLinkedIn": "Mit LinkedIn fortfahren",
+    "linkedInFailed": "LinkedIn-Anmeldung fehlgeschlagen"
   },
   "landing": {
     "liveCommunities": "Live-Communities · Kurse · Events",
