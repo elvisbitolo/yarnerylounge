@@ -126,6 +126,44 @@ export async function activeRoomsForUsers(userIds = [], now = Date.now()) {
   return map;
 }
 
+// The live headcount used to enforce Room.maxParticipants. Counts distinct
+// people, not presence rows: one member heartbeating from two tabs must not
+// consume two seats, and members who already left (leftAt set, or stale past
+// the presence window) must not hold anyone out.
+export async function countActiveRoomParticipants(roomId, now = Date.now()) {
+  const prisma = getPrisma();
+  if (!prisma || !roomId) return { count: 0, ok: false };
+  try {
+    const rows = await prisma.roomPresence.findMany({
+      where: { roomId, leftAt: null, lastSeenAt: { gt: cutoffDate(now) } },
+      select: { userId: true },
+      distinct: ["userId"],
+    });
+    return { count: rows.length, ok: true };
+  } catch (err) {
+    logError("room-presence.count_failed", { error: err.message, roomId });
+    return { count: 0, ok: false };
+  }
+}
+
+// Does this specific member already hold a live place in the room? Used by the
+// capacity check so a member who is already inside is never refused a join for
+// their own room having filled up behind them.
+export async function hasActiveRoomPresence(roomId, userId, now = Date.now()) {
+  const prisma = getPrisma();
+  if (!prisma || !roomId || !userId) return false;
+  try {
+    const row = await prisma.roomPresence.findFirst({
+      where: { roomId, userId, leftAt: null, lastSeenAt: { gt: cutoffDate(now) } },
+      select: { id: true },
+    });
+    return !!row;
+  } catch (err) {
+    logError("room-presence.has_active_failed", { error: err.message, roomId });
+    return false;
+  }
+}
+
 export async function touchRoomPresence({ sessionId, roomId, userId }) {
   const prisma = getPrisma();
   if (!prisma) return { error: "Database unavailable" };

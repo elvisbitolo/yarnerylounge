@@ -12,6 +12,8 @@ import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getUserDoc, canModerate } from "@/lib/server/auth";
 import { getCapabilities, canPublishRemote, canHost, canJoinLounge } from "@/lib/server/capabilities";
+import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
+import { countActiveRoomParticipants, hasActiveRoomPresence } from "@/lib/server/room-presence";
 import {
   buildJitsiTokenPayload,
   jitsiRoomName,
@@ -107,6 +109,34 @@ export async function POST(req) {
         { status: 403 }
       );
     }
+    // The capacity gate. This route is what actually puts someone in the room -
+    // it mints the Jitsi token - so Room.maxParticipants has to be enforced
+    // here and not only on /api/rooms/[id]/presence, which a client could skip.
+    // Follows the same rules as the presence route: unlimited when the cap is
+    // unset, never locks out staff/hosts, and never refuses someone who already
+    // holds a seat.
+    const [headcount, alreadyPresent] = await Promise.all([
+      countActiveRoomParticipants(room.id),
+      hasActiveRoomPresence(room.id, auth.user.uid),
+    ]);
+    if (headcount.ok) {
+      const verdict = evaluateJoinCapacity({
+        maxParticipants: room.maxParticipants,
+        activeCount: headcount.count,
+        alreadyPresent,
+        exempt: roomHost || canHost(caps),
+      });
+      if (!verdict.allowed) {
+        logInfo("jitsi.token.denied_capacity", { cap: verdict.cap, count: verdict.activeCount });
+        return NextResponse.json(
+          { error: "This lounge is full", code: "room_full", cap: verdict.cap },
+          { status: 409 }
+        );
+      }
+    }
+    // headcount.ok === false: admit. A transient read failure must not empty
+    // every lounge in the building.
+
     const canPublishUser = canPublishRemote(caps) || canHost(caps);
 
     let canPublish = canPublishUser;

@@ -40,10 +40,18 @@ export function tierForRole(role) {
 // `icon` is a semantic name (serializable, like the rest of this module) that
 // components/TierIcon.js resolves to a lucide-react glyph on render — this
 // module stays pure for the node:test runner and never imports a component.
+//
+// The top tier's badge used to be a cool blue "#3b82f6" labelled "Moving In",
+// which sat visually *below* the warmer gold crown on the cheaper tier and so
+// read as a downgrade to members. The shop page advertises it as the
+// "exclusive Diamond badge", so it is now a true diamond cyan and is labelled
+// "Diamond". The tier itself is still called "Moving In" everywhere else -
+// CAPABILITIES (capabilities-core.js) owns that name, so only this badge's
+// tooltip changes.
 export const TIER_BADGE = {
   flirting: { icon: "sparkles", color: "#ec4899", label: "Flirting" },
   "hooking-up": { icon: "crown", color: "#d4a017", label: "Hooking Up" },
-  "moving-in": { icon: "gem", color: "#3b82f6", label: "Moving In" },
+  "moving-in": { icon: "gem", color: "#22d3ee", label: "Diamond" },
 };
 
 function normalize(tier) {
