@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { loungeGate } from "@/lib/server/lounge-gate";
 import Nav from "@/components/Nav";
 import MatchDashboard from "./MatchDashboard";
 import styles from "./match.module.css";
@@ -12,6 +13,12 @@ export default async function MatchPage() {
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
+
+  // "The Daily Match" is sold as a Hooking Up perk and canUseMatchmaker() existed
+  // but was never called, so every Flirting member reached the full matchmaker.
+  // loungeGate() already implements this rule - it was simply never asked to.
+  const gate = await loungeGate(user.uid, userDoc, { matchmaker: true });
+  if (gate) redirect(gate);
 
   return (
     <Nav role={userDoc?.role}>

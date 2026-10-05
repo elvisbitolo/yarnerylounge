@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listRooms } from "@/lib/server/rooms";
 import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
 import { getScopedHostRights } from "@/lib/server/hosts";
+import { getCapabilities, canHost } from "@/lib/server/capabilities";
 import { logAudit } from "@/lib/server/audit";
 import { getSpace, getSpaceMembers } from "@/lib/server/spaces";
 import { createNotification } from "@/lib/server/notifications";

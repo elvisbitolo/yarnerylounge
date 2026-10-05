@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { getPrisma } from "@/lib/db/prisma";
 import { listActiveRoomMemberIds } from "@/lib/server/room-presence";
 import { isOnline } from "@/lib/server/presence-core";
@@ -19,6 +20,11 @@ export default async function MembersPage({ searchParams }) {
 
   const userDoc = await getUserDoc(user.uid);
   const params = await searchParams;
+
+  // The member directory is free (Flirting is advertised as able to browse), so
+  // this page stays open. But the Blind Date card is part of the paid matchmaker,
+  // and it rendered for everyone. Hide just the card for free members.
+  const canMatch = canUseMatchmaker(await getCapabilities(user.uid));
 
   const prisma = getPrisma();
 
@@ -168,7 +174,7 @@ export default async function MembersPage({ searchParams }) {
           todayKey={todayKey}
           initialSearch={typeof params?.q === "string" ? params.q : ""}
         />
-        <BlindDateCard />
+        {canMatch ? <BlindDateCard /> : null}
         <SimilarMembers />
       </div>
 </Nav>
