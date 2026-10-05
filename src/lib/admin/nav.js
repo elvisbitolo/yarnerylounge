@@ -1,5 +1,4 @@
 export const PENDING_SECTIONS = [
-  { href: "/admin/articles", label: "Articles", guard: "moderator" },
   { href: "/admin/recordings", label: "Recordings", guard: "moderator" },
   { href: "/admin/music", label: "Music library", guard: "moderator" },
 ];
@@ -26,6 +25,7 @@ export const ADMIN_SECTIONS = [
     label: "Editorial",
     items: [
       { href: "/admin/announcements", label: "Announcements", guard: "moderator", basis: "/api/admin/announcements -> requireModerator()" },
+      { href: "/admin/articles", label: "Articles", guard: "moderator", isNew: true, basis: "/api/admin/content/article -> moderator policy" },
       { href: "/admin/collections", label: "Collections", guard: "owner", basis: "/api/admin/collections -> requireOwner()" },
     ],
   },

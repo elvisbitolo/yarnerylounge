@@ -9,6 +9,18 @@ import styles from "./content.module.css";
 
 const KINDS = ["member", "post", "article", "room", "space", "group", "event", "course", "recording"];
 
+// Kinds that now have a staff editor, and the screen that hosts it. The index
+// previously linked only to the member-facing page, so staff could find a row
+// but had no route to fixing it. member/post/course/recording have no editor
+// yet and are deliberately absent rather than linked to a dead end.
+const EDIT_SCREENS = {
+  article: "/admin/articles",
+  room: "/admin/rooms",
+  space: "/admin/spaces",
+  group: "/admin/groups",
+  event: "/admin/events",
+};
+
 const KIND_LABELS = {
   member: "Member",
   post: "Post",
@@ -149,6 +161,7 @@ export default function AdminContentPage() {
                   <th className={styles.th}>Title</th>
                   <th className={styles.th}>Status</th>
                   <th className={styles.th}>When</th>
+                  <th className={styles.th}>Edit</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,6 +181,15 @@ export default function AdminContentPage() {
                     </td>
                     <td className={styles.td}>
                       <span className={styles.status}>{when(row.updatedAt)}</span>
+                    </td>
+                    <td className={styles.td}>
+                      {EDIT_SCREENS[row.kind] ? (
+                        <Link className={styles.editLink} href={EDIT_SCREENS[row.kind]}>
+                          Edit
+                        </Link>
+                      ) : (
+                        <span className={styles.status}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

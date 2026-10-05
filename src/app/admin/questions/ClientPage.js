@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
+import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "./questions.module.css";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -24,6 +25,7 @@ export default function AdminQuestionsPage() {
   const [role, setRole] = useState("member");
   const [spaces, setSpaces] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -234,6 +236,14 @@ export default function AdminQuestionsPage() {
                   </p>
                 </div>
                 <div className={styles.itemActions}>
+                  {role === "owner" && (
+                    <button
+                      className={styles.toggle}
+                      onClick={() => setEditing(editing === q.id ? null : q.id)}
+                    >
+                      {editing === q.id ? "Close" : "Edit"}
+                    </button>
+                  )}
                   <button
                     className={q.active ? styles.toggleOn : styles.toggle}
                     onClick={() => handleToggle(q)}
@@ -249,6 +259,20 @@ export default function AdminQuestionsPage() {
           </div>
         )}
       </div>
+
+        {questions.map((q) =>
+          editing === q.id ? (
+            <ContentEditor
+              key={q.id}
+              kind="question"
+              record={q}
+              onCancel={() => setEditing(null)}
+              onSaved={(id, patch) => {
+                setQuestions((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+              }}
+            />
+          ) : null
+        )}
 </Nav>
   );
 }

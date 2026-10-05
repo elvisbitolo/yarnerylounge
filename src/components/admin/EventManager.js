@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
+import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "@/app/admin/rooms/admin.module.css";
 
 export default function EventManager({ hostOnly = false }) {
@@ -25,6 +26,7 @@ export default function EventManager({ hostOnly = false }) {
   });
   const [publicPreview, setPublicPreview] = useState(false);
   const [events, setEvents] = useState([]);
+  const [editing, setEditing] = useState(null);
   const [spaces, setSpaces] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [hostScopes, setHostScopes] = useState({ spaces: [], rooms: [], events: [] });
@@ -330,6 +332,12 @@ export default function EventManager({ hostOnly = false }) {
                 </div>
                 <div className={styles.itemActions}>
                   <button
+                    className={styles.toggle}
+                    onClick={() => setEditing(editing === event.id ? null : event.id)}
+                  >
+                    {editing === event.id ? "Close" : "Edit"}
+                  </button>
+                  <button
                     className={event.publicPreview ? styles.toggleOn : styles.toggle}
                     onClick={() => handleTogglePreview(event.id, !event.publicPreview)}
                   >
@@ -342,6 +350,20 @@ export default function EventManager({ hostOnly = false }) {
               </div>
             ))}
           </div>
+        )}
+
+        {events.map((event) =>
+          editing === event.id ? (
+            <ContentEditor
+              key={event.id}
+              kind="event"
+              record={event}
+              onCancel={() => setEditing(null)}
+              onSaved={(id, patch) => {
+                setEvents((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+              }}
+            />
+          ) : null
         )}
       </div>
     </Nav>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
+import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "../rooms/admin.module.css";
 
 const AUDIENCES = [
@@ -23,6 +24,7 @@ export default function AdminAnnouncementsPage() {
   const [scopeOptions, setScopeOptions] = useState({});
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState([]);
+  const [editing, setEditing] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const loadScopes = useCallback(async () => {
@@ -168,9 +170,31 @@ export default function AdminAnnouncementsPage() {
                     {new Date(a.createdAt).toLocaleString()}
                   </p>
                 </div>
+                <div className={styles.itemActions}>
+                  <button
+                    className={styles.toggle}
+                    onClick={() => setEditing(editing === a.id ? null : a.id)}
+                  >
+                    {editing === a.id ? "Close" : "Edit"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
+        )}
+
+        {history.map((a) =>
+          editing === a.id ? (
+            <ContentEditor
+              key={a.id}
+              kind="announcement"
+              record={a}
+              onCancel={() => setEditing(null)}
+              onSaved={(id, patch) => {
+                setHistory((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+              }}
+            />
+          ) : null
         )}
       </div>
     </Nav>

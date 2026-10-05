@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
+import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "../rooms/admin.module.css";
 
 export default function AdminGroupsPage() {
@@ -11,6 +12,7 @@ export default function AdminGroupsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [groups, setGroups] = useState([]);
+  const [editing, setEditing] = useState(null);
   const [role, setRole] = useState("member");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -109,12 +111,34 @@ export default function AdminGroupsPage() {
                     {group.status} · {group.memberCount} members · {group.slug}
                   </p>
                 </div>
-                <button className={styles.delete} onClick={() => handleDelete(group.id)}>
-                  Delete
-                </button>
+                <div className={styles.itemActions}>
+                  <button
+                    className={styles.toggle}
+                    onClick={() => setEditing(editing === group.id ? null : group.id)}
+                  >
+                    {editing === group.id ? "Close" : "Edit"}
+                  </button>
+                  <button className={styles.delete} onClick={() => handleDelete(group.id)}>
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
+        )}
+
+        {groups.map((group) =>
+          editing === group.id ? (
+            <ContentEditor
+              key={group.id}
+              kind="group"
+              record={group}
+              onCancel={() => setEditing(null)}
+              onSaved={(id, patch) => {
+                setGroups((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+              }}
+            />
+          ) : null
         )}
       </div>
 </Nav>

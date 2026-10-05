@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import Nav from "@/components/Nav";
 import styles from "@/app/admin/rooms/admin.module.css";
+import ContentEditor from "@/components/admin/ContentEditor";
 
 export default function CourseEditor({ basePath = "/admin" }) {
   const router = useRouter();
@@ -13,6 +14,8 @@ export default function CourseEditor({ basePath = "/admin" }) {
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
   const [lessons, setLessons] = useState({});
+  // { kind: "module" | "lesson", id } - both tables have their own ids.
+  const [editing, setEditing] = useState(null);
   const [role, setRole] = useState("member");
 
   const [title, setTitle] = useState("");
@@ -358,14 +361,39 @@ export default function CourseEditor({ basePath = "/admin" }) {
             <div key={module.id} className={styles.form}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                 <h2 className={styles.formTitle} style={{ margin: 0 }}>{module.title}</h2>
-                <button className={styles.delete} onClick={() => handleDeleteModule(module.id)}>
-                  Delete module
-                </button>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button
+                    className={styles.toggle}
+                    onClick={() =>
+                      setEditing(
+                        editing?.kind === "module" && editing.id === module.id
+                          ? null
+                          : { kind: "module", id: module.id }
+                      )
+                    }
+                  >
+                    {editing?.kind === "module" && editing.id === module.id ? "Close" : "Edit"}
+                  </button>
+                  <button className={styles.delete} onClick={() => handleDeleteModule(module.id)}>
+                    Delete module
+                  </button>
+                </div>
               </div>
               {lessons[module.id]?.length === 0 ? (
                 <p className={styles.itemMeta} style={{ margin: "12px 0 0" }}>No lessons yet.</p>
               ) : (
                 <div className={styles.list} style={{ marginTop: 16 }}>
+                  {editing?.kind === "module" && editing.id === module.id ? (
+                    <ContentEditor
+                      key={module.id}
+                      kind="module"
+                      record={module}
+                      onCancel={() => setEditing(null)}
+                      onSaved={(id, patch) => {
+                        setModules((list) => list.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+                      }}
+                    />
+                  ) : null}
                   {lessons[module.id]?.map((lesson) => (
                     <div key={lesson.id} className={styles.item}>
                       <div>
@@ -379,12 +407,45 @@ export default function CourseEditor({ basePath = "/admin" }) {
                             ).toLocaleDateString([], { month: "short", day: "numeric" })}`}
                         </p>
                       </div>
-                      <button className={styles.delete} onClick={() => handleDeleteLesson(lesson.id)}>
-                        Delete
-                      </button>
+                      <div className={styles.itemActions}>
+                        <button
+                          className={styles.toggle}
+                          onClick={() =>
+                            setEditing(
+                              editing?.kind === "lesson" && editing.id === lesson.id
+                                ? null
+                                : { kind: "lesson", id: lesson.id }
+                            )
+                          }
+                        >
+                          {editing?.kind === "lesson" && editing.id === lesson.id ? "Close" : "Edit"}
+                        </button>
+                        <button className={styles.delete} onClick={() => handleDeleteLesson(lesson.id)}>
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
+              )}
+              {lessons[module.id]?.map((lesson) =>
+                editing?.kind === "lesson" && editing.id === lesson.id ? (
+                  <ContentEditor
+                    key={lesson.id}
+                    kind="lesson"
+                    record={lesson}
+                    onCancel={() => setEditing(null)}
+                    onSaved={(id, patch) => {
+                      setLessons((prev) => {
+                        const next = {};
+                        for (const [moduleId, items] of Object.entries(prev)) {
+                          next[moduleId] = items.map((l) => (l.id === id ? { ...l, ...patch } : l));
+                        }
+                        return next;
+                      });
+                    }}
+                  />
+                ) : null
               )}
             </div>
           ))

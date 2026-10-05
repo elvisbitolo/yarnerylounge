@@ -213,3 +213,15 @@
     min-width: 480px;
   }
 }
+
+.editLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f42e79;
+  textDecoration: none;
+  white-space: nowrap;
+}
+
+.editLink:hover {
+  text-decoration: underline;
+}
