@@ -56,7 +56,11 @@ async function storePick(entry) {
   }
 }
 
-export async function pickDailyBlindDate(uid) {
+// rawCandidates lets a caller (the daily-match cron) load the candidate pool
+// once and reuse it for every member. Per-user filtering and scoring still runs
+// here, because blocking and privacy are per-relation, but without this the
+// cron re-fetched 500 user rows for every single member.
+export async function pickDailyBlindDate(uid, rawCandidates = null) {
   const today = dayKeyFor();
   const prisma = getPrisma();
   if (!prisma) return null;
@@ -83,15 +87,17 @@ export async function pickDailyBlindDate(uid) {
     }
   }
 
-  let rawCandidates = [];
-  try {
-    rawCandidates = await prisma.user.findMany({ take: 500 });
-  } catch (err) {
-    logError("blind-date.prisma_candidates_failed", { error: err.message });
-    return null;
+  let pool = rawCandidates;
+  if (!pool) {
+    try {
+      pool = await prisma.user.findMany({ take: 500 });
+    } catch (err) {
+      logError("blind-date.prisma_candidates_failed", { error: err.message });
+      return null;
+    }
   }
 
-  const candidates = rawCandidates
+  const candidates = pool
     .filter((u) => u.id !== uid)
     .filter((m) => m.name && !m.suspended)
     .filter((m) => !(m.extra && typeof m.extra === "object" && m.extra.profileVisibility === "private"))

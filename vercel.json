@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/recording-purge",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/daily-match",
+      "schedule": "0 13 * * *"
     }
   ]
 }

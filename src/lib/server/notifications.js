@@ -14,6 +14,11 @@ const NOTIFICATION_TYPE_TO_PREF = {
   follow: "feed",
   automation: "automations",
   digest: "automations",
+  // The Daily Match arrives once a day. There is no dedicated "matches"
+  // preference yet, so it rides the "feed" opt-out rather than being
+  // unmuteable - a daily notification members cannot silence is worse than
+  // one filed under the closest existing bucket.
+  daily_match: "feed",
 };
 
 function toMillisValue(v) {
