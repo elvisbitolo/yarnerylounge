@@ -15,12 +15,12 @@ const SECTIONS = [
   {
     heading: "Information we collect",
     body:
-      "We collect information you provide when creating or managing an account, including your name, email address, username, profile photo, contact details, location, biography, craft interests, preferences, and other profile details you choose to add. We also process content you submit, such as posts, comments, messages, projects, photos, files, event responses, and profile or community activity. If you sign in with Google, our authentication provider receives the information Google makes available for sign-in, such as your name, email address, profile image, and account identifier.",
+      "We collect information you provide when creating or managing an account, including your name, email address, username, profile photo, cover photo, contact details, location, time zone, biography, craft interests, skill level and equipment preferences, and other profile details you choose to add. We also process content you submit, such as posts, comments, messages, projects, photos, files, event responses, and profile or community activity. If you sign in with Google, our authentication provider receives the information Google makes available for sign-in, such as your name, email address, profile image, and account identifier. If you choose “Use my location” in profile settings, your browser also provides your device coordinates; how those are used and shared is described under “How we use information” and “How information is shared”.",
   },
   {
     heading: "How we use information",
     body:
-      "We use information to provide and personalize the community, authenticate accounts, display member profiles and content, operate messaging, groups, events and live rooms, manage membership access and purchases, send account or community notifications, prevent abuse, enforce our Terms of Service, maintain security, and troubleshoot and improve the service. We use profile details such as country, interests, and craft preferences to support member discovery and matching. Location displays are approximate and based on profile information you provide; we do not use precise device location for the member map.",
+      "We use information to provide and personalize the community, authenticate accounts, display member profiles and content, operate messaging, groups, events and live rooms, manage membership access and purchases, send account or community notifications, prevent abuse, enforce our Terms of Service, maintain security, and troubleshoot and improve the service. We use profile details such as country, time zone, interests, and craft preferences to support member discovery and matching. When you use “Use my location”, we send your device coordinates to a geocoding provider, which returns a country and city; we store that country and city on your profile, we do not retain the coordinates themselves, and the derived country and city are saved without waiting for you to confirm them. The member map is drawn from country-level information only, so the marker shown for you is approximate and is not a precise position.",
   },
   {
     heading: "When information is visible to others",
@@ -35,17 +35,17 @@ const SECTIONS = [
   {
     heading: "How information is shared",
     body:
-      "We share information with service providers that help us run the service, including providers for hosting and analytics, authentication and database services, file storage, payment or membership processing, email or push delivery, and live video rooms. These providers process information as needed to provide their services. When you choose Google sign-in, Google processes your sign-in under Google's own privacy terms. Membership purchases may take place through Shopify or another configured checkout provider and are also subject to that provider's policies. We may disclose information when reasonably necessary to protect users, investigate abuse, comply with law, or protect our rights. We do not sell personal information for money.",
+      "We share information with service providers that help us run the service, including providers for hosting and analytics, authentication and database services, geocoding, file storage, payment or membership processing, email or push delivery, and live video rooms. These providers process information as needed to provide their services. When you use “Use my location”, your device coordinates are sent to our geocoding provider, BigDataCloud, which processes them only to return a country and city. When you choose Google sign-in, Google processes your sign-in under Google's own privacy terms. Membership purchases may take place through Shopify or another configured checkout provider and are also subject to that provider's policies. We may disclose information when reasonably necessary to protect users, investigate abuse, comply with law, or protect our rights. We do not sell personal information for money.",
   },
   {
     heading: "Live video, recordings and transcripts",
     body:
-      "Live rooms use a third-party video service. Room participants may share audio, video, chat, and other information with one another. Some rooms or sessions may be recorded or transcribed when those features are enabled; when available, recording or transcription indicators and room controls should be used to inform participants. Please avoid sharing sensitive information in live rooms. The video provider may process technical and participation data under its own terms and privacy policy.",
+      "Live rooms use a third-party video service. Room participants may share audio, video, chat, and other information with one another. Recording and transcription are configured per room and are available to our moderators rather than to members generally; a room can also be set to disallow them. When a room is recorded or transcribed, recording or transcription indicators and room controls should be used to inform participants. Replays of a recording may be shared with members or kept to the room owner, depending on how that room is configured. Please avoid sharing sensitive information in live rooms. The video provider may process technical and participation data under its own terms and privacy policy.",
   },
   {
     heading: "Retention and deletion",
     body:
-      "We keep information for as long as needed to operate your account and provide the service, and for legitimate safety, security, dispute-resolution, and legal purposes. You may request account deletion by contacting us at the address below. Deletion removes or de-identifies information where practicable, but some records may remain for a limited period in backups, logs, or where retention is required or permitted by law. Public content already copied or saved by other members may not be removable from their copies.",
+      "We keep information for as long as needed to operate your account and provide the service, and for legitimate safety, security, dispute-resolution, and legal purposes. Room recordings and transcripts are kept while the room remains configured to share them and are removed when the room owner or a moderator deletes them. You may request account deletion by contacting us at the address below. Deletion removes or de-identifies information where practicable, but some records may remain for a limited period in backups, logs, or where retention is required or permitted by law. Public content already copied or saved by other members may not be removable from their copies.",
   },
   {
     heading: "Your choices and privacy requests",
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
       <article className={styles.card}>
         <p className={styles.kicker}>Legal</p>
         <h1 className={styles.title}>Privacy Policy</h1>
-        <p className={styles.updated}>Effective date: October 4, 2026 · Last updated: October 4, 2026</p>
+        <p className={styles.updated}>Effective date: October 4, 2026 · Last updated: October 5, 2026</p>
 
         <div className={styles.intro}>
           <p>
@@ -99,8 +99,8 @@ export default function PrivacyPage() {
           <p>
             By using the service, you acknowledge this policy. For questions or
             privacy requests, contact{" "}
-            <a className={styles.link} href="mailto:christa@secretyarnery.com">
-              christa@secretyarnery.com
+            <a className={styles.link} href="mailto:mamameer@gmail.com">
+              mamameer@gmail.com
             </a>.
           </p>
         </div>
