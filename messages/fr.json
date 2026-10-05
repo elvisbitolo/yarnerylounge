@@ -359,7 +359,8 @@
     "tosCheckbox": "J'accepte les <terms>Conditions de service</terms>, y compris la politique de tolérance zéro sur les promotions et l'intimidation.",
     "tosRequired": "Veuillez accepter les Conditions de service pour continuer.",
     "onlyPaidMembers": "Ce compte nécessite un abonnement Speakeasy payant avant de rejoindre le salon.",
-    "signupFailed": "Échec de la création du compte"
+    "signupFailed": "Échec de la création du compte",
+    "preparingSignIn": "Préparation de votre connexion…"
   },
   "landing": {
     "liveCommunities": "Communautés en direct · Cours · Événements",

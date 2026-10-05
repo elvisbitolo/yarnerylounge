@@ -148,8 +148,10 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/icon.png",
-      badge: "/icon.png",
+      // Served the retired /icon.png, which is a different design from the
+      // icons in layout.js, so push notifications showed stale branding.
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       data: { url: data.url },
     })
   );

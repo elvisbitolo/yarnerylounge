@@ -316,11 +316,13 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   if (resolvingWall || busy === "email" || busy === "google" || busy === "facebook" || waitingOnOAuth) {
     return (
       <main className={styles.signingInScreen}>
-        <BrandMark />
+        {/* Logo deliberately omitted here: this screen replaces the whole page
+            during a wait the member did not start (auth wall, OAuth return), so
+            a brand mark reads as a fresh page load rather than progress. */}
         <div className={styles.signingIn} role="status" aria-live="polite">
           <div className={styles.spinner} />
           <p className={styles.loadText}>
-            {resolvingWall ? t("signingIn") : busy === "email" ? t("creatingAccount") : "Preparing your sign-in…"}
+            {resolvingWall ? t("signingIn") : busy === "email" ? t("creatingAccount") : t("preparingSignIn")}
           </p>
         </div>
       </main>

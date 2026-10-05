@@ -359,7 +359,8 @@
     "tosCheckbox": "I agree to the <terms>Terms of Service</terms>, including the Zero-Tolerance policy on promotion and bullying.",
     "tosRequired": "Please accept the Terms of Service to continue.",
     "onlyPaidMembers": "This account needs a paid Speakeasy membership before joining.",
-    "signupFailed": "Sign-up failed"
+    "signupFailed": "Sign-up failed",
+    "preparingSignIn": "Preparing your sign-in…"
   },
   "landing": {
     "liveCommunities": "Live communities · Courses · Events",

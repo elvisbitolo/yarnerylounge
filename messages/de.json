@@ -359,7 +359,8 @@
     "tosCheckbox": "Ich akzeptiere die <terms>Nutzungsbedingungen</terms>, einschließlich der Null-Toleranz-Politik gegen Eigenwerbung und Mobbing.",
     "tosRequired": "Bitte akzeptiere die Nutzungsbedingungen, um fortzufahren.",
     "onlyPaidMembers": "Dieses Konto benötigt eine kostenpflichtige Speakeasy-Mitgliedschaft, um beizutreten.",
-    "signupFailed": "Kontoerstellung fehlgeschlagen"
+    "signupFailed": "Kontoerstellung fehlgeschlagen",
+    "preparingSignIn": "Anmeldung wird vorbereitet…"
   },
   "landing": {
     "liveCommunities": "Live-Communities · Kurse · Events",
