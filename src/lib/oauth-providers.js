@@ -34,6 +34,10 @@ const OAUTH_AUTHORIZE = {
   // (provider/oidc.go). LinkedIn is sunsetting the legacy flow, and the
   // provider key here must be the one Supabase exposes as `linkedin_oidc`.
   linkedin: { scopes: "openid email profile" },
+  // GoTrue asks for user:read:email by default and hardcodes Verified: true.
+  // A Twitch account with no email attached yields none, so the member still
+  // hits the prepaid gate — unavoidable, and not a configuration mistake.
+  twitch: {},
 };
 
 // Failure copy for the return leg, keyed off the `?provider=` marker. Without
@@ -47,6 +51,7 @@ const OAUTH_FAILED_KEYS = {
   // `provider + "Failed"`. Keep this explicit rather than clever — a wrong
   // key renders as a raw string in the UI, not an error.
   linkedin: "linkedInFailed",
+  twitch: "twitchFailed",
 };
 
 // Builds the `options` for a signInWithOAuth call.

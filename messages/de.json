@@ -362,7 +362,9 @@
     "signupFailed": "Kontoerstellung fehlgeschlagen",
     "preparingSignIn": "Anmeldung wird vorbereitet…",
     "continueWithLinkedIn": "Mit LinkedIn fortfahren",
-    "linkedInFailed": "LinkedIn-Anmeldung fehlgeschlagen"
+    "linkedInFailed": "LinkedIn-Anmeldung fehlgeschlagen",
+    "continueWithTwitch": "Mit Twitch fortfahren",
+    "twitchFailed": "Twitch-Anmeldung fehlgeschlagen"
   },
   "landing": {
     "liveCommunities": "Live-Communities · Kurse · Events",

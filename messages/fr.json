@@ -362,7 +362,9 @@
     "signupFailed": "Échec de la création du compte",
     "preparingSignIn": "Préparation de votre connexion…",
     "continueWithLinkedIn": "Continuer avec LinkedIn",
-    "linkedInFailed": "Échec de la connexion LinkedIn"
+    "linkedInFailed": "Échec de la connexion LinkedIn",
+    "continueWithTwitch": "Continuer avec Twitch",
+    "twitchFailed": "Échec de la connexion Twitch"
   },
   "landing": {
     "liveCommunities": "Communautés en direct · Cours · Événements",

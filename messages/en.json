@@ -362,7 +362,9 @@
     "signupFailed": "Sign-up failed",
     "preparingSignIn": "Preparing your sign-in…",
     "continueWithLinkedIn": "Continue with LinkedIn",
-    "linkedInFailed": "LinkedIn sign-in failed"
+    "linkedInFailed": "LinkedIn sign-in failed",
+    "continueWithTwitch": "Continue with Twitch",
+    "twitchFailed": "Twitch sign-in failed"
   },
   "landing": {
     "liveCommunities": "Live communities · Courses · Events",

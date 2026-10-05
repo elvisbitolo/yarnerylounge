@@ -19,7 +19,7 @@ test("signup returns to /signup carrying the provider marker", () => {
 // The marker is what lets the return leg tell a real return from a stale link
 // and which provider's failure copy to show, so it must never be dropped.
 test("the provider marker survives for every provider", () => {
-  for (const provider of ["google", "facebook", "linkedin"]) {
+  for (const provider of ["google", "facebook", "linkedin", "twitch"]) {
     for (const mode of ["login", "signup"]) {
       const { redirectTo } = oauthAuthorizeOptions({ provider, mode, appUrl: APP });
       assert.ok(redirectTo.includes(`?provider=${provider}`), `${provider}/${mode}`);
@@ -86,13 +86,20 @@ test("an unknown marker still gets real copy", () => {
   assert.equal(oauthFailedKey(null), "googleFailed");
 });
 
-// --- linkedin --------------------------------------------------------
+// --- linkedin / twitch --------------------------------------------------------
 
 // LinkedIn must ask for OIDC scopes only. The legacy flow requested
 // r_emailaddress/r_liteprofile, which LinkedIn is sunsetting, and mixing the two
 // scope sets fails the authorize call outright.
 test("linkedin asks for OIDC scopes and no account chooser", () => {
   const options = oauthAuthorizeOptions({ provider: "linkedin", mode: "login", appUrl: APP });
+
+// Twitch, like Facebook, relies on GoTrue's own default scopes
+// (user:read:email). An override here would be the thing that breaks it.
+test("twitch sends only the redirect, leaving scopes to GoTrue", () => {
+  const options = oauthAuthorizeOptions({ provider: "twitch", mode: "signup", appUrl: APP });
+  assert.deepEqual(Object.keys(options), ["redirectTo"]);
+});
   assert.equal(options.scopes, "openid email profile");
   assert.equal(options.prompt, undefined);
 });
@@ -100,8 +107,8 @@ test("linkedin asks for OIDC scopes and no account chooser", () => {
 // Spotify remains the documented exclusion, so the throw is now load-bearing:
 // it proves the guard rejects the one provider that can never pass the
 // verified-email check rather than rendering a dead button.
-test("spotify stays rejected while the supported three are accepted", () => {
-  for (const provider of ["google", "facebook", "linkedin"]) {
+test("spotify stays rejected while the supported four are accepted", () => {
+  for (const provider of ["google", "facebook", "linkedin", "twitch"]) {
     assert.ok(oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP }).redirectTo, provider);
   }
   assert.throws(
@@ -113,11 +120,12 @@ test("spotify stays rejected while the supported three are accepted", () => {
 // The GoTrue key is lowercase `linkedin` but the message key is `linkedInFailed`.
 // A wrong key renders as a literal string in the UI, so this is pinned per
 // provider rather than derived from `provider + "Failed"`.
-test("linkedin reports its own failure", () => {
+test("linkedin and twitch report their own failures", () => {
   assert.equal(oauthFailedKey("linkedin"), "linkedInFailed");
+  assert.equal(oauthFailedKey("twitch"), "twitchFailed");
 });
 
 test("every supported provider has a distinct failure key", () => {
-  const keys = ["google", "facebook", "linkedin"].map(oauthFailedKey);
+  const keys = ["google", "facebook", "linkedin", "twitch"].map(oauthFailedKey);
   assert.equal(new Set(keys).size, keys.length);
 });
