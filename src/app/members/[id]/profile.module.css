@@ -71,6 +71,43 @@
   object-position: center center;
 }
 
+/* Icon straddling the cover's bottom edge, from tablet up.
+   Scoped to `.banner + .header` so it only applies to the real profile header —
+   the private-profile and blocked-profile branches build a .header with no
+   banner above it, and would otherwise be pulled up 48px into the card and
+   clipped by the card's overflow.
+
+   `.header` needs position:relative: it is a positioned element that follows
+   .banner in the DOM, so it paints on top of the cover photo. Without it the
+   header stays in-flow and would sit *behind* the banner image.
+
+   Below 640px none of this applies. A 4:1 cover is only ~97px tall on a 390px
+   phone, and a -48px overlap would eat half of it. */
+@media (min-width: 641px) {
+  .banner + .header {
+    margin-top: -48px;
+    padding-top: 0;
+    position: relative;
+  }
+
+  /* Text waits for the taller icon to clear, so the title does not start
+     halfway up the photo. */
+  .banner + .header .headerBody {
+    padding-top: 56px;
+  }
+
+  /* 120px rather than 96px: against a photograph the smaller size reads as a
+     sticker. The 5px white ring only becomes visible once it crosses the
+     edge, and the shadow is what stops it flattening into the cover. */
+  .banner + .header .avatar {
+    width: 120px;
+    height: 120px;
+    font-size: 40px;
+    border-width: 5px;
+    box-shadow: 0 6px 18px rgba(9, 12, 38, 0.28);
+  }
+}
+
 .headerBody {
   min-width: 0;
 }
