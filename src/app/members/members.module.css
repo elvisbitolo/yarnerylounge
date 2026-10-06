@@ -34,6 +34,59 @@
   text-align: center;
 }
 
+/* Editor-only affordance above the constellation. Dashed so it reads as a
+   mode rather than as part of the page furniture — it is only ever rendered
+   for the two accounts on the allow-list. */
+.layoutBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  border: 1px dashed #a78bfa;
+  background: rgba(167, 139, 250, 0.08);
+  border-radius: 12px;
+}
+
+.layoutHint {
+  color: #6b6b7b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.layoutReset {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid #d8d8e3;
+  background: #ffffff;
+  color: #6b6b7b;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.layoutReset:hover:not(:disabled) {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.layoutReset:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.layoutError {
+  margin: 0 0 14px;
+  color: #e5484d;
+  font-size: 13px;
+  text-align: center;
+}
+
 .controls {
   display: flex;
   flex-direction: column;
@@ -738,6 +791,15 @@
 
 .avatarPos:hover .circle {
   border-color: #ffffff;
+}
+
+/* Mid-drag: drop the hover pop and the transition so the avatar tracks the
+   pointer instead of easing toward it, and outrank the :hover z-index which
+   would otherwise pull it back under a neighbouring avatar. */
+.avatarPos.avatarDragging {
+  transform: none;
+  transition: none;
+  z-index: 90 !important;
 }
 
 .ring {

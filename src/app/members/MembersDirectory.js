@@ -8,6 +8,7 @@ import { roleBadgeLabel } from "@/lib/profile/roles";
 import { tierLabel } from "@/lib/server/plans";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { composeLayout, LAYOUT_NOW } from "./avatarLayout";
+import { pinFromVirtual } from "@/lib/members-layout-core";
 import MembersMap from "./MembersMap";
 import MemberFilters from "./MemberFilters";
 import { MEMBER_TABS, applyMemberTab, emptyViewMessage } from "@/lib/members/tabs-core";
@@ -142,6 +143,7 @@ export default function MembersDirectory({
   todayKey,
   initialSearch = "",
   presenceAvailable = true,
+  canEditLayout = false,
 }) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
@@ -155,6 +157,27 @@ export default function MembersDirectory({
     () => new Set(members.filter((m) => m.online).map((m) => m.id))
   );
   const hideTimer = useRef(null);
+
+  // Saved constellation coordinates, seeded from the server render. Everyone
+  // reads them — the whole point is that the curated arrangement is the shared
+  // one — but only `canEditLayout` accounts may write.
+  const [pins, setPins] = useState(
+    () => new Map(members.filter((m) => m.layoutPin).map((m) => [m.id, m.layoutPin]))
+  );
+  // The avatar currently under the pointer, in virtual canvas pixels. Kept out
+  // of `pins` so a drag does not re-run composeLayout over every member on
+  // every pointermove — that is an O(n²) pass and it visibly stutters.
+  const [dragPos, setDragPos] = useState(null);
+  const [saving, setSaving] = useState(null);
+  const [saveError, setSaveError] = useState("");
+  const dragRef = useRef(null);
+  // Clicks are deferred for editors so a double-click can be caught before the
+  // profile route fires; this flag swallows the one that follows a real drag.
+  const dragClickRef = useRef(false);
+  const clickRec = useRef({ id: null, at: 0 });
+  const navTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(navTimer.current), []);
 
   const patchFilters = useCallback(
     (patch) => setFilters((prev) => ({ ...prev, ...patch })),
@@ -219,6 +242,9 @@ export default function MembersDirectory({
   const scale = frameWidth > 0 ? frameWidth / preset.width : 0;
 
   function showDetails(member, e) {
+    // A tooltip anchored to a rect that is being dragged away is worse than
+    // no tooltip at all, and the timer below would keep it pinned there.
+    if (dragRef.current || dragPos) return;
     clearTimeout(hideTimer.current);
     const rect = e.currentTarget.getBoundingClientRect();
     setHover({ member, rect, common: commoStrings(viewer, member) });
@@ -333,19 +359,189 @@ export default function MembersDirectory({
     Math.max(0, filtered.length - DENSE_BASE) * DENSE_STEP;
   const frameHeight = Math.round(virtualHeight * (scale > 0 ? scale : 1));
 
+  // Saved coordinates override the spiral for the avatars that carry one.
+  // Built as a new list rather than mutating `filtered`, so the tab/filter
+  // memos above stay the single owner of what is on screen.
+  const arranged = useMemo(() => {
+    if (pins.size === 0) return filtered;
+    return filtered.map((m) => (pins.has(m.id) ? { ...m, layoutPin: pins.get(m.id) } : m));
+  }, [filtered, pins]);
+
   const placed = useMemo(
     () =>
-      composeLayout(filtered, {
+      composeLayout(arranged, {
         width: preset.width,
         height: virtualHeight,
       }),
-    [filtered, preset, virtualHeight]
+    [arranged, preset, virtualHeight]
   );
 
   const memberById = useMemo(
     () => new Map(filtered.map((m) => [m.id, m])),
     [filtered]
   );
+
+  const applyPin = useCallback(
+    (id, nextPin) => {
+      setPins((prev) => {
+        const updated = new Map(prev);
+        if (nextPin) updated.set(id, nextPin);
+        else updated.delete(id);
+        return updated;
+      });
+    },
+    []
+  );
+
+  // Pointer capture keeps the drag alive when the cursor leaves the avatar —
+  // which it always does, since the whole point is moving it somewhere else.
+  function startDrag(e, slot) {
+    if (!canEditLayout || dragRef.current) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // A drag that never produced a click event (released outside the frame)
+    // would otherwise leave the suppression flag latched and eat the editor's
+    // next genuine tap.
+    dragClickRef.current = false;
+    dragRef.current = {
+      pointerId: e.pointerId,
+      id: slot.id,
+      size: slot.size,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      originLeft: slot.left,
+      originTop: slot.top,
+      left: slot.left,
+      top: slot.top,
+      moved: false,
+    };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setHover(null);
+    setDragPos({ id: slot.id, left: slot.left, top: slot.top });
+  }
+
+  function moveDrag(e) {
+    const drag = dragRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const rawX = e.clientX - drag.startClientX;
+    const rawY = e.clientY - drag.startClientY;
+    if (!drag.moved && Math.hypot(rawX, rawY) < 5) return;
+    drag.moved = true;
+    // The layer is CSS-scaled to the frame, so a client-pixel delta covers
+    // more virtual canvas than it does on screen. Dividing here is what keeps
+    // the avatar under the cursor instead of lagging behind it.
+    const factor = scale > 0 ? scale : 1;
+    drag.left = drag.originLeft + rawX / factor;
+    drag.top = drag.originTop + rawY / factor;
+    setDragPos({ id: drag.id, left: drag.left, top: drag.top });
+  }
+
+  function endDrag(e) {
+    const drag = dragRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    dragRef.current = null;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    dragClickRef.current = drag.moved;
+    setDragPos(null);
+    if (!drag.moved) return;
+
+    // Pin the centre as a fraction of the whole virtual canvas, so the spot
+    // survives the three viewport presets and a canvas that grows with filters.
+    const stored = pinFromVirtual(
+      drag.left + drag.size / 2,
+      drag.top + drag.size / 2,
+      preset.width,
+      virtualHeight
+    );
+    if (!stored) return;
+    // Written locally first so the drop lands where the pointer released even
+    // if the server is slow; the failure handler below puts it back.
+    applyPin(drag.id, stored);
+    setSaving("one");
+    setSaveError("");
+    fetch("/api/members/layout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: drag.id,
+        x: drag.left + drag.size / 2,
+        y: drag.top + drag.size / 2,
+        width: preset.width,
+        height: virtualHeight,
+      }),
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("save failed");
+      })
+      .catch(() => {
+        applyPin(drag.id, null);
+        setSaveError("Could not save that position. It will reset on reload.");
+      })
+      .finally(() => setSaving(null));
+  }
+
+  function cancelDrag() {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setDragPos(null);
+  }
+
+  // Editors get a 300ms grace on a normal click so the second tap of a
+  // double-click arrives first. Non-pinned avatars still navigate on that
+  // second tap — an impatient double-click should not strand the reader.
+  function onAvatarClick(e, id, pinned) {
+    if (dragClickRef.current) {
+      dragClickRef.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (!canEditLayout) return;
+    e.preventDefault();
+    // The event's own clock rather than Date.now(), which the compiler rejects
+    // here as impure — and it only ever gets compared against the timeStamp of
+    // the previous click, so a consistent session-relative clock is exactly
+    // what is wanted.
+    const now = e.timeStamp;
+    const prev = clickRec.current;
+    if (prev.id === id && now - prev.at < 300) {
+      clickRec.current = { id: null, at: 0 };
+      clearTimeout(navTimer.current);
+      if (pinned) {
+        applyPin(id, null);
+        fetch("/api/members/layout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, reset: true }),
+        }).catch(() => setSaveError("Could not release that member."));
+        return;
+      }
+      router.push(`/members/${id}`);
+      return;
+    }
+    clickRec.current = { id, at: now };
+    clearTimeout(navTimer.current);
+    navTimer.current = setTimeout(() => router.push(`/members/${id}`), 300);
+  }
+
+  async function resetAllPins() {
+    // Reset is one-way for everyone reading the page, so it earns a confirm.
+    if (!window.confirm("Release every member back to the automatic layout?")) return;
+    setSaving("all");
+    setSaveError("");
+    try {
+      const response = await fetch("/api/members/layout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reset: "all" }),
+      });
+      if (!response.ok) throw new Error("reset failed");
+      setPins(new Map());
+    } catch {
+      setSaveError("Could not reset the layout.");
+    } finally {
+      setSaving(null);
+    }
+  }
 
   return (
     <>
@@ -383,6 +579,26 @@ export default function MembersDirectory({
         </p>
       )}
 
+      {canEditLayout && (
+        <div className={styles.layoutBar}>
+          <span className={styles.layoutHint}>
+            {saving === "one"
+              ? "Saving…"
+              : "Drag an avatar to place it. Double-click to release it. Everyone sees the arrangement you save."}
+          </span>
+          <button
+            type="button"
+            className={styles.layoutReset}
+            onClick={resetAllPins}
+            disabled={saving === "all"}
+          >
+            {saving === "all" ? "Resetting…" : "Reset layout"}
+          </button>
+        </div>
+      )}
+
+      {saveError && <p className={styles.layoutError}>{saveError}</p>}
+
       {filtered.length === 0 ? (
         <p className={styles.empty}>
           {emptyViewMessage({ tab, query, activeFilterCount, presenceAvailable })}
@@ -399,22 +615,36 @@ export default function MembersDirectory({
                 const member = memberById.get(slot.id);
                 if (!member) return null;
                 const ring = colorStrip(member.favoriteColors);
+                const dragging = dragPos && dragPos.id === slot.id;
+                const left = dragging ? dragPos.left : slot.left;
+                const top = dragging ? dragPos.top : slot.top;
+                const pinned = pins.has(member.id);
                 return (
                   <Link
                     key={member.id}
                     href={`/members/${member.id}`}
-                    className={styles.avatarPos}
+                    className={`${styles.avatarPos}${dragging ? ` ${styles.avatarDragging}` : ""}`}
                     style={{
-                      left: slot.left,
-                      top: slot.top,
+                      left,
+                      top,
                       width: slot.size,
                       height: slot.size,
-                      zIndex: slot.z,
+                      zIndex: dragging ? 90 : slot.z,
+                      // Only editors pay this: it stops a touch-drag from
+                      // scrolling the page out from under the pointer, and
+                      // every other member must still be able to scroll past.
+                      touchAction: canEditLayout ? "none" : undefined,
+                      cursor: canEditLayout ? (dragging ? "grabbing" : "grab") : undefined,
                     }}
                     onMouseEnter={(e) => showDetails(member, e)}
                     onMouseLeave={scheduleHide}
                     onFocus={(e) => showDetails(member, e)}
                     onBlur={scheduleHide}
+                    onClick={(e) => onAvatarClick(e, member.id, pinned)}
+                    onPointerDown={(e) => startDrag(e, slot)}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
+                    onPointerCancel={cancelDrag}
                     aria-label={`View ${member.name}`}
                   >
                     <span

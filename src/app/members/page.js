@@ -6,6 +6,7 @@ import { listActiveRoomMemberIds } from "@/lib/server/room-presence";
 import { isOnline } from "@/lib/server/presence-core";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
+import { LAYOUT_PIN_KEY, isLayoutEditor, sanitizePin } from "@/lib/server/members-layout-core";
 import Nav from "@/components/Nav";
 import MembersDirectory from "./MembersDirectory";
 import BlindDateCard from "./BlindDateCard";
@@ -136,6 +137,9 @@ export default async function MembersPage({ searchParams }) {
         points: gami.get(m.id)?.points || 0,
         lastVisitDate: gami.get(m.id)?.lastVisitDate || "",
         createdAt: m.createdAt ? m.createdAt.getTime() : 0,
+        // Saved constellation coordinate from the layout editor, or null for
+        // everyone placed by the automatic spiral.
+        layoutPin: sanitizePin(extra[LAYOUT_PIN_KEY]),
       };
     });
 
@@ -177,6 +181,7 @@ export default async function MembersPage({ searchParams }) {
           role={userDoc?.role}
           todayKey={todayKey}
           initialSearch={typeof params?.q === "string" ? params.q : ""}
+          canEditLayout={isLayoutEditor(user)}
         />
         {canMatch ? <BlindDateCard /> : null}
         <SimilarMembers />
