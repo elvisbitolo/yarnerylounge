@@ -29,11 +29,19 @@ const OAUTH_AUTHORIZE = {
   google: { scopes: "profile email openid", prompt: "select_account" },
   facebook: {},
   // OIDC variant, not the legacy `linkedin`. Legacy asks for
-  // r_emailaddress/r_liteprofile and hardcodes Verified: true; OIDC asks for
-  // openid/email/profile and reads email_verified from the ID token
-  // (provider/oidc.go). LinkedIn is sunsetting the legacy flow, and the
-  // provider key here must be the one Supabase exposes as `linkedin_oidc`.
-  linkedin: { scopes: "openid email profile" },
+  // r_emailaddress/r_liteprofile and hardcodes Verified: true; OIDC reads
+  // email_verified from the ID token. LinkedIn is sunsetting the legacy flow,
+  // and the provider key here must be the one Supabase exposes as
+  // `linkedin_oidc`.
+  //
+  // No scopes, deliberately. GoTrue hardcodes exactly openid/email/profile
+  // for this provider (provider/linkedin_oidc.go) and those are the only three
+  // LinkedIn supports. The previous `scopes: "openid email profile"` was worse
+  // than redundant: GoTrue appends custom scopes with strings.Split(s, ","),
+  // so a space-separated value arrived as ONE bogus token with literal spaces
+  // in it and LinkedIn rejected the authorize call. Same reason Facebook and
+  // Twitch send only a redirect.
+  linkedin: {},
   // GoTrue asks for user:read:email by default and hardcodes Verified: true.
   // A Twitch account with no email attached yields none, so the member still
   // hits the prepaid gate — unavoidable, and not a configuration mistake.

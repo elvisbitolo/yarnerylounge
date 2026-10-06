@@ -51,6 +51,13 @@ test("facebook sends only the redirect, leaving scopes to GoTrue", () => {
   assert.deepEqual(Object.keys(options), ["redirectTo"]);
 });
 
+// Google's space-separated `scopes` looks like the LinkedIn bug and is not:
+// GoTrue splits custom scopes on commas, so this becomes one token, and oauth2
+// joins the array with spaces again. Google ends up receiving
+// scope=email profile profile email openid — every element valid, so it is
+// tolerated. LinkedIn gets a single bogus token and rejects it. Left alone
+// deliberately: it works, and changing live auth for tidiness is not a trade
+// worth making.
 test("google keeps its scopes and account chooser", () => {
   const options = oauthAuthorizeOptions({ provider: "google", mode: "login", appUrl: APP });
   assert.equal(options.scopes, "profile email openid");
@@ -88,20 +95,37 @@ test("an unknown marker still gets real copy", () => {
 
 // --- linkedin / twitch --------------------------------------------------------
 
-// LinkedIn must ask for OIDC scopes only. The legacy flow requested
-// r_emailaddress/r_liteprofile, which LinkedIn is sunsetting, and mixing the two
-// scope sets fails the authorize call outright.
-test("linkedin asks for OIDC scopes and no account chooser", () => {
+// The regression. GoTrue appends custom scopes with strings.Split(s, ",")
+// (provider/linkedin_oidc.go), so `scopes: "openid email profile"` arrived as a
+// single token containing literal spaces and LinkedIn rejected the authorize
+// call. GoTrue already hardcodes openid/email/profile for this provider — the
+// only three LinkedIn supports — so sending nothing is both correct and
+// sufficient.
+test("linkedin sends only the redirect, leaving scopes to GoTrue", () => {
   const options = oauthAuthorizeOptions({ provider: "linkedin", mode: "login", appUrl: APP });
+  assert.deepEqual(Object.keys(options), ["redirectTo"]);
+  assert.equal(options.scopes, undefined);
+  assert.equal(options.prompt, undefined);
+});
 
-// Twitch, like Facebook, relies on GoTrue's own default scopes
+// Twitch, like Facebook and now LinkedIn, relies on GoTrue's own default scopes
 // (user:read:email). An override here would be the thing that breaks it.
 test("twitch sends only the redirect, leaving scopes to GoTrue", () => {
   const options = oauthAuthorizeOptions({ provider: "twitch", mode: "signup", appUrl: APP });
   assert.deepEqual(Object.keys(options), ["redirectTo"]);
 });
-  assert.equal(options.scopes, "openid email profile");
-  assert.equal(options.prompt, undefined);
+
+// Facebook, LinkedIn and Twitch must all send no scopes. GoTrue hardcodes a
+// correct default for each — including exactly openid/email/profile for
+// LinkedIn — so an override can only ever add a token the provider does not
+// recognise. Pinned per provider so the LinkedIn regression cannot return via a
+// different provider's config.
+test("providers with GoTrue defaults send no scope override", () => {
+  for (const provider of ["facebook", "linkedin", "twitch"]) {
+    const options = oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP });
+    assert.equal(options.scopes, undefined, `${provider} must not override scopes`);
+    assert.equal(options.prompt, undefined, `${provider} has no account chooser`);
+  }
 });
 
 // Spotify remains the documented exclusion, so the throw is now load-bearing:
