@@ -28,20 +28,20 @@
 const OAUTH_AUTHORIZE = {
   google: { scopes: "profile email openid", prompt: "select_account" },
   facebook: {},
-  // OIDC variant, not the legacy `linkedin`. Legacy asks for
-  // r_emailaddress/r_liteprofile and hardcodes Verified: true; OIDC reads
-  // email_verified from the ID token. LinkedIn is sunsetting the legacy flow,
-  // and the provider key here must be the one Supabase exposes as
-  // `linkedin_oidc`.
+  // Key MUST be `linkedin_oidc`, not `linkedin`. GoTrue resolves the id against
+  // a config map (internal/api/provider_constants.go): "linkedin" is the legacy
+  // provider, "linkedin_oidc" is the one Supabase's "LinkedIn (OIDC)" toggle
+  // populates. Sending `linkedin` reaches an empty disabled config and returns
+  // 400 "Unsupported provider: provider is not enabled" — no credentials can
+  // fix that, because they are attached to the other id.
   //
-  // No scopes, deliberately. GoTrue hardcodes exactly openid/email/profile
-  // for this provider (provider/linkedin_oidc.go) and those are the only three
-  // LinkedIn supports. The previous `scopes: "openid email profile"` was worse
-  // than redundant: GoTrue appends custom scopes with strings.Split(s, ","),
-  // so a space-separated value arrived as ONE bogus token with literal spaces
-  // in it and LinkedIn rejected the authorize call. Same reason Facebook and
-  // Twitch send only a redirect.
-  linkedin: {},
+  // The UI label stays "Continue with LinkedIn"; only the id sent upstream
+  // changes. No scopes, deliberately: GoTrue hardcodes exactly openid/email/
+  // profile (provider/linkedin_oidc.go) and those are the only three LinkedIn
+  // supports. The previous space-scoped override was worse than redundant —
+  // GoTrue appends custom scopes with strings.Split(s, ","), so it arrived as
+  // ONE bogus token with literal spaces and the authorize call was rejected.
+  linkedin_oidc: {},
   // GoTrue asks for user:read:email by default and hardcodes Verified: true.
   // A Twitch account with no email attached yields none, so the member still
   // hits the prepaid gate — unavoidable, and not a configuration mistake.
@@ -58,7 +58,8 @@ const OAUTH_FAILED_KEYS = {
   // while the message key reads `linkedInFailed`, so they cannot both be
   // `provider + "Failed"`. Keep this explicit rather than clever — a wrong
   // key renders as a raw string in the UI, not an error.
-  linkedin: "linkedInFailed",
+  // id differs from the message key: `linkedin_oidc` upstream, human wording here.
+  linkedin_oidc: "linkedInFailed",
   twitch: "twitchFailed",
 };
 

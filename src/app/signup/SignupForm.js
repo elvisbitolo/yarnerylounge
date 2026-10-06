@@ -220,7 +220,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   }
 
   async function handleLinkedIn() {
-    return handleProvider("linkedin");
+    return handleProvider("linkedin_oidc");
   }
 
   async function handleTwitch() {
@@ -328,7 +328,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     busy === "email" ||
     busy === "google" ||
     busy === "facebook" ||
-    busy === "linkedin" ||
+    busy === "linkedin_oidc" ||
     busy === "twitch" ||
     waitingOnOAuth
   ) {

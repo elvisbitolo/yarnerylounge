@@ -19,7 +19,7 @@ test("signup returns to /signup carrying the provider marker", () => {
 // The marker is what lets the return leg tell a real return from a stale link
 // and which provider's failure copy to show, so it must never be dropped.
 test("the provider marker survives for every provider", () => {
-  for (const provider of ["google", "facebook", "linkedin", "twitch"]) {
+  for (const provider of ["google", "facebook", "linkedin_oidc", "twitch"]) {
     for (const mode of ["login", "signup"]) {
       const { redirectTo } = oauthAuthorizeOptions({ provider, mode, appUrl: APP });
       assert.ok(redirectTo.includes(`?provider=${provider}`), `${provider}/${mode}`);
@@ -102,7 +102,7 @@ test("an unknown marker still gets real copy", () => {
 // only three LinkedIn supports — so sending nothing is both correct and
 // sufficient.
 test("linkedin sends only the redirect, leaving scopes to GoTrue", () => {
-  const options = oauthAuthorizeOptions({ provider: "linkedin", mode: "login", appUrl: APP });
+  const options = oauthAuthorizeOptions({ provider: "linkedin_oidc", mode: "login", appUrl: APP });
   assert.deepEqual(Object.keys(options), ["redirectTo"]);
   assert.equal(options.scopes, undefined);
   assert.equal(options.prompt, undefined);
@@ -121,7 +121,7 @@ test("twitch sends only the redirect, leaving scopes to GoTrue", () => {
 // recognise. Pinned per provider so the LinkedIn regression cannot return via a
 // different provider's config.
 test("providers with GoTrue defaults send no scope override", () => {
-  for (const provider of ["facebook", "linkedin", "twitch"]) {
+  for (const provider of ["facebook", "linkedin_oidc", "twitch"]) {
     const options = oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP });
     assert.equal(options.scopes, undefined, `${provider} must not override scopes`);
     assert.equal(options.prompt, undefined, `${provider} has no account chooser`);
@@ -132,7 +132,7 @@ test("providers with GoTrue defaults send no scope override", () => {
 // it proves the guard rejects the one provider that can never pass the
 // verified-email check rather than rendering a dead button.
 test("spotify stays rejected while the supported four are accepted", () => {
-  for (const provider of ["google", "facebook", "linkedin", "twitch"]) {
+  for (const provider of ["google", "facebook", "linkedin_oidc", "twitch"]) {
     assert.ok(oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP }).redirectTo, provider);
   }
   assert.throws(
@@ -141,15 +141,16 @@ test("spotify stays rejected while the supported four are accepted", () => {
   );
 });
 
-// The GoTrue key is lowercase `linkedin` but the message key is `linkedInFailed`.
-// A wrong key renders as a literal string in the UI, so this is pinned per
-// provider rather than derived from `provider + "Failed"`.
+// The provider id is `linkedin_oidc` but the message key is `linkedInFailed`,
+// so neither `provider + "Failed"` nor a rename would line them up. A wrong key
+// renders as a literal string in the UI rather than failing loudly, so both
+// halves are pinned explicitly.
 test("linkedin and twitch report their own failures", () => {
-  assert.equal(oauthFailedKey("linkedin"), "linkedInFailed");
+  assert.equal(oauthFailedKey("linkedin_oidc"), "linkedInFailed");
   assert.equal(oauthFailedKey("twitch"), "twitchFailed");
 });
 
 test("every supported provider has a distinct failure key", () => {
-  const keys = ["google", "facebook", "linkedin", "twitch"].map(oauthFailedKey);
+  const keys = ["google", "facebook", "linkedin_oidc", "twitch"].map(oauthFailedKey);
   assert.equal(new Set(keys).size, keys.length);
 });
