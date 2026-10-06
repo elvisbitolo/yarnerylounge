@@ -364,7 +364,16 @@
     "continueWithLinkedIn": "Continue with LinkedIn",
     "linkedInFailed": "LinkedIn sign-in failed",
     "continueWithTwitch": "Continue with Twitch",
-    "twitchFailed": "Twitch sign-in failed"
+    "twitchFailed": "Twitch sign-in failed",
+    "consentTitle": "One last step",
+    "consentIntro": "Your account is ready — before you can come in, we need your acceptance of the Terms of Service.",
+    "consentHow": "Please read the Terms of Service, then tick the box below to say you accept them. You need to tick the box to continue: your account stays locked until you do.",
+    "consentSubmit": "Accept and continue",
+    "consentWorking": "Saving…",
+    "consentSignOut": "Sign out instead",
+    "consentFailed": "We couldn't save your acceptance. Please try again.",
+    "consentUnavailable": "We couldn't check your session just now. Please try again.",
+    "consentUnavailableAction": "Try again"
   },
   "landing": {
     "liveCommunities": "Live communities · Courses · Events",

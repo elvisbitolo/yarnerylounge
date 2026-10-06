@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
+import {
+  getCurrentUserStatus,
+  getUserDoc,
+  canModerate,
+} from "@/lib/server/auth";
+import { SESSION_NEEDS_CONSENT, SESSION_OK } from "@/lib/server/session-store";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
@@ -13,7 +18,15 @@ function deny(status, error) {
 export async function authorize(options = {}) {
   const { active, tier, owner, moderator, host, groupId, self } = options;
 
-  const user = await getCurrentUser();
+  // Status-aware rather than getCurrentUser(): a signed-in member who has not
+  // accepted the Terms of Service is not "Not signed in" — they are one tick
+  // away. Saying 401 here would make every API call look like an expired
+  // session and send the client hunting for a cookie that is perfectly healthy.
+  const current = await getCurrentUserStatus();
+  if (current.status === SESSION_NEEDS_CONSENT) {
+    return deny(403, "terms_consent_required");
+  }
+  const user = current.status === SESSION_OK ? current.identity : null;
   if (!user) return deny(401, "Not signed in");
 
   const userDoc = await getUserDoc(user.uid);

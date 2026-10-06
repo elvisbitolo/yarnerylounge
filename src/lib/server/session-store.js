@@ -65,6 +65,11 @@ export const SESSION_GONE = "gone";
 // /api/me is polled several times per page view, so a single blip that read as
 // "signed out" would permanently destroy a perfectly healthy session.
 export const SESSION_UNAVAILABLE = "unavailable";
+// Signed in, session healthy, but the Terms of Service have never been
+// accepted. NOT a sign-out: the cookie stays, and this is the one verdict
+// that must never reach the cookie-clearing branches — the member is simply
+// held at /consent until they tick the box.
+export const SESSION_NEEDS_CONSENT = "needs_consent";
 
 // Resolves an opaque session id to { status, identity?, session? }. Fast path:
 // local JWT exp check against the stored access token (zero network). Slow

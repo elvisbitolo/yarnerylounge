@@ -11,8 +11,10 @@ import {
 import {
   resolveSessionStatus,
   SESSION_GONE,
+  SESSION_NEEDS_CONSENT,
   SESSION_OK,
 } from "@/lib/server/session-store";
+import { needsTosConsent } from "@/lib/tos";
 import { resolveActingIdentity } from "@/lib/server/acting-as";
 
 export { SESSION_MAX_AGE_SECONDS };
@@ -62,6 +64,18 @@ export async function getCurrentUserStatus() {
   // enforceable on the person who is actually signed in.
   const userDoc = await getUserDoc(resolved.identity.uid);
   if (userDoc?.suspended) return { status: SESSION_GONE, suspended: true };
+
+  // Terms of Service not yet accepted: a live session held by a real member,
+  // so this is not a sign-out and the cookie stays. getCurrentUser() refuses
+  // them (which is the gate — every page, /api/me and authorize() see a
+  // member who is not signed in yet) while /api/me and /consent recognise the
+  // status and route them to the consent screen instead of a login form.
+  // Checked against resolved.identity.uid, the same row the suspension check
+  // read, so consent is recorded against the person who actually ticks.
+  if (needsTosConsent(userDoc)) {
+    return { status: SESSION_NEEDS_CONSENT, identity: resolved.identity };
+  }
+
   return { status: SESSION_OK, identity };
 }
 

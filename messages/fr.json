@@ -364,7 +364,16 @@
     "continueWithLinkedIn": "Continuer avec LinkedIn",
     "linkedInFailed": "Échec de la connexion LinkedIn",
     "continueWithTwitch": "Continuer avec Twitch",
-    "twitchFailed": "Échec de la connexion Twitch"
+    "twitchFailed": "Échec de la connexion Twitch",
+    "consentTitle": "Une dernière étape",
+    "consentIntro": "Votre compte est prêt — avant de pouvoir entrer, nous avons besoin de votre acceptation des Conditions d'utilisation.",
+    "consentHow": "Veuillez lire les Conditions d'utilisation, puis cocher la case ci-dessous pour confirmer que vous les acceptez. Vous devez cocher la case pour continuer : votre compte reste bloqué jusqu'à ce que vous le fassiez.",
+    "consentSubmit": "Accepter et continuer",
+    "consentWorking": "Enregistrement…",
+    "consentSignOut": "Se déconnecter à la place",
+    "consentFailed": "Nous n'avons pas pu enregistrer votre acceptation. Veuillez réessayer.",
+    "consentUnavailable": "Nous n'avons pas pu vérifier votre session pour le moment. Veuillez réessayer.",
+    "consentUnavailableAction": "Réessayer"
   },
   "landing": {
     "liveCommunities": "Communautés en direct · Cours · Événements",

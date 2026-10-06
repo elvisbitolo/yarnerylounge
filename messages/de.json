@@ -364,7 +364,16 @@
     "continueWithLinkedIn": "Mit LinkedIn fortfahren",
     "linkedInFailed": "LinkedIn-Anmeldung fehlgeschlagen",
     "continueWithTwitch": "Mit Twitch fortfahren",
-    "twitchFailed": "Twitch-Anmeldung fehlgeschlagen"
+    "twitchFailed": "Twitch-Anmeldung fehlgeschlagen",
+    "consentTitle": "Letzter Schritt",
+    "consentIntro": "Dein Konto ist bereit — bevor du eintreten können musst, brauchen wir deine Zustimmung zu den Nutzungsbedingungen.",
+    "consentHow": "Bitte lies die Nutzungsbedingungen und setze dann das Häkchen unten, um zu bestätigen, dass du ihnen zustimmst. Du musst das Häkchen setzen, um fortzufahren: dein Konto bleibt bis dahin gesperrt.",
+    "consentSubmit": "Zustimmen und fortfahren",
+    "consentWorking": "Wird gespeichert…",
+    "consentSignOut": "Stattdessen abmelden",
+    "consentFailed": "Wir konnten deine Zustimmung nicht speichern. Bitte versuche es erneut.",
+    "consentUnavailable": "Wir konnten deine Sitzung gerade nicht prüfen. Bitte versuche es erneut.",
+    "consentUnavailableAction": "Erneut versuchen"
   },
   "landing": {
     "liveCommunities": "Live-Communities · Kurse · Events",

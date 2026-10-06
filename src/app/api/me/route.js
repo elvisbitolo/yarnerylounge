@@ -5,7 +5,7 @@ import {
   getCurrentUserStatus,
   getUserDoc,
 } from "@/lib/server/auth";
-import { SESSION_OK, SESSION_UNAVAILABLE } from "@/lib/server/session-store";
+import { SESSION_OK, SESSION_NEEDS_CONSENT, SESSION_UNAVAILABLE } from "@/lib/server/session-store";
 import {
   parseSessionCookie,
   serializeSessionCookie,
@@ -60,6 +60,15 @@ export async function GET() {
       { error: "Session temporarily unavailable" },
       { status: 503, headers: { "Retry-After": "5" } }
     );
+  }
+
+  // Signed in, session healthy, Terms of Service not yet accepted. This is the
+  // one branch that must NOT fall through to the 401 below — clearing the
+  // cookie would sign the member out of a perfectly good session and strand
+  // them in a /login <-> /consent bounce. Answer 403 (nothing here is usable
+  // yet) and leave the cookie alone; the consent screen picks up from it.
+  if (current.status === SESSION_NEEDS_CONSENT && current.identity) {
+    return NextResponse.json({ error: "terms_consent_required" }, { status: 403 });
   }
 
   if (current.status !== SESSION_OK || !current.identity) {
@@ -169,6 +178,11 @@ export async function PATCH(req) {
 
   const user = current.status === SESSION_OK ? current.identity : null;
   if (!user) {
+    // A member held at the consent screen may not edit their profile yet; 403
+    // (not 401) so this never reads as a sign-out and the cookie survives.
+    if (current.status === SESSION_NEEDS_CONSENT) {
+      return NextResponse.json({ error: "terms_consent_required" }, { status: 403 });
+    }
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 

@@ -111,7 +111,12 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     (async () => {
       const signedIn = await reconcileSessionCookie();
       if (cancelled) return;
-      if (signedIn) {
+      if (signedIn === "consent") {
+        // Signed in already, just missing the Terms of Service acceptance —
+        // the consent screen is the right destination, not this sign-up form.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components read the session cookie
+        window.location.assign("/consent");
+      } else if (signedIn) {
         // Assigned before any state update on purpose: this document keeps
         // rendering until /signing-in commits, so re-rendering here would flash
         // the sign-up form mid-handoff.
@@ -140,7 +145,11 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     let cancelled = false;
     (async () => {
       const refreshed = await refreshSession();
-      if (!cancelled && refreshed) {
+      if (cancelled) return;
+      if (refreshed === "consent") {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components read the session cookie
+        window.location.assign("/consent");
+      } else if (refreshed) {
         // Full reload so server-rendered pages read the fresh session cookie.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the new subscription is re-rendered
         window.location.assign("/signing-in");
@@ -166,10 +175,16 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     (async () => {
       try {
         const ok = await completeOAuthReturn();
-        if (!cancelled && ok) {
+        if (cancelled) return;
+        if (ok === "consent") {
+          // First sign-in on a brand-new account: accept the Terms of Service
+          // before anything else loads.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components read the new session cookie
+          window.location.assign("/consent");
+        } else if (ok) {
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
           window.location.assign("/signing-in");
-        } else if (!cancelled) {
+        } else {
           // OAuth finished on a different origin and 308'd us here without a
           // recoverable session (stale host flow). Release the stuck param so
           // the form is usable again.

@@ -71,6 +71,9 @@ export function mapUserRow(row) {
     foundingMember: row.foundingMember || false,
     suspended: row.suspended || false,
     recognitionCount: row.recognitionCount || 0,
+    // Epoch millis (0 when never accepted) — needsTosConsent() reads these.
+    tosAcceptedAt: toMillis(row.tosAcceptedAt),
+    tosVersion: row.tosVersion || "",
     createdAt: toMillis(row.createdAt),
     updatedAt: toMillis(row.updatedAt),
   };

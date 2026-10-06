@@ -76,7 +76,16 @@ export default function SigningInPage() {
           ready = await reconcileSessionCookie();
         }
         if (cancelled) return;
-        if (ready) {
+        if (ready === "consent") {
+          // Session is live but the Terms of Service are still un-accepted.
+          // Going to /dashboard from here would only bounce straight back out
+          // (getCurrentUser() refuses them) and spend the visit budget above.
+          clearVisits();
+          timeoutId = setTimeout(() => {
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload reads the httpOnly session cookie
+            window.location.assign("/consent");
+          }, 300);
+        } else if (ready) {
           // Full reload so server-rendered pages read the fresh session cookie.
           // Give the branded screen at least a moment so the swap feels smooth.
           timeoutId = setTimeout(() => {

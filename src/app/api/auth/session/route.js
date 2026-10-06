@@ -153,7 +153,21 @@ export async function POST(req) {
       throw new Error("session row not created");
     }
 
-    const res = NextResponse.json({ ok: true, uid: identity.uid, isNewUser });
+    // Tell the client the member is being held at /consent, so the return leg
+    // goes straight there instead of /signing-in -> /dashboard -> /login -> the
+    // consent screen (which also burns the anti-bounce budget on /signing-in).
+    const { mapUserRow } = await import("@/lib/server/user-core");
+    const { needsTosConsent } = await import("@/lib/tos");
+    const needsConsent = needsTosConsent(
+      mapUserRow(isNewUser ? { id: identity.uid, createdAt: new Date() } : existingUser)
+    );
+
+    const res = NextResponse.json({
+      ok: true,
+      uid: identity.uid,
+      isNewUser,
+      needsConsent,
+    });
     res.cookies.set(
       AUTH_COOKIE,
       serializeSessionCookie(sid),

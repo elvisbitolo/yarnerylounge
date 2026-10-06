@@ -70,6 +70,13 @@ model User {
   foundingMember         Boolean?
   suspended              Boolean?
   recognitionCount       Int?
+  // Terms of Service consent. Null means "never accepted" — but only for
+  // accounts created after the consent regime went live; the migration that
+  // added these columns back-filled every pre-existing row, and needsTosConsent()
+  // double-checks createdAt so a missed back-fill can never lock an old member
+  // out of their own account.
+  tosAcceptedAt          DateTime?
+  tosVersion             String?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime? @updatedAt
 

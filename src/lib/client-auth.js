@@ -229,10 +229,14 @@ export async function completeOAuthReturn() {
   if (!session?.access_token) {
     return false;
   }
-  await createSession({
+  const created = await createSession({
     supabaseToken: session.access_token,
     supabaseRefreshToken: session.refresh_token || undefined,
   });
+  // A brand-new account has not accepted the Terms of Service yet: say so, so
+  // the caller goes straight to /consent instead of walking into /dashboard
+  // and bouncing back out again.
+  if (created?.data?.needsConsent) return "consent";
   return true;
 }
 
@@ -287,13 +291,22 @@ export async function resendSignupVerification(email) {
 }
 
 // Asks the server whether the httpOnly cookie still authorizes a member.
-// Returns true / false / null ("could not tell right now").
+// Returns true / false / null ("could not tell right now") / "consent" (a live
+// session held by a member who has not yet accepted the Terms of Service).
 async function meVerdict() {
   try {
     const me = await fetch("/api/me", { cache: "no-store" });
     // 503 means the Session store was unreachable, not that the member is
     // signed out. Never let a blip on this shared endpoint end a session.
     if (me.status === 503) return null;
+    // Checked before `!me.ok` because this one IS a non-2xx — but it means
+    // "signed in, just not allowed in yet", which must not be mistaken for a
+    // dead session (that would fire a pointless refresh and, worse, could be
+    // read as "the form is the right screen").
+    if (me.status === 403 && !me.ok) {
+      const data = await me.json().catch(() => ({}));
+      if (data?.error === "terms_consent_required") return "consent";
+    }
     if (!me.ok) return false;
     const data = await me.json().catch(() => ({}));
     return !!data?.uid;
@@ -312,8 +325,15 @@ async function meVerdict() {
 // suspended/deleted accounts refresh fine but getCurrentUser keeps refusing
 // them, so trusting refresh.ok would bounce /signing-in <-> /dashboard <->
 // /login forever (auto-reloading the tab). /api/me is the only authority.
+//
+// Returns true = confirmed, null = could not tell, "consent" = a healthy
+// session the member may not use until they accept the Terms of Service.
 export async function reconcileSessionCookie() {
   const verdict = await meVerdict();
+  // The cookie is fine and the session is fine — only the missing ToS
+  // acceptance is in the way, so there is nothing to rotate. Pass the verdict
+  // straight through and let the caller send them to /consent.
+  if (verdict === "consent") return "consent";
   // true = session confirmed, null = could not tell. Either way the member
   // holds a cookie and walks in; only a definitive "no" falls through to the
   // rotate-and-retry below. Flashing the sign-in form on a transient fault is
@@ -323,7 +343,9 @@ export async function reconcileSessionCookie() {
   try {
     const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
     if (!refreshed.ok) return false;
-    return (await meVerdict()) === true;
+    const again = await meVerdict();
+    if (again === "consent") return "consent";
+    return again === true;
   } catch {
     return false;
   }
