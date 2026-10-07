@@ -89,6 +89,7 @@ model User {
   followsFollowers       Follow[]   @relation("Following")
   receivedNotifications  Notification[] @relation("ActorNotifications")
   notifiedOf             Notification[] @relation("NotifiedUser")
+  invitationsSent        Invitation[]  @relation("InvitationInviter")
   postComments           PostComment[]
   pollVotes              PollVote[]
   posts                  Post[]
@@ -252,6 +253,35 @@ model Notification {
   actor User? @relation("ActorNotifications", fields: [actorId], references: [id])
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+// "Refer-a-member" invites. A member hands their personal link to someone
+// outside the community; the token is single-use and expires, and the invite
+// only pays out (points to both sides) once the invitee actually posts — so
+// the reward tracks real activation, not signups.
+//
+// `status` is one of pending | accepted | revoked. Expiry is derived from
+// `expiresAt` (7 days from creation) rather than persisted as a state, so a
+// stale link simply reads as expired and needs no sweeper job.
+model Invitation {
+  id            String    @id @default(cuid())
+  token         String    @unique
+  inviterUid    String
+  recipientName String?
+  message       String    @default("")
+  status        String    @default("pending")
+  expiresAt     DateTime?
+  acceptedAt    DateTime?
+  acceptedUid   String?
+  // Set the first time the accepted invitee publishes a post; guards the
+  // one-time activation reward for both the inviter and the invitee.
+  activatedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  inviter User @relation("InvitationInviter", fields: [inviterUid], references: [id], onDelete: Cascade)
+
+  @@index([inviterUid, status])
+  @@index([acceptedUid])
 }
 
 model PushSubscription {

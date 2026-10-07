@@ -8,6 +8,7 @@ import { extractHashtags } from "@/lib/server/hashtags";
 import { extractMentions, resolveMentions, sendMentionNotifications } from "@/lib/server/mentions";
 import { resolveActorId } from "@/lib/server/acting-as-core";
 import { awardPoints, awardBadge, POINTS } from "@/lib/server/gamification";
+import { rewardActivation } from "@/lib/server/invites-core";
 import { createNotification } from "@/lib/server/notifications";
 import { runAutomations } from "@/lib/server/automations";
 import { logError } from "@/lib/server/log";
@@ -692,6 +693,14 @@ export async function POST(req) {
     await awardBadge(user.uid, "fifty_posts", authorName).catch((err) => {
       logError("gamification.badge_failed", { uid: user.uid, postId, error: err.message });
     });
+
+  // A brand-new member who joined through an invite activates their referral on
+  // their first post, paying out points to the inviter and to them (once).
+  if (postCount === 1) {
+    rewardActivation({ prisma, authorUid: user.uid }).catch((err) => {
+      logError("invites.reward_failed", { uid: user.uid, postId, error: err.message });
+    });
+  }
 
   if (spaceId) {
     try {

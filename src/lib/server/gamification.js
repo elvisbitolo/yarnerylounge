@@ -9,6 +9,10 @@ export const POINTS = {
   RSVP: 5,
   DAILY_VISIT: 10,
   BADGE_BONUS: 20,
+  // Paid to the referrer and (a smaller share) the new member once an accepted
+  // invite produces its first published post — see invites-core.js.
+  INVITE_ACTIVATED: 50,
+  INVITE_ACTIVATED_JOINEE: 20,
 };
 
 export const BADGES = {

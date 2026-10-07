@@ -340,6 +340,21 @@ const coverUrl = member.coverPhotoURL || "";
           </div>
         </div>
 
+        {isSelf && (
+          <div className={styles.inviteCard}>
+            <div className={styles.inviteCardBody}>
+              <h2 className={styles.inviteCardTitle}>Bring a friend</h2>
+              <p className={styles.inviteCardText}>
+                Share your personal invite link and you both earn points when they join and
+                publish their first post.
+              </p>
+            </div>
+            <Link className={styles.inviteCardBtn} href="/invite">
+              Invite a friend
+            </Link>
+          </div>
+        )}
+
         <section className={styles.projectsSection} aria-labelledby="projects-title">
           <div className={styles.projectsHeader}>
             <h2 id="projects-title" className={styles.sectionTitle}>Project portfolio</h2>

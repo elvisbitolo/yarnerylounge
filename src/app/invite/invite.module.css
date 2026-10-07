@@ -1,0 +1,459 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--background, #000000);
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface, #111111);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 16px;
+  padding: 36px 32px 32px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.brand {
+  margin: 0 0 24px;
+  text-align: center;
+}
+
+.brandWord {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text, #f2f2f2);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.inviter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.avatarImg,
+.avatarFallback {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--primary, #e91e63);
+  object-fit: cover;
+}
+
+.avatarFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary, #e91e63);
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--text, #f2f2f2);
+}
+
+.blurb {
+  margin: 0 0 22px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted, #9a9a9a);
+  max-width: 360px;
+}
+
+.byline {
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted, #9a9a9a);
+  max-width: 360px;
+}
+
+.noteGreeting {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #f2f2f2);
+}
+
+.note {
+  margin: 0 0 22px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text, #f2f2f2);
+  background: var(--surface-muted, #191919);
+  border: 1px solid var(--border, #27272a);
+  border-left: 3px solid var(--primary, #e91e63);
+  border-radius: 10px;
+  padding: 14px 16px;
+  max-width: 380px;
+  text-align: left;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 320px;
+}
+
+.primaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary, #e91e63);
+  color: var(--primary-contrast, #ffffff);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.primaryBtn:hover {
+  background: var(--primary-hover, #c2185b);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--link, #f06292);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.secondaryBtn:hover {
+  border-color: var(--primary, #e91e63);
+  color: var(--link-hover, #ff80ab);
+}
+
+.or {
+  margin: 10px 0;
+  font-size: 13px;
+  color: var(--muted, #9a9a9a);
+}
+
+.hint {
+  margin: 16px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted, #9a9a9a);
+}
+
+.errorText {
+  margin: 14px 0 0;
+  font-size: 14px;
+  color: var(--error, #e5484d);
+}
+
+.success {
+  margin: 0 0 18px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--highlight, #ffc81e);
+}
+
+/* Manager page additions (shared module). */
+
+.managerPage {
+  min-height: 100vh;
+}
+
+.managerHeader {
+  padding: 28px 20px 12px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.managerTitle {
+  margin: 0;
+  font-size: 26px;
+  color: var(--text, #f2f2f2);
+}
+
+.managerSub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted, #9a9a9a);
+}
+
+.compose {
+  background: var(--surface, #111111);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 14px;
+  padding: 18px;
+  margin: 16px auto 0;
+  max-width: 760px;
+}
+
+.compose label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted, #9a9a9a);
+  margin: 12px 0 6px;
+}
+
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-muted, #191919);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 10px;
+  color: var(--text, #f2f2f2);
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--primary, #e91e63);
+}
+
+textarea.field {
+  resize: vertical;
+  min-height: 76px;
+}
+
+.composeActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.compBtn {
+  background: var(--primary, #e91e63);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.compBtn:hover {
+  background: var(--primary-hover, #c2185b);
+}
+
+.compBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.formError {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--error, #e5484d);
+}
+
+/* A freshly generated link waiting to be copied. */
+
+.newInvite {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--surface, #111111);
+  border: 1px solid var(--primary, #e91e63);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 14px auto 0;
+  max-width: 760px;
+}
+
+.newInviteUrl {
+  flex: 1 1 240px;
+  font-size: 14px;
+  color: var(--link, #f06292);
+  word-break: break-all;
+  min-width: 0;
+}
+
+.copyBtn {
+  background: transparent;
+  color: var(--text, #f2f2f2);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.copyBtn:hover {
+  border-color: var(--primary, #e91e63);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px auto 40px;
+  max-width: 760px;
+}
+
+.listHeading {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text, #f2f2f2);
+}
+
+.inviteCard {
+  background: var(--surface, #111111);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 14px;
+  align-items: start;
+}
+
+.inviteTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inviteName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text, #f2f2f2);
+}
+
+.inviteNameEmpty {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted, #9a9a9a);
+}
+
+.chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+
+.chipPending {
+  background: var(--primary-soft, rgba(233, 30, 99, 0.14));
+  color: var(--link, #f06292);
+}
+
+.chipAccepted {
+  background: rgba(255, 200, 30, 0.14);
+  color: var(--highlight, #ffc81e);
+}
+
+.chipRevoked {
+  background: rgba(120, 120, 120, 0.16);
+  color: var(--muted, #9a9a9a);
+}
+
+.inviteMsg {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted, #9a9a9a);
+}
+
+.inviteMeta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted, #9a9a9a);
+}
+
+.inviteLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.linkAction {
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--link, #f06292);
+  text-decoration: none;
+}
+
+.linkAction:hover {
+  color: var(--link-hover, #ff80ab);
+}
+
+.linkDanger {
+  color: var(--error, #e5484d);
+}
+
+.linkDanger:hover {
+  color: var(--error-light, #ff5c61);
+}
+
+.empty {
+  margin: 20px auto 40px;
+  max-width: 760px;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--muted, #9a9a9a);
+  font-size: 14px;
+  background: var(--surface, #111111);
+  border: 1px dashed var(--border, #27272a);
+  border-radius: 14px;
+}
+
+@media (max-width: 560px) {
+  .card {
+    padding: 28px 20px 24px;
+  }
+
+  .inviteCard {
+    grid-template-columns: 1fr;
+  }
+
+  .inviteLinks {
+    flex-direction: row;
+    align-items: center;
+  }
+}

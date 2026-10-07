@@ -625,6 +625,54 @@
   margin: 0;
 }
 
+.inviteCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  border: 1px solid #eadfd2;
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin: 0 0 28px;
+}
+
+.inviteCardBody {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.inviteCardTitle {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+.inviteCardText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b6b7b;
+}
+
+.inviteCardBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e91e63;
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.inviteCardBtn:hover {
+  background: #c2185b;
+}
+
 .projectsSection {
   margin-top: 28px;
 }

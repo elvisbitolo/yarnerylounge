@@ -11,6 +11,7 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import SidebarProfile from "./SidebarProfile";
 import LiveNowBanner from "./LiveNowBanner";
+import InviteClaimer from "./InviteClaimer";
 import styles from "./Nav.module.css";
 const CHEVRON = (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -475,6 +476,7 @@ export default function Nav({ role, children }) {
         </button>
 
         <div className={styles.content}>
+          <InviteClaimer />
           {!isRoomPage && <LiveNowBanner />}
           {children}
         </div>
