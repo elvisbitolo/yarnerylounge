@@ -18,6 +18,7 @@ import StickerDisplay from "./StickerDisplay";
 import YarnProfile from "./YarnProfile";
 import MembersToExplore from "./MembersToExplore";
 import MemberSafetyControls from "./MemberSafetyControls";
+import MemberPresence from "./MemberPresence";
 import { getMemberSafety } from "@/lib/server/member-safety";
 import { listProjects } from "@/lib/server/projects";
 import styles from "./profile.module.css";
@@ -279,6 +280,7 @@ const coverUrl = member.coverPhotoURL || "";
               )}
             </h1>
             {member.username && <p className={styles.username}>@{member.username}</p>}
+            <MemberPresence userId={id} />
             {member.headline && <p className={styles.headline}>{member.headline}</p>}
             {member.location && <p className={styles.location}>{member.location}</p>}
             {member.country && <p className={styles.location}>{member.country}</p>}

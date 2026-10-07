@@ -172,6 +172,46 @@
   margin: 2px 0 8px;
 }
 
+/* Live presence line in the header meta. Only mounts when the member is
+   online or inside a lounge, so `data-online` is always "true"; the shape
+   mirrors the chat header's presence status (same green dot, same palette). */
+.presenceStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #267a4b;
+  margin: 0 0 10px;
+}
+
+.presenceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2ebd68;
+  box-shadow: 0 0 0 3px rgba(46, 189, 104, 0.16);
+}
+
+.presenceLounge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #2ebd68;
+  text-decoration: none;
+  margin: 0 0 10px;
+}
+
+.presenceLounge:hover {
+  text-decoration: underline;
+}
+
+.presenceLounge:hover .presenceDot {
+  box-shadow: 0 0 0 4px rgba(46, 189, 104, 0.24);
+}
+
 .location {
   font-size: 13px;
   color: #9b9bab;
