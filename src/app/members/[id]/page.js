@@ -248,7 +248,7 @@ const coverUrl = member.coverPhotoURL || "";
 
         <div className={styles.profileCard}>
           <div
-            className={styles.banner}
+            className={coverUrl ? styles.banner : `${styles.banner} ${styles.bannerEmpty}`}
             style={!coverUrl ? { background: bannerFallback } : undefined}
           >
             {coverUrl && (

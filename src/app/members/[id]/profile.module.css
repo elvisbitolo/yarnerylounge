@@ -31,6 +31,17 @@
   overflow: hidden;
 }
 
+/* The empty banner has no child to size it, so without this it collapses to
+   0px and the header above it is dragged up 48px into nothing and clipped by
+   the card. A 4:1 band keeps the fallback gradient visible so the icon can
+   straddle it exactly like a real cover. Never put aspect-ratio on `.banner`
+   itself: it sizes the box and overrides the image's natural height, and
+   overflow:hidden would then crop every non-4:1 photo to a top strip — the
+   exact bug the "store whole, follow the photo" design exists to avoid. */
+.bannerEmpty {
+  aspect-ratio: 4 / 1;
+}
+
 .bannerImg {
   position: relative;
   display: block;
