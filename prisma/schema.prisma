@@ -268,6 +268,10 @@ model Invitation {
   token         String    @unique
   inviterUid    String
   recipientName String?
+  // Optional address the invite email was sent to. Kept so the manager can
+  // show where a link went; the invite itself is still claimable by anyone
+  // holding the token, so email is never a gate.
+  recipientEmail String?
   message       String    @default("")
   status        String    @default("pending")
   expiresAt     DateTime?

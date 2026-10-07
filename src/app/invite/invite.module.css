@@ -305,6 +305,13 @@ textarea.field {
   min-width: 0;
 }
 
+.newInviteSent {
+  flex: 1 1 240px;
+  font-size: 14px;
+  color: var(--text, #f2f2f2);
+  min-width: 0;
+}
+
 .copyBtn {
   background: transparent;
   color: var(--text, #f2f2f2);

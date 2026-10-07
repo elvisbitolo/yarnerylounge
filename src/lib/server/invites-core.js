@@ -10,6 +10,20 @@ export const MAX_OUTSTANDING_INVITES = 10;
 export const MAX_INVITES_PER_DAY = 5;
 export const RECIPIENT_NAME_MAX = 60;
 export const INVITE_MESSAGE_MAX = 280;
+export const RECIPIENT_EMAIL_MAX = 254;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Optional "send the link to this address" field. Validates shape only — the
+// invite is still claimable by anyone holding the token, so email never gates
+// membership.
+export function isValidRecipientEmail(value) {
+  const clean = (typeof value === "string" ? value : "").trim().toLowerCase();
+  if (!clean) return { valid: true, clean: "" };
+  if (clean.length > RECIPIENT_EMAIL_MAX) return { valid: false };
+  if (!EMAIL_RE.test(clean)) return { valid: false };
+  return { valid: true, clean };
+}
 
 // URL-safe opaque token. 18 random bytes -> 24 base64url chars, unguessable.
 export function generateInviteToken() {
@@ -42,6 +56,7 @@ export function mapInviteRow(row) {
     token: row.token,
     inviterUid: row.inviterUid,
     recipientName: row.recipientName || "",
+    recipientEmail: row.recipientEmail || "",
     message: row.message || "",
     status: row.status,
     expiresAt: row.expiresAt ? new Date(toTime(row.expiresAt)) : null,
@@ -67,12 +82,16 @@ export function mapPublicInvite(row) {
   };
 }
 
-export async function createInvite({ prisma, inviterUid, recipientName = "", message = "" }) {
+export async function createInvite({ prisma, inviterUid, recipientName = "", recipientEmail = "", message = "" }) {
   const cleanName = (typeof recipientName === "string" ? recipientName : "").trim();
   const cleanMessage = (typeof message === "string" ? message : "").trim();
+  const emailCheck = isValidRecipientEmail(recipientEmail);
 
   if (cleanName.length > RECIPIENT_NAME_MAX) {
     return { ok: false, error: "recipient_name_too_long", message: `Names are ${RECIPIENT_NAME_MAX} characters max.` };
+  }
+  if (!emailCheck.valid) {
+    return { ok: false, error: "email_invalid", message: "That email address doesn't look right." };
   }
   if (cleanMessage.length > INVITE_MESSAGE_MAX) {
     return { ok: false, error: "message_too_long", message: `Notes are ${INVITE_MESSAGE_MAX} characters max.` };
@@ -114,6 +133,7 @@ export async function createInvite({ prisma, inviterUid, recipientName = "", mes
       token,
       inviterUid,
       recipientName: cleanName || null,
+      recipientEmail: emailCheck.clean || null,
       message: cleanMessage || "",
       status: "pending",
       expiresAt: new Date(now.getTime() + INVITE_TTL_MS),

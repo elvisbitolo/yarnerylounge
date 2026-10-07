@@ -11,9 +11,11 @@ import {
   claimInvite,
   revokeInvite,
   rewardActivation,
+  isValidRecipientEmail,
   INVITE_TTL_MS,
   RECIPIENT_NAME_MAX,
   INVITE_MESSAGE_MAX,
+  RECIPIENT_EMAIL_MAX,
   MAX_OUTSTANDING_INVITES,
   MAX_INVITES_PER_DAY,
 } from "../invites-core.js";
@@ -114,6 +116,39 @@ test("mapPublicInvite: leaks no token or inviter/acceptance identity", () => {
   assert.equal(pub.expired, false);
 });
 
+test("mapPublicInvite: does not leak the recipient's email", () => {
+  const pub = mapPublicInvite(baseRow({ recipientEmail: "sarah@example.com" }));
+  assert.equal(pub.recipientEmail, undefined);
+});
+
+test("mapInviteRow: carries the optional recipient email for the manager", () => {
+  const mapped = mapInviteRow(baseRow({ recipientEmail: "sarah@example.com" }));
+  assert.equal(mapped.recipientEmail, "sarah@example.com");
+});
+
+test("isValidRecipientEmail: empty is fine (link-only invite)", () => {
+  const result = isValidRecipientEmail("");
+  assert.equal(result.valid, true);
+  assert.equal(result.clean, "");
+});
+
+test("isValidRecipientEmail: normalizes and lowercases", () => {
+  const result = isValidRecipientEmail("  Sarah@Example.COM ");
+  assert.equal(result.valid, true);
+  assert.equal(result.clean, "sarah@example.com");
+});
+
+test("isValidRecipientEmail: rejects malformed addresses", () => {
+  assert.equal(isValidRecipientEmail("nope").valid, false);
+  assert.equal(isValidRecipientEmail("@nope.com").valid, false);
+  assert.equal(isValidRecipientEmail("a b@c.com").valid, false);
+  assert.equal(isValidRecipientEmail("x@y").valid, false);
+});
+
+test("isValidRecipientEmail: rejects over-long addresses", () => {
+  assert.equal(isValidRecipientEmail(`${"a".repeat(RECIPIENT_EMAIL_MAX)}@e.com`).valid, false);
+});
+
 test("createInvite: rejects an over-long recipient name", async () => {
   const prisma = fakePrisma();
   const result = await createInvite({
@@ -134,6 +169,17 @@ test("createInvite: rejects an over-long message", async () => {
   });
   assert.equal(result.ok, false);
   assert.equal(result.error, "message_too_long");
+});
+
+test("createInvite: rejects a malformed email", async () => {
+  const prisma = fakePrisma();
+  const result = await createInvite({
+    prisma,
+    inviterUid: "u1",
+    recipientEmail: "not-an-email",
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error, "email_invalid");
 });
 
 test("createInvite: caps outstanding pending invites per member", async () => {
@@ -197,6 +243,41 @@ test("createInvite: creates a pending invite with a week-long token", async () =
   const ttl = new Date(captured.expiresAt).getTime() - Date.now();
   assert.ok(Math.abs(ttl - INVITE_TTL_MS) < 2000);
   assert.ok(result.invite.token.length > 0);
+});
+
+test("createInvite: stores a cleaned optional email for the send", async () => {
+  let captured;
+  const prisma = fakePrisma({
+    invitation: {
+      create: async (args) => {
+        captured = args.data;
+        return { ...args.data, id: "in-new" };
+      },
+    },
+  });
+  const result = await createInvite({
+    prisma,
+    inviterUid: "u1",
+    recipientEmail: "  Sarah@Example.COM ",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(captured.recipientEmail, "sarah@example.com");
+  assert.equal(result.invite.recipientEmail, "sarah@example.com");
+});
+
+test("createInvite: a blank email stays null", async () => {
+  let captured;
+  const prisma = fakePrisma({
+    invitation: {
+      create: async (args) => {
+        captured = args.data;
+        return { ...args.data, id: "in-new" };
+      },
+    },
+  });
+  const result = await createInvite({ prisma, inviterUid: "u1" });
+  assert.equal(result.ok, true);
+  assert.equal(captured.recipientEmail, null);
 });
 
 test("listInvites: maps all rows newest-first order already applied", async () => {

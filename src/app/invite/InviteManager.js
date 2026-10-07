@@ -5,6 +5,7 @@ import styles from "./invite.module.css";
 
 const RECIPIENT_NAME_MAX = 60;
 const MESSAGE_MAX = 280;
+const RECIPIENT_EMAIL_MAX = 254;
 
 function formatWhen(value) {
   if (!value) return "";
@@ -34,11 +35,14 @@ export default function InviteManager() {
   const [loadError, setLoadError] = useState("");
 
   const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [message, setMessage] = useState("");
   const [generating, setGenerating] = useState(false);
   const [formError, setFormError] = useState("");
 
   const [newInvite, setNewInvite] = useState(null);
+  const [newInviteEmail, setNewInviteEmail] = useState("");
+  const [emailed, setEmailed] = useState(false);
   const [copied, setCopied] = useState("");
   const [revokingId, setRevokingId] = useState("");
 
@@ -59,7 +63,7 @@ export default function InviteManager() {
       const res = await fetch("/api/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientName, message }),
+        body: JSON.stringify({ recipientName, recipientEmail, message }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -67,8 +71,11 @@ export default function InviteManager() {
         return;
       }
       setNewInvite(data.link);
+      setNewInviteEmail(data.invite?.recipientEmail || "");
+      setEmailed(Boolean(data.emailed));
       setInvites((prev) => [data.invite, ...prev]);
       setRecipientName("");
+      setRecipientEmail("");
       setMessage("");
     } catch {
       setFormError("Could not reach the server. Please try again.");
@@ -108,8 +115,9 @@ export default function InviteManager() {
       <header className={styles.managerHeader}>
         <h1 className={styles.managerTitle}>Invite a friend</h1>
         <p className={styles.managerSub}>
-          Make a personal link and send it to someone you&apos;d love to have here. When your invitee
-          joins and publishes their first post, you both earn points. Invites last 7 days.
+          Add their email and we&apos;ll send the link for them — or make a link to share by text
+          or DM. When your invitee joins and publishes their first post, you both earn points.
+          Invites last 7 days.
         </p>
       </header>
 
@@ -123,6 +131,17 @@ export default function InviteManager() {
           placeholder="e.g. Sarah"
           value={recipientName}
           onChange={(e) => setRecipientName(e.target.value)}
+        />
+        <label htmlFor="recipientEmail">Their email — send the link for them (optional)</label>
+        <input
+          id="recipientEmail"
+          className={styles.field}
+          type="email"
+          maxLength={RECIPIENT_EMAIL_MAX}
+          autoComplete="email"
+          placeholder="sarah@example.com"
+          value={recipientEmail}
+          onChange={(e) => setRecipientEmail(e.target.value)}
         />
         <label htmlFor="message">Add a personal note (optional)</label>
         <textarea
@@ -138,7 +157,11 @@ export default function InviteManager() {
             {generating ? "Creating…" : "Create invite link"}
           </button>
           <span className={styles.hint}>
-            {newInvite ? "Link ready — copy and send it wherever you like." : "You can send the link by text, email or DM."}
+            {newInvite
+              ? emailed
+                ? `Sent to ${newInviteEmail}.`
+                : "Link ready — copy and send it wherever you like."
+              : "Leave the email blank to get a link you can share yourself."}
           </span>
         </div>
         {formError && <p className={styles.formError}>{formError}</p>}
@@ -146,7 +169,14 @@ export default function InviteManager() {
 
       {newInvite && (
         <div className={styles.newInvite}>
-          <span className={styles.newInviteUrl}>{fullUrl(newInvite)}</span>
+          {emailed ? (
+            <p className={styles.newInviteSent}>
+              Invite emailed to <strong>{newInviteEmail}</strong>. They&apos;ll get a personal link
+              — and you can still share it yourself below.
+            </p>
+          ) : (
+            <span className={styles.newInviteUrl}>{fullUrl(newInvite)}</span>
+          )}
           <button className={styles.copyBtn} onClick={() => copyLink(newInvite)}>
             {copied === fullUrl(newInvite) ? "Copied" : "Copy link"}
           </button>
@@ -179,6 +209,7 @@ export default function InviteManager() {
                   {inv.message && <p className={styles.inviteMsg}>{inv.message}</p>}
                   <p className={styles.inviteMeta}>
                     Sent {formatWhen(inv.createdAt)}
+                    {inv.recipientEmail ? ` · to ${inv.recipientEmail}` : ""}
                     {inv.status === "pending" && !inv.expired && ` · expires ${formatWhen(inv.expiresAt)}`}
                     {inv.status === "accepted" && inv.acceptedAt && ` · claimed ${formatWhen(inv.acceptedAt)}`}
                     {inv.activatedAt && ` · first post ${formatWhen(inv.activatedAt)}`}
