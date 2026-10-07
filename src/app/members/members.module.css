@@ -781,6 +781,9 @@
   text-decoration: none;
   transition: transform 0.18s ease;
   will-change: transform;
+  /* The initials inside ring the drag, not text to select. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .avatarPos:hover,
@@ -795,10 +798,13 @@
 
 /* Mid-drag: drop the hover pop and the transition so the avatar tracks the
    pointer instead of easing toward it, and outrank the :hover z-index which
-   would otherwise pull it back under a neighbouring avatar. */
+   would otherwise pull it back under a neighbouring avatar. The !important on
+   transform/transition is required: plain `.avatarPos.avatarDragging` loses to
+   `.avatarPos:hover` on specificity, and the hover scale would make the dragged
+   avatar breathe 12% larger mid-gesture. */
 .avatarPos.avatarDragging {
-  transform: none;
-  transition: none;
+  transform: none !important;
+  transition: none !important;
   z-index: 90 !important;
 }
 

@@ -414,7 +414,13 @@ export default function MembersDirectory({
       top: slot.top,
       moved: false,
     };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Rare, but a browser that refuses capture must not kill the drag: an
+      // avatar still under the cursor keeps receiving pointermove/pointerup,
+      // so capture is an improvement, not a requirement.
+    }
     setHover(null);
     setDragPos({ id: slot.id, left: slot.left, top: slot.top });
   }
@@ -439,7 +445,11 @@ export default function MembersDirectory({
     const drag = dragRef.current;
     if (!drag || e.pointerId !== drag.pointerId) return;
     dragRef.current = null;
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    try {
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Implicit release already happened; explicit release merely reaffirms.
+    }
     dragClickRef.current = drag.moved;
     setDragPos(null);
     if (!drag.moved) return;
@@ -481,6 +491,17 @@ export default function MembersDirectory({
 
   function cancelDrag() {
     if (!dragRef.current) return;
+    dragRef.current = null;
+    setDragPos(null);
+  }
+
+  // The browser commandeered the pointer mid-drag — the avatar is inherently
+  // a link, so a native drag was the usual cause before draggable={false}.
+  // React does not get the release, so the drag must end here or dragRef stays
+  // latched and every later drag until reload is a silent no-op.
+  function lostDragCapture(e) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
     dragRef.current = null;
     setDragPos(null);
   }
@@ -623,6 +644,11 @@ export default function MembersDirectory({
                   <Link
                     key={member.id}
                     href={`/members/${member.id}`}
+                    // A native link-drag would steal the pointer stream as soon
+                    // as the cursor moved a few pixels past the avatar, and
+                    // with it the drag.
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                     className={`${styles.avatarPos}${dragging ? ` ${styles.avatarDragging}` : ""}`}
                     style={{
                       left,
@@ -645,6 +671,7 @@ export default function MembersDirectory({
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
                     onPointerCancel={cancelDrag}
+                    onLostPointerCapture={lostDragCapture}
                     aria-label={`View ${member.name}`}
                   >
                     <span
