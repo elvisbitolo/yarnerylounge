@@ -82,7 +82,7 @@
   object-position: center center;
 }
 
-/* Icon straddling the cover's bottom edge, from tablet up.
+/* Icon straddling the cover's bottom edge, from small-device landscape up.
    Scoped to `.banner + .header` so it only applies to the real profile header —
    the private-profile and blocked-profile branches build a .header with no
    banner above it, and would otherwise be pulled up 48px into the card and
@@ -92,9 +92,14 @@
    .banner in the DOM, so it paints on top of the cover photo. Without it the
    header stays in-flow and would sit *behind* the banner image.
 
-   Below 640px none of this applies. A 4:1 cover is only ~97px tall on a 390px
-   phone, and a -48px overlap would eat half of it. */
-@media (min-width: 641px) {
+   The breakpoint is deliberately 561px — one above the 560px column-switch —
+   so every width is one of exactly two layouts: compact column stack (≤560px,
+   portrait phones) or the straddle (≥561px: tablets, landscape phones, split
+   windows, desktops). Nothing renders in a third, un-straddled state. On a
+   390px phone the straddle would be pointless: a 4:1 cover is only ~97px tall
+   there, and a -48px overlap would eat half of it — and 560px already covers
+   every ordinary portrait phone. */
+@media (min-width: 561px) {
   .banner + .header {
     margin-top: -48px;
     padding-top: 0;
