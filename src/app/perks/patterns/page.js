@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { SHOPIFY_UPGRADE_URL } from "@/lib/server/shopify";
 import { getPerkTier, perkTierAtLeast, getMonthlyPattern } from "@/lib/server/perks";
-import Nav from "@/components/Nav";
 import PerkLocked from "@/components/perks/PerkLocked";
 import styles from "../perks.module.css";
 
@@ -16,14 +15,12 @@ export default async function PatternsPage() {
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const userDoc = await getUserDoc(user.uid);
 
   const perkTier = await getPerkTier(user.uid);
   const unlocked = perkTierAtLeast(perkTier, "plus");
   const pattern = getMonthlyPattern();
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.page}>
         <nav className={styles.breadcrumb}>
           <Link href="/dashboard">{tNav("dashboard")}</Link>
@@ -108,6 +105,5 @@ export default async function PatternsPage() {
           </>
         )}
       </div>
-    </Nav>
   );
 }

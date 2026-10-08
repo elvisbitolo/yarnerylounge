@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import Nav from "@/components/Nav";
 import OnboardingForm from "./OnboardingForm";
 import styles from "./onboarding.module.css";
 
@@ -12,7 +11,6 @@ export default async function OnboardingPage() {
   const userDoc = await getUserDoc(user.uid);
 
   return (
-    <Nav role={userDoc?.role}>
       <main className={styles.page}>
         <div className={styles.card}>
           <p className={styles.eyebrow}>Welcome to Yarnery Lounge</p>
@@ -23,6 +21,5 @@ export default async function OnboardingPage() {
           <OnboardingForm initial={userDoc || {}} />
         </div>
       </main>
-    </Nav>
   );
 }

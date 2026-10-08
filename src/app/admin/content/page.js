@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "./content.module.css";
 
 const KINDS = ["member", "post", "article", "room", "space", "group", "event", "course", "recording"];
@@ -113,7 +112,6 @@ export default function AdminContentPage() {
   const rows = data?.rows || [];
 
   return (
-    <Nav role={role}>
       <div className={styles.page}>
         <div className={styles.container}>
           <h1 className={styles.title}>All content</h1>
@@ -205,6 +203,5 @@ export default function AdminContentPage() {
           ) : null}
         </div>
       </div>
-    </Nav>
   );
 }

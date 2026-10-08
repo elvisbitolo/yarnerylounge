@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listCourses } from "@/lib/server/courses";
-import Nav from "@/components/Nav";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./courses.module.css";
 
@@ -19,7 +18,6 @@ export default async function CoursesPage() {
   const courses = await listCourses(false);
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>Beginner Crochet Series</h1>
@@ -53,6 +51,5 @@ export default async function CoursesPage() {
           </div>
         )}
       </div>
-</Nav>
   );
 }

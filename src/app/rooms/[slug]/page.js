@@ -6,7 +6,6 @@ import { getUpcomingRoomStart } from "@/lib/server/events";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities } from "@/lib/server/capabilities";
 import { loungeGate } from "@/lib/server/lounge-gate";
-import Nav from "@/components/Nav";
 import RoomClient from "./RoomClient";
 import styles from "./room.module.css";
 
@@ -44,7 +43,6 @@ export default async function RoomPage({ params }) {
 
   return (
     <>
-<Nav role={userDoc?.role}>
       <RoomClient
         roomName={room.name}
         slug={room.slug}
@@ -72,7 +70,6 @@ export default async function RoomPage({ params }) {
         userName={userDoc?.name || user.displayName || "Member"}
         userAvatar={userDoc?.photoURL || user.photoURL || ""}
       />
-</Nav>
     </>
   );
 }

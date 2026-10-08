@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getEvent, expandEvents } from "@/lib/server/events";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import EventDetail from "./EventDetail";
 import styles from "../events.module.css";
@@ -62,7 +61,6 @@ export default async function EventPage({ params }) {
   };
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <BackButton fallback="/events" label="All events" />
         <EventDetail
@@ -71,6 +69,5 @@ export default async function EventPage({ params }) {
           userName={userDoc?.name || user.name || "Member"}
         />
       </div>
-</Nav>
   );
 }

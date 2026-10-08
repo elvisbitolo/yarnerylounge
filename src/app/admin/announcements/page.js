@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "../rooms/admin.module.css";
 
@@ -96,7 +95,6 @@ export default function AdminAnnouncementsPage() {
   }
 
   return (
-    <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Announcements</h1>
         <p className={styles.itemMeta}>
@@ -197,6 +195,5 @@ export default function AdminAnnouncementsPage() {
           ) : null
         )}
       </div>
-    </Nav>
   );
 }

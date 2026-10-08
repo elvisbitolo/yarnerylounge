@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getConversation, listMessagesBefore, listConversations } from "@/lib/server/chat";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
-import Nav from "@/components/Nav";
 import ConversationRail from "../ConversationRail";
 import MobilePanels from "../MobilePanels";
 import ConversationPane from "./ConversationPane";
@@ -30,7 +29,6 @@ export default async function ConversationPage({ params }) {
   const selfName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
 
   return (
-    <Nav role={userDoc?.role}>
       <MobilePanels
         activeId={id}
         backHref="/chat"
@@ -56,6 +54,5 @@ export default async function ConversationPage({ params }) {
           />
         }
       />
-    </Nav>
   );
 }

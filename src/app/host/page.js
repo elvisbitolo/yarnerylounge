@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "../admin/rooms/admin.module.css";
 
 function scopeHref(scope) {
@@ -73,7 +72,6 @@ export default function HostPage() {
   const creatable = scopes.filter((s) => s.scopeType === "space" || s.scopeType === "group");
 
   return (
-    <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Host tools</h1>
         <p className={styles.itemMeta}>
@@ -174,6 +172,5 @@ export default function HostPage() {
 
         {announceable.length === 0 && creatable.length === 0 && null}
       </div>
-    </Nav>
   );
 }

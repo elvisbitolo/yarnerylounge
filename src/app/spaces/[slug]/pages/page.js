@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getSpaceBySlug, isSpaceMember } from "@/lib/server/spaces";
 import { listPages } from "@/lib/server/pages";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import styles from "./page.module.css";
 
@@ -19,7 +18,6 @@ export default async function SpacePagesPage({ params }) {
 
   if (!space || space.status !== "active") {
     return (
-      <Nav role={userDoc?.role}>
         <main className={styles.page}>
           <div className={styles.container}>
             <h1 className={styles.title}>Space not found</h1>
@@ -27,7 +25,6 @@ export default async function SpacePagesPage({ params }) {
             <Link className={styles.link} href="/spaces">Back to spaces</Link>
           </div>
         </main>
-      </Nav>
     );
   }
 
@@ -43,7 +40,6 @@ export default async function SpacePagesPage({ params }) {
 
   if (!canView) {
     return (
-      <Nav role={userDoc?.role}>
         <main className={styles.page}>
           <div className={styles.container}>
             <h1 className={styles.title}>Not available</h1>
@@ -51,7 +47,6 @@ export default async function SpacePagesPage({ params }) {
             <Link className={styles.link} href={`/spaces/${space.slug}`}>Back to space</Link>
           </div>
         </main>
-      </Nav>
     );
   }
 
@@ -60,7 +55,6 @@ export default async function SpacePagesPage({ params }) {
   );
 
   return (
-    <Nav role={userDoc?.role}>
       <main className={styles.page}>
         <div className={styles.container}>
           <BackButton fallback={`/spaces/${space.slug}`} label={space.name} />
@@ -106,6 +100,5 @@ export default async function SpacePagesPage({ params }) {
           )}
         </div>
       </main>
-    </Nav>
   );
 }

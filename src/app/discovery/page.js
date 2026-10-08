@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import ForYou from "./ForYou";
 import styles from "./discovery.module.css";
 import { Heart, MessageCircle } from "lucide-react";
@@ -52,7 +51,6 @@ export default function DiscoveryPage() {
   }, []);
 
   return (
-    <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Discovery</h1>
         <p className={styles.subtitle}>
@@ -186,6 +184,5 @@ export default function DiscoveryPage() {
           </>
         )}
       </div>
-    </Nav>
   );
 }

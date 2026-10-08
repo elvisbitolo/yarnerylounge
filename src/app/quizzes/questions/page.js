@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listCommunityQuestions } from "@/lib/server/community-questions";
-import Nav from "@/components/Nav";
 import AskQuestionForm from "../AskQuestionForm";
 import styles from "../quizzes.module.css";
 
@@ -16,13 +15,11 @@ export default async function CommunityQAPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
   const questions = await listCommunityQuestions();
 
   const openCount = questions.filter((q) => q.status === "open").length;
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <Link href="/quizzes" className={styles.backLink}>← Back to Quizzes</Link>
         <header className={styles.header}>
@@ -64,6 +61,5 @@ export default async function CommunityQAPage() {
           )}
         </div>
       </div>
-    </Nav>
   );
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "../rooms/admin.module.css";
 
 function timeAgo(ts) {
@@ -64,7 +63,6 @@ export default function AdminModerationPage() {
   }
 
   return (
-      <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Moderation</h1>
         {error && <p className={styles.error}>{error}</p>}
@@ -96,6 +94,5 @@ export default function AdminModerationPage() {
           </div>
         )}
       </div>
-</Nav>
   );
 }

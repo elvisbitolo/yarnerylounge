@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { loungeGate } from "@/lib/server/lounge-gate";
-import Nav from "@/components/Nav";
 import MatchDashboard from "./MatchDashboard";
 import styles from "./match.module.css";
 
@@ -21,7 +20,6 @@ export default async function MatchPage() {
   if (gate) redirect(gate);
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.headerCopy}>
@@ -52,6 +50,5 @@ export default async function MatchPage() {
         </div>
         <MatchDashboard />
       </div>
-    </Nav>
   );
 }

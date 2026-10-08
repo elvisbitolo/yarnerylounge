@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "../questions/questions.module.css";
 
 export default function AdminSettingsPage() {
@@ -80,7 +79,6 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <Nav role={role}>
       <div className={styles.container}>
         <h1 className={`${styles.title} ${styles.pinkTitle}`}>Welcome Checklist</h1>
         <p className={styles.subtitle}>
@@ -155,6 +153,5 @@ export default function AdminSettingsPage() {
           </button>
         </form>
       </div>
-    </Nav>
   );
 }

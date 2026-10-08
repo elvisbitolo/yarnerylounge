@@ -7,7 +7,6 @@ import { loungeGate } from "@/lib/server/lounge-gate";
 import { listRoomsEnsuringAlwaysOn, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
 import { getAnnouncerLiveRoom } from "@/lib/server/lounge-live";
 import { LIVE_ANNOUNCER_NAME } from "@/lib/server/lounge-live-core";
-import Nav from "@/components/Nav";
 import styles from "./rooms.module.css";
 
 export const dynamic = "force-dynamic";
@@ -88,7 +87,6 @@ export default async function RoomsPage() {
     .filter((room) => room && canonicalSlugs.has(room.slug));
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>Lounges</h1>
@@ -197,7 +195,6 @@ export default async function RoomsPage() {
           </div>
         )}
       </div>
-    </Nav>
   );
 }
 

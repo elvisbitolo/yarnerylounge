@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Nav from "@/components/Nav";
 import { loadAccount } from "./account-data";
 import AccountTabs from "./AccountTabs";
 import LogoutButton from "./LogoutButton";
@@ -34,7 +33,6 @@ export default async function AccountPage() {
   const photoURL = userDoc?.photoURL || user.picture || "";
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <div className={styles.identity}>
@@ -99,6 +97,5 @@ export default async function AccountPage() {
           <ProfileVisibility value={userDoc?.extra?.profileVisibility || "public"} />
         </section>
       </div>
-    </Nav>
   );
 }

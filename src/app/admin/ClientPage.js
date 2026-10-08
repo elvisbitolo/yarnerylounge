@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "./rooms/admin.module.css";
 
 export default function AdminOverviewPage() {
@@ -55,7 +54,6 @@ export default function AdminOverviewPage() {
   const forbidden = error === "Forbidden";
 
   return (
-      <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Admin overview</h1>
         {forbidden ? (
@@ -145,6 +143,5 @@ export default function AdminOverviewPage() {
           </>
         )}
       </div>
-</Nav>
   );
 }

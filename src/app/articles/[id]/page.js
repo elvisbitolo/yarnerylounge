@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import DOMPurify from "dompurify";
-import Nav from "@/components/Nav";
 
 function renderMarkdown(text) {
   if (!text) return "";
@@ -204,29 +203,24 @@ export default function ArticlePage() {
 
   if (loading) {
     return (
-      <Nav>
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px" }}>
           <p style={{ color: "#9b9bab", fontSize: 13 }}>Loading...</p>
         </div>
-      </Nav>
     );
   }
 
   if (!article) {
     return (
-      <Nav>
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px" }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5" }}>Article not found</h1>
           <Link href="/articles" style={{ color: "var(--secondary-light)", fontSize: 14, marginTop: 12, display: "inline-block" }}>
             Back to articles
           </Link>
         </div>
-      </Nav>
     );
   }
 
   return (
-    <Nav>
       <article style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 64px" }}>
         <Link href="/articles" style={{ color: "var(--secondary-light)", fontSize: 13, textDecoration: "none", display: "inline-block", marginBottom: 20 }}>
           &larr; All articles
@@ -290,6 +284,5 @@ export default function ArticlePage() {
 
         <CommentSection articleId={params.id} />
       </article>
-    </Nav>
   );
 }

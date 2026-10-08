@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Nav from "@/components/Nav";
 
 export default function TopicsPage() {
   const [topics, setTopics] = useState([]);
@@ -19,7 +18,6 @@ export default function TopicsPage() {
   }, []);
 
   return (
-    <Nav>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 64px" }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: "#f5f5f5", margin: "0 0 6px" }}>
           Topics
@@ -82,6 +80,5 @@ export default function TopicsPage() {
           </div>
         )}
       </div>
-    </Nav>
   );
 }

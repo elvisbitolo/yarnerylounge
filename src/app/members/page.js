@@ -7,7 +7,6 @@ import { isOnline } from "@/lib/server/presence-core";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
 import { LAYOUT_PIN_KEY, isLayoutEditor, sanitizePin } from "@/lib/server/members-layout-core";
-import Nav from "@/components/Nav";
 import MembersDirectory from "./MembersDirectory";
 import BlindDateCard from "./BlindDateCard";
 import SimilarMembers from "./SimilarMembers";
@@ -144,7 +143,6 @@ export default async function MembersPage({ searchParams }) {
     });
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Members</h1>
         <p className={styles.subtitle}>
@@ -186,6 +184,5 @@ export default async function MembersPage({ searchParams }) {
         {canMatch ? <BlindDateCard /> : null}
         <SimilarMembers />
       </div>
-</Nav>
   );
 }

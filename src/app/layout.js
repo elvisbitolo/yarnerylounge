@@ -1,7 +1,9 @@
 import { Geist, Geist_Mono, Assistant } from "next/font/google";
 import { cookies } from "next/headers";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
+import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import "./globals.css";
+import Nav from "@/components/Nav";
 import Providers from "@/components/Providers";
 import PushSetup from "@/components/PushSetup";
 import GlobalTheme from "@/components/GlobalTheme";
@@ -68,6 +70,15 @@ export default async function RootLayout({ children }) {
   const cookieStore = await cookies();
   const locale = cookieStore.get("NEXT_LOCALE")?.value || "en";
   const messages = (await import(`../../messages/${locale}.json`)).default;
+
+  // The app shell (topbar + sidebar + sidebar profile) lives here, once, so it
+  // persists across client-side navigation instead of remounting and refetching
+  // on every page change. Only rendered for signed-in members; public pages
+  // keep their bare chrome. Role is read here too, so per-page Nav wrappers are
+  // gone and pages just return their content.
+  const user = await getCurrentUser().catch(() => null);
+  const role = user ? (await getUserDoc(user.uid).catch(() => null))?.role : null;
+
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${assistant.variable}`}>
       <body>
@@ -75,7 +86,7 @@ export default async function RootLayout({ children }) {
           <LoungeExpiryGuard />
           <PushSetup />
           <GlobalTheme />
-          {children}
+          {user ? <Nav role={role}>{children}</Nav> : children}
         </Providers>
         <Analytics />
         <SpeedInsights />

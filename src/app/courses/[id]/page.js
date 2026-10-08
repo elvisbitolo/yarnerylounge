@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getCourseFull, getProgress } from "@/lib/server/courses";
 import { getQuizByLesson, getQuizResult } from "@/lib/server/quizzes";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import QuizBlock from "./QuizBlock";
 import styles from "../courses.module.css";
@@ -70,7 +69,6 @@ export default async function CoursePage({ params }) {
   }
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <BackButton fallback="/courses" label="All courses" />
         <p className={styles.breadcrumb}>
@@ -159,6 +157,5 @@ export default async function CoursePage({ params }) {
           </div>
         )}
       </div>
-</Nav>
   );
 }

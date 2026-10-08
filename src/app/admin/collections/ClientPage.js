@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "../questions/questions.module.css";
 
 export default function AdminCollectionsPage() {
@@ -100,7 +99,6 @@ export default function AdminCollectionsPage() {
   }
 
   return (
-    <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Collections</h1>
         <p className={styles.subtitle}>
@@ -203,6 +201,5 @@ export default function AdminCollectionsPage() {
           </div>
         )}
       </div>
-    </Nav>
   );
 }

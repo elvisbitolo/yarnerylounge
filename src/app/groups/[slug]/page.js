@@ -6,7 +6,6 @@ import { getGroupBySlug, getGroupMembers, isGroupMember } from "@/lib/server/gro
 import { listRoomsForGroup } from "@/lib/server/rooms";
 import { nextEventForRoom } from "@/lib/server/events";
 import { formatClock, formatDay } from "@/lib/calendar-core";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import Feed from "@/app/feed/Feed";
 import GroupJoinButton from "../GroupJoinButton";
@@ -57,7 +56,6 @@ export default async function GroupPage({ params }) {
     (groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <BackButton fallback="/groups" label="All groups" />
         <p className={styles.breadcrumb}>
@@ -204,6 +202,5 @@ export default async function GroupPage({ params }) {
           />
         </div>
       </div>
-</Nav>
   );
 }

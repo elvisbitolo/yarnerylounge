@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listEvents, expandEvents } from "@/lib/server/events";
 import { listAvailability, nextOccurrenceAt, recurringLabel } from "@/lib/server/availability";
-import Nav from "@/components/Nav";
 import EventsBoard from "./EventsBoard";
 import ViewerTime from "./ViewerTime";
 import styles from "./events.module.css";
@@ -51,7 +50,6 @@ export default async function EventsPage() {
     .slice(0, 12);
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>Events</h1>
@@ -120,6 +118,5 @@ export default async function EventsPage() {
           />
         </section>
       </div>
-    </Nav>
   );
 }

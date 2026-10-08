@@ -4,7 +4,6 @@ import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listGroups, getGroupMembers, isGroupMember } from "@/lib/server/groups";
 import { NEIGHBOURHOOD_ORDER, NEIGHBOURHOOD_IMAGES, ensureCommunityGroups } from "@/lib/server/community-groups";
-import Nav from "@/components/Nav";
 import GroupJoinButton from "@/app/groups/GroupJoinButton";
 import styles from "./neighbourhoods.module.css";
 
@@ -14,7 +13,6 @@ export default async function NeighbourhoodsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
 
   await ensureCommunityGroups(user.uid);
   const groups = await listGroups();
@@ -48,7 +46,6 @@ export default async function NeighbourhoodsPage() {
   }
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.page}>
         <header className={styles.hero}>
           <h1 className={styles.title}>Neighbourhoods</h1>
@@ -144,6 +141,5 @@ export default async function NeighbourhoodsPage() {
           </ul>
         </section>
       </div>
-    </Nav>
   );
 }

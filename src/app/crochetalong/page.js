@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { Play, FileText, Timer, Sparkles } from "lucide-react";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { CROCHET_ALONGS } from "@/lib/crochet-alongs";
-import Nav from "@/components/Nav";
 import styles from "./crochetalong.module.css";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +16,8 @@ export default async function CrochetAlongPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Crochet Alongs</h1>
@@ -106,6 +103,5 @@ export default async function CrochetAlongPage() {
           </div>
         )}
       </div>
-    </Nav>
   );
 }

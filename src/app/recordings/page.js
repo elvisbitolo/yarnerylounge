@@ -7,7 +7,6 @@ import {
 } from "@/lib/server/recordings";
 import { serializeRecording } from "@/lib/server/recordings-core";
 import { logError } from "@/lib/server/log";
-import Nav from "@/components/Nav";
 import RecordingsLibrary from "./RecordingsLibrary";
 
 // Recordings arrive on their own schedule (a JaaS webhook), so nothing here
@@ -50,7 +49,6 @@ export default async function RecordingsPage() {
   }
 
   return (
-    <Nav role={userDoc?.role}>
       <div className="recordings-page" style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 20px 64px" }}>
         <RecordingsLibrary
           recordings={recordings}
@@ -61,6 +59,5 @@ export default async function RecordingsPage() {
           storage={storage}
         />
       </div>
-    </Nav>
   );
 }

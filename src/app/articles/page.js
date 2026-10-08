@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Nav from "@/components/Nav";
 
 export default function ArticlesPage() {
   const [articles, setArticles] = useState([]);
@@ -19,7 +18,6 @@ export default function ArticlesPage() {
   }, []);
 
   return (
-    <Nav>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px 64px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <div>
@@ -127,6 +125,5 @@ export default function ArticlesPage() {
           </div>
         )}
       </div>
-    </Nav>
   );
 }

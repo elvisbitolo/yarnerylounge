@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import ConfirmModal from "@/components/ConfirmModal";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import styles from "../rooms/admin.module.css";
@@ -90,7 +89,7 @@ export default function AdminMembersPage() {
     : members;
 
   return (
-      <Nav role={role}>
+    <>
       <div className={styles.container}>
         <h1 className={styles.title}>Members</h1>
         <p className={styles.linkRow}>
@@ -200,6 +199,6 @@ export default function AdminMembersPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleting(null)}
       />
-</Nav>
+    </>
   );
 }

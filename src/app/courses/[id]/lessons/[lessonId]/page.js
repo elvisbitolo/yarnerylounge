@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getCourse, getLesson, getNextLessonId, getProgress, lessonBelongsToCourse } from "@/lib/server/courses";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import LessonView from "./LessonView";
 import styles from "./lesson.module.css";
@@ -48,7 +47,6 @@ export default async function LessonPage({ params }) {
 
   if (locked) {
     return (
-        <Nav role={userDoc?.role}>
         <div className={styles.container}>
           <BackButton fallback={`/courses/${courseId}`} label="Back to course" />
           <div className={styles.locked}>
@@ -61,7 +59,6 @@ export default async function LessonPage({ params }) {
             <Link className={styles.link} href={`/courses/${courseId}`}>Back to course</Link>
           </div>
         </div>
-</Nav>
     );
   }
 
@@ -70,7 +67,6 @@ export default async function LessonPage({ params }) {
   const nextLessonId = await getNextLessonId(courseId, lesson);
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <BackButton fallback={`/courses/${courseId}`} label="Back to course" />
         <p className={styles.breadcrumb}>
@@ -86,6 +82,5 @@ export default async function LessonPage({ params }) {
           isOwner={isOwner}
         />
       </div>
-</Nav>
   );
 }

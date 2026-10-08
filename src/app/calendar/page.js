@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import Nav from "@/components/Nav";
 import MatchmakerCalendar from "./MatchmakerCalendar";
 import styles from "./calendar.module.css";
 
@@ -13,7 +12,6 @@ export default async function CalendarPage() {
   const userDoc = await getUserDoc(user.uid);
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Calendar</h1>
         <p className={styles.subtitle}>
@@ -25,6 +23,5 @@ export default async function CalendarPage() {
           userAvatar={userDoc?.avatar || user.photoURL || ""}
         />
       </div>
-    </Nav>
   );
 }

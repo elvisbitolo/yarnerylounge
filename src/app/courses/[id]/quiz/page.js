@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getCourse, getModules, getLessons } from "@/lib/server/courses";
 import { getQuizByLesson, getQuizResult } from "@/lib/server/quizzes";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import QuizBlock from "../QuizBlock";
 import styles from "../../courses.module.css";
@@ -15,7 +14,6 @@ export default async function QuizPage({ params, searchParams }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
   const course = await getCourse(id);
   if (!course) {
     redirect("/courses");
@@ -25,20 +23,17 @@ export default async function QuizPage({ params, searchParams }) {
 
   if (!quiz) {
     return (
-      <Nav role={userDoc?.role}>
         <div className={styles.container}>
           <BackButton fallback={`/courses/${id}`} label="Back to course" />
           <h1 className={styles.title}>No quiz found</h1>
           <p className={styles.subtitle}>This course doesn&apos;t have a quiz for that lesson.</p>
         </div>
-      </Nav>
     );
   }
 
   const previousResult = await getQuizResult(quiz.id, user.uid);
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <BackButton fallback={`/courses/${id}`} label="Back to course" />
         <p className={styles.breadcrumb}>Course quiz</p>
@@ -49,7 +44,6 @@ export default async function QuizPage({ params, searchParams }) {
           previousResult={previousResult || null}
         />
       </div>
-    </Nav>
   );
 }
 

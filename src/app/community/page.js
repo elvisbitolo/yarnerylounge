@@ -4,7 +4,6 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { listGroups } from "@/lib/server/groups";
 import { listRooms } from "@/lib/server/rooms";
-import Nav from "@/components/Nav";
 import styles from "./community.module.css";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +64,6 @@ export default async function CommunityPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
 
   let memberCount = 0;
   try {
@@ -95,7 +93,6 @@ export default async function CommunityPage() {
   }
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.page}>
         <header className={styles.hero}>
           <p className={styles.eyebrow}>The Secret Yarnery Speakeasy</p>
@@ -151,6 +148,5 @@ export default async function CommunityPage() {
           </Link>
         </section>
       </div>
-    </Nav>
   );
 }

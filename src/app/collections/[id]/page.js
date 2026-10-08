@@ -1,8 +1,7 @@
 import Link from "next/link";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import { redirect } from "next/navigation";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { getCurrentUser } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { getSpace } from "@/lib/server/spaces";
 import { cardThemeVars } from "@/lib/card-themes";
@@ -16,7 +15,6 @@ export default async function CollectionDetailPage({ params }) {
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const userDoc = user ? await getUserDoc(user.uid) : null;
 
   const prisma = getPrisma();
   const colRow = prisma
@@ -24,12 +22,10 @@ export default async function CollectionDetailPage({ params }) {
     : null;
   if (!colRow) {
     return (
-      <Nav role={userDoc?.role}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "48px 24px" }}>
           <BackButton fallback="/collections" label="All collections" />
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "#17171c" }}>Collection not found</h1>
         </div>
-      </Nav>
     );
   }
 
@@ -57,7 +53,6 @@ export default async function CollectionDetailPage({ params }) {
   }
 
   return (
-    <Nav role={userDoc?.role}>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "48px 24px" }}>
         <BackButton fallback="/collections" label="All collections" />
         <h1 style={{ fontSize: 28, fontWeight: 800, color: "#17171c", margin: "16px 0 8px" }}>
@@ -105,6 +100,5 @@ export default async function CollectionDetailPage({ params }) {
           </div>
         )}
       </div>
-    </Nav>
   );
 }

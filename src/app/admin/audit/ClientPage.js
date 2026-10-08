@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "./audit.module.css";
 
 function stamp(iso) {
@@ -74,7 +73,6 @@ export default function AdminAuditPage() {
   };
 
   return (
-    <Nav role={role}>
       <div className={styles.page}>
         <div className={styles.container}>
           <h1 className={styles.title}>Audit log</h1>
@@ -135,6 +133,5 @@ export default function AdminAuditPage() {
           )}
         </div>
       </div>
-    </Nav>
   );
 }

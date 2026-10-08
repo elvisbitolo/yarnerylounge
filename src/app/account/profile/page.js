@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Nav from "@/components/Nav";
 import AccountTabs from "../AccountTabs";
 import ProfileEditor from "../ProfileEditor";
 import styles from "../account.module.css";
@@ -45,7 +44,6 @@ export default async function AccountProfilePage() {
   }
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Your profile</h1>
@@ -53,6 +51,5 @@ export default async function AccountProfilePage() {
         <AccountTabs />
         <ProfileEditor initial={initialProfile} memberId={user.uid} />
       </div>
-    </Nav>
   );
 }

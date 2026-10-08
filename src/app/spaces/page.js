@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listSpaces, getSpaceMembers, isSpaceMember } from "@/lib/server/spaces";
 import { getPurchasedKeys } from "@/lib/server/purchases";
-import Nav from "@/components/Nav";
 import SpacesBoard from "./SpacesBoard";
 import styles from "./spaces.module.css";
 
@@ -39,7 +38,6 @@ export default async function SpacesPage() {
   }
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>Spaces</h1>
@@ -57,6 +55,5 @@ export default async function SpacesPage() {
           <SpacesBoard spaces={visible} uid={user.uid} />
         )}
       </div>
-</Nav>
   );
 }

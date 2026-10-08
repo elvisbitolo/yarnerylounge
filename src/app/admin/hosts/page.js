@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "../rooms/admin.module.css";
 
 const SCOPE_TYPES = [
@@ -138,7 +137,6 @@ export default function AdminHostsPage() {
   const options = scopeOptions[scopeType] || [];
 
   return (
-      <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Scoped hosts</h1>
         <p className={styles.itemMeta}>
@@ -238,6 +236,5 @@ export default function AdminHostsPage() {
           </div>
         )}
       </div>
-</Nav>
   );
 }

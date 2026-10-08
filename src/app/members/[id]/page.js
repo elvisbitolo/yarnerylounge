@@ -9,7 +9,6 @@ import { BADGES } from "@/lib/server/gamification";
 import { QUIZ_QUESTIONS, QUIZ_LABELS, quizHasAnswers, quizAnswerLabel } from "@/lib/profile/questions";
 import { CRAFT_LABELS } from "@/lib/profile/crafts";
 import { roleBadgeLabel } from "@/lib/profile/roles";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import FollowButton from "@/components/FollowButton";
 import MemberBadge from "@/components/MemberBadge";
@@ -130,13 +129,11 @@ export default async function MemberProfilePage({ params }) {
 
   if (!memberRow) {
     return (
-        <Nav role={viewerDoc?.role}>
         <div className={styles.container}>
           <h1 className={styles.title}>Member not found</h1>
           <p className={styles.subtitle}>This member isn&apos;t available.</p>
           <Link className={styles.link} href="/members">Back to members</Link>
         </div>
-</Nav>
     );
   }
 
@@ -187,7 +184,6 @@ const coverUrl = member.coverPhotoURL || "";
 
   if (!canViewProfile) {
     return (
-      <Nav role={viewerDoc?.role}>
         <div className={styles.container}>
           <BackButton fallback="/members" label="All members" />
           <div className={styles.profileCard}>
@@ -207,13 +203,11 @@ const coverUrl = member.coverPhotoURL || "";
             This member keeps their profile private.
           </p>
         </div>
-      </Nav>
     );
   }
 
   if (!isSelf && safetyData.blocked) {
     return (
-      <Nav role={viewerDoc?.role}>
         <div className={styles.container}>
           <BackButton fallback="/members" label="All members" />
           <div className={styles.profileCard}>
@@ -238,12 +232,10 @@ const coverUrl = member.coverPhotoURL || "";
             <MemberSafetyControls targetId={id} targetName={member.name} />
           )}
         </div>
-      </Nav>
     );
   }
 
   return (
-      <Nav role={viewerDoc?.role}>
       <div className={styles.container}>
         <BackButton fallback="/members" label="All members" />
 
@@ -492,6 +484,5 @@ const coverUrl = member.coverPhotoURL || "";
           </div>
         )}
       </div>
-</Nav>
   );
 }

@@ -2,7 +2,6 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getCommunityQuestion } from "@/lib/server/community-questions";
-import Nav from "@/components/Nav";
 import AnswerForm from "./AnswerForm";
 import AnswerControls from "./AnswerControls";
 import styles from "../quizzes.module.css";
@@ -21,11 +20,9 @@ export default async function QuestionDetailPage({ params }) {
   const question = await getCommunityQuestion(id);
   if (!question) notFound();
 
-  const userDoc = await getUserDoc(user.uid);
   const isAuthor = question.authorId === user.uid;
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <Link href="/quizzes/questions" className={styles.backLink}>← Back to all questions</Link>
 
@@ -72,6 +69,5 @@ export default async function QuestionDetailPage({ params }) {
 
         <AnswerForm questionId={id} />
       </div>
-    </Nav>
   );
 }

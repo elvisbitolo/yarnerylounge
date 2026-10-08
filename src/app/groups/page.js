@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listGroups, getGroupMembers, isGroupMember } from "@/lib/server/groups";
-import Nav from "@/components/Nav";
 import GroupsBoard from "./GroupsBoard";
 import styles from "./groups.module.css";
 
@@ -36,7 +35,6 @@ export default async function GroupsPage() {
   }
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>Groups</h1>
@@ -54,6 +52,5 @@ export default async function GroupsPage() {
           <GroupsBoard groups={withCounts} uid={user.uid} />
         )}
       </div>
-</Nav>
   );
 }

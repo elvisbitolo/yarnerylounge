@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { Sparkles, MessageCircleQuestion } from "lucide-react";
-import Nav from "@/components/Nav";
 import styles from "./quizzes.module.css";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +10,8 @@ export default async function QuizzesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Quizzes</h1>
@@ -49,6 +46,5 @@ export default async function QuizzesPage() {
           <span className={styles.qaCta}>Open community Q&amp;A →</span>
         </Link>
       </div>
-    </Nav>
   );
 }

@@ -4,7 +4,6 @@ import { recordDailyVisit } from "@/lib/server/gamification";
 import { loungeGate } from "@/lib/server/lounge-gate";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { ensureWelcomeVaultPost } from "@/lib/server/welcome-vault";
-import Nav from "@/components/Nav";
 import Feed from "./Feed";
 import styles from "./feed.module.css";
 
@@ -30,7 +29,6 @@ export default async function FeedPage({ searchParams }) {
   recordDailyVisit(user.uid, userDoc?.name || user.name || "Member").catch(() => {});
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Feed</h1>
         <p className={styles.subtitle}>Conversations between video sessions.</p>
@@ -42,6 +40,5 @@ export default async function FeedPage({ searchParams }) {
           canWriteChat={canWriteChat(caps)}
         />
       </div>
-</Nav>
   );
 }

@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Nav from "@/components/Nav";
 import AccountTabs from "../AccountTabs";
 import EmailNotifications from "../EmailNotifications";
 import PushStatus from "../PushStatus";
@@ -15,7 +14,6 @@ export default async function AccountNotificationsPage() {
   const { user, userDoc } = data;
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Notifications</h1>
@@ -32,6 +30,5 @@ export default async function AccountNotificationsPage() {
           <NotificationPreferences />
         </section>
       </div>
-    </Nav>
   );
 }

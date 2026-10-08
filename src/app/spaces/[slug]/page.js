@@ -12,7 +12,6 @@ import {
 } from "@/lib/server/spaces";
 import { canManageScope } from "@/lib/server/hosts";
 import { expandEvents } from "@/lib/server/events";
-import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import Feed from "@/app/feed/Feed";
 import EventsBoard from "@/app/events/EventsBoard";
@@ -100,7 +99,6 @@ export default async function SpacePage({ params }) {
   }
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <BackButton fallback="/spaces" label="All spaces" />
         <p className={styles.breadcrumb}>
@@ -248,6 +246,5 @@ export default async function SpacePage({ params }) {
 
         {canManage && <SpaceAnalytics spaceId={space.id} />}
       </div>
-</Nav>
   );
 }

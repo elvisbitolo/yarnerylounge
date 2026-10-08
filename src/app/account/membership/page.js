@@ -3,7 +3,6 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getAccessSub } from "@/lib/server/subscription";
 import { subscriptionStatus } from "@/lib/server/billing";
 import { tierLabel } from "@/lib/server/plans";
-import Nav from "@/components/Nav";
 import AccountTabs from "../AccountTabs";
 import styles from "../account.module.css";
 
@@ -49,7 +48,6 @@ export default async function MembershipPage() {
       : styles.badge;
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <AccountTabs />
         <section className={styles.card}>
@@ -79,6 +77,5 @@ export default async function MembershipPage() {
           )}
         </section>
       </div>
-    </Nav>
   );
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import styles from "../questions/questions.module.css";
 
 const TRIGGERS = {
@@ -290,7 +289,6 @@ export default function AdminAutomationsPage() {
   }
 
   return (
-      <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Automations</h1>
         <p className={styles.subtitle}>
@@ -611,6 +609,5 @@ export default function AdminAutomationsPage() {
           </div>
         )}
       </div>
-</Nav>
   );
 }

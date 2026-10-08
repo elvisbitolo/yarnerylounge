@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Nav from "@/components/Nav";
 import AccountTabs from "../AccountTabs";
 import UsernameForm from "../UsernameForm";
 import LogoutButton from "../LogoutButton";
@@ -20,7 +19,6 @@ export default async function AccountSettingsPage() {
     : null;
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Settings</h1>
@@ -56,6 +54,5 @@ export default async function AccountSettingsPage() {
           </div>
         </section>
       </div>
-    </Nav>
   );
 }

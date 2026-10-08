@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
-import Nav from "@/components/Nav";
 import { cardThemeVars } from "@/lib/card-themes";
 import styles from "./analytics.module.css";
 
@@ -66,7 +65,6 @@ export default function AdminAnalyticsPage() {
   const planLabels = { monthly: "Monthly", yearly: "Yearly" };
 
   return (
-      <Nav role={role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Admin analytics</h1>
         {error && <p className={styles.error}>{error}</p>}
@@ -207,6 +205,5 @@ export default function AdminAnalyticsPage() {
           </>
         )}
       </div>
-</Nav>
   );
 }

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { FileDown, FolderDown } from "lucide-react";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { PRINTABLES } from "@/lib/printables";
-import Nav from "@/components/Nav";
 import styles from "./resources.module.css";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +10,8 @@ export default async function ResourcesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const userDoc = await getUserDoc(user.uid);
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Resources</h1>
@@ -67,6 +64,5 @@ export default async function ResourcesPage() {
           )}
         </div>
       </div>
-    </Nav>
   );
 }

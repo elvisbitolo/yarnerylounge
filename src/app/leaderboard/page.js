@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getGamification, getLeaderboard, BADGES } from "@/lib/server/gamification";
 import { getRecognitionLeaderboard } from "@/lib/server/recognition";
-import Nav from "@/components/Nav";
 import styles from "./leaderboard.module.css";
 import { Flame, PartyPopper, Lock } from "lucide-react";
 
@@ -28,7 +27,6 @@ export default async function LeaderboardPage() {
   const unearned = Object.entries(BADGES).filter(([code]) => !earnedCodes.includes(code));
 
   return (
-      <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <h1 className={styles.title}>Leaderboard</h1>
         <p className={styles.subtitle}>
@@ -115,6 +113,5 @@ export default async function LeaderboardPage() {
           {unearned.length === 0 && <p className={styles.empty}>All badges earned!</p>}
         </div>
       </div>
-</Nav>
   );
 }

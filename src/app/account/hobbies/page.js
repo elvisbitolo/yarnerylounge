@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Nav from "@/components/Nav";
 import AccountTabs from "../AccountTabs";
 import HobbiesForm from "../HobbiesForm";
 import styles from "../account.module.css";
@@ -17,7 +16,6 @@ export default async function AccountHobbiesPage() {
     : [];
 
   return (
-    <Nav role={userDoc?.role}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Hobbies</h1>
@@ -25,6 +23,5 @@ export default async function AccountHobbiesPage() {
         <AccountTabs />
         <HobbiesForm initial={initialHobbies} username={userDoc?.username} />
       </div>
-    </Nav>
   );
 }

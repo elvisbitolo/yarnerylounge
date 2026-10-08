@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { recordDailyVisit } from "@/lib/server/gamification";
 import { loungeGate } from "@/lib/server/lounge-gate";
-import Nav from "@/components/Nav";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +18,6 @@ export default async function DashboardPage() {
   recordDailyVisit(user.uid, userDoc?.name || user.name || "Member").catch(() => {});
 
   return (
-    <Nav role={userDoc?.role}>
       <DashboardShell />
-    </Nav>
   );
 }

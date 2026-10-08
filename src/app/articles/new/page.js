@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "@/components/Nav";
 
 export default function NewArticlePage() {
   const router = useRouter();
@@ -36,7 +35,6 @@ export default function NewArticlePage() {
   }
 
   return (
-    <Nav>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 64px" }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: "#f5f5f5", margin: "0 0 24px" }}>
           Write an article
@@ -155,6 +153,5 @@ export default function NewArticlePage() {
           </button>
         </form>
       </div>
-    </Nav>
   );
 }

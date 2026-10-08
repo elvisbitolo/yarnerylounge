@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { canModerate, getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
-import Nav from "@/components/Nav";
 import GalleryGrid from "./GalleryGrid";
 
 export const dynamic = "force-dynamic";
@@ -89,7 +88,6 @@ export default async function GalleryPage() {
   ];
 
   return (
-    <Nav role={userDoc?.role}>
       <div className="gallery-page" style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 20px 64px" }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: "#f5f5f5", margin: "0 0 6px" }}>
           Gallery
@@ -103,6 +101,5 @@ export default async function GalleryPage() {
           canModerate={canModerate(userDoc)}
         />
       </div>
-    </Nav>
   );
 }
