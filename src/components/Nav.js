@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import NotificationBell from "./NotificationBell";
@@ -348,16 +347,6 @@ export default function Nav({ role, children }) {
             <span className={styles.burgerLine} />
             <span className={styles.burgerLine} />
           </button>
-          <Link className={styles.brand} href="/dashboard" onClick={close}>
-            <Image
-              src="/brand/secretyarnery-logo.webp"
-              alt="Secret Yarnery"
-              width={90}
-              height={28}
-              className={styles.brandLogo}
-              priority
-            />
-          </Link>
         </div>
         <div className={styles.topbarCenter}>
           <SearchForm />
