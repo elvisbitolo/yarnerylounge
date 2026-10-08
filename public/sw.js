@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v10";
+const VERSION = "v11";
 
 // NEVER touch API requests: a cached /api/me JSON that carries a uid replays
 // long after the session cookie is gone, which makes reconcileSessionCookie()
@@ -35,22 +35,36 @@ const offlineResponse = () =>
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
 
+// Only pages that render for a signed-out visitor with no auth redirect.
+// NEVER add a route that redirects to /login: addAll() stores the final
+// response under the requested URL, and that cached auth shell is exactly
+// the stale-shell problem documented in isCacheable() below.
+const PRECACHE_URLS = [
+  "/",
+  "/login",
+  "/signup",
+  "/about",
+  "/guidelines",
+  "/privacy",
+  "/terms",
+  "/explore",
+  "/articles",
+  "/host",
+  "/icon-192.png",
+  "/icon-512.png",
+];
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(VERSION)
-      .then((cache) =>
-        cache.addAll([
-          "/",
-          "/login",
-          "/signup",
-          "/about",
-          "/guidelines",
-          "/icon-192.png",
-          "/icon-512.png",
-        ])
+    caches.open(VERSION).then((cache) =>
+      // One-by-one: a single failing URL must not abort the whole precache
+      // (cache.addAll() rejects on the first failure and caches nothing).
+      Promise.all(
+        PRECACHE_URLS.map((url) =>
+          cache.add(url).catch(() => {})
+        )
       )
-      .catch(() => {})
+    )
   );
   self.skipWaiting();
 });
