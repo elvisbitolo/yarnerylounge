@@ -64,11 +64,12 @@ const MEDIA_AUDIO_CONSTRAINTS = {
 const DETECT_TIMEOUT_MS = 9000;
 const CAMERA_READY_TIMEOUT_MS = 12000;
 const RECONNECT_WATCHDOG_MS = 20000;
+const TOKEN_REQUEST_TIMEOUT_MS = 15000;
 
 // The JaaS web client boots + signals asynchronously inside its iframe; keep the
 // wait visible and recoverable instead of a silent black screen that hangs.
-const CONNECT_STALL_MS = 20000;
-const CONNECT_TIMEOUT_MS = 60000;
+const CONNECT_STALL_MS = 15000;
+const CONNECT_TIMEOUT_MS = 40000;
 const TOKEN_TTL_MS = 45000;
 
 const VIDEO_FAILED = new Set([
@@ -105,6 +106,16 @@ function withTimeout(promise, ms, name) {
       }
     );
   });
+}
+
+async function fetchWithTimeout(url, options, ms) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // Module scope, deliberately not component scope, so the React Compiler does
@@ -341,11 +352,11 @@ export default function RoomClient({
   // token round-trip. Failures are silent — handleJoin fetches fresh if needed.
   useEffect(() => {
     let active = true;
-    fetch("/api/jitsi/token", {
+    fetchWithTimeout("/api/jitsi/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slug }),
-    })
+    }, TOKEN_REQUEST_TIMEOUT_MS)
       .then((r) => (r.ok ? r.json().catch(() => null) : null))
       .then((data) => {
         if (active && data && validateTokenResponse(data)) {
@@ -968,11 +979,11 @@ export default function RoomClient({
       tokenData = cached;
     } else {
       try {
-        const res = await fetch("/api/jitsi/token", {
+        const res = await fetchWithTimeout("/api/jitsi/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slug }),
-        });
+        }, TOKEN_REQUEST_TIMEOUT_MS);
         if (res.status === 401) {
           router.push("/login");
           return;
@@ -1003,7 +1014,9 @@ export default function RoomClient({
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[room] token request failed", err);
-        setInlineError(t("joinFailedGeneric"));
+        setInlineError(
+          err?.name === "AbortError" ? t("connectingStalled") : t("joinFailedGeneric")
+        );
         setPhase("idle");
         return;
       }
@@ -1105,7 +1118,7 @@ export default function RoomClient({
 
   const prejoin = (
     <main className={styles.page}>
-      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
+      <RoomBackground show={false} musicActive={!!musicPlaying} />
       <div className={styles.container}>
         <div className={styles.prejoinWrap}>
           <BackButton fallback="/rooms" label="Back to lounges" />
@@ -1206,7 +1219,7 @@ export default function RoomClient({
 
   const connectedRoom = (
     <main className={styles.page}>
-      <RoomBackground show={alwaysOn} musicActive={!!musicPlaying} />
+      <RoomBackground show={alwaysOn && phase === "connected"} musicActive={!!musicPlaying} />
       <div className={styles.roomWrap}>
         <AmbientAudio
           active={alwaysOn}

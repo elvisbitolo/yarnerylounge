@@ -23,6 +23,14 @@ export default function RoomBackground({ show, musicActive }) {
     }
   }, [musicActive]);
 
+  function stopOnDecodeError() {
+    const video = videoRef.current;
+    if (!video) return;
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  }
+
   if (!show) return null;
 
   return (
@@ -34,6 +42,7 @@ export default function RoomBackground({ show, musicActive }) {
       loop
       muted
       playsInline
+      onError={stopOnDecodeError}
       aria-hidden="true"
     />
   );
