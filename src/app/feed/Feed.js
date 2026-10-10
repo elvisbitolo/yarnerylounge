@@ -493,7 +493,7 @@ function ReportButton({ type, targetId, commentPostId, small }) {
   );
 }
 
-function CommentList({ postId, uid, userName, role, canModerate, disabled, onCommentChanged, onTag }) {
+function CommentList({ postId, uid, userName, role, canModerate, disabled, locked, onCommentChanged, onTag }) {
   const t = useTranslations("feed");
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
@@ -751,14 +751,6 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
             {timeAgo(c.createdAt)}
             {c.editedAt ? ` · ${t("edited")}` : ""}
           </span>
-          <button
-            className={styles.commentReplyBtn}
-            type="button"
-            disabled={disabled}
-            onClick={() => setReplyTo({ id: c.id, name: c.authorName })}
-          >
-            {t("reply")}
-          </button>
           {c.authorId === uid && (
             <button
               className={styles.commentReplyBtn}
@@ -842,6 +834,18 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
             )
           }
         />
+        {!locked && editingComment !== c.id && (
+          <div className={styles.commentFooterActions}>
+            <button
+              className={styles.commentReplyBtn}
+              type="button"
+              disabled={disabled}
+              onClick={() => setReplyTo({ id: c.id, name: c.authorName })}
+            >
+              {t("reply")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -850,51 +854,51 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
 
   return (
     <div ref={rootRef} className={styles.comments}>
+      <div className={styles.commentListBar}>
+        <span className={styles.commentListLabel}>{t("commentsLabel")}</span>
+        {comments.length > 0 && (
+          <select
+            className={styles.commentSort}
+            value={commentSort}
+            onChange={(e) => setCommentSort(e.target.value)}
+            aria-label={t("sortComments")}
+          >
+            <option value="newest">{t("sortNewest")}</option>
+            <option value="oldest">{t("sortOldest")}</option>
+            <option value="top">{t("sortTop")}</option>
+          </select>
+        )}
+      </div>
       {comments.length > 0 && (
-        <>
-          <div className={styles.commentListBar}>
-            <span className={styles.commentListLabel}>{t("commentsLabel")}</span>
-            <select
-              className={styles.commentSort}
-              value={commentSort}
-              onChange={(e) => setCommentSort(e.target.value)}
-              aria-label={t("sortComments")}
-            >
-              <option value="newest">{t("sortNewest")}</option>
-              <option value="oldest">{t("sortOldest")}</option>
-              <option value="top">{t("sortTop")}</option>
-            </select>
-          </div>
-          <div className={styles.commentList}>
-            {sortedComments.map((c) => (
-              <div key={c.id} className={styles.commentThread}>
-                {renderCommentRow(c)}
-                {c.replies && c.replies.length > 0 && (
-                  <>
-                    <button
-                      className={styles.repliesToggle}
-                      type="button"
-                      onClick={() => toggleExpanded(c.id)}
-                      aria-expanded={expanded.has(c.id)}
-                    >
-                      <ChevronDown size={13} className={expanded.has(c.id) ? styles.repliesChevronOpen : ""} />
-                      {expanded.has(c.id)
-                        ? t("hideReplies", { count: c.replies.length })
-                        : t("viewReplies", { count: c.replies.length })}
-                    </button>
-                    {expanded.has(c.id) && (
-                      <div className={styles.repliesList}>
-                        {[...c.replies].sort(compareComments).map((r) => renderCommentRow(r, true))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </>
+        <div className={styles.commentList}>
+          {sortedComments.map((c) => (
+            <div key={c.id} className={styles.commentThread}>
+              {renderCommentRow(c)}
+              {c.replies && c.replies.length > 0 && (
+                <>
+                  <button
+                    className={styles.repliesToggle}
+                    type="button"
+                    onClick={() => toggleExpanded(c.id)}
+                    aria-expanded={expanded.has(c.id)}
+                  >
+                    <ChevronDown size={13} className={expanded.has(c.id) ? styles.repliesChevronOpen : ""} />
+                    {expanded.has(c.id)
+                      ? t("hideReplies", { count: c.replies.length })
+                      : t("viewReplies", { count: c.replies.length })}
+                  </button>
+                  {expanded.has(c.id) && (
+                    <div className={styles.repliesList}>
+                      {[...c.replies].sort(compareComments).map((r) => renderCommentRow(r, true))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
       )}
-      {replyTo && (
+      {replyTo && !locked && (
         <div className={styles.replyContext}>
           <span>{t("replyToName", { name: replyTo.name })}</span>
           <button type="button" className={styles.replyCancel} onClick={() => setReplyTo(null)}>
@@ -902,23 +906,34 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
           </button>
         </div>
       )}
-      <form className={styles.commentForm} onSubmit={handleAdd}>
-        <input
-          className={styles.commentInput}
-          type="text"
-          placeholder={disabled ? t("upgradeToChat") : replyTo ? t("replyToName", { name: replyTo.name }) : t("replyPlaceholder")}
-          value={text}
-          // Not disabled while sending: the text is cleared on submit, and a
-          // disabled box mid-send reads as the app having frozen. `busy` gates
-          // the button instead, and sendingRef blocks repeat submits.
-          disabled={disabled}
-          readOnly={disabled}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <button className={styles.commentSubmit} type="submit" disabled={disabled || !text.trim() || busy}>
-          {disabled ? t("upgrade") : busy ? t("replying") : t("reply")}
-        </button>
-      </form>
+      {locked ? (
+        <p className={styles.commentsLocked}>{t("commentsLocked")}</p>
+      ) : (
+        <form className={styles.commentForm} onSubmit={handleAdd}>
+          <div
+            className={styles.commentComposerAvatar}
+            style={{ background: avatarGradient(userName) }}
+            aria-hidden="true"
+          >
+            {(userName || "?").slice(0, 1).toUpperCase()}
+          </div>
+          <input
+            className={styles.commentInput}
+            type="text"
+            placeholder={disabled ? t("upgradeToChat") : replyTo ? t("replyToName", { name: replyTo.name }) : t("replyPlaceholder")}
+            value={text}
+            // Not disabled while sending: the text is cleared on submit, and a
+            // disabled box mid-send reads as the app having frozen. `busy` gates
+            // the button instead, and sendingRef blocks repeat submits.
+            disabled={disabled}
+            readOnly={disabled}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <button className={styles.commentSubmit} type="submit" disabled={disabled || !text.trim() || busy}>
+            {disabled ? t("upgrade") : busy ? t("replying") : t("reply")}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
@@ -2294,9 +2309,8 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               </button>
             </div>
             <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} onUpdated={(map) => patchPost(post.id, { reactions: map })} />
-            {post.lockedComments && <p className={styles.readOnlyNote}>{t("commentsLocked")}</p>}
             {openComments.has(post.id) && (
-              <CommentList postId={post.id} uid={uid} userName={userName} role={role} canModerate={canModerate} disabled={disabledActions} onCommentChanged={patchCommentCount} onTag={selectTag} />
+              <CommentList postId={post.id} uid={uid} userName={userName} role={role} canModerate={canModerate} disabled={disabledActions} locked={post.lockedComments && !canModerate} onCommentChanged={patchCommentCount} onTag={selectTag} />
             )}
           </>
         )}
