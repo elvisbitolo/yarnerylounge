@@ -1,13 +1,26 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
-import { dayKeyFor, hashingKey, seededPick, computeScore } from "./blind-date-core.js";
+import {
+  dayKeyFor,
+  hashingKey,
+  seededPick,
+  computeScore,
+  isMatchWindowOpen,
+  matchExpiresAt,
+  MATCH_WINDOW_MS,
+  compareMovingInPriority,
+} from "./blind-date-core.js";
+import { getMovingInPriorityIds } from "./match-priority.js";
 import { BLOCKED_KEY, isSafetyId } from "./member-safety.js";
 
-async function findStoredPick(uid, date) {
+async function findLatestStoredPick(uid) {
   const prisma = getPrisma();
   if (prisma) {
     try {
-      const row = await prisma.blindDate.findFirst({ where: { uid, date } });
+      const row = await prisma.blindDate.findFirst({
+        where: { uid, createdAt: { not: null } },
+        orderBy: { createdAt: "desc" },
+      });
       if (row) {
         return {
           uid: row.uid,
@@ -56,12 +69,14 @@ async function storePick(entry) {
   }
 }
 
-// rawCandidates lets a caller (the daily-match cron) load the candidate pool
-// once and reuse it for every member. Per-user filtering and scoring still runs
-// here, because blocking and privacy are per-relation, but without this the
-// cron re-fetched 500 user rows for every single member.
-export async function pickDailyBlindDate(uid, rawCandidates = null) {
-  const today = dayKeyFor();
+// rawCandidates and movingInPriorityIds let the daily-match cron load shared
+// data once and reuse it for every member.
+export async function pickDailyBlindDate(
+  uid,
+  rawCandidates = null,
+  movingInPriorityIds = null,
+  now = Date.now()
+) {
   const prisma = getPrisma();
   if (!prisma) return null;
 
@@ -74,16 +89,23 @@ export async function pickDailyBlindDate(uid, rawCandidates = null) {
   }
   if (!me) return null;
 
-  const stored = await findStoredPick(uid, today);
+  const stored = await findLatestStoredPick(uid);
   if (stored?.memberId) {
-    try {
-      const member = await prisma.user.findUnique({ where: { id: stored.memberId } });
-      if (member && !member.suspended && !(member.extra && typeof member.extra === "object" && member.extra.profileVisibility === "private") && !isSafetyId(me?.extra, BLOCKED_KEY, member.id) && !isSafetyId(member.extra, BLOCKED_KEY, uid)) {
-        return { ...stored, member };
+    const expiresAt = matchExpiresAt(stored.createdAt);
+    if (isMatchWindowOpen(stored.createdAt, now)) {
+      try {
+        const member = await prisma.user.findUnique({ where: { id: stored.memberId } });
+        if (member && !member.suspended && !(member.extra && typeof member.extra === "object" && member.extra.profileVisibility === "private") && !isSafetyId(me?.extra, BLOCKED_KEY, member.id) && !isSafetyId(member.extra, BLOCKED_KEY, uid)) {
+          return {
+            ...stored,
+            expiresAt: new Date(expiresAt).toISOString(),
+            member,
+          };
+        }
+        await clearDailyBlindDate(uid, stored.date);
+      } catch (err) {
+        logError("blind-date.prisma_member_failed", { error: err.message });
       }
-      await clearDailyBlindDate(uid, today);
-    } catch (err) {
-      logError("blind-date.prisma_member_failed", { error: err.message });
     }
   }
 
@@ -97,16 +119,27 @@ export async function pickDailyBlindDate(uid, rawCandidates = null) {
     }
   }
 
+  let priorityIds = movingInPriorityIds;
+  if (!priorityIds) {
+    try {
+      priorityIds = await getMovingInPriorityIds(pool, prisma);
+    } catch (err) {
+      logError("blind-date.priority_load_failed", { error: err.message });
+      return null;
+    }
+  }
+
   const candidates = pool
     .filter((u) => u.id !== uid)
     .filter((m) => m.name && !m.suspended)
     .filter((m) => !(m.extra && typeof m.extra === "object" && m.extra.profileVisibility === "private"))
     .filter((m) => !isSafetyId(me.extra, BLOCKED_KEY, m.id) && !isSafetyId(m.extra, BLOCKED_KEY, uid))
-    .sort((a, b) => computeScore(me, b) - computeScore(me, a))
+    .sort((a, b) => compareMovingInPriority(a, b, priorityIds) || computeScore(me, b) - computeScore(me, a))
     .slice(0, 40);
 
   if (!candidates.length) return null;
 
+  const today = dayKeyFor(now);
   const pick = seededPick(candidates, uid, today);
   const entry = {
     uid,
@@ -119,12 +152,12 @@ export async function pickDailyBlindDate(uid, rawCandidates = null) {
     hobbies: Array.isArray(pick.hobbies) ? pick.hobbies : [],
     crafts: Array.isArray(pick.crafts) ? pick.crafts : [],
     score: computeScore(me, pick),
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(now).toISOString(),
   };
 
   await storePick(entry);
 
-  return { ...entry, member: pick };
+  return { ...entry, expiresAt: new Date(now + MATCH_WINDOW_MS).toISOString(), member: pick };
 }
 
 export async function clearDailyBlindDate(uid, date = "") {

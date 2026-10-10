@@ -2,6 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   dayKeyFor,
+  MATCH_WINDOW_MS,
+  matchExpiresAt,
+  isMatchWindowOpen,
+  compareMovingInPriority,
   hashingKey,
   seededPick,
   profilePieces,
@@ -11,6 +15,21 @@ import {
   utcOffsetHours,
   timezoneProximity,
 } from "../blind-date-core.js";
+
+test("match review window expires exactly 24 hours after creation", () => {
+  const createdAt = "2026-10-10T09:00:00.000Z";
+  const expiresAt = Date.parse(createdAt) + MATCH_WINDOW_MS;
+  assert.equal(matchExpiresAt(createdAt), expiresAt);
+  assert.equal(isMatchWindowOpen(createdAt, expiresAt - 1), true);
+  assert.equal(isMatchWindowOpen(createdAt, expiresAt), false);
+  assert.equal(isMatchWindowOpen("invalid-date", expiresAt), false);
+});
+
+test("Moving In candidates sort ahead of other tiers", () => {
+  const priorityIds = new Set(["moving-in"]);
+  assert.ok(compareMovingInPriority({ id: "member" }, { id: "moving-in" }, priorityIds) > 0);
+  assert.equal(compareMovingInPriority({ id: "hooking-up" }, { id: "flirting" }, priorityIds), 0);
+});
 
 test("dayKeyFor: formats an ISO UTC date (YYYY-MM-DD)", () => {
   assert.equal(dayKeyFor(Date.parse("2026-09-07T15:30:00Z")), "2026-09-07");

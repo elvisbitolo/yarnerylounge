@@ -45,7 +45,11 @@ function featureRows(caps) {
     { label: "24/7 video lounges", on: caps.video.canJoin },
     { label: "Go live with camera and mic", on: caps.video.canPublish },
     { label: "Chat", on: caps.chat.read, note: caps.chat.write ? "read & write" : "read only" },
-    { label: "Daily Match", on: caps.matchmaker },
+    {
+      label: "Daily Match",
+      on: caps.matchmaker,
+      note: caps.key === "moving-in" ? "priority matches" : undefined,
+    },
     { label: "Host a room", on: caps.hosting },
     {
       label: caps.neighborhoods.build

@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/daily-match",
-      "schedule": "0 13 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

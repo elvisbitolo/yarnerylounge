@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/db/prisma";
 import { createNotification } from "@/lib/server/notifications";
 import { pickDailyBlindDate } from "@/lib/server/blind-date";
-import { dayKeyFor } from "@/lib/server/blind-date-core";
+import { dayKeyFor, MATCH_WINDOW_MS } from "@/lib/server/blind-date-core";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { ACTIVE_STATUSES } from "@/lib/server/billing";
+import { getMovingInPriorityIds } from "@/lib/server/match-priority";
 import { logError } from "@/lib/server/log";
 
 // "Automatic 24-Hour Matching" is sold on the shop page, but nothing ran it.
@@ -13,9 +14,9 @@ import { logError } from "@/lib/server/log";
 // could be "matched" and never know it. This job makes the match happen on a
 // schedule and tells the member about it.
 //
-// Runs once a day (see vercel.json). Idempotent in two layers: a member who
-// already has a stored pick for today is skipped, and a member who already
-// received today's notification is skipped even if their pick is recomputed.
+// Runs hourly (see vercel.json) so a match can be refreshed as soon as its
+// private 24-hour review window has elapsed. Both picks and notifications are
+// idempotent.
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -72,54 +73,88 @@ export async function GET(req) {
   const uids = await eligibleUids();
   let processed = 0;
   let skipped = 0;
-  let alreadyMatched = 0;
+  let inReviewWindow = 0;
   let notEligible = 0;
   let notified = 0;
   let failed = 0;
 
   // One shared candidate pool for the whole run (see pickDailyBlindDate).
   let pool = [];
+  let movingInPriorityIds = new Set();
   try {
     pool = await prisma.user.findMany({ take: 500 });
+    movingInPriorityIds = await getMovingInPriorityIds(pool, prisma);
   } catch (err) {
     logError("cron.daily_match.pool_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not load match candidates" }, { status: 503 });
+  }
+
+  let activePicksByUid = new Map();
+  let alreadyNotifiedTargets = new Set();
+  try {
+    const activePicks = await prisma.blindDate.findMany({
+      where: {
+        uid: { in: uids },
+        createdAt: { gte: new Date(Date.now() - MATCH_WINDOW_MS).toISOString() },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { uid: true, date: true },
+    });
+    activePicksByUid = new Map(
+      activePicks.reduce((latest, pick) => {
+        if (pick.uid && !latest.has(pick.uid)) latest.set(pick.uid, pick);
+        return latest;
+      }, new Map())
+    );
+    const targetIds = activePicks.map((pick) => `${pick.uid}:${pick.date}`);
+    if (targetIds.length) {
+      const existingNotifications = await prisma.notification.findMany({
+        where: {
+          userId: { in: uids },
+          type: "daily_match",
+          targetId: { in: targetIds },
+        },
+        select: { targetId: true },
+      });
+      alreadyNotifiedTargets = new Set(existingNotifications.map((item) => item.targetId));
+    }
+  } catch (err) {
+    logError("cron.daily_match.active_picks_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not check active matches" }, { status: 503 });
   }
 
   for (const uid of uids.slice(0, BATCH)) {
     try {
+      const activePick = activePicksByUid.get(uid);
+      if (activePick && alreadyNotifiedTargets.has(`${uid}:${activePick.date}`)) {
+        inReviewWindow += 1;
+        continue;
+      }
+
       const caps = await getCapabilities(uid);
       if (!canUseMatchmaker(caps)) {
         notEligible += 1;
         continue;
       }
 
-      // Do not notify twice about the same day's match, even if the pick is
-      // recomputed because the chosen member later went private or blocked.
-      const existing = await prisma.notification.findFirst({
-        where: { userId: uid, type: "daily_match", targetId: `${uid}:${today}` },
-        select: { id: true },
-      });
-
-      const hadPick = await prisma.blindDate.findFirst({
-        where: { uid, date: today },
-        select: { id: true },
-      });
-      if (hadPick) alreadyMatched += 1;
-
-      const pick = await pickDailyBlindDate(uid, pool);
+      const pick = await pickDailyBlindDate(uid, pool, movingInPriorityIds);
       if (!pick?.memberId) {
         skipped += 1;
         continue;
       }
       processed += 1;
 
+      const existing = await prisma.notification.findFirst({
+        where: { userId: uid, type: "daily_match", targetId: `${uid}:${pick.date}` },
+        select: { id: true },
+      });
       if (existing) continue;
       await createNotification({
         userId: uid,
         type: "daily_match",
-        targetId: `${uid}:${today}`,
+        targetId: `${uid}:${pick.date}`,
         href: "/match",
-        text: `Today's fiber match is ${pick.memberName}. Say hello while the thread is fresh.`,
+        text: "Your new fiber match is ready. Explore their profile and say hello within 24 hours.",
       });
       notified += 1;
     } catch (err) {
@@ -135,7 +170,7 @@ export async function GET(req) {
     processed,
     notified,
     skipped,
-    alreadyMatched,
+    inReviewWindow,
     notEligible,
     failed,
   });

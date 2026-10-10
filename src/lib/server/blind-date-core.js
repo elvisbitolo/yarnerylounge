@@ -5,6 +5,22 @@ export function dayKeyFor(ts = Date.now()) {
   return new Date(ts).toISOString().slice(0, 10);
 }
 
+export const MATCH_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function matchExpiresAt(createdAt) {
+  const createdAtMs = Date.parse(createdAt);
+  return Number.isFinite(createdAtMs) ? createdAtMs + MATCH_WINDOW_MS : null;
+}
+
+export function isMatchWindowOpen(createdAt, now = Date.now()) {
+  const expiresAt = matchExpiresAt(createdAt);
+  return expiresAt !== null && now < expiresAt;
+}
+
+export function compareMovingInPriority(a, b, priorityIds) {
+  return Number(priorityIds.has(b.id)) - Number(priorityIds.has(a.id));
+}
+
 // Composite key: one pick per user per day.
 export function hashingKey(uid, date = "") {
   return `${uid}:${date}`;

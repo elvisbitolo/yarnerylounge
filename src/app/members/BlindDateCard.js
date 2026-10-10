@@ -66,8 +66,8 @@ export default function BlindDateCard() {
           <HeartHandshake size={18} />
         </span>
         <div>
-          <p className={styles.blindDateKicker}>Lounge Matchmaker</p>
-          <h2 className={styles.blindDateTitle}>Daily Blind Date</h2>
+          <p className={styles.blindDateKicker}>Speakeasy Matchmaker</p>
+          <h2 className={styles.blindDateTitle}>Today&apos;s Curated Match</h2>
         </div>
       </div>
       <Link href={`/members/${member.memberId}`} className={styles.blindDateBody}>
@@ -93,8 +93,11 @@ export default function BlindDateCard() {
         </span>
       </Link>
       <p className={styles.blindDateNote}>
-        <span className={styles.blindDateNoteIcon}><Sparkles size={13} /></span> One new curated profile every 24 hours.
+        <span className={styles.blindDateNoteIcon}><Sparkles size={13} /></span> Your private match is available for 24 hours. No pressure if you choose not to connect.
       </p>
+      <Link href={`/chat?with=${member.memberId}`} className={styles.blindDateMessage}>
+        Say hello
+      </Link>
     </div>
   );
 }

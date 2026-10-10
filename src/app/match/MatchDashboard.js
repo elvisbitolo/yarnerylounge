@@ -8,7 +8,6 @@ import SkillLevelCard from "./SkillLevelCard";
 
 export default function MatchDashboard() {
   const [dailyMatch, setDailyMatch] = useState(null);
-  const [dailyDecision, setDailyDecision] = useState(null);
   const [similarMembers, setSimilarMembers] = useState([]);
   const [dailyLoading, setDailyLoading] = useState(true);
   const [similarLoading, setSimilarLoading] = useState(true);
@@ -27,7 +26,6 @@ export default function MatchDashboard() {
           const blindData = await blindRes.json();
           if (!cancelled) {
             setDailyMatch(blindData.member || null);
-            setDailyDecision(blindData.decision || null);
           }
         } catch {
           if (!cancelled) setDailyError("Could not load today's match. Try again later.");
@@ -55,14 +53,29 @@ export default function MatchDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!dailyMatch?.expiresAt) return undefined;
+    const expiresAt = new Date(dailyMatch.expiresAt).getTime();
+    const delay = Math.max(0, expiresAt - Date.now()) + 1000;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/members/blind-date", { cache: "no-store" });
+        if (!response.ok) throw new Error("blind date refresh failed");
+        const data = await response.json();
+        setDailyMatch(data.member || null);
+      } catch {
+        setDailyError("Could not load today's match. Try again later.");
+      }
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [dailyMatch]);
+
   const topMatches = useMemo(() => similarMembers.slice(0, 8), [similarMembers]);
 
   return (
     <div className={styles.dashboard}>
       <DailyMatchCard
         dailyMatch={dailyMatch}
-        dailyDecision={dailyDecision}
-        onDecision={setDailyDecision}
         dailyLoading={dailyLoading}
         dailyError={dailyError}
       />

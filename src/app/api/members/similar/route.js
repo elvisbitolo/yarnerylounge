@@ -3,6 +3,8 @@ import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
+import { compareMovingInPriority } from "@/lib/server/blind-date-core";
+import { getMovingInPriorityIds } from "@/lib/server/match-priority";
 
 function similarityScore(a, b) {
   let score = 0;
@@ -154,12 +156,14 @@ export async function GET(req) {
     extra: true,
   };
   let candidates;
+  let movingInPriorityIds;
   try {
     const rows = await prisma.user.findMany({
       take: 500,
       where: { id: { not: exclude }, suspended: { not: true } },
       select: userSelect,
     });
+    movingInPriorityIds = await getMovingInPriorityIds(rows, prisma);
     candidates = rows
       .filter((r) => {
         const rExtra = r.extra && typeof r.extra === "object" ? r.extra : {};
@@ -179,7 +183,7 @@ export async function GET(req) {
     .filter((c) => !isSafetyId(myData.extra, BLOCKED_KEY, c.id) && !isSafetyId(c.extra, BLOCKED_KEY, auth.user.uid))
     .map((c) => ({ ...c, score: similarityScore(myData, c) }))
     .filter((c) => c.score > 0)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => compareMovingInPriority(a, b, movingInPriorityIds) || b.score - a.score)
     .slice(0, 20)
     .map(({ score, ...member }) => ({
       id: member.id,

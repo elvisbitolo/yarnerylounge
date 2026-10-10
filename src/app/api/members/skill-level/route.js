@@ -3,6 +3,9 @@ import { requireActiveMember, guardJson } from "@/lib/server/authorize";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
+import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
+import { compareMovingInPriority } from "@/lib/server/blind-date-core";
+import { getMovingInPriorityIds } from "@/lib/server/match-priority";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +13,9 @@ export async function GET() {
   const auth = await requireActiveMember();
   const denied = guardJson(auth);
   if (denied) return denied;
+  if (!canUseMatchmaker(await getCapabilities(auth.user.uid))) {
+    return NextResponse.json({ error: "Matchmaker membership required" }, { status: 403 });
+  }
 
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ members: [], skillLevel: "" });
@@ -35,6 +41,7 @@ export async function GET() {
         extra: true,
       },
     });
+    const movingInPriorityIds = await getMovingInPriorityIds(rows, prisma);
     const members = rows
       .filter((u) => u.extra && typeof u.extra === "object" && u.extra.profileVisibility !== "private")
       .filter((member) => String(member.skillLevel || member.extra?.skillLevel || "").trim().toLowerCase() === skillLevel)
@@ -46,7 +53,8 @@ export async function GET() {
         photoURL: member.photoURL || "",
         country: member.country || "",
         skillLevel: member.skillLevel || skillLevel,
-      }));
+      }))
+      .sort((a, b) => compareMovingInPriority(a, b, movingInPriorityIds));
 
     return NextResponse.json({ members, skillLevel });
   } catch (err) {

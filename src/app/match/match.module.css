@@ -160,6 +160,13 @@
   border: 1px solid rgba(167, 139, 250, 0.24);
 }
 
+.matchWindow {
+  margin: 0;
+  color: #6b5c8a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .matchPreview {
   display: flex;
   align-items: center;
@@ -185,6 +192,84 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.matchLifestyle,
+.matchProjects {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.matchLifestyle h3,
+.matchProjects h3 {
+  margin: 0;
+  color: #4b4658;
+  font-size: 13px;
+}
+
+.matchLifestyle ul,
+.matchProjects ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.matchLifestyle li {
+  padding: 5px 10px;
+  border: 1px solid #e6e0f0;
+  border-radius: 999px;
+  color: #5c536d;
+  background: #fff;
+  font-size: 12px;
+}
+
+.matchProjects ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+}
+
+.matchProject {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #e6e0f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.matchProjectImage {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.matchProject > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+  color: #373342;
+  font-size: 12px;
+}
+
+.matchProject strong,
+.matchProject small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matchProject small {
+  color: #777183;
+  font-size: 11px;
 }
 
 .primaryBtn {

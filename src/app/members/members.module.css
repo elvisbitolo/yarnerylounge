@@ -231,6 +231,25 @@
   gap: 6px;
 }
 
+.blindDateMessage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  margin-top: 12px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: #c9b6f0;
+  color: #17121f;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.blindDateMessage:hover {
+  background: #d7c9f5;
+}
+
 .blindDateNoteIcon {
   font-size: 13px;
 }

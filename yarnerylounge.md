@@ -106,9 +106,12 @@ LiveKit surface is now gone:
 
 ## Phase 8 — Speakeasy feature completion
 
-- Match decisions: daily matches now support persisted `accepted`/`passed`
-  decisions through `/api/members/blind-date/decision`; the swipe experience
-  remains unchanged.
+- Matchmaker: Hooking Up and Moving In receive a private curated match with a
+  rolling 24-hour review window; the hourly job refreshes expired matches.
+  Members can review active projects and lifestyle tags and choose to say hello
+  privately, or let the match expire without an explicit pass. Moving In
+  members are prioritized in match rankings; Flirting remains outside the paid
+  matchmaker entitlement.
 - Location discovery: the member directory now filters by timezone and shows
   privacy-preserving approximate country markers in a responsive map.
 - Room presence: JaaS-connected room sessions heartbeat through
