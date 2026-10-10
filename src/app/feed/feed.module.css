@@ -90,7 +90,8 @@
 .composerLeft {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .uploadBtn {
@@ -114,6 +115,70 @@
 .uploadBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.moreOptionsButton {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #6b6b7b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.moreOptionsButton:hover,
+.moreOptionsButton[aria-expanded="true"] {
+  background: #f7f7fb;
+  border-color: #e6e6ef;
+  color: #34344a;
+}
+
+.moreOptionsChevronOpen {
+  transform: rotate(180deg);
+}
+
+.composerExtraOptions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #fafafd;
+  border: 1px solid #ececf3;
+  border-radius: 10px;
+}
+
+.composerOption {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #4b4b5b;
+  font-size: 13px;
+}
+
+.composerOptionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.composerOption .pollOptionInput {
+  flex: 0 1 auto;
+}
+
+.composerHint {
+  margin: 10px 0 0;
+  color: #9b9bab;
+  font-size: 12px;
+  text-align: right;
 }
 
 .imagePreview {
@@ -284,12 +349,6 @@
 .pinBtn:hover {
   background: #f5f5ff;
   color: var(--primary);
-}
-
-.composerHint {
-  font-size: 12px;
-  color: #9b9bab;
-  margin: 0;
 }
 
 .postButton {

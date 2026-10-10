@@ -1018,6 +1018,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   // Composer extras.
   const [composerSchedule, setComposerSchedule] = useState("");
   const [composerSensitive, setComposerSensitive] = useState(false);
+  const [showComposerOptions, setShowComposerOptions] = useState(false);
   const [composerAlt, setComposerAlt] = useState("");
   const [quoteOf, setQuoteOf] = useState("");
   const [quotePreview, setQuotePreview] = useState("");
@@ -2526,26 +2527,6 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
             />
           </div>
         )}
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-            <input
-              type="checkbox"
-              checked={composerSensitive}
-              onChange={(e) => setComposerSensitive(e.target.checked)}
-            />
-            {t("markSensitive")}
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-            <Clock size={14} /> {t("scheduleFor")}
-            <input
-              type="datetime-local"
-              className={styles.pollOptionInput}
-              value={composerSchedule}
-              onChange={(e) => setComposerSchedule(e.target.value)}
-              style={{ maxWidth: 210 }}
-            />
-          </label>
-        </div>
         <div className={styles.composerRow}>
           <div className={styles.composerLeft}>
             <button
@@ -2573,7 +2554,19 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
                 <Video size={14} /> {t("addVideo")}
               </button>
             )}
-            <p className={styles.composerHint}>{t("beKind")}</p>
+            <button
+              type="button"
+              className={styles.moreOptionsButton}
+              onClick={() => setShowComposerOptions((open) => !open)}
+              aria-expanded={showComposerOptions}
+              aria-controls="feed-composer-options"
+            >
+              {t("moreOptions")}
+              <ChevronDown
+                size={14}
+                className={showComposerOptions ? styles.moreOptionsChevronOpen : ""}
+              />
+            </button>
           </div>
           <button
             className={styles.postButton}
@@ -2589,6 +2582,31 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
             {busy ? t("posting") : kindLabel}
           </button>
         </div>
+        {showComposerOptions && (
+          <div className={styles.composerExtraOptions} id="feed-composer-options">
+            <label className={styles.composerOption}>
+              <input
+                type="checkbox"
+                checked={composerSensitive}
+                onChange={(e) => setComposerSensitive(e.target.checked)}
+              />
+              {t("markSensitive")}
+            </label>
+            <label className={styles.composerOption}>
+              <span className={styles.composerOptionLabel}>
+                <Clock size={14} /> {t("scheduleFor")}
+              </span>
+              <input
+                type="datetime-local"
+                className={styles.pollOptionInput}
+                value={composerSchedule}
+                onChange={(e) => setComposerSchedule(e.target.value)}
+                style={{ maxWidth: 210 }}
+              />
+            </label>
+          </div>
+        )}
+        <p className={styles.composerHint}>{t("beKind")}</p>
         {draftRestored && (
           <div className={styles.draftRestored}>
             <span>{t("draftRestored")}</span>
