@@ -65,8 +65,9 @@
 
 /* Match Card */
 .matchCard {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(180px, 24%) minmax(0, 1fr);
+  align-items: start;
   background: #ffffff;
   border: 1px solid #e6e6ef;
   border-radius: 14px;
@@ -83,12 +84,14 @@
   align-items: center;
   gap: 12px;
   padding: 18px 20px 12px;
+  grid-column: 1 / -1;
 }
 
 .matchCardImage {
   position: relative;
-  height: 150px;
-  margin: 0 20px;
+  width: calc(100% - 20px);
+  aspect-ratio: 1;
+  margin: 0 0 20px 20px;
   overflow: hidden;
   border-radius: 12px;
   background: #f6f2ef;
@@ -133,7 +136,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 0 20px 20px;
-  flex: 1;
+  min-width: 0;
 }
 
 .matchCardDesc {
@@ -479,6 +482,14 @@
 }
 
 @media (max-width: 640px) {
+  .matchCard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .matchCardHeader {
+    grid-column: 1;
+  }
+
   .header {
     flex-direction: column;
   }
@@ -489,7 +500,12 @@
   }
 
   .matchCardImage {
-    margin: 0 14px;
+    width: min(calc(100% - 28px), 260px);
+    margin: 0 auto 12px;
+  }
+
+  .matchCardBody {
+    padding: 0 14px 18px;
   }
 }
 
