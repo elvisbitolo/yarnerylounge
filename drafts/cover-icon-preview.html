@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Member icon + cover photo — layout draft</title>
+<style>
+  /* Real site tokens, lifted from src/app/globals.css and profile.module.css */
+  :root {
+    --primary: #e91e63;
+    --primary-hover: #c2185b;
+    --page: #f7f1e9;
+    --card-border: #eadfd2;
+    --ink: #17171c;
+    --muted: #6b6b7b;
+    --faint: #9b9bab;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 24px 96px;
+    background: var(--page);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+  }
+
+  .intro { max-width: 760px; margin: 0 auto 36px; }
+  .intro h1 { font-size: 26px; font-weight: 800; margin: 0 0 8px; }
+  .intro p { margin: 0 0 8px; font-size: 14px; line-height: 1.6; color: #34344a; }
+  .intro code { background: #fff; border: 1px solid var(--card-border); border-radius: 6px; padding: 1px 5px; font-size: 12.5px; }
+
+  .stage { max-width: 760px; margin: 0 auto 44px; }
+  .stageHead { display: flex; align-items: baseline; gap: 12px; margin: 0 0 12px; }
+  .stageHead h2 { font-size: 15px; font-weight: 800; margin: 0; letter-spacing: .04em; text-transform: uppercase; color: var(--primary); }
+  .stageHead .tag { font-size: 12px; font-weight: 700; color: var(--muted); background: #fff; border: 1px solid var(--card-border); border-radius: 999px; padding: 3px 10px; }
+  .stage .why { font-size: 13.5px; line-height: 1.6; color: #34344a; margin: 12px 2px 0; }
+  .stage .why b { color: var(--ink); }
+
+  /* ---------- shared card (profile.module.css) ---------- */
+  .card {
+    background: #fff;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(90, 60, 40, 0.12);
+    overflow: hidden;
+    margin: 20px 0 32px;
+  }
+  .banner { position: relative; width: 100%; overflow: hidden; }
+  .bannerImg { display: block; width: 100%; height: auto; max-height: 420px; object-fit: cover; }
+
+  /* The cover "photo": a stand-in so this file needs no assets.
+     Repeats like a strand of yarn over a 4:1 gradient (COVER_RATIO = 4/1). */
+  .cover-art {
+    aspect-ratio: 4 / 1;
+    background:
+      repeating-linear-gradient(118deg, rgba(255,255,255,.14) 0 3px, rgba(255,255,255,0) 3px 24px),
+      radial-gradient(120% 180% at 88% -30%, rgba(124,58,237,.85) 0 45%, transparent 46%),
+      linear-gradient(115deg, #ffd9e6 0%, #f79bbd 26%, var(--primary) 55%, #7c3aed 82%, #090c26 100%);
+  }
+  .cover-art.tall { aspect-ratio: 16 / 7; }   /* a less-wide source photo */
+
+  .header { display: flex; gap: 20px; align-items: flex-start; padding: 20px 28px 28px; margin-top: 0; }
+  .headerBody { min-width: 0; }
+
+  .avatar {
+    width: 96px; height: 96px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #090c26, #f42e79);
+    color: #fff; font-size: 32px; font-weight: 700;
+    border-radius: 50%; border: 4px solid #fff; overflow: hidden;
+  }
+  .avatar img, .avatar .photo { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+
+  /* "Photo" avatar built from gradients so the draft needs no image file:
+     head, shoulders, then the light behind them. */
+  .photo {
+    background:
+      radial-gradient(circle at 50% 33%, #f4d3c4 0 17%, rgba(0,0,0,0) 17.6%),
+      radial-gradient(ellipse 42% 34% at 50% 108%, #33264a 0 100%, rgba(0,0,0,0) 100%),
+      linear-gradient(155deg, #ffd9a8 0%, #f7a8c0 52%, #b7a6f5 100%);
+  }
+
+  .title { font-size: 28px; font-weight: 800; color: var(--ink); margin: 0 0 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #fef3c7; color: #92400e; }
+  .founding { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; }
+  .username { font-size: 14px; font-weight: 600; color: var(--muted); margin: 2px 0 8px; }
+  .headline { font-size: 15px; font-weight: 600; color: var(--primary); margin: 0 0 6px; }
+  .location { font-size: 13px; color: var(--faint); margin: 0 0 10px; }
+  .bio { font-size: 14px; line-height: 1.6; color: #34344a; margin: 0 0 16px; }
+  .actions { display: flex; gap: 10px; margin: 8px 0 2px; }
+  .btn { display: inline-flex; align-items: center; height: 40px; padding: 0 20px; background: var(--primary); color: #fff; border-radius: 10px; font-size: 14px; font-weight: 600; }
+  .btn.ghost { background: #fff; color: var(--primary); border: 1px solid #e6e6ef; }
+
+  /* ---------- A · current ---------- */
+  /* nothing to override */
+
+  /* ---------- B · avatar straddles the cover ---------- */
+  .cardB .header { margin-top: -48px; padding-top: 0; position: relative; }
+  .cardB .avatar { width: 120px; height: 120px; font-size: 40px; border-width: 5px; box-shadow: 0 6px 18px rgba(9,12,38,.28); }
+  .cardB .headerBody { padding-top: 56px; }
+
+  /* ---------- C · inset cover + overlapping avatar ---------- */
+  .cardC { padding: 14px 14px 0; }
+  .cardC .banner { border-radius: 12px; }
+  .cardC .header { margin-top: -54px; padding: 0 14px 28px; }
+  .cardC .avatar { width: 112px; height: 112px; font-size: 38px; border-width: 5px; box-shadow: 0 6px 18px rgba(9,12,38,.28); }
+  .cardC .headerBody { padding-top: 60px; }
+
+  /* ---------- D · name laid over the cover ---------- */
+  .cardD .banner { position: relative; }
+  .cardD .scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(9,12,38,.86) 0%, rgba(9,12,38,.42) 42%, rgba(9,12,38,0) 78%);
+  }
+  .cardD .coverArtWrap { position: relative; }
+  .cardD .overlay {
+    position: absolute; left: 28px; right: 28px; bottom: 22px;
+    display: flex; gap: 16px; align-items: flex-end; color: #fff;
+  }
+  .cardD .overlay .avatar { width: 84px; height: 84px; font-size: 30px; border-width: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  .cardD .overlay .title { color: #fff; font-size: 26px; margin-bottom: 4px; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+  .cardD .overlay .sub { font-size: 14px; color: rgba(255,255,255,.9); text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+  .cardD .header { padding-top: 18px; }
+  .cardD .header .avatar { display: none; }
+
+  /* ---------- mobile ---------- */
+  .phone { width: 390px; max-width: 100%; }
+  .phone .cover-art { aspect-ratio: 4 / 1; }
+  .phone .header { padding: 16px 18px 22px; gap: 14px; }
+  .phone .avatar { width: 76px; height: 76px; font-size: 28px; }
+  .phone .title { font-size: 22px; }
+  .phone.cardB .header { margin-top: -40px; }
+  .phone.cardB .avatar { width: 96px; height: 96px; font-size: 34px; }
+  .phone.cardB .headerBody { padding-top: 46px; }
+
+  .twoUp { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .twoUp > * { flex: 1 1 340px; min-width: 0; }
+  .miniLabel { font-size: 12px; font-weight: 700; color: var(--muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+
+  .legend { max-width: 760px; margin: 0 auto 40px; background: #fff; border: 1px solid var(--card-border); border-radius: 12px; padding: 16px 18px; font-size: 13.5px; line-height: 1.7; color: #34344a; }
+  .legend b { color: var(--ink); }
+  .legend ul { margin: 8px 0 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Member icon + cover photo</h1>
+  <p>
+    Four ways the two can sit together, using the site's real palette and the geometry
+    from <code>profile.module.css</code>. The stand-ins below are CSS gradients — no image
+    files — so the proportions you're judging are the ones that matter.
+  </p>
+  <p>
+    Today's production layout is <b>A</b>: <code>src/app/members/[id]/page.js:249–269</code>,
+    styles in <code>profile.module.css</code>. Cover is full-bleed at its natural height
+    (capped at 420px), the icon is 96px with a 4px white ring, sitting <em>below</em> the
+    cover in the header row.
+  </p>
+</div>
+
+<!-- ============ A ============ -->
+<section class="stage">
+  <div class="stageHead">
+    <h2>A — Current</h2><span class="tag">in production</span>
+  </div>
+  <div class="card">
+    <div class="banner"><div class="cover-art"></div></div>
+    <div class="header">
+      <div class="avatar"><span class="photo"></span></div>
+      <div class="headerBody">
+        <p class="title">Christa Speakeasy <span class="badge">Owner</span> <span class="founding">Founding Yarnie 🧶</span></p>
+        <p class="username">@secretyarnery</p>
+        <p class="headline">Host of the Yarnery Lounge · designer of small, useful things</p>
+        <p class="location">Manchester, United Kingdom</p>
+        <div class="actions"><span class="btn">Follow</span><span class="btn ghost">Message</span></div>
+        <p class="bio">Crocheter of 20 years, dyer of questionable merino, keeper of a very opinionated cat. Come sit in the lounge.</p>
+      </div>
+    </div>
+  </div>
+  <p class="why">
+    <b>Reads as:</b> a document. Calm, and the cover never fights the name.
+    <b>The catch:</b> the icon and the cover don't touch — nothing ties them together, so
+    they read as two separate blocks. Also note the 4px white ring is invisible here
+    because the card behind it is white; that ring only earns its keep once the avatar
+    overlaps the photo (see B).
+  </p>
+</section>
+
+<!-- ============ B ============ -->
+<section class="stage">
+  <div class="stageHead">
+    <h2>B — Overlap</h2><span class="tag">one-line change</span>
+  </div>
+  <div class="card cardB">
+    <div class="banner"><div class="cover-art"></div></div>
+    <div class="header">
+      <div class="avatar"><span class="photo"></span></div>
+      <div class="headerBody">
+        <p class="title">Christa Speakeasy <span class="badge">Owner</span> <span class="founding">Founding Yarnie 🧶</span></p>
+        <p class="username">@secretyarnery</p>
+        <p class="headline">Host of the Yarnery Lounge · designer of small, useful things</p>
+        <p class="location">Manchester, United Kingdom</p>
+        <div class="actions"><span class="btn">Follow</span><span class="btn ghost">Message</span></div>
+        <p class="bio">Crocheter of 20 years, dyer of questionable merino, keeper of a very opinionated cat. Come sit in the lounge.</p>
+      </div>
+    </div>
+  </div>
+  <p class="why">
+    <b>Reads as:</b> a profile. The icon straddles the bottom edge of the cover, the white
+    ring finally does its job, and a drop shadow lifts it off the photo — so cover and icon
+    are unmistakably one object.
+    <b>Cost:</b> <code>margin-top: -48px</code> on the header plus <code>padding-top</code>
+    on the text column. The name also sits higher, so on a short cover the title can crowd
+    the photo.
+  </p>
+</section>
+
+<!-- ============ C ============ -->
+<section class="stage">
+  <div class="stageHead">
+    <h2>C — Inset cover</h2><span class="tag">softer, more "card"</span>
+  </div>
+  <div class="card cardC">
+    <div class="banner"><div class="cover-art tall"></div></div>
+    <div class="header">
+      <div class="avatar"><span class="photo"></span></div>
+      <div class="headerBody">
+        <p class="title">Christa Speakeasy <span class="badge">Owner</span></p>
+        <p class="username">@secretyarnery</p>
+        <p class="headline">Host of the Yarnery Lounge · designer of small, useful things</p>
+        <p class="location">Manchester, United Kingdom</p>
+        <div class="actions"><span class="btn">Follow</span><span class="btn ghost">Message</span></div>
+        <p class="bio">Crocheter of 20 years, dyer of questionable merino, keeper of a very opinionated cat. Come sit in the lounge.</p>
+      </div>
+    </div>
+  </div>
+  <p class="why">
+    <b>Reads as:</b> a keepsake. The cover gets its own rounded frame inside the card, so
+    it feels chosen rather than wallpapered edge to edge; the overlapping icon keeps the
+    link between the two.
+    <b>Cost:</b> the most CSS of the four, and a 4:1 cover shown inset is visibly shorter —
+    the page loses a bit of the big, generous photo.
+  </p>
+</section>
+
+<!-- ============ D ============ -->
+<section class="stage">
+  <div class="stageHead">
+    <h2>D — Name on the cover</h2><span class="tag">boldest</span>
+  </div>
+  <div class="card cardD">
+    <div class="banner">
+      <div class="coverArtWrap">
+        <div class="cover-art"></div>
+        <div class="scrim"></div>
+        <div class="overlay">
+          <div class="avatar"><span class="photo"></span></div>
+          <div>
+            <p class="title">Christa Speakeasy <span class="badge">Owner</span></p>
+            <p class="sub">@secretyarnery · Manchester, United Kingdom</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header">
+      <div class="headerBody">
+        <p class="headline">Host of the Yarnery Lounge · designer of small, useful things</p>
+        <div class="actions"><span class="btn">Follow</span><span class="btn ghost">Message</span></div>
+        <p class="bio">Crocheter of 20 years, dyer of questionable merino, keeper of a very opinionated cat. Come sit in the lounge.</p>
+      </div>
+    </div>
+  </div>
+  <p class="why">
+    <b>Reads as:</b> a cover image. The icon and name live <em>on</em> the photo, tied
+    together by a scrim — the strongest "these belong together" of the four.
+    <b>Cost:</b> a scrim means the photo is partly obscured, and white text on an
+    unpredictable member-uploaded cover needs the gradient to be genuinely dark or it
+    becomes unreadable. Most likely to need per-cover tuning.
+  </p>
+</section>
+
+<!-- ============ mobile ============ -->
+<section class="stage">
+  <div class="stageHead"><h2>On a phone</h2><span class="tag">390px · A vs B</span></div>
+  <div class="twoUp">
+    <div>
+      <p class="miniLabel">A — current</p>
+      <div class="card phone">
+        <div class="banner"><div class="cover-art"></div></div>
+        <div class="header">
+          <div class="avatar"><span class="photo"></span></div>
+          <div class="headerBody">
+            <p class="title">Christa Speakeasy</p>
+            <p class="username">@secretyarnery</p>
+            <p class="headline">Host of the Yarnery Lounge</p>
+            <div class="actions"><span class="btn">Follow</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="miniLabel">B — overlap</p>
+      <div class="card phone cardB">
+        <div class="banner"><div class="cover-art"></div></div>
+        <div class="header">
+          <div class="avatar"><span class="photo"></span></div>
+          <div class="headerBody">
+            <p class="title">Christa Speakeasy</p>
+            <p class="username">@secretyarnery</p>
+            <p class="headline">Host of the Yarnery Lounge</p>
+            <div class="actions"><span class="btn">Follow</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="why">
+    At 390px the cover is only ~97px tall at 4:1, so the overlap in <b>B</b> eats half of it —
+    that's the main argument for leaving the icon <em>below</em> the cover on small screens
+    and overlapping only from tablet up.
+  </p>
+</section>
+
+<div class="legend">
+  <b>Where each number comes from</b>
+  <ul>
+    <li>Cover: full-bleed, natural height, <code>max-height: 420px</code>, <code>object-fit: cover</code> — <code>profile.module.css:28–41</code></li>
+    <li>Icon: <code>96×96</code>, <code>4px solid #fff</code>, gradient <code>#090c26 → #f42e79</code> — <code>profile.module.css:51–72</code></li>
+    <li>Header row: <code>padding: 20px 28px 28px</code>, <code>gap: 20px</code> — <code>profile.module.css:43–49</code></li>
+    <li>Card: white, <code>1px #eadfd2</code>, <code>radius 16</code> — <code>profile.module.css:12–19</code></li>
+    <li>Accent: <code>--primary: #e91e63</code> — <code>globals.css:23</code></li>
+  </ul>
+</div>
+
+</body>
+</html>

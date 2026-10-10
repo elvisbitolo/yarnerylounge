@@ -321,6 +321,7 @@ model Post {
   text            String
   kind            String? // post | poll | question | win
   imageUrl        String?
+  videoUrl        String? // youtube/vimeo/direct video or a link card
   likes           Json?
   bookmarks       Json?
   reactions       Json?

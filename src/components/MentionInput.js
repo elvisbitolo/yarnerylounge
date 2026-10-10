@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import styles from "./MentionInput.module.css";
+import { detectTrigger } from "@/lib/feed-utils";
 
 export default function MentionInput({
   value,
@@ -12,6 +13,7 @@ export default function MentionInput({
   rows = 3,
   maxLength,
   disabled,
+  withTags = false,
 }) {
   const [query, setQuery] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
@@ -22,26 +24,34 @@ export default function MentionInput({
   const dropdownRef = useRef(null);
   const fetchRef = useRef(null);
 
-  const fetchSuggestions = useCallback(async (q) => {
-    if (fetchRef.current) clearTimeout(fetchRef.current);
-    fetchRef.current = setTimeout(async () => {
-      setBusy(true);
-      try {
-        const res = await fetch(`/api/members/mention?q=${encodeURIComponent(q)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSuggestions(data.members || []);
-          setShowDropdown((data.members || []).length > 0);
-          setActiveIndex(-1);
+  const fetchSuggestions = useCallback(
+    async (q) => {
+      if (fetchRef.current) clearTimeout(fetchRef.current);
+      fetchRef.current = setTimeout(async () => {
+        setBusy(true);
+        try {
+          const url =
+            q.type === "tag"
+              ? `/api/hashtags?q=${encodeURIComponent(q.query)}`
+              : `/api/members/mention?q=${encodeURIComponent(q.query)}`;
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            const list = q.type === "tag" ? data.tags || [] : data.members || [];
+            setSuggestions(list);
+            setShowDropdown(list.length > 0);
+            setActiveIndex(-1);
+          }
+        } catch {
+          setSuggestions([]);
+          setShowDropdown(false);
+        } finally {
+          setBusy(false);
         }
-      } catch {
-        setSuggestions([]);
-        setShowDropdown(false);
-      } finally {
-        setBusy(false);
-      }
-    }, 200);
-  }, []);
+      }, 200);
+    },
+    []
+  );
 
   useEffect(() => {
     return () => {
@@ -49,37 +59,29 @@ export default function MentionInput({
     };
   }, []);
 
-  function detectMention(text, cursorPos) {
-    const before = text.slice(0, cursorPos);
-    const match = before.match(/@([a-zA-Z0-9_]{0,30})$/);
-    if (match) {
-      return { start: match.index + 1, query: match[1] };
-    }
-    return null;
-  }
-
   function handleChange(e) {
     const newValue = e.target.value;
     const cursorPos = e.target.selectionStart;
     onChange(newValue);
 
-    const mention = detectMention(newValue, cursorPos);
-    if (mention && mention.query.length >= 1) {
-      setQuery(mention);
-      fetchSuggestions(mention.query);
+    const trigger = detectTrigger(newValue, cursorPos);
+    if (trigger && (!(trigger.type === "tag") || withTags) && trigger.query.length >= 1) {
+      setQuery(trigger);
+      fetchSuggestions(trigger);
     } else {
       setShowDropdown(false);
       setQuery(null);
     }
   }
 
-  function insertMention(member) {
+  function insertSuggestion(entry) {
     if (!query || !inputRef.current) return;
     const text = value;
     const before = text.slice(0, query.start - 1);
     const after = text.slice(query.start + query.query.length);
-    const insert = member.username || member.name;
-    const newText = `${before}@${insert} ${after}`;
+    const glyph = query.type === "tag" ? "#" : "@";
+    const insert = query.type === "tag" ? entry.tag : entry.username || entry.name;
+    const newText = `${before}${glyph}${insert} ${after}`;
     onChange(newText);
     setShowDropdown(false);
     setQuery(null);
@@ -101,7 +103,7 @@ export default function MentionInput({
     } else if (e.key === "Enter" || e.key === "Tab") {
       if (activeIndex >= 0 && activeIndex < suggestions.length) {
         e.preventDefault();
-        insertMention(suggestions[activeIndex]);
+        insertSuggestion(suggestions[activeIndex]);
       }
     } else if (e.key === "Escape") {
       setShowDropdown(false);
@@ -133,39 +135,59 @@ export default function MentionInput({
       />
       {showDropdown && suggestions.length > 0 && (
         <div ref={dropdownRef} className={styles.dropdown}>
-          {suggestions.map((member, index) => (
-            <button
-              key={member.uid}
-              type="button"
-              className={`${styles.suggestion} ${index === activeIndex ? styles.suggestionActive : ""}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                insertMention(member);
-              }}
-              onMouseEnter={() => setActiveIndex(index)}
-            >
-              <span className={styles.suggestionAvatar}>
-                {member.photoURL ? (
-                  <Image
-                    src={member.photoURL}
-                    alt=""
-                    width={28}
-                    height={28}
-                    className={styles.suggestionImg}
-                    unoptimized
-                  />
+          {suggestions.map((entry, index) => {
+            const isTag = query.type === "tag";
+            const key = isTag ? `#${entry.tag}` : entry.uid;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`${styles.suggestion} ${index === activeIndex ? styles.suggestionActive : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  insertSuggestion(entry);
+                }}
+                onMouseEnter={() => setActiveIndex(index)}
+              >
+                {isTag ? (
+                  <>
+                    <span className={`${styles.suggestionAvatar} ${styles.tagGlyph}`}>#</span>
+                    <span className={styles.suggestionInfo}>
+                      <span className={styles.suggestionName}>{entry.tag}</span>
+                      {Number(entry.count) > 0 && (
+                        <span className={styles.suggestionUsername}>
+                          {Number(entry.count) === 1 ? "1 post" : `${entry.count} posts`}
+                        </span>
+                      )}
+                    </span>
+                  </>
                 ) : (
-                  (member.name || "?").slice(0, 1).toUpperCase()
+                  <>
+                    <span className={styles.suggestionAvatar}>
+                      {entry.photoURL ? (
+                        <Image
+                          src={entry.photoURL}
+                          alt=""
+                          width={28}
+                          height={28}
+                          className={styles.suggestionImg}
+                          unoptimized
+                        />
+                      ) : (
+                        (entry.name || "?").slice(0, 1).toUpperCase()
+                      )}
+                    </span>
+                    <span className={styles.suggestionInfo}>
+                      <span className={styles.suggestionName}>{entry.name || entry.username}</span>
+                      {entry.username && (
+                        <span className={styles.suggestionUsername}>@{entry.username}</span>
+                      )}
+                    </span>
+                  </>
                 )}
-              </span>
-              <span className={styles.suggestionInfo}>
-                <span className={styles.suggestionName}>{member.name || member.username}</span>
-                {member.username && (
-                  <span className={styles.suggestionUsername}>@{member.username}</span>
-                )}
-              </span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

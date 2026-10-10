@@ -12,7 +12,8 @@ import { cardThemeVars } from "@/lib/card-themes";
 import { dataUrlToBlob } from "@/lib/data-url";
 import { IMAGE_DATA_URL_MAX, isSystemPost } from "@/lib/server/posts-core";
 import styles from "./feed.module.css";
-import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown } from "lucide-react";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown, Share2, Video, X } from "lucide-react";
+import { embedInfoForUrl, normalizeTag, isValidTag } from "@/lib/feed-utils";
 
 const PAGE_SIZE = 20;
 const VIRTUALIZE_AT = 150; // window virtualizer only kicks in for long feeds
@@ -90,12 +91,12 @@ function timeAgo(ts) {
   return new Date(millis).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function renderMentions(text) {
+function renderMentions(text, onTag) {
   if (!text) return "";
   const parts = text.split(/(@[a-zA-Z0-9_]{1,30})/g);
   return parts.map((part, index) => {
     const match = part.match(/^@([a-zA-Z0-9_]{1,30})$/);
-    if (!match) return renderHashtags(part);
+    if (!match) return renderHashtags(part, onTag);
     const username = match[1];
     return (
       <Link key={index} className={styles.mention} href={`/members?search=${encodeURIComponent(username)}`}>
@@ -105,13 +106,32 @@ function renderMentions(text) {
   });
 }
 
-function renderHashtags(text) {
+function renderHashtags(text, onTag) {
   if (!text) return "";
   const parts = text.split(/((?:^|\s)#[a-zA-Z0-9_]+)/g);
   return parts.map((part, index) => {
     const match = part.match(/^(\s*)#([a-zA-Z0-9_]+)$/);
     if (!match) return part;
-    const [, space, tag] = match;
+    const [, space, raw] = match;
+    const tag = raw.toLowerCase();
+    if (onTag) {
+      return (
+        <span key={index}>
+          {space}
+          <button
+            type="button"
+            className={styles.hashtag}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onTag(tag);
+            }}
+          >
+            #{tag}
+          </button>
+        </span>
+      );
+    }
     return (
       <span key={index}>
         {space}
@@ -121,6 +141,39 @@ function renderHashtags(text) {
       </span>
     );
   });
+}
+
+function VideoEmbed({ post }) {
+  const info = embedInfoForUrl(post.videoUrl || "");
+  if (info.type === "youtube" || info.type === "vimeo") {
+    return (
+      <div className={styles.videoEmbed}>
+        <iframe
+          src={info.embedUrl}
+          title={post.kind === "win" ? "Win" : "Embedded video"}
+          className={styles.videoIframe}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+  if (info.type === "video") {
+    return (
+      <div className={styles.videoEmbed}>
+        <video src={info.url} controls preload="metadata" className={styles.videoIframe} />
+      </div>
+    );
+  }
+  return (
+    <a className={styles.videoLink} href={info.url} target="_blank" rel="noopener noreferrer">
+      <span className={styles.videoLinkIcon}><Video size={16} /></span>
+      <span className={styles.videoLinkText}>{info.host || info.url}</span>
+      <span className={styles.videoLinkArrow}>↗</span>
+    </a>
+  );
 }
 
 const POST_KIND_THEMES = {
@@ -439,7 +492,7 @@ function ReportButton({ type, targetId, commentPostId, small }) {
   );
 }
 
-function CommentList({ postId, uid, userName, role, canModerate, disabled, onCommentChanged }) {
+function CommentList({ postId, uid, userName, role, canModerate, disabled, onCommentChanged, onTag }) {
   const t = useTranslations("feed");
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
@@ -663,7 +716,7 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
             <ReportButton type="comment" targetId={c.id} commentPostId={postId} small />
           )}
         </div>
-        <p className={styles.commentText}>{renderMentions(c.text)}</p>
+        <p className={styles.commentText}>{renderMentions(c.text, onTag)}</p>
         <EmojiReactionBar
           postId={postId}
           commentId={c.id}
@@ -805,6 +858,9 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [showVideoInput, setShowVideoInput] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
   const [kind, setKind] = useState(
     initialKind === "poll" || initialKind === "question" || initialKind === "win"
       ? initialKind
@@ -812,6 +868,9 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   );
   const [pollOptions, setPollOptions] = useState(EMPTY_POLL);
   const [pollDeadline, setPollDeadline] = useState("");
+  // Hashtag chip filter (e.g. clicked #yarn): ANDs with the active view pills.
+  const [tag, setTag] = useState("");
+  const [copiedIds, setCopiedIds] = useState(new Set());
   // Active view pills, combinable with AND (following + unanswered, etc).
   // Empty array means the full community feed ("all").
   const [views, setViews] = useState([]);
@@ -820,6 +879,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const fileInputRef = useRef(null);
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
+  const focusRef = useRef("");
 
   // Track the current sort in a ref so URL/cache/sort helpers stay stable
   // across renders. Must be declared before sortFeedPosts below, which reads
@@ -854,8 +914,14 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     filterRef.current = views;
   }, [views]);
 
+  // Same pattern for the hashtag chip.
+  const tagRef = useRef(tag);
+  useEffect(() => {
+    tagRef.current = tag;
+  }, [tag]);
+
   const cacheKeyFor = useCallback(
-    (mode) => `feed:v2:${spaceId || "home"}:${groupId || "home"}:${mode}:${sortRef.current || "newest"}:${searchRef.current?.trim() || ""}`,
+    (mode) => `feed:v2:${spaceId || "home"}:${groupId || "home"}:${mode}:${sortRef.current || "newest"}:${searchRef.current?.trim() || ""}:${tagRef.current || ""}`,
     [spaceId, groupId]
   );
 
@@ -892,6 +958,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       params.set("sort", sortRef.current || "newest");
       const q = searchRef.current?.trim();
       if (q) params.set("q", q);
+      if (tagRef.current) params.set("tag", tagRef.current);
       params.set("limit", String(PAGE_SIZE));
       if (after) params.set("after", after);
       return `/api/posts?${params.toString()}`;
@@ -910,6 +977,46 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       )
     );
   }, []);
+
+  // Share deep link: the recipient lands on the feed with the post's comments
+  // open and the card scrolled into view. If the post sits outside the loaded
+  // page, the single-post endpoint merges it in.
+  const applyFocus = useCallback(
+    async (id) => {
+      if (!id) return;
+      const ensureAndScroll = () => {
+        const el = document.getElementById(`feed-post-${id}`);
+        if (!el) return false;
+        setOpenComments((prev) => {
+          const next = new Set(prev);
+          next.add(id);
+          return next;
+        });
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        return true;
+      };
+      for (let i = 0; i < 8; i += 1) {
+        if (ensureAndScroll()) return;
+        await new Promise((r) => setTimeout(r, 120));
+      }
+      try {
+        const res = await fetch(`/api/posts/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.post) return;
+        setPosts((prev) =>
+          prev.some((p) => p.id === id) ? prev : sortFeedPosts([data.post, ...prev])
+        );
+        for (let i = 0; i < 6; i += 1) {
+          if (ensureAndScroll()) return;
+          await new Promise((r) => setTimeout(r, 120));
+        }
+      } catch {
+        /* best-effort: shared posts outside the page merge is optional */
+      }
+    },
+    [sortFeedPosts]
+  );
 
   // Session-scoped SWR-ish cache: render the last page instantly, refresh in
   // the background, and (thanks to the union below) never show a blank screen
@@ -1004,7 +1111,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   }, [loadingMore, hasMore, initialLoading, nextCursor, feedUrlFor, sortFeedPosts]);
 
   const checkNewPosts = useCallback(async () => {
-    if (groupId || spaceId || filterRef.current.length > 0) return;
+    if (groupId || spaceId || filterRef.current.length > 0 || tagRef.current) return;
     if ((sortRef.current || "newest") !== "newest") return;
     try {
       const res = await fetch(feedUrlFor("all"));
@@ -1036,7 +1143,21 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   // environment change (not per filter click) — the tab buttons below trigger
   // their own loads for the communities feed.
   useEffect(() => {
-    loadFirst(groupId || spaceId ? "all" : "all");
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const focusId = params.get("focus");
+      if (focusId) {
+        focusRef.current = focusId;
+        params.delete("focus");
+        const query = params.toString();
+        window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+      }
+    } catch {}
+    loadFirst(groupId || spaceId ? "all" : "all").then(() => {
+      setTimeout(() => {
+        if (focusRef.current) applyFocus(focusRef.current);
+      }, 60);
+    });
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (!user) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
@@ -1060,7 +1181,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       window.removeEventListener("focus", onVisible);
       unsubAuth();
     };
-  }, [groupId, spaceId, loadFirst, checkNewPosts]);
+  }, [groupId, spaceId, loadFirst, checkNewPosts, applyFocus]);
 
   // Sort is server-side: changing it refetches the current view rather than
   // re-sorting just the loaded page. The reload fires from an effect below so
@@ -1122,6 +1243,41 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     };
   }, [spaceId, groupId]);
 
+  // Draft autosave: restores an unfinished composer state on return, and
+  // persists text/poll state (never the image, which may be a large data URL).
+  useEffect(() => {
+    const key = `feed:draft:${uid}:${groupId || spaceId || "home"}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (!d || typeof d.text !== "string" || !d.text.trim()) return;
+      setText(d.text);
+      if (d.kind === "poll" || d.kind === "question" || d.kind === "win") setKind(d.kind);
+      if (Array.isArray(d.pollOptions) && d.pollOptions.length >= 2 && d.pollOptions.length <= 5) {
+        setPollOptions(d.pollOptions);
+      }
+      if (typeof d.pollDeadline === "string") setPollDeadline(d.pollDeadline);
+      if (typeof d.videoUrl === "string" && d.videoUrl) setVideoUrl(d.videoUrl);
+      setDraftRestored(true);
+    } catch {}
+  }, [uid, groupId, spaceId]);
+
+  useEffect(() => {
+    const key = `feed:draft:${uid}:${groupId || spaceId || "home"}`;
+    const timer = setTimeout(() => {
+      const empty = !text.trim() && !videoUrl && pollOptions.every((o) => !o.trim()) && !pollDeadline && kind === "post";
+      try {
+        if (empty) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, JSON.stringify({ text, kind, pollOptions, pollDeadline, videoUrl, at: Date.now() }));
+        }
+      } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [text, kind, pollOptions, pollDeadline, videoUrl, uid, groupId, spaceId]);
+
   async function handleImageUpload(e) {
     const file = e.target.files?.[0];
     if (!file || uploading) return;
@@ -1151,6 +1307,10 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     async (e) => {
       e.preventDefault();
       const trimmed = text.trim();
+      if (imageUrl && videoUrl) {
+        alert("A post can have an image or a video, not both.");
+        return;
+      }
       const tag = /\b#win\b/i.test(trimmed) ? "" : "#win";
       const payloadText = kind === "win" && trimmed ? `${trimmed} ${tag}`.trim() : trimmed;
       const cleanPoll = pollOptions
@@ -1158,7 +1318,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         .filter((opt) => opt.length > 0);
       if (kind === "poll") {
         if (cleanPoll.length < 2 || busy || uploading) return;
-      } else if ((!trimmed && !imageUrl) || busy || uploading) {
+      } else if ((!trimmed && !imageUrl && !videoUrl) || busy || uploading) {
         return;
       }
       setBusy(true);
@@ -1183,6 +1343,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           body: JSON.stringify({
             text: payloadText,
             imageUrl: storedImageUrl,
+            videoUrl: videoUrl || "",
             groupId: groupId || "",
             spaceId: spaceId || "",
             kind,
@@ -1200,6 +1361,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           text: payloadText,
           kind,
           imageUrl: storedImageUrl || "",
+          videoUrl: videoUrl || "",
           likes: {},
           bookmarks: {},
           reactions: {},
@@ -1220,9 +1382,15 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         setPosts((prev) => sortFeedPosts([optimisticPost, ...prev]));
         setText("");
         setImageUrl("");
+        setVideoUrl("");
+        setShowVideoInput(false);
         setKind("post");
         setPollOptions(EMPTY_POLL);
         setPollDeadline("");
+        setDraftRestored(false);
+        try {
+          localStorage.removeItem(`feed:draft:${uid}:${groupId || spaceId || "home"}`);
+        } catch {}
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
         if (uploadedBlobUrl) await deleteUploadedBlob(uploadedBlobUrl);
@@ -1232,7 +1400,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         setBusy(false);
       }
     },
-    [text, imageUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, uid, userName, role, sortFeedPosts]
+    [text, imageUrl, videoUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, uid, userName, role, sortFeedPosts]
   );
 
   function setPollOption(index, value) {
@@ -1395,6 +1563,48 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     loadFirst(nextViews);
   }
 
+  // Clicking a #tag anywhere in the feed switches the timeline to that tag
+  // (ANDed with any active view pills). Cleared via the chip row.
+  function selectTag(raw) {
+    const next = normalizeTag(raw);
+    const clean = isValidTag(next) ? next : "";
+    if (clean === tagRef.current) return;
+    tagRef.current = clean;
+    setTag(clean);
+    loadFirst(filterRef.current);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function sharePost(id) {
+    const url = `${window.location.origin}/feed?focus=${id}`;
+    try {
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url);
+    } catch {
+      /* clipboard blocked — still show the happy path */
+    }
+    setCopiedIds((prev) => new Set(prev).add(id));
+    setTimeout(() => {
+      setCopiedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 1600);
+  }
+
+  function clearDraft() {
+    try {
+      localStorage.removeItem(`feed:draft:${uid}:${groupId || spaceId || "home"}`);
+    } catch {}
+    setDraftRestored(false);
+    setText("");
+    setKind("post");
+    setPollOptions(EMPTY_POLL);
+    setPollDeadline("");
+    setVideoUrl("");
+    setShowVideoInput(false);
+  }
+
   const disabledActions = !canWriteChat && !canModerate;
 
   async function toggleArticleLike(post) {
@@ -1490,14 +1700,30 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     if (post.kind === "event") return renderEventCard(post);
     const attribution = post.spaceName ? post.spaceName : post.groupName ? post.groupName : null;
     return (
-      <article key={post.id} className={styles.post} style={postCardStyle(post.kind)}>
+      <article key={post.id} id={`feed-post-${post.id}`} className={styles.post} style={postCardStyle(post.kind)}>
         <div className={styles.postHeader}>
           <div className={styles.avatar}>
-            {(post.authorName || "?").slice(0, 1).toUpperCase()}
+            {post.authorPhotoUrl ? (
+              <img src={post.authorPhotoUrl} alt="" className={styles.avatarImg} loading="lazy" decoding="async" />
+            ) : (
+              (post.authorName || "?").slice(0, 1).toUpperCase()
+            )}
           </div>
           <div className={styles.postHeaderInfo}>
             <p className={styles.postAuthor}>
-              {post.authorName}
+              {isSystemPost(post) ? (
+                post.authorName
+              ) : (
+                <Link
+                  className={styles.authorLink}
+                  href={`/members?search=${encodeURIComponent(post.authorUsername || post.authorName || "")}`}
+                >
+                  {post.authorName}
+                </Link>
+              )}
+              {!isSystemPost(post) && (post.authorRole === "owner" || post.authorRole === "moderator") && (
+                <span className={styles.roleTag}><Crown size={12} /> {t("host")}</span>
+              )}
               {post.kind === "announcement" && <span className={styles.kindBadge}><ScrollText size={13} /> {t("announcement")}</span>}
               {post.kind === "poll" && <span className={styles.kindBadge}><BarChart3 size={13} /> {t("tabPoll")}</span>}
               {post.kind === "question" && <span className={styles.kindBadge}><HelpCircle size={13} /> {t("tabQuestion")}</span>}
@@ -1533,13 +1759,14 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             )}
           </div>
         </div>
-        {post.text && <p className={styles.postText}>{renderMentions(post.text)}</p>}
+        {post.text && <p className={styles.postText}>{renderMentions(post.text, selectTag)}</p>}
         {post.kind === "poll" && (
           <PollBlock postId={post.id} post={post} uid={uid} disabled={disabledActions} />
         )}
         {post.imageUrl && (
           <img src={post.imageUrl} alt="" className={styles.postImage} loading="lazy" decoding="async" />
         )}
+        {post.videoUrl && <VideoEmbed post={post} />}
         {isSystemPost(post) ? (
           <p className={styles.readOnlyNote}>{t("readOnlyNote")}</p>
         ) : (
@@ -1556,10 +1783,19 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
                 <MessageCircle size={15} />
                 {t("commentsCount", { count: post.commentCount || 0 })}
               </button>
+              <button
+                type="button"
+                className={styles.shareBtn}
+                onClick={() => sharePost(post.id)}
+                title={t("share")}
+              >
+                <Share2 size={15} />
+                {copiedIds.has(post.id) ? t("copied") : t("share")}
+              </button>
             </div>
             <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} onUpdated={(map) => patchPost(post.id, { reactions: map })} />
             {openComments.has(post.id) && (
-              <CommentList postId={post.id} uid={uid} userName={userName} role={role} canModerate={canModerate} disabled={disabledActions} onCommentChanged={patchCommentCount} />
+              <CommentList postId={post.id} uid={uid} userName={userName} role={role} canModerate={canModerate} disabled={disabledActions} onCommentChanged={patchCommentCount} onTag={selectTag} />
             )}
           </>
         )}
@@ -1637,6 +1873,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         <MentionInput
           className={styles.composerInput}
           rows={3}
+          withTags
           placeholder={
             kind === "poll"
               ? t("askPoll")
@@ -1706,13 +1943,43 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             </button>
           </div>
         )}
+        {kind !== "poll" && showVideoInput && (
+          <div className={styles.videoComposer}>
+            <input
+              className={styles.videoUrlInput}
+              type="url"
+              placeholder={t("videoUrlPlaceholder")}
+              value={videoUrl}
+              maxLength={2048}
+              onChange={(e) => setVideoUrl(e.target.value.trim())}
+            />
+            {videoUrl && imageUrl && (
+              <p className={styles.videoComposerWarn}>{t("noImageAndVideo")}</p>
+            )}
+            {videoUrl && !imageUrl && (
+              <p className={styles.videoDetected}>
+                {t("videoDetected")} {embedInfoForUrl(videoUrl).host || t("videoDetectedUnknown")}
+              </p>
+            )}
+            <button
+              type="button"
+              className={styles.removeImage}
+              onClick={() => {
+                setVideoUrl("");
+                setShowVideoInput(false);
+              }}
+            >
+              {t("remove")}
+            </button>
+          </div>
+        )}
         <div className={styles.composerRow}>
           <div className={styles.composerLeft}>
             <button
               type="button"
               className={styles.uploadBtn}
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
+              disabled={uploading || Boolean(videoUrl)}
             >
               {uploading ? t("uploading") : t("addPhoto")}
             </button>
@@ -1723,6 +1990,16 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               hidden
               onChange={handleImageUpload}
             />
+            {kind !== "poll" && (
+              <button
+                type="button"
+                className={`${showVideoInput ? styles.videoBtnActive : styles.uploadBtn}`}
+                onClick={() => setShowVideoInput((v) => !v)}
+                disabled={Boolean(imageUrl)}
+              >
+                <Video size={14} /> {t("addVideo")}
+              </button>
+            )}
             <p className={styles.composerHint}>{t("beKind")}</p>
           </div>
           <button
@@ -1733,12 +2010,20 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               uploading ||
               (kind === "poll"
                 ? pollOptions.filter((opt) => opt.trim().length > 0).length < 2
-                : !text.trim() && !imageUrl)
+                : !text.trim() && !imageUrl && !videoUrl)
             }
           >
             {busy ? t("posting") : kindLabel}
           </button>
         </div>
+        {draftRestored && (
+          <div className={styles.draftRestored}>
+            <span>{t("draftRestored")}</span>
+            <button type="button" className={styles.draftClear} onClick={clearDraft}>
+              {t("clearDraft")}
+            </button>
+          </div>
+        )}
       </form>
       )}
 
@@ -1826,6 +2111,22 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         </div>
       </div>
 
+      {tag && (
+        <div className={styles.tagChipRow}>
+          <span className={styles.tagChip}>
+            #{tag}
+            <button
+              type="button"
+              className={styles.tagChipClear}
+              onClick={() => selectTag("")}
+              aria-label={t("clearTag")}
+            >
+              <X size={14} />
+            </button>
+          </span>
+        </div>
+      )}
+
       {newPosts.length > 0 && (
         <button className={styles.newPostsBanner} type="button" onClick={prependNewPosts}>
           {t("newPosts", { count: newPosts.length })}
@@ -1853,6 +2154,8 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             ? t("noPostsFollowing")
             : views.includes("near")
             ? t("noPostsNear")
+            : tag
+            ? t("noPostsTag", { tag })
             : spaceId
             ? t("noPostsSpace")
             : groupId

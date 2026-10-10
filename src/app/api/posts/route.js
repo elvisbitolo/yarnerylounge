@@ -13,7 +13,8 @@ import { createNotification } from "@/lib/server/notifications";
 import { runAutomations } from "@/lib/server/automations";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { validatePostText, isValidImageUrl, POST_TEXT_MAX, mapPostRow, encodeCursor, decodeCursor, feedOrderBy, cursorAfter } from "@/lib/server/posts-core";
+import { validatePostText, validateMediaPair, POST_TEXT_MAX, mapPostRow, encodeCursor, decodeCursor, feedOrderBy, cursorAfter } from "@/lib/server/posts-core";
+import { isValidTag, normalizeTag } from "@/lib/feed-utils";
 import { idsFromExtra } from "@/lib/server/member-safety-core";
 
 export const dynamic = "force-dynamic";
@@ -35,13 +36,13 @@ async function computeFeedCounts({ prisma, ctx, orderBy, PASS_TAKE }) {
     popular: 0,
   };
   const uid = ctx.uid;
-  const { spaceIdParam, groupIdParam } = ctx;
+  const { spaceIdParam, groupIdParam, tag } = ctx;
   let cursor = null;
   let scanned = 0;
   const COUNT_SCAN_MAX = 100_000;
   while (scanned < COUNT_SCAN_MAX) {
     const batch = await prisma.post.findMany({
-      where: cursorAfter(cursor),
+      where: tag ? { hashtags: { has: tag }, ...(cursorAfter(cursor) || {}) } : cursorAfter(cursor),
       orderBy,
       take: PASS_TAKE,
     });
@@ -73,11 +74,12 @@ function filterVisiblePosts(posts, ctx) {
   const {
     views, spaceIdParam, groupIdParam,
     uid, followingIds, nearIds, spaceIds, groupIds,
-    blockedIds, mutedIds, searchText, commentMatchPostIds,
+    blockedIds, mutedIds, searchText, commentMatchPostIds, tag,
   } = ctx;
   return posts.filter((data) => {
     if (data.authorId !== uid && blockedIds.has(data.authorId)) return false;
     if (data.authorId !== uid && mutedIds.has(data.authorId)) return false;
+    if (tag && !(data.hashtags || []).includes(tag)) return false;
     // Every active view must match (combined A1/AND filters).
     if (views.has("following") && data.authorId !== uid && !followingIds.has(data.authorId)) return false;
     if (views.has("near") && !nearIds.has(data.authorId)) return false;
@@ -173,25 +175,30 @@ async function computeFeatured({ prisma, ctx }) {
   return rows.filter((row) => isFeaturedVisible(row, ctx)).map(mapPostRow);
 }
 
-// Attach space/group display names to mapped posts in a couple of batched
-// queries so the client can render "in {SpaceName}" attribution without
-// denormalizing columns onto Post.
+// Attach space/group display names and author identity (photo + username) to
+// mapped posts in a few batched queries so the client can render richer author
+// rows and "in {SpaceName}" attribution without denormalizing columns on Post.
 async function attachAttribution({ prisma, posts }) {
   if (!posts || posts.length === 0) return posts;
   const spaceIds = [...new Set(posts.map((p) => p.spaceId).filter(Boolean))];
   const groupIds = [...new Set(posts.map((p) => p.groupId).filter(Boolean))];
+  const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))];
 
-  const [spaces, groups] = await Promise.all([
+  const [spaces, groups, authors] = await Promise.all([
     spaceIds.length
       ? prisma.space.findMany({ where: { id: { in: spaceIds } }, select: { id: true, name: true, slug: true } })
       : [],
     groupIds.length
       ? prisma.group.findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true, slug: true } })
       : [],
+    authorIds.length
+      ? prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, photoURL: true, username: true } })
+      : [],
   ]);
 
   const spaceMap = new Map(spaces.map((s) => [s.id, s]));
   const groupMap = new Map(groups.map((g) => [g.id, g]));
+  const authorMap = new Map(authors.map((a) => [a.id, a]));
 
   for (const post of posts) {
     const space = post.spaceId ? spaceMap.get(post.spaceId) : null;
@@ -203,6 +210,11 @@ async function attachAttribution({ prisma, posts }) {
     if (group) {
       post.groupName = group.name;
       post.groupSlug = group.slug;
+    }
+    const author = post.authorId ? authorMap.get(post.authorId) : null;
+    if (author) {
+      if (author.photoURL) post.authorPhotoUrl = author.photoURL;
+      if (author.username) post.authorUsername = author.username;
     }
   }
   return posts;
@@ -315,12 +327,17 @@ export async function GET(req) {
   if (url.searchParams.get("near") === "1") views.add("near");
   const sort = url.searchParams.get("sort") || "newest";
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+  const tagParam = normalizeTag(url.searchParams.get("tag") || "");
+  if (tagParam && !isValidTag(tagParam)) {
+    return NextResponse.json({ error: "Invalid hashtag" }, { status: 400 });
+  }
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20", 10) || 20, 1), 50);
 
   const ctx = {
     views,
     spaceIdParam,
     groupIdParam,
+    tag: tagParam,
     uid: user.uid,
     followingIds: new Set(),
     nearIds: new Set([user.uid]),
@@ -393,7 +410,8 @@ export async function GET(req) {
     const PASS_TAKE = 60;
 
     while (visible.length < SCAN_CAP && !reachedEnd && scanned < MAX_PASSES * PASS_TAKE) {
-      const cursorWhere = isChronological ? cursorAfter(isOffsetCursor ? null : afterKey) : undefined;
+      const baseWhere = isChronological ? cursorAfter(isOffsetCursor ? null : afterKey) : undefined;
+      const cursorWhere = ctx.tag ? { hashtags: { has: ctx.tag }, ...(baseWhere || {}) } : baseWhere;
       const batch = await prisma.post.findMany({
         where: cursorWhere,
         orderBy,
@@ -515,6 +533,7 @@ export async function POST(req) {
   const {
     text,
     imageUrl = "",
+    videoUrl = "",
     groupId = "",
     spaceId = "",
     kind = "post",
@@ -538,7 +557,7 @@ export async function POST(req) {
       }
     }
   } else {
-    if (!cleanText && !imageUrl) {
+    if (!cleanText && !imageUrl && !videoUrl) {
       return NextResponse.json({ error: "Post text required" }, { status: 400 });
     }
     if (cleanText) {
@@ -557,8 +576,9 @@ export async function POST(req) {
     );
   }
 
-  if (imageUrl && !isValidImageUrl(imageUrl)) {
-    return NextResponse.json({ error: "Invalid image URL" }, { status: 400 });
+  const media = validateMediaPair(imageUrl, videoUrl);
+  if (!media.ok) {
+    return NextResponse.json({ error: media.error }, { status: 400 });
   }
 
   const authorName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
@@ -624,6 +644,9 @@ export async function POST(req) {
     };
     if (imageUrl && typeof imageUrl === "string") {
       prismaData.imageUrl = imageUrl;
+    }
+    if (videoUrl && typeof videoUrl === "string") {
+      prismaData.videoUrl = videoUrl;
     }
     if (spaceId) prismaData.spaceId = spaceId;
     if (groupId) prismaData.groupId = groupId;

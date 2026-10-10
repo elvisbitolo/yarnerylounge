@@ -24,6 +24,7 @@ export function mapPostRow(row) {
     text: row.text,
     kind: row.kind || "post",
     imageUrl: row.imageUrl || "",
+    videoUrl: row.videoUrl || "",
     likes: row.likes || {},
     bookmarks: row.bookmarks || {},
     reactions: row.reactions || {},
@@ -77,6 +78,30 @@ export function isValidImageUrl(value) {
     return false;
   }
   return parsed.protocol === "http:" || parsed.protocol === "https:";
+}
+
+export function isValidVideoUrl(value) {
+  if (value == null || value === "") return true;
+  if (typeof value !== "string") return false;
+  if (value.length > IMAGE_URL_MAX) return false;
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:";
+}
+
+export function validateMediaPair(imageUrl, videoUrl) {
+  const img = isValidImageUrl(imageUrl);
+  if (!img) return { ok: false, error: "Invalid image URL" };
+  const vid = isValidVideoUrl(videoUrl);
+  if (!vid) return { ok: false, error: "Invalid video URL" };
+  if (imageUrl && videoUrl) {
+    return { ok: false, error: "A post can have an image or a video, not both" };
+  }
+  return { ok: true };
 }
 
 export function postAccessCheck(post, ctx) {
