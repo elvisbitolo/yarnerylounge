@@ -26,6 +26,7 @@
   min-height: 150px;
   overflow: hidden;
   border-radius: 18px;
+  background: #f6f2ef;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
 }
 
@@ -40,7 +41,7 @@
 
 .headerArtItem img,
 .matchCardImage img {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .title {
@@ -90,6 +91,7 @@
   margin: 0 20px;
   overflow: hidden;
   border-radius: 12px;
+  background: #f6f2ef;
 }
 
 .matchCardIcon {
@@ -248,7 +250,8 @@
   width: 48px;
   height: 48px;
   border-radius: 7px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #f6f2ef;
 }
 
 .matchProject > span {
