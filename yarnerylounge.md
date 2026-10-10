@@ -232,10 +232,8 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
     load lazily via `IntersectionObserver`, so only visible cards pay to decode
     a video, and `page.js` signs every frame in one Storage call
     (`signThumbnailUrls`). Magic-byte/size validation lives in
-    `parseThumbnailDataUrl`. Owners, moderators and hosts also get a per-card
-    **Create/Regenerate thumbnail** button (`replace: true`) that overwrites the
-    stored frame; `canManageRecordings` gates the replace path server-side while
-    first-write auto-capture stays open to every active member.
+    `parseThumbnailDataUrl`. Poster frames are created automatically on first
+    capture; the manual create/regenerate control has been removed.
   - **Grid** — `RecordingsLibrary.js` + `recordings.module.css`: thumbnail with
     play overlay, duration badge, NEW badge (last 48h), date+time/size meta
     (lounge hidden when the title already names it), a signed-URL player panel,

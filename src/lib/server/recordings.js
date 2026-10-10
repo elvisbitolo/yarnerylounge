@@ -490,11 +490,10 @@ export async function signThumbnailUrls(recordings, ttlSec = PLAYBACK_URL_TTL_SE
  * Persist a browser-captured poster frame and its intrinsic dimensions.
  *
  * Auto-capture is idempotent under a race: if another tab already stored a
- * frame we keep it rather than overwriting. A privileged regenerate passes
- * `replace: true` to overwrite the stored frame in place. A zero-byte or
- * unreadable image is refused before it touches Storage.
+ * frame we keep it rather than overwriting. A zero-byte or unreadable image is
+ * refused before it touches Storage.
  */
-export async function saveThumbnail({ recording, image, width, height, replace = false } = {}) {
+export async function saveThumbnail({ recording, image, width, height } = {}) {
   if (!recording?.id) return { ok: false, error: "no_recording" };
   if (recording.status !== "ready" || !recording.share || recording.deletedAt) {
     return { ok: false, error: "not_readable" };
@@ -502,7 +501,7 @@ export async function saveThumbnail({ recording, image, width, height, replace =
 
   const prisma = getPrisma();
   const existing = await prisma.recording.findUnique({ where: { id: recording.id } });
-  if (existing?.thumbnailPath && !replace) {
+  if (existing?.thumbnailPath) {
     return { ok: true, thumbnailPath: existing.thumbnailPath, skipped: "exists" };
   }
 
