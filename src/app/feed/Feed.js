@@ -13,7 +13,7 @@ import { cardThemeVars } from "@/lib/card-themes";
 import { dataUrlToBlob } from "@/lib/data-url";
 import { IMAGE_DATA_URL_MAX, isSystemPost } from "@/lib/server/posts-core";
 import styles from "./feed.module.css";
-import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown, Share2, Video, X, Pencil, Trash2, RotateCcw, Bell, BellOff, EyeOff, Lock, Unlock, Archive, History, Quote, Repeat2, Copy, Heart, VolumeX, Clock } from "lucide-react";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown, Share2, Video, X, Pencil, Trash2, RotateCcw, Bell, BellOff, EyeOff, Lock, Unlock, Archive, History, Quote, Repeat2, VolumeX, Clock } from "lucide-react";
 import { embedInfoForUrl, normalizeTag, isValidTag } from "@/lib/feed-utils";
 
 const PAGE_SIZE = 20;
@@ -986,8 +986,6 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const [editBusy, setEditBusy] = useState(false);
   const [historyFor, setHistoryFor] = useState("");
   const [historyItems, setHistoryItems] = useState(null);
-  const [likesFor, setLikesFor] = useState("");
-  const [likesData, setLikesData] = useState(null);
   const [pendingUndo, setPendingUndo] = useState(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -1294,18 +1292,21 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
       }
     } catch {}
-    loadFirst(groupId || spaceId ? "all" : "all").then(() => {
-      setTimeout(() => {
-        if (focusRef.current) applyFocus(focusRef.current);
-      }, 60);
-    });
+    const loadForSession = () => {
+      loadFirst("all").then(() => {
+        if (!focusRef.current) return;
+        const focusId = focusRef.current;
+        focusRef.current = "";
+        setTimeout(() => applyFocus(focusId), 60);
+      });
+    };
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (!user) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
         window.location.assign("/login");
         return;
       }
-      loadFirst(groupId || spaceId ? "all" : "all");
+      loadForSession();
     });
     const interval = setInterval(() => {
       if (document.hidden) return;
@@ -1769,17 +1770,6 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     });
   }
 
-  async function openLikes(post) {
-    setLikesFor(post.id);
-    setLikesData(null);
-    try {
-      const res = await fetch(`/api/posts/${post.id}/likes`);
-      if (res.ok) setLikesData(await res.json());
-    } catch {
-      /* modal shows a fallback */
-    }
-  }
-
   async function openHistory(post) {
     setHistoryFor(post.id);
     setHistoryItems(null);
@@ -2109,28 +2099,10 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             onClick: () => openHistory(post),
           },
           {
-            key: "copylink",
-            label: t("copyLink"),
-            icon: <Copy size={15} />,
-            onClick: () => sharePost(post.id),
-          },
-          {
             key: "copytext",
             label: t("copyText"),
             icon: <FileText size={15} />,
             onClick: () => copyPostText(post),
-          },
-          {
-            key: "quote",
-            label: t("quotePost"),
-            icon: <Quote size={15} />,
-            onClick: () => handleQuote(post),
-          },
-          {
-            key: "repost",
-            label: t("repost"),
-            icon: <Repeat2 size={15} />,
-            onClick: () => handleRepost(post),
           },
           {
             key: "notify",
@@ -2283,15 +2255,6 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           <>
             <div className={styles.postActions}>
               <LikeButton likes={post.likes} uid={uid} disabled={disabledActions} onToggle={() => toggleLike(post)} />
-              <button
-                type="button"
-                className={styles.shareBtn}
-                onClick={() => openLikes(post)}
-                title={t("viewLikes")}
-              >
-                <Heart size={15} />
-                {t("likesCount", { count: Object.keys(post.likes || {}).length })}
-              </button>
               <BookmarkButton bookmarks={post.bookmarks} uid={uid} disabled={disabledActions} onToggle={() => toggleBookmark(post)} />
               <button
                 type="button"
@@ -2839,25 +2802,21 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           </button>
         </div>
       )}
-      {(likesFor || historyFor) && (
+      {historyFor && (
         <div
           className={styles.modalOverlay}
           onClick={() => {
-            setLikesFor("");
-            setLikesData(null);
             setHistoryFor("");
             setHistoryItems(null);
           }}
         >
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHead}>
-              <strong>{likesFor ? t("likesTitle") : t("editHistoryTitle")}</strong>
+              <strong>{t("editHistoryTitle")}</strong>
               <button
                 type="button"
                 className={styles.modalClose}
                 onClick={() => {
-                  setLikesFor("");
-                  setLikesData(null);
                   setHistoryFor("");
                   setHistoryItems(null);
                 }}
@@ -2865,33 +2824,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
                 <X size={16} />
               </button>
             </div>
-            {likesFor ? (
-              likesData === null ? (
-                <p>{t("loading")}</p>
-              ) : (
-                <>
-                  {likesData.reactions && Object.keys(likesData.reactions).length > 0 && (
-                    <p className={styles.modalReactions}>
-                      {Object.entries(likesData.reactions).map(([emoji, count]) => (
-                        <span key={emoji}>{emoji} {count}</span>
-                      ))}
-                    </p>
-                  )}
-                  {(likesData.people || []).length === 0 ? (
-                    <p>{t("noLikesYet")}</p>
-                  ) : (
-                    <ul className={styles.modalList}>
-                      {likesData.people.map((u) => (
-                        <li key={u.id}>
-                          {u.name || u.username || u.id}
-                          {u.reaction ? ` ${u.reaction}` : u.liked ? " ♥" : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              )
-            ) : historyItems === null ? (
+            {historyItems === null ? (
               <p>{t("loading")}</p>
             ) : historyItems.length === 0 ? (
               <p>{t("noEditHistory")}</p>
