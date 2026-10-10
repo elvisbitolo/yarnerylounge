@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { AUTH_COOKIE } from "@/lib/server/auth";
+import { isOpenAccess } from "@/lib/server/access-policy";
 import SignupForm from "./SignupForm";
 
 // Server shell for the sign-up page. Two facts the client cannot know on its
@@ -19,6 +20,7 @@ export default async function SignupPage({ searchParams }) {
     <SignupForm
       oauthPending={Boolean(params?.provider)}
       hasSession={Boolean(cookieStore.get(AUTH_COOKIE)?.value)}
+      openAccess={isOpenAccess()}
     />
   );
 }

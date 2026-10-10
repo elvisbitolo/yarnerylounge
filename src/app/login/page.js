@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { AUTH_COOKIE } from "@/lib/server/auth";
+import { isOpenAccess } from "@/lib/server/access-policy";
 import LoginForm from "./LoginForm";
 
 // Server shell for the sign-in page. Two facts the client cannot know on its
@@ -19,6 +20,7 @@ export default async function LoginPage({ searchParams }) {
     <LoginForm
       oauthPending={Boolean(params?.provider)}
       hasSession={Boolean(cookieStore.get(AUTH_COOKIE)?.value)}
+      openAccess={isOpenAccess()}
     />
   );
 }

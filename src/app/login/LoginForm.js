@@ -70,7 +70,7 @@ function BrandMark() {
   );
 }
 
-export default function LoginForm({ oauthPending = false, hasSession = false }) {
+export default function LoginForm({ oauthPending = false, hasSession = false, openAccess = false }) {
   const t = useTranslations("auth");
   const tc = useTranslations("common");
   const [email, setEmail] = useState("");
@@ -625,6 +625,20 @@ export default function LoginForm({ oauthPending = false, hasSession = false }) 
           <p className={styles.footer}>
             {t("newHere")} <a className={styles.link} href="/signup">{t("createAccountLink")}</a>
           </p>
+
+          {!openAccess && (
+            <p className={styles.membershipHint}>
+              {t("membershipHint")}{" "}
+              <a
+                className={styles.link}
+                href={LANDING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("viewPlans")} →
+              </a>
+            </p>
+          )}
         </div>
         <AuthAside />
       </div>

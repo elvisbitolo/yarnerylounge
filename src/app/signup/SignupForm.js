@@ -56,7 +56,7 @@ function BrandMark() {
   );
 }
 
-export default function SignupForm({ oauthPending = false, hasSession = false }) {
+export default function SignupForm({ oauthPending = false, hasSession = false, openAccess = false }) {
   const t = useTranslations("auth");
   const tc = useTranslations("common");
   const [name, setName] = useState("");
@@ -68,6 +68,14 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   const [resent, setResent] = useState(false);
   const [acceptedToS, setAcceptedToS] = useState(false);
   const [tosError, setTosError] = useState(false);
+  // Membership hint states: "idle" | "checking" | "ok" | "notMember" | "error".
+  // The debounced early precheck only ever *warns* — the submit-time check in
+  // handleSubmit stays the authoritative gate. "error" is a transient network
+  // blip: it must not block the form, so it renders nothing.
+  const [emailStatus, setEmailStatus] = useState("idle");
+  // Submission or OAuth return hit the membership wall; show the explained
+  // membership-required box with the plan CTA instead of silently redirecting.
+  const [membershipRequired, setMembershipRequired] = useState(false);
 
   // True on the Google OAuth return leg, before the effect finishes exchanging
   // the session. Renders the centered signing-in state immediately. Passed in by
@@ -140,6 +148,41 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     return () => clearTimeout(timer);
   }, []);
 
+  // Early membership warning: as soon as a plausible email is typed, ask
+  // /api/auth/precheck whether it is a paid member. Debounced so a long user
+  // email doesn't fire one request per keystroke, and only *warns* — the
+  // submit-time check remains the authoritative gate. A member email is status
+  // "ok" (nothing rendered); a network blip is "error" (nothing rendered, the
+  // form is still submittable).
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const value = email.trim();
+      if (cancelled) return;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || openAccess) {
+        setEmailStatus("idle");
+        return;
+      }
+      try {
+        setEmailStatus("checking");
+        const checked = await checkPaidSignup(value);
+        if (cancelled) return;
+        setEmailStatus(checked?.ok ? "ok" : "notMember");
+      } catch (err) {
+        if (cancelled) return;
+        if (err.code === "not_prepaid" || err.code === "expired") {
+          setEmailStatus("notMember");
+        } else {
+          setEmailStatus("error");
+        }
+      }
+    }, 700);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [email, openAccess]);
+
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("session_refresh")) return;
     let cancelled = false;
@@ -194,8 +237,13 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
         }
       } catch (err) {
         if (!cancelled) {
-          if (err.code === "not_prepaid" && err.redirect) {
-            window.location.assign(err.redirect);
+          if (err.code === "not_prepaid" || err.code === "expired") {
+            // The provider account isn't a paid member — stop the spinner and
+            // show the explained membership-required box with the plan CTA
+            // instead of dumping the visitor on the checkout with no context.
+            window.history.replaceState({}, "", "/signup");
+            setOauthFailed(true);
+            setMembershipRequired(true);
           } else {
             // Release the provider param so the form shows again with the
             // error instead of staying on the spinner forever.
@@ -215,6 +263,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   // which authorize options get sent, and that lives in client-auth.js.
   async function handleProvider(provider) {
     setError("");
+    setMembershipRequired(false);
     setBusy(provider);
     try {
       // Full-page OAuth redirect through Supabase; the mount-time
@@ -245,6 +294,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setMembershipRequired(false);
     if (!acceptedToS) {
       setTosError(true);
       setError(t("tosRequired"));
@@ -269,11 +319,9 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
       }
     } catch (err) {
       if (err.code === "not_prepaid" || err.code === "expired") {
-        if (err.redirect) {
-          window.location.assign(err.redirect);
-          return;
-        }
-        setError(err.message || t("onlyPaidMembers"));
+        // Explain why instead of silently dumping the visitor on the checkout:
+        // they fill the form once, learn the sequence, and decide where to go.
+        setMembershipRequired(true);
       } else if (err.code === "email_not_verified" || err.code === "email_not_confirmed") {
         setVerifyEmail(email);
         setResent(false);
@@ -373,7 +421,37 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
           <h1 className={styles.title}>{t("createAccount")}</h1>
           <p className={styles.subtitle}>{t("startConnecting")}</p>
 
+          {!openAccess && (
+            <div className={styles.membershipBox}>
+              <p className={styles.membershipTitle}>{t("membersOnlyTitle")}</p>
+              <p className={styles.membershipText}>{t("membersOnlyText")}</p>
+              <a
+                className={styles.membershipCta}
+                href={LANDING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("viewPlans")}
+              </a>
+            </div>
+          )}
+
           {error && <p className={styles.error}>{error}</p>}
+
+          {membershipRequired && (
+            <div className={styles.membershipBox}>
+              <p className={styles.membershipTitle}>{t("membersOnlyTitle")}</p>
+              <p className={styles.membershipText}>{t("onlyPaidMembers")}</p>
+              <a
+                className={styles.membershipCta}
+                href={LANDING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("viewPlans")}
+              </a>
+            </div>
+          )}
 
           <button
             className={styles.oauthButton}
@@ -437,6 +515,24 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+              {emailStatus === "checking" && !membershipRequired && (
+                <p className={styles.checkingMembership}>{t("checkingMembership")}</p>
+              )}
+              {emailStatus === "notMember" && !membershipRequired && !openAccess && (
+                <div className={styles.emailWarning} role="status">
+                  <p>
+                    {t("emailNotMember")} {t("emailNotMemberHint")}
+                  </p>
+                  <a
+                    className={styles.link}
+                    href={LANDING_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("choosePlan")} →
+                  </a>
+                </div>
+              )}
             </div>
             <PasswordInput
               id="password"
