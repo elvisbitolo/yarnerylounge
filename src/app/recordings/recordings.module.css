@@ -371,7 +371,7 @@
 .list .thumb {
   flex: 0 0 220px;
   width: 220px;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 3 / 4;
 }
 
 .list .cardVertical .thumb {
@@ -409,7 +409,7 @@
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 3 / 4;
   padding: 0;
   border: 0;
   background: #0e0e14;
@@ -417,7 +417,7 @@
   overflow: hidden;
 }
 
-/* A phone-recorded session gets a portrait frame instead of a letterboxed one. */
+/* Crop landscape Jitsi captures to the centered portrait video, not its blurred sides. */
 .cardVertical .thumb {
   aspect-ratio: 9 / 16;
   max-height: 420px;
