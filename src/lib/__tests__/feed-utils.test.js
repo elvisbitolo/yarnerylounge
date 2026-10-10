@@ -5,7 +5,7 @@ const {
   normalizeTag,
   isValidTag,
   embedInfoForUrl,
-} = require("./feed-utils");
+} = require("../feed-utils");
 
 test("detectTrigger reads an @ mention under the cursor", () => {
   const r = detectTrigger("hello @cha", 11);

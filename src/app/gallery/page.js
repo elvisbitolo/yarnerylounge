@@ -55,6 +55,7 @@ export default async function GalleryPage() {
   const prisma = getPrisma();
   const postRows = prisma
     ? await prisma.post.findMany({
+        where: { deletedAt: null, archivedAt: null, scheduledAt: null, imageUrl: { not: null } },
         orderBy: { createdAt: "desc" },
         take: 200,
       })

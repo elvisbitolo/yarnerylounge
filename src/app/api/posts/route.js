@@ -13,7 +13,8 @@ import { createNotification } from "@/lib/server/notifications";
 import { runAutomations } from "@/lib/server/automations";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { validatePostText, validateMediaPair, POST_TEXT_MAX, mapPostRow, encodeCursor, decodeCursor, feedOrderBy, cursorAfter } from "@/lib/server/posts-core";
+import { validatePostText, validateMediaPair, POST_TEXT_MAX, mapPostRow, encodeCursor, decodeCursor, feedOrderBy, cursorAfter, feedWhere, SCHEDULE_MAX_MS } from "@/lib/server/posts-core";
+import { runPostMaintenance } from "@/lib/server/post-lifecycle";
 import { isValidTag, normalizeTag } from "@/lib/feed-utils";
 import { idsFromExtra } from "@/lib/server/member-safety-core";
 
@@ -42,7 +43,7 @@ async function computeFeedCounts({ prisma, ctx, orderBy, PASS_TAKE }) {
   const COUNT_SCAN_MAX = 100_000;
   while (scanned < COUNT_SCAN_MAX) {
     const batch = await prisma.post.findMany({
-      where: tag ? { hashtags: { has: tag }, ...(cursorAfter(cursor) || {}) } : cursorAfter(cursor),
+      where: feedWhere({ cursor, tag, uid }),
       orderBy,
       take: PASS_TAKE,
     });
@@ -52,6 +53,7 @@ async function computeFeedCounts({ prisma, ctx, orderBy, PASS_TAKE }) {
     cursor = { pinned: !!last.pinned, createdAt: last.createdAt, id: last.id };
     for (const row of batch) {
       const authorId = row.authorId;
+      if (row.hidden && authorId !== uid && !ctx.isModerator) continue;
       if (authorId !== uid && (ctx.blockedIds.has(authorId) || ctx.mutedIds.has(authorId))) continue;
       if (spaceIdParam && row.spaceId !== spaceIdParam) continue;
       if (groupIdParam && row.groupId !== groupIdParam) continue;
@@ -77,6 +79,23 @@ function filterVisiblePosts(posts, ctx) {
     blockedIds, mutedIds, searchText, commentMatchPostIds, tag,
   } = ctx;
   return posts.filter((data) => {
+    // Trash is its own world: only the author's own soft-deleted rows, with
+    // none of the normal feed filters applied. Everywhere else, a trashed post
+    // does not exist.
+    if (ctx.views.has("trashed")) {
+      return !!data.deletedAt && data.authorId === uid;
+    }
+    // Archived is the author's own tidy-up shelf: only their archived posts,
+    // and only when they explicitly ask for that view.
+    if (ctx.views.has("archived")) {
+      return !!data.archivedAt && data.authorId === uid;
+    }
+    if (data.deletedAt) return false;
+    if (data.archivedAt) return false;
+    // Moderator-hidden posts stay visible to their author (so they can see
+    // what happened) and to staff, and disappear for everyone else — the same
+    // "hide without deleting" behaviour Facebook gives Page admins.
+    if (data.hidden && data.authorId !== uid && !ctx.isModerator) return false;
     if (data.authorId !== uid && blockedIds.has(data.authorId)) return false;
     if (data.authorId !== uid && mutedIds.has(data.authorId)) return false;
     if (tag && !(data.hashtags || []).includes(tag)) return false;
@@ -123,6 +142,8 @@ function engagementRaw(row) {
 // and space/group membership still apply, but the active filter tab doesn't.
 function isFeaturedVisible(row, ctx) {
   const uid = ctx.uid;
+  if (row.deletedAt) return false;
+  if (row.hidden && row.authorId !== uid && !ctx.isModerator) return false;
   if (row.authorId !== uid && ctx.blockedIds.has(row.authorId)) return false;
   if (row.authorId !== uid && ctx.mutedIds.has(row.authorId)) return false;
   if (row.spaceId && !ctx.spaceIds.has(row.spaceId) && row.authorId !== uid) return false;
@@ -138,7 +159,7 @@ async function computeFeatured({ prisma, ctx }) {
 
   // Curated: everything a moderator pinned (pinnedAt desc keeps the newest first).
   const curated = await prisma.post.findMany({
-    where: { ...scope, pinned: true },
+    where: { ...scope, pinned: true, deletedAt: null, scheduledAt: null },
     orderBy: [{ pinnedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     take: 3,
   });
@@ -146,7 +167,7 @@ async function computeFeatured({ prisma, ctx }) {
   // Automatic: engagement-weighted "hot" posts from the last 7 days.
   const since = new Date(Date.now() - FEATURED_HOT_WINDOW_MS);
   const candidates = await prisma.post.findMany({
-    where: { ...scope, pinned: false, createdAt: { gte: since } },
+    where: { ...scope, pinned: false, deletedAt: null, scheduledAt: null, createdAt: { gte: since } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: FEATURED_CANDIDATE_CAP,
   });
@@ -316,7 +337,7 @@ export async function GET(req) {
   // Filter views combine with AND (e.g. ?filter=hosts&filter=unanswered shows
   // moderator posts without replies). Repeated `filter` params, plus the
   // legacy ?following=1 / ?near=1 flags, all feed the same set.
-  const ALL_VIEWS = ["following", "near", "popular", "mine", "bookmarked", "hosts", "unanswered"];
+  const ALL_VIEWS = ["following", "near", "popular", "mine", "bookmarked", "hosts", "unanswered", "trashed", "archived"];
   const views = new Set(
     url
       .searchParams
@@ -347,11 +368,19 @@ export async function GET(req) {
     mutedIds: new Set(),
     searchText: q,
     commentMatchPostIds: new Set(),
+    // Set once the member row is loaded below.
+    isModerator: false,
+    trashed: views.has("trashed"),
+    archived: views.has("archived"),
   };
 
   try {
     const prisma = getPrisma();
     const orderBy = feedOrderBy();
+
+    // Publish anything whose schedule has come due and sweep expired trash.
+    // Throttled inside, so a hot feed only pays for this about once a minute.
+    await runPostMaintenance(prisma);
 
     // Search spans post text + comments: gather post ids holding a matching
     // comment so filterVisiblePosts can accept those rows too.
@@ -376,6 +405,7 @@ export async function GET(req) {
     const myCountry = countryRow?.country || "";
 
     const userDoc = await getUserDoc(user.uid);
+    ctx.isModerator = userDoc?.role === "owner" || userDoc?.role === "moderator";
     const blockedFromExtra = idsFromExtra(userDoc?.extra, "blockedMemberIds");
     const mutedFromExtra = idsFromExtra(userDoc?.extra, "mutedMemberIds");
     blockedFromExtra.forEach((id) => ctx.blockedIds.add(id));
@@ -410,10 +440,22 @@ export async function GET(req) {
     const PASS_TAKE = 60;
 
     while (visible.length < SCAN_CAP && !reachedEnd && scanned < MAX_PASSES * PASS_TAKE) {
-      const baseWhere = isChronological ? cursorAfter(isOffsetCursor ? null : afterKey) : undefined;
-      const cursorWhere = ctx.tag ? { hashtags: { has: ctx.tag }, ...(baseWhere || {}) } : baseWhere;
+      const cursorKey = isChronological && !isOffsetCursor ? afterKey : null;
       const batch = await prisma.post.findMany({
-        where: cursorWhere,
+        where: ctx.trashed
+          ? {
+              deletedAt: { not: null },
+              authorId: ctx.uid,
+              AND: [cursorAfter(cursorKey) || {}, ...(ctx.tag ? [{ hashtags: { has: ctx.tag } }] : [])],
+            }
+          : ctx.archived
+          ? {
+              archivedAt: { not: null },
+              deletedAt: null,
+              authorId: ctx.uid,
+              AND: [cursorAfter(cursorKey) || {}, ...(ctx.tag ? [{ hashtags: { has: ctx.tag } }] : [])],
+            }
+          : feedWhere({ cursor: cursorKey, tag: ctx.tag, uid: ctx.uid }),
         orderBy,
         take: PASS_TAKE,
       });
@@ -462,7 +504,7 @@ export async function GET(req) {
       });
     }
 
-    const loadCounts = !afterKey;
+    const loadCounts = !afterKey && !ctx.trashed && !ctx.archived;
     let counts = null;
     let featured = [];
     if (loadCounts) {
@@ -539,7 +581,15 @@ export async function POST(req) {
     kind = "post",
     pollOptions = [],
     pollDeadline = "",
+    scheduledAt = "",
+    sensitive = false,
+    altText = "",
+    quoteOfId = "",
+    repostOfId = "",
   } = await req.json();
+
+  const reshareId = (typeof quoteOfId === "string" && quoteOfId) || (typeof repostOfId === "string" && repostOfId) || "";
+  const reshareKind = quoteOfId ? "quote" : repostOfId ? "repost" : "";
 
   let cleanText = typeof text === "string" ? text.trim() : "";
   const postKind = ["post", "poll", "question", "win"].includes(kind) ? kind : "post";
@@ -557,7 +607,9 @@ export async function POST(req) {
       }
     }
   } else {
-    if (!cleanText && !imageUrl && !videoUrl) {
+    // A repost is a bare reference and carries no text of its own; a quote is
+    // required to say something, like X's quote post.
+    if (!cleanText && !imageUrl && !videoUrl && !reshareId) {
       return NextResponse.json({ error: "Post text required" }, { status: 400 });
     }
     if (cleanText) {
@@ -568,6 +620,25 @@ export async function POST(req) {
       cleanText = check.text;
     }
   }
+
+  // Scheduling: a future timestamp no more than a year out, matching the
+  // SCHEDULE_MAX_MS bound. Anything past that is a typo.
+  let scheduleDate = null;
+  if (scheduledAt) {
+    const parsed = new Date(scheduledAt);
+    const ms = parsed.getTime();
+    if (isNaN(ms) || ms <= Date.now()) {
+      return NextResponse.json({ error: "Scheduled time must be in the future" }, { status: 400 });
+    }
+    if (ms - Date.now() > SCHEDULE_MAX_MS) {
+      return NextResponse.json({ error: "Scheduled time can be at most a year out" }, { status: 400 });
+    }
+    scheduleDate = parsed;
+  }
+  if (reshareId && !reshareKind) {
+    return NextResponse.json({ error: "Invalid reshare target" }, { status: 400 });
+  }
+  const cleanAltText = typeof altText === "string" ? altText.trim().slice(0, 1000) : "";
 
   if (cleanText.length > POST_TEXT_MAX) {
     return NextResponse.json(
@@ -584,6 +655,23 @@ export async function POST(req) {
   const authorName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
   const authorRole = userDoc?.role || "member";
   const prisma = getPrisma();
+
+  // A reshare must point at a live, unhidden post. Checked before the insert so
+  // a bad id can never leave a dangling reference behind.
+  if (reshareId) {
+    let target = null;
+    try {
+      target = await prisma.post.findUnique({
+        where: { id: reshareId },
+        select: { id: true, deletedAt: true, hidden: true },
+      });
+    } catch (err) {
+      logError("posts.reshare_lookup_failed", { error: err.message });
+    }
+    if (!target || target.deletedAt || target.hidden) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+  }
 
   let spaceSlug = "";
   let spaceName = "";
@@ -650,6 +738,11 @@ export async function POST(req) {
     }
     if (spaceId) prismaData.spaceId = spaceId;
     if (groupId) prismaData.groupId = groupId;
+    if (cleanAltText) prismaData.altText = cleanAltText;
+    if (sensitive === true) prismaData.sensitive = true;
+    if (scheduleDate) prismaData.scheduledAt = scheduleDate;
+    if (quoteOfId) prismaData.quoteOfId = quoteOfId;
+    if (repostOfId) prismaData.repostOfId = repostOfId;
     if (postKind === "poll") {
       prismaData.pollOptions = (Array.isArray(pollOptions) ? pollOptions : [])
         .map((opt) => (typeof opt === "string" ? opt.trim() : ""))

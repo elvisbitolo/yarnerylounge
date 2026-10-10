@@ -9,6 +9,7 @@ export async function GET() {
 
   const prisma = getPrisma();
   const rows = await prisma.post.findMany({
+    where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
     orderBy: { createdAt: "desc" },
     take: 500,
     select: { hashtags: true },

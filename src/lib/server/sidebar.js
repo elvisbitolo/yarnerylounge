@@ -24,7 +24,7 @@ async function loadContributors(uid, period) {
     try {
       const [postRows, commentRows, gamiRows] = await Promise.all([
         prisma.post.findMany({
-          where: { createdAt: { gte: sinceDate } },
+          where: { createdAt: { gte: sinceDate }, deletedAt: null, archivedAt: null, scheduledAt: null },
           select: { authorId: true },
           take: 500,
         }),

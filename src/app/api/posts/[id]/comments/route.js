@@ -48,6 +48,11 @@ export async function GET(req, { params }) {
           : r.createdAt instanceof Date
             ? r.createdAt.getTime()
             : Number(r.createdAt) || 0;
+      const editedAt = r.editedAt
+        ? r.editedAt instanceof Date
+          ? r.editedAt.getTime()
+          : Number(r.editedAt) || 0
+        : 0;
       const base = {
         id: r.id,
         authorId: r.authorId,
@@ -56,11 +61,14 @@ export async function GET(req, { params }) {
         reactions: r.reactions,
         authorRole: roles.get(r.authorId) || "",
         createdAt,
+        editedAt,
+        pinned: !!r.pinnedAt,
       };
       return r.parentId ? { ...base, parentId: r.parentId } : { ...base, replies: [] };
     });
 
-    // Nest replies under their top-level comment (single level of threading).
+    // Nest replies under their top-level comment (single level of threading),
+    // and float the pinned comment to the top of the thread.
     const byTopLevel = new Map();
     const comments = [];
     for (const c of mapped) {
@@ -72,6 +80,7 @@ export async function GET(req, { params }) {
         comments.push(c);
       }
     }
+    comments.sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1));
     return NextResponse.json({ comments });
   } catch (err) {
     logError("posts.comments.prisma_read_failed", { error: err.message });
@@ -120,6 +129,11 @@ export async function POST(req, { params }) {
   }
   const post = access.post;
 
+  const canModerate = userDoc?.role === "owner" || userDoc?.role === "moderator";
+  if (post.lockedComments && !canModerate) {
+    return NextResponse.json({ error: "Comments are locked on this post" }, { status: 403 });
+  }
+
   const authorName = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
   let commentId = null;
   try {
@@ -139,6 +153,15 @@ export async function POST(req, { params }) {
       where: { id: postId },
       data: { commentCount: { increment: 1 }, lastActivityAt: new Date() },
     });
+    // Commenting auto-subscribes you to the thread, exactly like Facebook:
+    // you get notified about later replies without asking.
+    await prisma.postSubscription
+      .upsert({
+        where: { postId_userId: { postId, userId: user.uid } },
+        create: { postId, userId: user.uid },
+        update: {},
+      })
+      .catch((err) => logError("comments.subscribe_failed", { postId, error: err.message }));
     commentId = comment.id;
   } catch (err) {
     logError("posts.comments.prisma_write_failed", { error: err.message });
@@ -195,29 +218,32 @@ export async function POST(req, { params }) {
       });
   }
 
-  notifyOtherCommenters(postId, post.authorId, user.uid, authorName).catch(() => {});
+  notifySubscribers(postId, post.authorId, user.uid, authorName).catch(() => {});
 
   return NextResponse.json({ id: commentId });
 }
 
-async function notifyOtherCommenters(postId, postAuthorId, actorId, actorName) {
+// Notify everyone who follows the thread (post subscriptions) about the new
+// reply, minus the actor and minus the author, who already got a direct
+// "commented on your post" notification above. This replaces the old
+// "everyone who ever commented" fan-out so opting out actually sticks.
+async function notifySubscribers(postId, postAuthorId, actorId, actorName) {
   try {
     const prisma = getPrisma();
-    const rows = await prisma.postComment.findMany({
+    const rows = await prisma.postSubscription.findMany({
       where: { postId },
-      select: { authorId: true },
-      orderBy: { createdAt: "asc" },
+      select: { userId: true },
     });
     const notified = new Set();
     for (const row of rows) {
-      const authorId = row.authorId;
-      if (!authorId) continue;
-      if (authorId === actorId) continue;
-      if (authorId === postAuthorId) continue;
-      if (notified.has(authorId)) continue;
-      notified.add(authorId);
+      const userId = row.userId;
+      if (!userId) continue;
+      if (userId === actorId) continue;
+      if (userId === postAuthorId) continue;
+      if (notified.has(userId)) continue;
+      notified.add(userId);
       await createNotification({
-        userId: authorId,
+        userId,
         type: "comment",
         actorId,
         actorName,
@@ -227,6 +253,6 @@ async function notifyOtherCommenters(postId, postAuthorId, actorId, actorName) {
       }).catch(() => {});
     }
   } catch (err) {
-    logError("posts.comments.prisma_commenters_failed", { error: err.message });
+    logError("posts.comments.subscribers_failed", { error: err.message });
   }
 }

@@ -50,6 +50,7 @@ export async function getCommunityActivity(uid, role, memberships, limit = 5) {
     if (!prisma) rows = [];
     else {
       rows = await prisma.post.findMany({
+        where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
         orderBy: { createdAt: "desc" },
         take: 20,
         select: {

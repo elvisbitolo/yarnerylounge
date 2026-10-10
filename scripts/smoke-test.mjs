@@ -15,6 +15,7 @@ config({ path: [".env.local", ".env"] });
 
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { TOS_VERSION } from "../src/lib/tos.js";
 
 const BASE = process.env.SMOKE_TEST_BASE || "http://localhost:3000";
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -92,13 +93,13 @@ async function main() {
   // 2. matching Postgres User row + open-access Subscription (mirrors what the
   //    app's /api/auth/session signup creates while open access is on)
   await pool.query(
-    `INSERT INTO "User" ("id", "email", "name", "role") VALUES ($1,$2,$3,'member')`,
-    [sbUid, email, "Smoke Test Member"]
+    `INSERT INTO "User" ("id", "email", "name", "role", "tosAcceptedAt", "tosVersion") VALUES ($1,$2,$3,'member',$4,$5)`,
+    [sbUid, email, "Smoke Test Member", new Date().toISOString(), TOS_VERSION]
   );
   await pool.query(
-    `INSERT INTO "Subscription" ("id", "userId", "provider", "status", "plan", "planName", "tier", "role", "updatedAt")
-     VALUES ($1,$2,'open-access','active','moving-in','moving-in','moving-in','member',$3)`,
-    [sbUid, sbUid, new Date().toISOString()]
+    `INSERT INTO "Subscription" ("id", "userId", "provider", "status", "plan", "planName", "tier", "role", "currentPeriodEnd", "updatedAt")
+     VALUES ($1,$2,'shopify','active','moving-in','moving-in','moving-in','member',$3,$4)`,
+    [sbUid, sbUid, new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), new Date().toISOString()]
   );
 
   // 3. sign in for a real session

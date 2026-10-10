@@ -12,6 +12,12 @@ import {
   decodeCursor,
   feedOrderBy,
   paginatePostRows,
+  mapPostRow,
+  livePostWhere,
+  feedWhere,
+  editPostCheck,
+  TRASH_RETENTION_MS,
+  SCHEDULE_MAX_MS,
 } from "../posts-core.js";
 
 const post = { authorId: "u1", spaceId: "s1", groupId: "" };
@@ -252,3 +258,93 @@ test("isSystemPost: tolerates a missing post", () => {
   assert.equal(isSystemPost(null), false);
   assert.equal(isSystemPost(undefined), false);
 });
+
+// ---------------------------------------------------------------------------
+// Post lifecycle (edit / trash / schedule / hide)
+// ---------------------------------------------------------------------------
+
+test("mapPostRow: exposes the lifecycle fields with safe defaults", () => {
+  const mapped = mapPostRow({ id: "p1", text: "hi", createdAt: 5 });
+  assert.equal(mapped.editedAt, 0);
+  assert.equal(mapped.deletedAt, 0);
+  assert.equal(mapped.hidden, false);
+  assert.equal(mapped.lockedComments, false);
+  assert.equal(mapped.sensitive, false);
+  assert.equal(mapped.scheduledAt, 0);
+  assert.equal(mapped.repostOfId, "");
+  assert.equal(mapped.quoteOfId, "");
+});
+
+test("mapPostRow: carries edited/deleted/scheduled timestamps as millis", () => {
+  const when = new Date("2026-01-02T03:04:05.000Z");
+  const mapped = mapPostRow({ id: "p1", text: "hi", editedAt: when, deletedAt: when, scheduledAt: when });
+  assert.equal(mapped.editedAt, when.getTime());
+  assert.equal(mapped.deletedAt, when.getTime());
+  assert.equal(mapped.scheduledAt, when.getTime());
+});
+
+test("livePostWhere: excludes trash and not-yet-due scheduled posts", () => {
+  const where = livePostWhere();
+  assert.equal(where.deletedAt, null);
+  assert.deepEqual(where.OR[0], { scheduledAt: null });
+  assert.ok(where.OR[1].scheduledAt.lte instanceof Date);
+});
+
+test("feedWhere: combines live + cursor + tag without losing an OR clause", () => {
+  const cursor = { pinned: false, createdAt: Date.now(), id: "p9" };
+  const where = feedWhere({ cursor, tag: "yarn" });
+  assert.equal(where.deletedAt, null);
+  assert.equal(where.archivedAt, null);
+  // live schedule filter, cursor keyset, hashtag
+  assert.equal(where.AND.length, 3);
+  assert.ok(where.AND.some((clause) => clause.hashtags?.has === "yarn"));
+  assert.ok(where.AND.some((clause) => Array.isArray(clause.OR) && !clause.hashtags));
+});
+
+test("feedWhere: adds an author-visible branch for the viewer's own scheduled posts", () => {
+  const where = feedWhere({ uid: "u1" });
+  const authorBranch = where.AND.find((clause) => clause.OR?.some((c) => c.authorId === "u1"));
+  assert.ok(authorBranch, "own scheduled posts must remain visible to their author");
+});
+
+test("editPostCheck: author may edit their own post", () => {
+  assert.equal(editPostCheck({ authorId: "u1", kind: "post" }, { uid: "u1" }).ok, true);
+});
+
+test("editPostCheck: another member cannot edit it", () => {
+  const res = editPostCheck({ authorId: "u1", kind: "post" }, { uid: "u2" });
+  assert.equal(res.ok, false);
+  assert.equal(res.status, 403);
+});
+
+test("editPostCheck: a moderator may edit someone else's post", () => {
+  assert.equal(editPostCheck({ authorId: "u1", kind: "post" }, { uid: "u2", isModerator: true }).ok, true);
+  assert.equal(editPostCheck({ authorId: "u1", kind: "post" }, { uid: "u2", isOwner: true }).ok, true);
+});
+
+test("editPostCheck: the read-only announcement cannot be edited", () => {
+  const res = editPostCheck({ authorId: null, kind: "announcement" }, { uid: "u1", isOwner: true });
+  assert.equal(res.ok, false);
+  assert.equal(res.status, 403);
+});
+
+test("editPostCheck: a trashed post cannot be edited", () => {
+  const res = editPostCheck({ authorId: "u1", kind: "post", deletedAt: new Date() }, { uid: "u1" });
+  assert.equal(res.ok, false);
+  assert.equal(res.status, 404);
+});
+
+test("editPostCheck: poll options are locked after publishing", () => {
+  const res = editPostCheck({ authorId: "u1", kind: "poll" }, { uid: "u1" });
+  assert.equal(res.ok, false);
+  assert.equal(res.status, 400);
+});
+
+test("TRASH_RETENTION_MS is a 30-day window", () => {
+  assert.equal(TRASH_RETENTION_MS, 30 * 24 * 60 * 60 * 1000);
+});
+
+test("SCHEDULE_MAX_MS is a one-year horizon", () => {
+  assert.equal(SCHEDULE_MAX_MS, 365 * 24 * 60 * 60 * 1000);
+});
+

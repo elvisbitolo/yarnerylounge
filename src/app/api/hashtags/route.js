@@ -13,6 +13,7 @@ export async function GET(req) {
   try {
     const prisma = getPrisma();
     const rows = await prisma.post.findMany({
+      where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: SUGGEST_SCAN,
       select: { hashtags: true },

@@ -24,12 +24,13 @@ export async function GET(req) {
   try {
     const [ownRows, postRows, spaceRows, courseRows] = await Promise.all([
       prisma.post.findMany({
-        where: { authorId: user.uid },
+        where: { authorId: user.uid, deletedAt: null, archivedAt: null, scheduledAt: null },
         orderBy: { createdAt: "desc" },
         take: 50,
         select: { hashtags: true },
       }),
       prisma.post.findMany({
+        where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
         orderBy: { createdAt: "desc" },
         take: 100,
         select: { id: true, text: true, likes: true, hashtags: true },

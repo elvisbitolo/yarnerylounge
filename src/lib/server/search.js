@@ -158,7 +158,7 @@ export async function searchCommunity(
     if (prisma) {
       try {
         rawPosts = await prisma.post.findMany({
-          where: { hashtags: { has: tag } },
+          where: { hashtags: { has: tag }, deletedAt: null, archivedAt: null, scheduledAt: null },
           take: 60,
           select: POST_SEARCH_SELECT,
         });

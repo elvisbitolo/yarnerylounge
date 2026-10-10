@@ -29,6 +29,7 @@ export async function POST(req) {
   const topPosts = [];
   try {
     const rows = await prisma.post.findMany({
+      where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
       orderBy: { createdAt: "desc" },
       take: 100,
       select: { id: true, text: true, authorName: true, likes: true, createdAt: true },

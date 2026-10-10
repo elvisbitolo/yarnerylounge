@@ -3,7 +3,17 @@ export const COMMENT_TEXT_MAX = 2000;
 export const IMAGE_URL_MAX = 2048;
 export const IMAGE_DATA_URL_MAX = 700_000;
 
-function millis(v) {
+// Soft-deleted posts sit in trash for 30 days (Facebook's window) before the
+// feed purge hard-deletes them. Anything longer and a mistaken delete becomes
+// an unrecoverable surprise; anything shorter and "restore" is a lie.
+export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Scheduling bounds. A post queued further out than a year is almost always a
+// mistyped date, and the row would sit invisible in the feed query forever.
+export const SCHEDULE_MAX_MS = 365 * 24 * 60 * 60 * 1000;
+
+
+export function millis(v) {
   if (v == null) return 0;
   if (typeof v.toMillis === "function") return v.toMillis();
   if (v instanceof Date) return v.getTime();
@@ -41,8 +51,76 @@ export function mapPostRow(row) {
     pollTotal: row.pollTotal || 0,
     pollDeadline: millis(row.pollDeadline),
     pollStatus: row.pollStatus || "",
+    // Lifecycle fields. editedAt drives the "Edited" marker (and a version
+    // snapshot exists whenever it is set); the rest let the client decide which
+    // of the post menus to render.
+    editedAt: millis(row.editedAt),
+    deletedAt: millis(row.deletedAt),
+    archivedAt: millis(row.archivedAt),
+    hidden: !!row.hidden,
+    hiddenReason: row.hiddenReason || "",
+    lockedComments: !!row.lockedComments,
+    sensitive: !!row.sensitive,
+    altText: row.altText || "",
+    scheduledAt: millis(row.scheduledAt),
+    repostOfId: row.repostOfId || "",
+    quoteOfId: row.quoteOfId || "",
   };
 }
+
+// Base `where` fragment for "the post is still live": not in trash, not
+// waiting for its scheduled publish time. Every public read path must apply it
+// or trashed/scheduled rows leak back into feeds, galleries and search.
+export function livePostWhere(now = new Date()) {
+  return {
+    deletedAt: null,
+    archivedAt: null,
+    OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+  };
+}
+
+// Feed-shaped `where`: live-post filter + keyset cursor + hashtag, combined
+// under AND because each piece carries its own OR and a shallow merge would
+// silently drop one of them. The author keeps seeing their own not-yet-due
+// scheduled posts, marked "Scheduled" in their own feed.
+export function feedWhere({ cursor, tag, uid, now = new Date() } = {}) {
+  const and = [{ OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] }];
+  const after = cursorAfter(cursor);
+  if (after) and.push(after);
+  if (tag) and.push({ hashtags: { has: tag } });
+  if (uid) and.push({ OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }, { authorId: uid }] });
+  const where = { deletedAt: null, archivedAt: null, AND: and };
+  return where;
+}
+
+// True when a scheduled post's publish time has arrived.
+export function isDue(post, now = Date.now()) {
+  return !!post?.scheduledAt && millis(post.scheduledAt) <= now;
+}
+
+// Edit authorization. Text is editable forever (Facebook/LinkedIn rules) by
+// the author or a moderator; media, polls and the post kind are locked the
+// moment it is published, exactly like LinkedIn, Instagram and Facebook.
+export function editPostCheck(post, ctx) {
+  if (!post) return { ok: false, status: 404, error: "Post not found" };
+  if (post.deletedAt) return { ok: false, status: 404, error: "Post not found" };
+  if (isSystemPost(post)) {
+    return { ok: false, status: 403, error: "This announcement is read-only" };
+  }
+  const canModerate = !!(ctx.isOwner || ctx.isModerator);
+  if (post.authorId !== ctx.uid && !canModerate) {
+    return { ok: false, status: 403, error: "You can only edit your own posts" };
+  }
+  if (post.kind === "poll") {
+    return { ok: false, status: 400, error: "Poll options are locked after publishing" };
+  }
+  return { ok: true };
+}
+
+// Which fields the client may send on PATCH. Anything not in this list is a
+// post-publish mutation the big platforms do not allow either.
+export const EDITABLE_POST_FIELDS = ["text", "altText", "sensitive", "removeMedia"];
+
 
 export function validatePostText(text) {
   if (typeof text !== "string" || !text.trim()) {

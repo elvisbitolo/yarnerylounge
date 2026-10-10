@@ -103,7 +103,7 @@ export default async function MemberProfilePage({ params }) {
 
   const [memberRow, postRows, projectRows, recognitionCount, recognitions, stickerRows, gamiRow, followData, safetyData] = await Promise.all([
     safe(prisma.user.findUnique({ where: { id } }), null),
-    safe(prisma.post.findMany({ where: { authorId: id } }), []),
+    safe(prisma.post.findMany({ where: { authorId: id, deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false } }), []),
     listProjects(id),
     safe(getRecognitionCount(id), 0),
     safe(listRecognitions(id, 10), []),

@@ -339,6 +339,31 @@ model Post {
   pollDeadline    DateTime?
   pollStatus      String?
 
+  // Post lifecycle. editedAt powers the visible "Edited" marker and the
+  // PostVersion history below; deletedAt is a soft delete (trash) that keeps
+  // rows recoverable for TRASH_RETENTION_MS before they are purged.
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  deletedBy       String?
+  archivedAt      DateTime?
+  // Moderator hide: the post stays in the DB (and in the author's own view)
+  // but drops out of every other member's feed. Distinct from deletedAt, which
+  // hides it from everyone including the author.
+  hidden          Boolean   @default(false)
+  hiddenBy        String?
+  hiddenReason    String?
+  lockedComments  Boolean   @default(false)
+  sensitive       Boolean   @default(false)
+  altText         String?
+  // Set when the author schedules the post instead of publishing immediately.
+  // Feed reads publish any post whose scheduledAt has passed (lazy publish),
+  // so no cron is required for scheduling to work.
+  scheduledAt     DateTime?
+  // Content-level resharing: a repost is a bare reference, a quote carries the
+  // commenter's own text. Both render the referenced post inline.
+  repostOfId      String?
+  quoteOfId       String?
+
   // onDelete stays Restrict, which is what the column already enforces.
   // Leaving it off an optional relation would default to SetNull and null out
   // every post by a deleted account.
@@ -346,6 +371,9 @@ model Post {
   createdBy User?          @relation("PostCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   comments PostComment[]
   votes    PollVote[]
+  versions PostVersion[]
+  subscriptions PostSubscription[]
+  moderationLog PostModerationLog[]
   space    Space?          @relation(fields: [spaceId], references: [id])
   group    Group?          @relation(fields: [groupId], references: [id])
 
@@ -354,6 +382,56 @@ model Post {
   @@index([spaceId, createdAt(sort: Desc)])
   @@index([groupId, createdAt(sort: Desc)])
   @@index([lastActivityAt(sort: Desc)])
+  @@index([deletedAt])
+  @@index([scheduledAt])
+}
+
+// Immutable snapshots of a post's text taken every time it is edited, so the
+// feed can show an "Edited" marker and (like X and Facebook) let readers open
+// the full history. Rows are deleted with the post.
+model PostVersion {
+  id         String   @id @default(cuid())
+  postId     String
+  text       String
+  kind       String?
+  editorId   String?
+  editorName String?
+  createdAt  DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt(sort: Desc)])
+}
+
+// Per-post notification subscription ("follow this thread"). Everyone who
+// comments is auto-subscribed (matching Facebook) and can opt out from the
+// post menu.
+model PostSubscription {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+// Audit trail for moderator actions on a post (hide, lock, restore...). Kept
+// separate from the post row so the log survives un-hide/unlock edits.
+model PostModerationLog {
+  id        String   @id @default(cuid())
+  postId    String
+  action    String // hide | unhide | lock | unlock | restore | purge
+  actorId   String?
+  actorName String?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt(sort: Desc)])
 }
 
 model PostComment {
@@ -367,6 +445,10 @@ model PostComment {
   text        String
   reactions   Json?
   createdAt   DateTime  @default(now())
+  editedAt    DateTime?
+  // Set when a moderator pins the comment to the top of the thread.
+  pinnedAt    DateTime?
+  pinnedBy    String?
 
   post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
   parent    PostComment?  @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)

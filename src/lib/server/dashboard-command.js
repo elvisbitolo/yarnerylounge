@@ -153,7 +153,7 @@ async function countUsersContributing(since) {
   if (prisma) {
     try {
       const rows = await prisma.post.findMany({
-        where: { createdAt: { gte: new Date(since) } },
+        where: { createdAt: { gte: new Date(since) }, deletedAt: null, archivedAt: null },
         take: 1000,
         select: { authorId: true },
       });
@@ -206,7 +206,7 @@ export async function getAudienceSeries(days) {
           select: { createdAt: true },
         }),
         prisma.post.findMany({
-          where: { createdAt: { gte: startDate } },
+          where: { createdAt: { gte: startDate }, deletedAt: null, archivedAt: null },
           take: 4000,
           select: { createdAt: true },
         }),
@@ -299,6 +299,7 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
     try {
       const [posts, users, rsvps] = await Promise.all([
         prisma.post.findMany({
+          where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
           orderBy: { createdAt: "desc" },
           take: 30,
           select: {
@@ -447,6 +448,7 @@ export async function getDashboardContent() {
     try {
       const [posts, comments] = await Promise.all([
         prisma.post.findMany({
+          where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
           orderBy: { createdAt: "desc" },
           take: 120,
           select: {
@@ -522,7 +524,7 @@ export async function getDashboardOnboarding(uid) {
           where: { id: uid },
           select: { id: true, name: true, headline: true, bio: true, createdAt: true },
         }),
-        prisma.post.findFirst({ where: { authorId: uid }, select: { id: true } }),
+        prisma.post.findFirst({ where: { authorId: uid, deletedAt: null, archivedAt: null }, select: { id: true } }),
         prisma.rsvp.findFirst({ where: { userId: uid }, select: { id: true } }),
         prisma.roomEvent.findFirst({ where: { userId: uid }, select: { id: true } }),
       ]);

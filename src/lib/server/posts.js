@@ -21,6 +21,22 @@ export async function canAccessPost(postId, uid, userDoc) {
     return { ok: false, status: 404, error: "Post not found" };
   }
 
+  const isStaff = userDoc?.role === "owner" || userDoc?.role === "moderator";
+  // Lifecycle gates mirror the single-post GET: trashed posts are invisible,
+  // scheduled posts are private until due, hidden posts are staff/author-only.
+  if (post.deletedAt) {
+    return { ok: false, status: 404, error: "Post not found" };
+  }
+  if (post.scheduledAt > Date.now() && post.authorId !== uid && !isStaff) {
+    return { ok: false, status: 404, error: "Post not found" };
+  }
+  if (post.hidden && post.authorId !== uid && !isStaff) {
+    return { ok: false, status: 404, error: "Post not found" };
+  }
+  if (post.archivedAt && post.authorId !== uid && !isStaff) {
+    return { ok: false, status: 404, error: "Post not found" };
+  }
+
   if (userDoc?.role === "owner" || post.authorId === uid) {
     return { ok: true, post };
   }

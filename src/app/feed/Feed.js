@@ -7,18 +7,19 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import { UPGRADE_URL } from "@/lib/upgrade-url";
 import ReportModal from "./ReportModal";
+import PostMenu from "./PostMenu";
 import MentionInput from "@/components/MentionInput";
 import { cardThemeVars } from "@/lib/card-themes";
 import { dataUrlToBlob } from "@/lib/data-url";
 import { IMAGE_DATA_URL_MAX, isSystemPost } from "@/lib/server/posts-core";
 import styles from "./feed.module.css";
-import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown, Share2, Video, X } from "lucide-react";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown, Share2, Video, X, Pencil, Trash2, RotateCcw, Bell, BellOff, EyeOff, Lock, Unlock, Archive, History, Quote, Repeat2, Copy, Heart, VolumeX, Clock } from "lucide-react";
 import { embedInfoForUrl, normalizeTag, isValidTag } from "@/lib/feed-utils";
 
 const PAGE_SIZE = 20;
 const VIRTUALIZE_AT = 150; // window virtualizer only kicks in for long feeds
 // Combinable view pills — any non-empty subset is ANDed server-side.
-const FILTER_VIEWS = ["following", "near", "popular", "mine", "bookmarked", "hosts", "unanswered"];
+const FILTER_VIEWS = ["following", "near", "popular", "mine", "bookmarked", "hosts", "unanswered", "trashed", "archived"];
 
 function resizeImage(file, maxSize = 1600) {
   return new Promise((resolve, reject) => {
@@ -501,6 +502,8 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
   const [commentSort, setCommentSort] = useState("newest");
   const [replyTo, setReplyTo] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
+  const [editingComment, setEditingComment] = useState("");
+  const [commentEditText, setCommentEditText] = useState("");
   // Authoritative in-flight lock. `busy` is state, so it cannot gate two
   // submits that land in the same tick — a double-click reads it as false
   // twice and the second POST goes out anyway. A ref flips synchronously.
@@ -654,11 +657,56 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
     }
   }
 
+  function updateComment(id, patch) {
+    setComments((prev) =>
+      prev.map((cm) => {
+        if (cm.id === id) return { ...cm, ...patch };
+        if (cm.replies && cm.replies.some((r) => r.id === id)) {
+          return { ...cm, replies: cm.replies.map((r) => (r.id === id ? { ...r, ...patch } : r)) };
+        }
+        return cm;
+      })
+    );
+  }
+
+  async function handleCommentEditSave(commentId) {
+    const next = commentEditText.trim();
+    if (!next) return;
+    const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: next }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Could not save your edit.");
+      return;
+    }
+    updateComment(commentId, { text: next, editedAt: Date.now() });
+    setEditingComment("");
+    setCommentEditText("");
+  }
+
+  async function handleCommentPin(comment) {
+    const res = await fetch(`/api/posts/${postId}/comments/${comment.id}/pin`, { method: "POST" });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    const pinned = typeof data.pinned === "boolean" ? data.pinned : !comment.pinned;
+    setComments((prev) =>
+      prev.map((cm) => {
+        const isTarget = cm.id === comment.id;
+        if (!isTarget && !pinned) return cm;
+        return { ...cm, pinned: isTarget ? pinned : false };
+      })
+    );
+  }
+
   const reactionsSum = (c) =>
     Object.values(c.reactions || {}).reduce((s, v) => s + v, 0) +
     (c.replies || []).reduce((s, r) => s + Object.values(r.reactions || {}).reduce((x, v) => x + v, 0), 0);
 
   const compareComments = (a, b) => {
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
     if (commentSort === "oldest") {
       return (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0);
     }
@@ -694,7 +742,15 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
               <Crown size={11} />
             </span>
           )}
-          <span className={styles.commentTime}>{timeAgo(c.createdAt)}</span>
+          {c.pinned && (
+            <span className={styles.commentTime} title={t("pinnedComment")}>
+              <Pin size={11} /> {t("pinned")}
+            </span>
+          )}
+          <span className={styles.commentTime}>
+            {timeAgo(c.createdAt)}
+            {c.editedAt ? ` · ${t("edited")}` : ""}
+          </span>
           <button
             className={styles.commentReplyBtn}
             type="button"
@@ -703,6 +759,28 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
           >
             {t("reply")}
           </button>
+          {c.authorId === uid && (
+            <button
+              className={styles.commentReplyBtn}
+              type="button"
+              onClick={() => {
+                setEditingComment(c.id);
+                setCommentEditText(c.text || "");
+              }}
+            >
+              {t("edit")}
+            </button>
+          )}
+          {canModerate && (
+            <button
+              className={styles.commentReplyBtn}
+              type="button"
+              onClick={() => handleCommentPin(c)}
+              title={c.pinned ? t("unpinComment") : t("pinComment")}
+            >
+              {c.pinned ? t("unpin") : t("pin")}
+            </button>
+          )}
           {(c.authorId === uid || canModerate) && (
             <button
               className={styles.deleteSmall}
@@ -716,7 +794,33 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, onCom
             <ReportButton type="comment" targetId={c.id} commentPostId={postId} small />
           )}
         </div>
-        <p className={styles.commentText}>{renderMentions(c.text, onTag)}</p>
+        {editingComment === c.id ? (
+          <div className={styles.editBox}>
+            <textarea
+              className={styles.commentInputTextarea || styles.composerInput}
+              rows={2}
+              value={commentEditText}
+              onChange={(e) => setCommentEditText(e.target.value)}
+            />
+            <div className={styles.commentHeader}>
+              <button type="button" className={styles.commentReplyBtn} onClick={() => handleCommentEditSave(c.id)}>
+                {t("save")}
+              </button>
+              <button
+                type="button"
+                className={styles.commentReplyBtn}
+                onClick={() => {
+                  setEditingComment("");
+                  setCommentEditText("");
+                }}
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className={styles.commentText}>{renderMentions(c.text, onTag)}</p>
+        )}
         <EmojiReactionBar
           postId={postId}
           commentId={c.id}
@@ -876,6 +980,25 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const [views, setViews] = useState([]);
   const [sort, setSort] = useState("newest");
   const [openComments, setOpenComments] = useState(new Set());
+  // Post lifecycle UI.
+  const [editingId, setEditingId] = useState("");
+  const [editText, setEditText] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+  const [historyFor, setHistoryFor] = useState("");
+  const [historyItems, setHistoryItems] = useState(null);
+  const [likesFor, setLikesFor] = useState("");
+  const [likesData, setLikesData] = useState(null);
+  const [pendingUndo, setPendingUndo] = useState(null);
+  const [showTrash, setShowTrash] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [mutedIds, setMutedIds] = useState(() => new Set());
+  const [notifIds, setNotifIds] = useState(() => new Set());
+  // Composer extras.
+  const [composerSchedule, setComposerSchedule] = useState("");
+  const [composerSensitive, setComposerSensitive] = useState(false);
+  const [composerAlt, setComposerAlt] = useState("");
+  const [quoteOf, setQuoteOf] = useState("");
+  const [quotePreview, setQuotePreview] = useState("");
   const fileInputRef = useRef(null);
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
@@ -1048,7 +1171,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
 
   const loadFirst = useCallback(
     async (modeOverride) => {
-      const mode = typeof modeOverride === "string" ? modeOverride : filterRef.current;
+      const mode = modeOverride !== undefined ? modeOverride : filterRef.current;
       const cached = readFeedCache(mode);
       if (cached && cached.length) {
         setPosts(sortFeedPosts(cached));
@@ -1247,11 +1370,18 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   // persists text/poll state (never the image, which may be a large data URL).
   useEffect(() => {
     const key = `feed:draft:${uid}:${groupId || spaceId || "home"}`;
+    let d = null;
     try {
       const raw = localStorage.getItem(key);
-      if (!raw) return;
-      const d = JSON.parse(raw);
-      if (!d || typeof d.text !== "string" || !d.text.trim()) return;
+      if (raw) d = JSON.parse(raw);
+    } catch {
+      d = null;
+    }
+    if (!d || typeof d.text !== "string" || !d.text.trim()) return;
+    // Defer the restore off the effect body: the values come from storage, not
+    // from React, so there is nothing to synchronize synchronously and setting
+    // state here would only add a cascading render.
+    queueMicrotask(() => {
       setText(d.text);
       if (d.kind === "poll" || d.kind === "question" || d.kind === "win") setKind(d.kind);
       if (Array.isArray(d.pollOptions) && d.pollOptions.length >= 2 && d.pollOptions.length <= 5) {
@@ -1260,7 +1390,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       if (typeof d.pollDeadline === "string") setPollDeadline(d.pollDeadline);
       if (typeof d.videoUrl === "string" && d.videoUrl) setVideoUrl(d.videoUrl);
       setDraftRestored(true);
-    } catch {}
+    });
   }, [uid, groupId, spaceId]);
 
   useEffect(() => {
@@ -1349,6 +1479,10 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             kind,
             pollOptions: kind === "poll" ? cleanPoll : [],
             pollDeadline: kind === "poll" && pollDeadline ? pollDeadline : "",
+            scheduledAt: composerSchedule || "",
+            sensitive: composerSensitive,
+            altText: composerAlt || "",
+            quoteOfId: quoteOf || "",
           }),
         });
         if (!res.ok) throw new Error(((await res.json().catch(() => ({})))?.error) || "Post failed");
@@ -1362,6 +1496,10 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           kind,
           imageUrl: storedImageUrl || "",
           videoUrl: videoUrl || "",
+          altText: composerAlt || "",
+          sensitive: composerSensitive,
+          scheduledAt: composerSchedule ? new Date(composerSchedule).getTime() : 0,
+          quoteOfId: quoteOf || "",
           likes: {},
           bookmarks: {},
           reactions: {},
@@ -1387,6 +1525,11 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         setKind("post");
         setPollOptions(EMPTY_POLL);
         setPollDeadline("");
+        setComposerSchedule("");
+        setComposerSensitive(false);
+        setComposerAlt("");
+        setQuoteOf("");
+        setQuotePreview("");
         setDraftRestored(false);
         try {
           localStorage.removeItem(`feed:draft:${uid}:${groupId || spaceId || "home"}`);
@@ -1400,7 +1543,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         setBusy(false);
       }
     },
-    [text, imageUrl, videoUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, uid, userName, role, sortFeedPosts]
+    [text, imageUrl, videoUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, composerSchedule, composerSensitive, composerAlt, quoteOf, uid, userName, role, sortFeedPosts]
   );
 
   function setPollOption(index, value) {
@@ -1490,7 +1633,208 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       alert(data.error || "Failed to delete post");
       return;
     }
+    if (showTrash) {
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      return;
+    }
+    // Soft-deleted: drop it from the feed and offer an undo that restores it.
+    const removed = posts.find((p) => p.id === postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setPendingUndo({ postId });
+    setTimeout(() => {
+      setPendingUndo((cur) => (cur && cur.postId === postId ? null : cur));
+    }, 6000);
+    return removed;
+  }
+
+  async function handleRestore(postId) {
+    const res = await fetch(`/api/posts/${postId}/restore`, { method: "POST" });
+    if (!res.ok) {
+      alert("Could not restore that post.");
+      return;
+    }
+    setPendingUndo(null);
+    loadFirst(views);
+  }
+
+  async function handleEditSave(postId) {
+    if (editBusy) return;
+    const next = editText.trim();
+    if (!next) return;
+    setEditBusy(true);
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Could not save your edit.");
+        return;
+      }
+      patchPost(postId, { text: next, editedAt: Date.now() });
+      setEditingId("");
+      setEditText("");
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function handleModerate(postId, action) {
+    const res = await fetch(`/api/posts/${postId}/moderate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => null);
+    if (!data) return;
+    if (action === "hide" || action === "unhide") {
+      if (action === "hide" && postId) setPosts((prev) => prev.filter((p) => p.id !== postId));
+      else if (data.hidden === false) patchPost(postId, { hidden: false });
+    }
+    if (action === "lock") patchPost(postId, { lockedComments: true });
+    if (action === "unlock") patchPost(postId, { lockedComments: false });
+    if (action === "archive") patchPost(postId, { archived: true });
+    if (action === "unarchive") {
+      // In the Archived shelf the post no longer belongs in the list at all.
+      if (showArchived) setPosts((prev) => prev.filter((p) => p.id !== postId));
+      else patchPost(postId, { archived: false });
+    }
+  }
+
+  async function handleRemoveMedia(postId) {
+    if (!window.confirm(t("removeMediaConfirm"))) return;
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ removeMedia: true }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Could not remove the attachment.");
+      return;
+    }
+    patchPost(postId, { imageUrl: "", videoUrl: "", altText: "", editedAt: Date.now() });
+    setEditingId("");
+    setEditText("");
+  }
+
+  async function handleMute(post) {
+    const isMuted = mutedIds.has(post.authorId);
+    const res = await fetch("/api/members/safety", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: isMuted ? "unmute" : "mute", targetId: post.authorId }),
+    });
+    if (!res.ok) return;
+    setMutedIds((prev) => {
+      const next = new Set(prev);
+      if (isMuted) next.delete(post.authorId);
+      else next.add(post.authorId);
+      return next;
+    });
+    if (!isMuted) setPosts((prev) => prev.filter((p) => p.authorId !== post.authorId));
+  }
+
+  async function handleNotifications(post) {
+    const res = await fetch(`/api/posts/${post.id}/subscribe`, { method: "POST" });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    const subscribed = typeof data.subscribed === "boolean" ? data.subscribed : !notifIds.has(post.id);
+    setNotifIds((prev) => {
+      const next = new Set(prev);
+      if (subscribed) next.add(post.id);
+      else next.delete(post.id);
+      return next;
+    });
+  }
+
+  async function openLikes(post) {
+    setLikesFor(post.id);
+    setLikesData(null);
+    try {
+      const res = await fetch(`/api/posts/${post.id}/likes`);
+      if (res.ok) setLikesData(await res.json());
+    } catch {
+      /* modal shows a fallback */
+    }
+  }
+
+  async function openHistory(post) {
+    setHistoryFor(post.id);
+    setHistoryItems(null);
+    try {
+      const res = await fetch(`/api/posts/${post.id}/history`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryItems(Array.isArray(data.history) ? data.history : []);
+      }
+    } catch {
+      setHistoryItems([]);
+    }
+  }
+
+  async function handleRepost(post) {
+    const res = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "", repostOfId: post.id }),
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data.id) loadFirst(views);
+    }
+  }
+
+  function handleQuote(post) {
+    setQuoteOf(post.id);
+    setQuotePreview((post.text || "").slice(0, 140));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function copyPostText(post) {
+    const url = `${window.location.origin}/feed?focus=${post.id}`;
+    const body = `${post.text || ""}${post.text ? "\n\n" : ""}${url}`;
+    try {
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(body);
+    } catch {
+      /* clipboard blocked */
+    }
+  }
+
+  async function nativeShare(post) {
+    const url = `${window.location.origin}/feed?focus=${post.id}`;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: "Community post", text: post.text || "", url });
+        return;
+      } catch {
+        /* user dismissed or share unsupported for this payload */
+      }
+    }
+    sharePost(post.id);
+  }
+
+  function toggleTrash() {
+    const next = !showTrash;
+    setShowTrash(next);
+    setShowArchived(false);
+    const mode = next ? ["trashed"] : [];
+    filterRef.current = mode;
+    setViews(mode);
+    loadFirst(mode);
+  }
+
+  function toggleArchived() {
+    const next = !showArchived;
+    setShowArchived(next);
+    setShowTrash(false);
+    const mode = next ? ["archived"] : [];
+    filterRef.current = mode;
+    setViews(mode);
+    loadFirst(mode);
   }
 
   async function handlePin(postId) {
@@ -1545,13 +1889,15 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           : t("newPost");
 
   function selectFilter(next) {
+    if (showTrash) setShowTrash(false);
+    if (showArchived) setShowArchived(false);
     let nextViews;
     if (next === "all") {
       nextViews = [];
     } else {
       nextViews = views.includes(next)
         ? views.filter((v) => v !== next)
-        : [...views, next];
+        : [...views.filter((v) => v !== "trashed" && v !== "archived"), next];
     }
     setViews(nextViews);
     // Sync the ref synchronously so loadFirst picks up the new view set
@@ -1568,10 +1914,12 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   function selectTag(raw) {
     const next = normalizeTag(raw);
     const clean = isValidTag(next) ? next : "";
-    if (clean === tagRef.current) return;
+    if (clean === tag) return;
+    // Mirror the new tag into the ref before the fetch so feedUrlFor reads it,
+    // then reload with the current view set (no ref read during render).
     tagRef.current = clean;
     setTag(clean);
-    loadFirst(filterRef.current);
+    loadFirst(views);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1699,6 +2047,111 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
     if (post.kind === "article") return renderArticleCard(post);
     if (post.kind === "event") return renderEventCard(post);
     const attribution = post.spaceName ? post.spaceName : post.groupName ? post.groupName : null;
+    const canEditPost = !isSystemPost(post) && (post.authorId === uid || canModerate);
+    const menuItems = showTrash
+      ? [
+          {
+            key: "restore",
+            label: t("restore"),
+            icon: <RotateCcw size={15} />,
+            onClick: () => handleRestore(post.id),
+          },
+        ]
+      : showArchived
+      ? [
+          {
+            key: "unarchive",
+            label: t("unarchivePost"),
+            icon: <Archive size={15} />,
+            onClick: () => handleModerate(post.id, "unarchive"),
+          },
+          {
+            key: "delete",
+            label: t("delete"),
+            icon: <Trash2 size={15} />,
+            onClick: () => handleDelete(post.id),
+            danger: true,
+          },
+        ]
+      : [
+          canEditPost &&
+            post.kind !== "poll" && {
+              key: "edit",
+              label: t("editPost"),
+              icon: <Pencil size={15} />,
+              onClick: () => {
+                setEditingId(post.id);
+                setEditText(post.text || "");
+              },
+            },
+          post.editedAt && {
+            key: "history",
+            label: t("viewEditHistory"),
+            icon: <History size={15} />,
+            onClick: () => openHistory(post),
+          },
+          {
+            key: "copylink",
+            label: t("copyLink"),
+            icon: <Copy size={15} />,
+            onClick: () => sharePost(post.id),
+          },
+          {
+            key: "copytext",
+            label: t("copyText"),
+            icon: <FileText size={15} />,
+            onClick: () => copyPostText(post),
+          },
+          {
+            key: "quote",
+            label: t("quotePost"),
+            icon: <Quote size={15} />,
+            onClick: () => handleQuote(post),
+          },
+          {
+            key: "repost",
+            label: t("repost"),
+            icon: <Repeat2 size={15} />,
+            onClick: () => handleRepost(post),
+          },
+          {
+            key: "notify",
+            label: notifIds.has(post.id) ? t("turnOffNotifications") : t("turnOnNotifications"),
+            icon: notifIds.has(post.id) ? <BellOff size={15} /> : <Bell size={15} />,
+            onClick: () => handleNotifications(post),
+          },
+          post.authorId !== uid && {
+            key: "mute",
+            label: mutedIds.has(post.authorId) ? t("unmuteAuthor") : t("muteAuthor"),
+            icon: <VolumeX size={15} />,
+            onClick: () => handleMute(post),
+          },
+          canModerate && {
+            key: "hide",
+            label: t("hidePost"),
+            icon: <EyeOff size={15} />,
+            onClick: () => handleModerate(post.id, "hide"),
+          },
+          canModerate && {
+            key: "lock",
+            label: post.lockedComments ? t("unlockComments") : t("lockComments"),
+            icon: post.lockedComments ? <Unlock size={15} /> : <Lock size={15} />,
+            onClick: () => handleModerate(post.id, post.lockedComments ? "unlock" : "lock"),
+          },
+          (post.authorId === uid || canModerate) && {
+            key: "archive",
+            label: t("archivePost"),
+            icon: <Archive size={15} />,
+            onClick: () => handleModerate(post.id, "archive"),
+          },
+          (post.authorId === uid || (canModerate && !isSystemPost(post))) && {
+            key: "delete",
+            label: t("delete"),
+            icon: <Trash2 size={15} />,
+            onClick: () => handleDelete(post.id),
+            danger: true,
+          },
+        ];
     return (
       <article key={post.id} id={`feed-post-${post.id}`} className={styles.post} style={postCardStyle(post.kind)}>
         <div className={styles.postHeader}>
@@ -1728,15 +2181,21 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               {post.kind === "poll" && <span className={styles.kindBadge}><BarChart3 size={13} /> {t("tabPoll")}</span>}
               {post.kind === "question" && <span className={styles.kindBadge}><HelpCircle size={13} /> {t("tabQuestion")}</span>}
               {post.kind === "win" && <span className={styles.kindBadge}><Trophy size={13} /> {t("tabWin")}</span>}
+              {(post.archived || post.archivedAt) && <span className={styles.kindBadge}><Archive size={13} /> {t("archived")}</span>}
               {post.pinned && <span className={styles.pinnedBadge}><Pin size={13} /> {t("pinned")}</span>}
             </p>
             <p className={styles.postTime}>
-              {timeAgo(post.createdAt)}
+              {post.scheduledAt ? (
+                <span className={styles.postPlace}><Clock size={12} /> {t("scheduledFor", { when: new Date(post.scheduledAt).toLocaleString() })}</span>
+              ) : (
+                timeAgo(post.createdAt)
+              )}
+              {post.editedAt ? <span className={styles.postPlace}> · {t("edited")}</span> : null}
               {attribution && <span className={styles.postPlace}> · {attribution}</span>}
             </p>
           </div>
           <div className={styles.postHeaderActions}>
-            {canModerate && (
+            {canModerate && !showTrash && (
               <button
                 className={styles.pinBtn}
                 onClick={() => handlePin(post.id)}
@@ -1745,26 +2204,59 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
                 {post.pinned ? t("unpin") : t("pin")}
               </button>
             )}
-            {(post.authorId === uid || (canModerate && !isSystemPost(post))) && (
-              <button
-                className={styles.deletePost}
-                onClick={() => handleDelete(post.id)}
-                title={t("deletePost")}
-              >
-                {t("delete")}
-              </button>
-            )}
-            {post.authorId !== uid && !isSystemPost(post) && (
+            <PostMenu items={menuItems} title={t("moreActions")} />
+            {!showTrash && post.authorId !== uid && !isSystemPost(post) && (
               <ReportButton type="post" targetId={post.id} />
             )}
           </div>
         </div>
-        {post.text && <p className={styles.postText}>{renderMentions(post.text, selectTag)}</p>}
+        {editingId === post.id ? (
+          <div className={styles.editBox}>
+            <textarea
+              className={styles.composerInput}
+              rows={3}
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+            <div className={styles.postActions}>
+              <button type="button" className={styles.shareBtn} disabled={editBusy} onClick={() => handleEditSave(post.id)}>
+                {t("save")}
+              </button>
+              <button
+                type="button"
+                className={styles.shareBtn}
+                onClick={() => {
+                  setEditingId("");
+                  setEditText("");
+                }}
+              >
+                {t("cancel")}
+              </button>
+              {(post.imageUrl || post.videoUrl) && (
+                <button
+                  type="button"
+                  className={styles.shareBtn}
+                  onClick={() => handleRemoveMedia(post.id)}
+                >
+                  {t("removeMedia")}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          post.text && (
+            <p className={styles.postText}>
+              {renderMentions(post.text, selectTag)}
+              {post.sensitive && <span className={styles.postPlace}> · {t("markedSensitive")}</span>}
+            </p>
+          )
+        )}
+        {post.quoteOfId && <p className={styles.quoteRef}>{t("quotedPost")}</p>}
         {post.kind === "poll" && (
           <PollBlock postId={post.id} post={post} uid={uid} disabled={disabledActions} />
         )}
         {post.imageUrl && (
-          <img src={post.imageUrl} alt="" className={styles.postImage} loading="lazy" decoding="async" />
+          <img src={post.imageUrl} alt={post.altText || ""} className={styles.postImage} loading="lazy" decoding="async" />
         )}
         {post.videoUrl && <VideoEmbed post={post} />}
         {isSystemPost(post) ? (
@@ -1773,6 +2265,15 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           <>
             <div className={styles.postActions}>
               <LikeButton likes={post.likes} uid={uid} disabled={disabledActions} onToggle={() => toggleLike(post)} />
+              <button
+                type="button"
+                className={styles.shareBtn}
+                onClick={() => openLikes(post)}
+                title={t("viewLikes")}
+              >
+                <Heart size={15} />
+                {t("likesCount", { count: Object.keys(post.likes || {}).length })}
+              </button>
               <BookmarkButton bookmarks={post.bookmarks} uid={uid} disabled={disabledActions} onToggle={() => toggleBookmark(post)} />
               <button
                 type="button"
@@ -1786,7 +2287,25 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               <button
                 type="button"
                 className={styles.shareBtn}
-                onClick={() => sharePost(post.id)}
+                onClick={() => handleRepost(post)}
+                title={t("repost")}
+              >
+                <Repeat2 size={15} />
+                {t("repost")}
+              </button>
+              <button
+                type="button"
+                className={styles.shareBtn}
+                onClick={() => handleQuote(post)}
+                title={t("quotePost")}
+              >
+                <Quote size={15} />
+                {t("quote")}
+              </button>
+              <button
+                type="button"
+                className={styles.shareBtn}
+                onClick={() => nativeShare(post)}
                 title={t("share")}
               >
                 <Share2 size={15} />
@@ -1794,6 +2313,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               </button>
             </div>
             <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} onUpdated={(map) => patchPost(post.id, { reactions: map })} />
+            {post.lockedComments && <p className={styles.readOnlyNote}>{t("commentsLocked")}</p>}
             {openComments.has(post.id) && (
               <CommentList postId={post.id} uid={uid} userName={userName} role={role} canModerate={canModerate} disabled={disabledActions} onCommentChanged={patchCommentCount} onTag={selectTag} />
             )}
@@ -1973,6 +2493,55 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             </button>
           </div>
         )}
+        {quoteOf && (
+          <div className={styles.quoteChip}>
+            <Quote size={14} />
+            <span>{t("quotingPost")}</span>
+            {quotePreview ? <span className={styles.quotePreviewText}>{quotePreview}</span> : null}
+            <button
+              type="button"
+              className={styles.draftClear}
+              onClick={() => {
+                setQuoteOf("");
+                setQuotePreview("");
+              }}
+            >
+              {t("remove")}
+            </button>
+          </div>
+        )}
+        {imageUrl && (
+          <div style={{ marginTop: 8 }}>
+            <input
+              className={styles.videoUrlInput}
+              type="text"
+              maxLength={280}
+              placeholder={t("altTextPlaceholder")}
+              value={composerAlt}
+              onChange={(e) => setComposerAlt(e.target.value)}
+            />
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={composerSensitive}
+              onChange={(e) => setComposerSensitive(e.target.checked)}
+            />
+            {t("markSensitive")}
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <Clock size={14} /> {t("scheduleFor")}
+            <input
+              type="datetime-local"
+              className={styles.pollOptionInput}
+              value={composerSchedule}
+              onChange={(e) => setComposerSchedule(e.target.value)}
+              style={{ maxWidth: 210 }}
+            />
+          </label>
+        </div>
         <div className={styles.composerRow}>
           <div className={styles.composerLeft}>
             <button
@@ -2096,6 +2665,24 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           >
             {t("unanswered", { count: unansweredCount })}
           </button>
+          {!groupId && !spaceId && (
+            <button
+              className={showTrash ? styles.filterTabActive : styles.filterTab}
+              onClick={toggleTrash}
+              aria-pressed={showTrash}
+            >
+              <Trash2 size={13} /> {t("trash")}
+            </button>
+          )}
+          {!groupId && !spaceId && (
+            <button
+              className={showArchived ? styles.filterTabActive : styles.filterTab}
+              onClick={toggleArchived}
+              aria-pressed={showArchived}
+            >
+              <Archive size={13} /> {t("archived")}
+            </button>
+          )}
         </div>
         <div className={styles.sortTabs}>
           <select
@@ -2166,6 +2753,11 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         <div className={styles.postList} role="feed" aria-busy={loadingMore} aria-label={t("title")}>
           {virtualize ? (
             <div style={{ height: windowVirtualizer.getTotalSize(), position: "relative" }}>
+              {/* TanStack Virtual keeps its measurements in a ref-backed store and
+                  only exposes them through accessor methods, so reading them here
+                  during render is the library's intended usage. The compiler's refs
+                  heuristic cannot see through that API. */}
+              {/* eslint-disable-next-line react-hooks/refs */}
               {windowVirtualizer.getVirtualItems().map((vi) => (
                 <div
                   key={vi.key}
@@ -2184,6 +2776,10 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               ))}
             </div>
           ) : (
+            /* renderPost closes over the stable refs this feed is built around
+               (tagRef / filterRef). They are only written in event handlers, never
+               read during render; the compiler's heuristic cannot prove that. */
+            /* eslint-disable-next-line react-hooks/refs */
             posts.map((post) => renderPost(post))
           )}
 
@@ -2217,6 +2813,85 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
 
       <p data-feed-live aria-live="polite" className={styles.liveRegion} />
       </div>
+      {pendingUndo && (
+        <div className={styles.undoToast} role="status">
+          <span>{t("movedToTrash")}</span>
+          <button type="button" className={styles.undoBtn} onClick={() => handleRestore(pendingUndo.postId)}>
+            {t("undo")}
+          </button>
+        </div>
+      )}
+      {(likesFor || historyFor) && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => {
+            setLikesFor("");
+            setLikesData(null);
+            setHistoryFor("");
+            setHistoryItems(null);
+          }}
+        >
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <strong>{likesFor ? t("likesTitle") : t("editHistoryTitle")}</strong>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => {
+                  setLikesFor("");
+                  setLikesData(null);
+                  setHistoryFor("");
+                  setHistoryItems(null);
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {likesFor ? (
+              likesData === null ? (
+                <p>{t("loading")}</p>
+              ) : (
+                <>
+                  {likesData.reactions && Object.keys(likesData.reactions).length > 0 && (
+                    <p className={styles.modalReactions}>
+                      {Object.entries(likesData.reactions).map(([emoji, count]) => (
+                        <span key={emoji}>{emoji} {count}</span>
+                      ))}
+                    </p>
+                  )}
+                  {(likesData.people || []).length === 0 ? (
+                    <p>{t("noLikesYet")}</p>
+                  ) : (
+                    <ul className={styles.modalList}>
+                      {likesData.people.map((u) => (
+                        <li key={u.id}>
+                          {u.name || u.username || u.id}
+                          {u.reaction ? ` ${u.reaction}` : u.liked ? " ♥" : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )
+            ) : historyItems === null ? (
+              <p>{t("loading")}</p>
+            ) : historyItems.length === 0 ? (
+              <p>{t("noEditHistory")}</p>
+            ) : (
+              <ul className={styles.modalList}>
+                {historyItems.map((h, i) => (
+                  <li key={h.id || i}>
+                    <p className={styles.modalHistoryText}>{h.text}</p>
+                    <span className={styles.modalHistoryMeta}>
+                      {h.editorName || ""} {h.createdAt ? `· ${timeAgo(h.createdAt)}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
       {!groupId && !spaceId && (
         <aside className={styles.rail} aria-label={t("featured")}>
           <h2 className={styles.railTitle}>{t("featured")}</h2>
