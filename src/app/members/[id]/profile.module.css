@@ -758,6 +758,12 @@
     padding: 24px 16px 48px;
   }
 
+  .banner + .header {
+    position: relative;
+    margin-top: -24px;
+    padding-top: 0;
+  }
+
   .header {
     flex-direction: column;
     padding: 20px;
