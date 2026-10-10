@@ -37,10 +37,11 @@ export async function GET(req, { params }) {
     const authorIds = [...new Set(rows.map((r) => r.authorId).filter(Boolean))];
     const [authorRows] = await Promise.all([
       authorIds.length
-        ? prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, role: true } })
+        ? prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, role: true, photoURL: true } })
         : Promise.resolve([]),
     ]);
     const roles = new Map(authorRows.map((a) => [a.id, a.role]));
+    const photos = new Map(authorRows.map((a) => [a.id, a.photoURL || ""]));
     const mapped = rows.map((r) => {
       const createdAt =
         r.createdAt && typeof r.createdAt.toMillis === "function"
@@ -57,6 +58,7 @@ export async function GET(req, { params }) {
         id: r.id,
         authorId: r.authorId,
         authorName: r.authorName,
+        authorPhotoUrl: photos.get(r.authorId) || "",
         text: r.text,
         reactions: r.reactions,
         authorRole: roles.get(r.authorId) || "",

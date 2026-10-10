@@ -493,7 +493,7 @@ function ReportButton({ type, targetId, commentPostId, small }) {
   );
 }
 
-function CommentList({ postId, uid, userName, role, canModerate, disabled, locked, onCommentChanged, onTag }) {
+function CommentList({ postId, uid, userName, userPhotoURL, role, canModerate, disabled, locked, onCommentChanged, onTag }) {
   const t = useTranslations("feed");
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
@@ -587,6 +587,7 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, locke
       authorId: uid,
       authorName: userName,
       authorRole: role || "member",
+      authorPhotoUrl: userPhotoURL || "",
       text: trimmed,
       reactions: {},
       createdAt: Date.now(),
@@ -732,7 +733,11 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, locke
         style={{ background: avatarGradient(c.authorName) }}
         aria-hidden="true"
       >
-        {(c.authorName || "?").slice(0, 1).toUpperCase()}
+        {c.authorPhotoUrl ? (
+          <img className={styles.commentAvatarImage} src={c.authorPhotoUrl} alt="" />
+        ) : (
+          (c.authorName || "?").slice(0, 1).toUpperCase()
+        )}
       </div>
       <div className={styles.commentBody}>
         <div className={styles.commentHeader}>
@@ -915,7 +920,11 @@ function CommentList({ postId, uid, userName, role, canModerate, disabled, locke
             style={{ background: avatarGradient(userName) }}
             aria-hidden="true"
           >
-            {(userName || "?").slice(0, 1).toUpperCase()}
+            {userPhotoURL ? (
+              <img className={styles.commentAvatarImage} src={userPhotoURL} alt="" />
+            ) : (
+              (userName || "?").slice(0, 1).toUpperCase()
+            )}
           </div>
           <input
             className={styles.commentInput}
@@ -959,7 +968,7 @@ function PostSkeleton({ showActions = false }) {
   );
 }
 
-export default function Feed({ uid, userName, role, groupId, spaceId, initialKind, canWriteChat = false }) {
+export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, spaceId, initialKind, canWriteChat = false }) {
   const t = useTranslations("feed");
   const canModerate = role === "owner" || role === "moderator";
   const [posts, setPosts] = useState([]);
@@ -2310,7 +2319,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
             </div>
             <EmojiReactionBar postId={post.id} reactions={post.reactions} uid={uid} disabled={disabledActions} onUpdated={(map) => patchPost(post.id, { reactions: map })} />
             {openComments.has(post.id) && (
-              <CommentList postId={post.id} uid={uid} userName={userName} role={role} canModerate={canModerate} disabled={disabledActions} locked={post.lockedComments && !canModerate} onCommentChanged={patchCommentCount} onTag={selectTag} />
+              <CommentList postId={post.id} uid={uid} userName={userName} userPhotoURL={userPhotoURL} role={role} canModerate={canModerate} disabled={disabledActions} locked={post.lockedComments && !canModerate} onCommentChanged={patchCommentCount} onTag={selectTag} />
             )}
           </>
         )}

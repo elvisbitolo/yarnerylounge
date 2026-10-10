@@ -35,6 +35,7 @@ export default async function FeedPage({ searchParams }) {
         <Feed
           uid={user.uid}
           userName={userDoc?.name || user.name || "Member"}
+          userPhotoURL={userDoc?.photoURL || ""}
           role={userDoc?.role || "member"}
           initialKind={initialKind}
           canWriteChat={canWriteChat(caps)}
