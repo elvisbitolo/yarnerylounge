@@ -173,7 +173,8 @@
   margin-bottom: 12px;
 }
 
-.commentToggle {
+.commentToggle,
+.shareBtn {
   height: 32px;
   padding: 0 12px;
   display: inline-flex;
@@ -189,7 +190,8 @@
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
-.commentToggle:hover:not(:disabled) {
+.commentToggle:hover:not(:disabled),
+.shareBtn:hover:not(:disabled) {
   border-color: var(--primary, #e91e63);
   color: var(--primary, #e91e63);
 }
@@ -200,7 +202,8 @@
   color: var(--primary, #e91e63);
 }
 
-.commentToggle:disabled {
+.commentToggle:disabled,
+.shareBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1712,4 +1715,3 @@
   font-size: 12px;
   color: #8b8b98;
 }
-
