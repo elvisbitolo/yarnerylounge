@@ -1003,6 +1003,8 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
   const focusRef = useRef("");
+  const feedRequestRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
   // Track the current sort in a ref so URL/cache/sort helpers stay stable
   // across renders. Must be declared before sortFeedPosts below, which reads
@@ -1171,6 +1173,13 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
 
   const loadFirst = useCallback(
     async (modeOverride) => {
+      const requestId = ++feedRequestRef.current;
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+      setLoadMoreError(false);
+      setNextCursor(null);
+      setHasMore(false);
+      setNewPosts([]);
       const mode = modeOverride !== undefined ? modeOverride : filterRef.current;
       const cached = readFeedCache(mode);
       if (cached && cached.length) {
@@ -1184,6 +1193,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         const res = await fetch(feedUrlFor(mode));
         if (!res.ok) throw new Error("Feed read failed");
         const data = await res.json();
+        if (requestId !== feedRequestRef.current) return;
         const page = sortFeedPosts(data.posts || []);
         setPosts(page);
         setNextCursor(data.nextCursor || null);
@@ -1194,6 +1204,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
         writeFeedCache(mode, page);
         setNewPosts([]);
       } catch (err) {
+        if (requestId !== feedRequestRef.current) return;
         console.error("Feed read failed", err);
         if (cached && cached.length) {
           setLoadError(false);
@@ -1201,14 +1212,16 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
           setLoadError(true);
         }
       } finally {
-        setInitialLoading(false);
+        if (requestId === feedRequestRef.current) setInitialLoading(false);
       }
     },
     [readFeedCache, writeFeedCache, feedUrlFor, sortFeedPosts]
   );
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || initialLoading) return;
+    if (loadingMoreRef.current || !hasMore || initialLoading) return;
+    loadingMoreRef.current = true;
+    const requestId = feedRequestRef.current;
     setLoadingMore(true);
     setLoadMoreError(false);
     const after = nextCursor;
@@ -1216,6 +1229,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       const res = await fetch(feedUrlFor(filterRef.current, after));
       if (!res.ok) throw new Error("Feed load more failed");
       const data = await res.json();
+      if (requestId !== feedRequestRef.current) return;
       setPosts((prev) => {
         const seen = new Set(prev.map((p) => p.id));
         const fresh = (data.posts || []).filter((p) => !seen.has(p.id));
@@ -1226,15 +1240,19 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
       if (data.counts) setCounts(data.counts);
       if (data.featured) setFeatured(data.featured);
     } catch (err) {
+      if (requestId !== feedRequestRef.current) return;
       console.error("Feed load more failed", err);
       setLoadMoreError(true);
     } finally {
-      setLoadingMore(false);
+      if (requestId === feedRequestRef.current) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
-  }, [loadingMore, hasMore, initialLoading, nextCursor, feedUrlFor, sortFeedPosts]);
+  }, [hasMore, initialLoading, nextCursor, feedUrlFor, sortFeedPosts]);
 
   const checkNewPosts = useCallback(async () => {
-    if (groupId || spaceId || filterRef.current.length > 0 || tagRef.current) return;
+    if (groupId || spaceId || filterRef.current.length > 0 || tagRef.current || searchRef.current?.trim()) return;
     if ((sortRef.current || "newest") !== "newest") return;
     try {
       const res = await fetch(feedUrlFor("all"));
@@ -2181,7 +2199,7 @@ export default function Feed({ uid, userName, role, groupId, spaceId, initialKin
               {post.kind === "poll" && <span className={styles.kindBadge}><BarChart3 size={13} /> {t("tabPoll")}</span>}
               {post.kind === "question" && <span className={styles.kindBadge}><HelpCircle size={13} /> {t("tabQuestion")}</span>}
               {post.kind === "win" && <span className={styles.kindBadge}><Trophy size={13} /> {t("tabWin")}</span>}
-              {(post.archived || post.archivedAt) && <span className={styles.kindBadge}><Archive size={13} /> {t("archived")}</span>}
+              {(post.archived || post.archivedAt) ? <span className={styles.kindBadge}><Archive size={13} /> {t("archived")}</span> : null}
               {post.pinned && <span className={styles.pinnedBadge}><Pin size={13} /> {t("pinned")}</span>}
             </p>
             <p className={styles.postTime}>

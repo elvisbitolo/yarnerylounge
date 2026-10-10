@@ -353,3 +353,14 @@ the 24h link expires.
   vs. the app found the feature set implemented (lounges, presence, matchmaker,
   daily blind date, neighborhoods, mute/block, moderation, portfolio, room
   music); branded neighborhood names and messaging live on the Shopify page.
+
+## Feed reliability polish (October 2026)
+
+- Feed profile photos now stay within their 40×40 avatar slot instead of
+  overflowing into the post heading (the screenshot showed the image's natural
+  96×96 size covering the author and timestamp).
+- Feed refreshes use request sequencing so late responses from an older search,
+  filter, or sort cannot replace the latest results; stale pagination responses
+  are ignored and duplicate load-more requests are prevented.
+- New-post polling is paused while searching, so it does not announce matches
+  as if they were new posts in the unfiltered feed.

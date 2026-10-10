@@ -277,7 +277,19 @@
     "featuredReadOnly": "Read-only announcement",
     "unarchivePost": "Unarchive",
     "removeMedia": "Remove photo/video",
-    "removeMediaConfirm": "Remove the attached photo or video? This cannot be undone without re-uploading."
+    "removeMediaConfirm": "Remove the attached photo or video? This cannot be undone without re-uploading.",
+    "share": "Share",
+    "copied": "Copied!",
+    "videoUrlPlaceholder": "Paste a YouTube, Vimeo or video link",
+    "noImageAndVideo": "Add an image or a video, not both.",
+    "videoDetected": "Video detected from",
+    "videoDetectedUnknown": "this link",
+    "addVideo": "Add video",
+    "draftRestored": "Draft restored",
+    "clearDraft": "Clear draft",
+    "clearTag": "Clear hashtag",
+    "retry": "Try again",
+    "noPostsTag": "No posts with #{tag}"
   },
   "onboarding": {
     "stepOf": "Step {current} of {total}",

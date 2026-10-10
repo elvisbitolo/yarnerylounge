@@ -277,7 +277,19 @@
     "featuredReadOnly": "Annonce en lecture seule",
     "unarchivePost": "Désarchiver",
     "removeMedia": "Retirer la photo/vidéo",
-    "removeMediaConfirm": "Retirer la photo ou la vidéo jointe ? Cette action est définitive sans ré-upload."
+    "removeMediaConfirm": "Retirer la photo ou la vidéo jointe ? Cette action est définitive sans ré-upload.",
+    "share": "Partager",
+    "copied": "Copié !",
+    "videoUrlPlaceholder": "Collez un lien YouTube, Vimeo ou vidéo",
+    "noImageAndVideo": "Ajoutez une image ou une vidéo, pas les deux.",
+    "videoDetected": "Vidéo détectée depuis",
+    "videoDetectedUnknown": "ce lien",
+    "addVideo": "Ajouter une vidéo",
+    "draftRestored": "Brouillon restauré",
+    "clearDraft": "Effacer le brouillon",
+    "clearTag": "Effacer le hashtag",
+    "retry": "Réessayer",
+    "noPostsTag": "Aucun post avec #{tag}"
   },
   "onboarding": {
     "stepOf": "Étape {current} sur {total}",

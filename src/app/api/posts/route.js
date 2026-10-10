@@ -430,6 +430,22 @@ export async function GET(req) {
     const needsOffset = !isChronological;
     const SCAN_CAP = needsOffset ? 600 : limit * 6;
 
+    const buildWhere = (cursor) =>
+      ctx.trashed
+        ? {
+            deletedAt: { not: null },
+            authorId: ctx.uid,
+            AND: [cursorAfter(cursor) || {}, ...(ctx.tag ? [{ hashtags: { has: ctx.tag } }] : [])],
+          }
+        : ctx.archived
+        ? {
+            archivedAt: { not: null },
+            deletedAt: null,
+            authorId: ctx.uid,
+            AND: [cursorAfter(cursor) || {}, ...(ctx.tag ? [{ hashtags: { has: ctx.tag } }] : [])],
+          }
+        : feedWhere({ cursor, tag: ctx.tag, uid: ctx.uid });
+
     let visible = [];
     let afterKey = decodeCursor(url.searchParams.get("after") || "") || null;
     const isOffsetCursor = afterKey && typeof afterKey.o === "number";
@@ -439,38 +455,43 @@ export async function GET(req) {
     const MAX_PASSES = Math.ceil(SCAN_CAP / 60) + 2;
     const PASS_TAKE = 60;
 
-    while (visible.length < SCAN_CAP && !reachedEnd && scanned < MAX_PASSES * PASS_TAKE) {
-      const cursorKey = isChronological && !isOffsetCursor ? afterKey : null;
+    if (isChronological) {
+      // Keyset paging: every pass continues strictly after the previous batch's
+      // last row, so no row is ever returned twice.
+      while (visible.length < SCAN_CAP && !reachedEnd && scanned < MAX_PASSES * PASS_TAKE) {
+        const cursorKey = isOffsetCursor ? null : afterKey;
+        const batch = await prisma.post.findMany({
+          where: buildWhere(cursorKey),
+          orderBy,
+          take: PASS_TAKE,
+        });
+        if (!batch.length) {
+          reachedEnd = true;
+          break;
+        }
+        scanned += batch.length;
+        if (!isOffsetCursor) {
+          const lastRow = batch[batch.length - 1];
+          afterKey = { pinned: !!lastRow.pinned, createdAt: lastRow.createdAt, id: lastRow.id };
+        }
+        for (const row of batch) {
+          if (filterVisiblePosts([row], ctx).length) visible.push(row);
+          if (visible.length >= SCAN_CAP) break;
+        }
+      }
+    } else {
+      // The remaining sorts are re-ordered in JS after the fetch, so there is no
+      // keyset cursor to advance: a cursorless re-query returns the same head
+      // rows and duplicates them (and re-sorts the whole table each pass). Scan
+      // once, then let the offset slice below produce the next page.
       const batch = await prisma.post.findMany({
-        where: ctx.trashed
-          ? {
-              deletedAt: { not: null },
-              authorId: ctx.uid,
-              AND: [cursorAfter(cursorKey) || {}, ...(ctx.tag ? [{ hashtags: { has: ctx.tag } }] : [])],
-            }
-          : ctx.archived
-          ? {
-              archivedAt: { not: null },
-              deletedAt: null,
-              authorId: ctx.uid,
-              AND: [cursorAfter(cursorKey) || {}, ...(ctx.tag ? [{ hashtags: { has: ctx.tag } }] : [])],
-            }
-          : feedWhere({ cursor: cursorKey, tag: ctx.tag, uid: ctx.uid }),
+        where: buildWhere(undefined),
         orderBy,
-        take: PASS_TAKE,
+        take: SCAN_CAP,
       });
-      if (!batch.length) {
-        reachedEnd = true;
-        break;
-      }
-      scanned += batch.length;
-      if (isChronological && !isOffsetCursor) {
-        const lastRow = batch[batch.length - 1];
-        afterKey = { pinned: !!lastRow.pinned, createdAt: lastRow.createdAt, id: lastRow.id };
-      }
+      scanned = batch.length;
       for (const row of batch) {
         if (filterVisiblePosts([row], ctx).length) visible.push(row);
-        if (visible.length >= SCAN_CAP) break;
       }
     }
 

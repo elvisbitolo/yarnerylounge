@@ -277,7 +277,19 @@
     "featuredReadOnly": "Nur-Lese-Ankündigung",
     "unarchivePost": "Archivierung aufheben",
     "removeMedia": "Foto/Video entfernen",
-    "removeMediaConfirm": "Das angehängte Foto oder Video entfernen? Ohne erneuten Upload ist das nicht rückgängig zu machen."
+    "removeMediaConfirm": "Das angehängte Foto oder Video entfernen? Ohne erneuten Upload ist das nicht rückgängig zu machen.",
+    "share": "Teilen",
+    "copied": "Kopiert!",
+    "videoUrlPlaceholder": "YouTube-, Vimeo- oder Video-Link einfügen",
+    "noImageAndVideo": "Füge ein Bild oder ein Video hinzu, nicht beides.",
+    "videoDetected": "Video erkannt von",
+    "videoDetectedUnknown": "diesem Link",
+    "addVideo": "Video hinzufügen",
+    "draftRestored": "Entwurf wiederhergestellt",
+    "clearDraft": "Entwurf verwerfen",
+    "clearTag": "Hashtag entfernen",
+    "retry": "Erneut versuchen",
+    "noPostsTag": "Keine Beiträge mit #{tag}"
   },
   "onboarding": {
     "stepOf": "Schritt {current} von {total}",
