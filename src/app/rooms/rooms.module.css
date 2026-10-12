@@ -110,6 +110,14 @@
   display: block;
 }
 
+.cardImageBg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .cardBody {
   display: flex;
   flex-direction: column;
@@ -275,7 +283,8 @@
   color: #17171c;
 }
 
-.alwaysOnCard {
+.alwaysOnCard,
+.communityCard {
   position: relative;
   overflow: hidden;
   display: flex;
@@ -283,6 +292,23 @@
   background: #ffffff;
   border: 1px solid color-mix(in srgb, var(--roomColor, #a78bfa) 30%, #e6e6ef);
   border-top: 3px solid var(--roomColor, #a78bfa);
+}
+
+.communitySection {
+  margin-top: 44px;
+}
+
+.communityTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+}
+
+.communitySub {
+  font-size: 15px;
+  color: #c9c9d4;
+  margin: 6px 0 20px;
 }
 
 @media (max-width: 480px) {

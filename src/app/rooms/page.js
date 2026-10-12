@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Wine, Headphones, Sofa, Ban } from "lucide-react";
+import { Wine, Headphones, Sofa, Ban, Users } from "lucide-react";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { loungeGate } from "@/lib/server/lounge-gate";
-import { listRoomsEnsuringAlwaysOn, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
+import { listRoomsEnsuringAlwaysOn, listVisibleCommunityRooms, ALWAYS_ON_ROOMS } from "@/lib/server/rooms";
 import { getAnnouncerLiveRoom } from "@/lib/server/lounge-live";
 import { LIVE_ANNOUNCER_NAME } from "@/lib/server/lounge-live-core";
 import styles from "./rooms.module.css";
@@ -48,18 +48,92 @@ function canonicalDefaultRoomFallback(spec) {
   };
 }
 
+function canonicalMeta(room) {
+  if (room.vibe === "silent") return "Pop in anytime · no music, pure focus";
+  if (room.vibe === "social") return "Pop in anytime · upbeat background grooves";
+  return "Pop in anytime · ambient background music";
+}
+
+function communityMeta(room) {
+  const base =
+    (room.kind || "standard") === "broadcast"
+      ? "Live broadcast"
+      : room.alwaysOn
+        ? "Always open"
+        : "Open now";
+  if (room.vibe === "silent") return `${base} · quiet, audio-free`;
+  if (room.vibe === "social") return `${base} · upbeat & chatty`;
+  if (room.vibe === "focus") return `${base} · focused craft-along`;
+  if (room.vibe === "calm") return `${base} · calm and cozy`;
+  return base;
+}
+
+// Shared lounge card. Local (bundled) covers go through next/image; uploaded
+// covers come from Blob (or a data URL) and are painted as a background so no
+// remote image host has to be allow-listed in next.config.
+function LoungeCard({ room, image, icon: Icon, meta }) {
+  const alwaysOn = !!room.alwaysOn;
+  const broadcast = (room.kind || "standard") === "broadcast";
+  const remote = image && !image.startsWith("/");
+  return (
+    <Link
+      href={`/rooms/${room.slug}`}
+      className={`${styles.card} ${alwaysOn ? styles.alwaysOnCard : styles.communityCard}`}
+      style={room.color ? { "--roomColor": room.color } : undefined}
+    >
+      {image && (
+        <span className={styles.cardImageWrap}>
+          {remote ? (
+            <span className={styles.cardImageBg} style={{ backgroundImage: `url(${image})` }} />
+          ) : (
+            <Image
+              src={image}
+              alt=""
+              fill
+              sizes="(max-width: 480px) 100vw, 440px"
+              className={styles.cardImage}
+            />
+          )}
+        </span>
+      )}
+      <span className={styles.cardBody}>
+        {Icon && <Icon className={styles.cardEmoji} size={22} strokeWidth={1.5} />}
+        {alwaysOn ? (
+          <span className={styles.alwaysOnBadge}>
+            <span className={styles.alwaysOnBadgeDot} aria-hidden="true" />
+            Always Open
+          </span>
+        ) : broadcast ? (
+          <span className={styles.broadcastBadge}>Broadcast</span>
+        ) : null}
+        <h2 className={styles.cardTitle}>{room.name}</h2>
+        <p className={styles.cardDesc}>{room.description}</p>
+        <p className={styles.cardMeta}>{meta}</p>
+        <p className={styles.cardEnter}>
+          Enter the lounge
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h13M12 5v13" />
+          </svg>
+        </p>
+      </span>
+    </Link>
+  );
+}
+
 export default async function RoomsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [userDoc, rooms, liveRoom] = await Promise.all([
-    getUserDoc(user.uid),
-    listRoomsEnsuringAlwaysOn(),
-    getAnnouncerLiveRoom(),
-  ]);
+  const userDoc = await getUserDoc(user.uid);
 
   const gate = await loungeGate(user.uid, userDoc, { lounge: true });
   if (gate) redirect(gate);
+
+  const [rooms, liveRoom, visibleRooms] = await Promise.all([
+    listRoomsEnsuringAlwaysOn(),
+    getAnnouncerLiveRoom(),
+    listVisibleCommunityRooms(user.uid, userDoc),
+  ]);
 
   const activeRooms = rooms.filter((room) => room.status === "active");
 
@@ -85,6 +159,9 @@ export default async function RoomsPage() {
       return null;
     })
     .filter((room) => room && canonicalSlugs.has(room.slug));
+
+  // Member-created, group- and space-scoped lounges the viewer may open.
+  const communityRooms = visibleRooms.filter((room) => room.status === "active" && !canonicalSlugs.has(room.slug));
 
   return (
       <div className={styles.container}>
@@ -143,58 +220,37 @@ export default async function RoomsPage() {
           <p className={styles.empty}>The lounges are being prepped — check back in a moment.</p>
         ) : (
           <div className={styles.grid}>
-            {featuredRooms.map((room) => {
-              const img = room.imageUrl;
-              const meta = ROOM_META[room.slug] || { icon: null };
-              const Icon = meta.icon;
-              return (
-                <Link
-                  key={room.id}
-                  href={`/rooms/${room.slug}`}
-                  className={`${styles.card} ${styles.alwaysOnCard}`}
-                  style={room.color ? { "--roomColor": room.color } : undefined}
-                >
-                  {img && (
-                    <span className={styles.cardImageWrap}>
-                      <Image
-                        src={img}
-                        alt=""
-                        fill
-                        sizes="(max-width: 480px) 100vw, 440px"
-                        className={styles.cardImage}
-                      />
-                    </span>
-                  )}
-                  <span className={styles.cardBody}>
-                    {Icon && <Icon className={styles.cardEmoji} size={22} strokeWidth={1.5} />}
-                    <span className={styles.alwaysOnBadge}>
-                      <span className={styles.alwaysOnBadgeDot} aria-hidden="true" />
-                      Always Open
-                    </span>
-                    <h2 className={styles.cardTitle}>
-                      {room.name}
-                    </h2>
-                    <p className={styles.cardDesc}>{room.description}</p>
-                    <p className={styles.cardMeta}>
-                      {room.vibe === "silent"
-                        ? "Pop in anytime · no music, pure focus"
-                        : room.vibe === "social"
-                          ? "Pop in anytime · upbeat background grooves"
-                          : "Pop in anytime · ambient background music"}
-                    </p>
-                    <p className={styles.cardEnter}>
-                      Enter the lounge
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h13M12 5v13" />
-                      </svg>
-                    </p>
-                  </span>
-                </Link>
-              );
-            })}
+            {featuredRooms.map((room) => (
+              <LoungeCard
+                key={room.id}
+                room={room}
+                image={room.imageUrl}
+                icon={ROOM_META[room.slug]?.icon || null}
+                meta={canonicalMeta(room)}
+              />
+            ))}
           </div>
+        )}
+
+        {communityRooms.length > 0 && (
+          <section className={styles.communitySection}>
+            <h2 className={styles.communityTitle}>Community lounges</h2>
+            <p className={styles.communitySub}>
+              Rooms hosted by your fellow members and groups.
+            </p>
+            <div className={styles.grid}>
+              {communityRooms.map((room) => (
+                <LoungeCard
+                  key={room.id}
+                  room={room}
+                  image={room.imageUrl}
+                  icon={Users}
+                  meta={communityMeta(room)}
+                />
+              ))}
+            </div>
+          </section>
         )}
       </div>
   );
 }
-

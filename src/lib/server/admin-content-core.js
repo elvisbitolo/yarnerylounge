@@ -8,12 +8,15 @@
  * here, so a crafted request cannot write columns the UI never exposes
  * (ids, createdBy, owner ids, status flags on unrelated models).
  *
- * type: string | text | boolean | stringArray
+ * type: string | text | boolean | stringArray | number | select
  *   string      - single-line input
  *   text        - multi-line textarea (markdown-lite)
  *   boolean     - true/false
  *   stringArray - Postgres text[]; accepts an array or a comma-separated string
- *   max         - character cap enforced server-side (per item for stringArray)
+ *   number      - integer; accepts a number or numeric string, clamped to min/max
+ *   select      - one of `options` ([{ value, label }])
+ *   max         - character cap enforced server-side (per item for stringArray;
+ *                 upper bound for number)
  */
 export { EDITABLE_FIELDS } from "../admin/content-fields.js";
 import { EDITABLE_FIELDS } from "../admin/content-fields.js";
@@ -45,6 +48,34 @@ export function sanitizePatch(kind, body) {
     if (rule.type === "boolean") {
       if (typeof raw !== "boolean") errors.push(`${key} must be true or false`);
       else data[key] = raw;
+      continue;
+    }
+
+    if (rule.type === "number") {
+      const num =
+        typeof raw === "number"
+          ? raw
+          : typeof raw === "string" && raw.trim() !== ""
+            ? Number(raw)
+            : NaN;
+      if (!Number.isFinite(num)) {
+        errors.push(`${key} must be a number`);
+        continue;
+      }
+      let value = Math.round(num);
+      if (rule.min != null && value < rule.min) value = rule.min;
+      if (rule.max != null && value > rule.max) value = rule.max;
+      data[key] = value;
+      continue;
+    }
+
+    if (rule.type === "select") {
+      const allowed = Array.isArray(rule.options) ? rule.options.map((o) => o.value) : [];
+      if (typeof raw !== "string" || !allowed.includes(raw)) {
+        errors.push(`${key} has an invalid value`);
+        continue;
+      }
+      data[key] = raw;
       continue;
     }
 

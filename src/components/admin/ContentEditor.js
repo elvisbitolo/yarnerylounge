@@ -127,6 +127,47 @@ export default function ContentEditor({ kind, record, onSaved, onCancel }) {
           );
         }
 
+        if (rule.type === "select") {
+          return (
+            <div key={key} className={styles.field}>
+              <label className={styles.label} htmlFor={id}>
+                {label}
+              </label>
+              <select
+                id={id}
+                className={styles.input}
+                value={values[key] ?? ""}
+                onChange={(e) => set(key, e.target.value)}
+              >
+                {(rule.options || []).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+
+        if (rule.type === "number") {
+          return (
+            <div key={key} className={styles.field}>
+              <label className={styles.label} htmlFor={id}>
+                {label}
+              </label>
+              <input
+                id={id}
+                className={styles.input}
+                type="number"
+                min={rule.min}
+                max={rule.max}
+                value={values[key] ?? ""}
+                onChange={(e) => set(key, e.target.value)}
+              />
+            </div>
+          );
+        }
+
         return (
           <div key={key} className={styles.field}>
             <label className={styles.label} htmlFor={id}>

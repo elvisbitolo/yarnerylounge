@@ -72,9 +72,16 @@ test("every editable kind has a model, label and at least one required field", (
     assert.ok(fields.length > 0, `${kind} has no fields`);
     assert.ok(fields.some((f) => f.required), `${kind} has no required field`);
     for (const [key, f] of Object.entries(spec.fields)) {
-      assert.ok(["string", "text", "boolean", "stringArray"].includes(f.type), `${kind} bad type`);
+      assert.ok(
+        ["string", "text", "boolean", "stringArray", "number", "select"].includes(f.type),
+        `${kind}.${key} bad type`
+      );
       if (f.type === "boolean") {
         assert.ok(!f.required, `${kind} boolean must not be required`);
+      } else if (f.type === "select") {
+        assert.ok(Array.isArray(f.options) && f.options.length > 0, `${kind}.${key} missing options`);
+      } else if (f.type === "number") {
+        assert.ok(Number.isFinite(f.max), `${kind}.${key} missing max`);
       } else {
         assert.ok(f.max > 0, `${kind}.${key} missing max`);
       }

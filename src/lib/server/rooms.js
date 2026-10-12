@@ -1,6 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
-import { mapRoomRow } from "./rooms-core.js";
+import { mapRoomRow, sanitizeRoomAppearance } from "./rooms-core.js";
 
 export function slugify(name) {
   return name
@@ -149,8 +149,52 @@ function canonicalDefaultRoom(spec) {
   };
 }
 
-export async function createRoom({ name, description, maxParticipants, groupId, spaceId, kind, publicPreview, createdBy, opensAt }) {
+/**
+ * Creates a lounge with its full appearance config. Base fields are validated
+ * by the caller (route); appearance fields are normalised here so a room can
+ * never persist in an inconsistent state (e.g. a vibeMode that disagrees with
+ * its audio flags). Returns the shape the create route audits/returns.
+ */
+export async function createRoom({
+  name,
+  description,
+  maxParticipants,
+  groupId,
+  spaceId,
+  kind,
+  publicPreview,
+  createdBy,
+  opensAt,
+  alwaysOn,
+  vibe,
+  vibeMode,
+  color,
+  rule,
+  imageUrl,
+  musicUrl,
+  musicFileId,
+  musicName,
+  musicPlaying,
+  recordingAllowed,
+  replayVisibility,
+}) {
   const slug = `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`;
+  const appearance = sanitizeRoomAppearance({
+    maxParticipants,
+    alwaysOn,
+    vibe,
+    vibeMode,
+    color,
+    rule,
+    imageUrl,
+    musicUrl,
+    musicFileId,
+    musicName,
+    musicPlaying,
+    recordingAllowed,
+    replayVisibility,
+  });
+  const normalizedKind = kind === "broadcast" ? "broadcast" : "standard";
   const prisma = getPrisma();
   if (prisma) {
     try {
@@ -160,21 +204,61 @@ export async function createRoom({ name, description, maxParticipants, groupId, 
           slug,
           description: description || "",
           status: "active",
-          maxParticipants: maxParticipants || 20,
           groupId: groupId || null,
           spaceId: spaceId || null,
-          kind: kind === "broadcast" ? "broadcast" : "standard",
+          kind: normalizedKind,
           publicPreview: !!publicPreview,
           opensAt: opensAt ? new Date(opensAt) : null,
           createdBy,
+          ...appearance,
         },
       });
-      return { id: created.id, slug, name, description };
+      return { id: created.id, slug, name, description, kind: normalizedKind };
     } catch (err) {
       logError("rooms.prisma_create_failed", { error: err.message });
     }
   }
-  return { id: "", slug, name, description };
+  return { id: "", slug, name, description, kind: normalizedKind };
+}
+
+/**
+ * Active lounges a member may actually open, excluding the canonical
+ * always-on rooms (the Lounges page renders those separately). Mirrors
+ * resolveRoomAccess in one pass: staff see everything, hosts see their rooms,
+ * members see lounges scoped to a group/space they belong to plus unscoped
+ * community lounges. Callers strip the canonical slugs before rendering.
+ */
+export async function listVisibleCommunityRooms(uid, userDoc) {
+  const rooms = await listRooms();
+  const active = rooms.filter((room) => (room.status || "active") === "active");
+  if (userDoc?.role === "owner" || userDoc?.role === "moderator") return active;
+
+  const prisma = getPrisma();
+  if (!prisma || !uid) return active.filter((room) => room.alwaysOn);
+
+  let groupIds = new Set();
+  let spaceIds = new Set();
+  let hostRoomIds = new Set();
+  try {
+    const [groupRows, spaceRows, assignments] = await Promise.all([
+      prisma.groupMember.findMany({ where: { userId: uid }, select: { groupId: true } }),
+      prisma.spaceMember.findMany({ where: { userId: uid }, select: { spaceId: true } }),
+      prisma.hostAssignment.findMany({ where: { userId: uid }, select: { scopeType: true, scopeId: true } }),
+    ]);
+    groupIds = new Set(groupRows.map((r) => r.groupId));
+    spaceIds = new Set(spaceRows.map((r) => r.spaceId));
+    hostRoomIds = new Set(assignments.filter((a) => a.scopeType === "room").map((a) => a.scopeId));
+  } catch (err) {
+    logError("rooms.visible_memberships_failed", { error: err.message });
+  }
+
+  return active.filter((room) => {
+    if (room.alwaysOn) return true;
+    if (hostRoomIds.has(room.id)) return true;
+    if (room.groupId) return groupIds.has(room.groupId);
+    if (room.spaceId) return spaceIds.has(room.spaceId);
+    return true;
+  });
 }
 
 export async function deleteRoom(room) {

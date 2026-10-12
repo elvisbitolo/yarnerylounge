@@ -1,6 +1,17 @@
 // Pure helpers for the rooms storage cutover — no I/O, unit-testable.
 // See rooms.js for the storage layer (Prisma-backed).
 
+// Room appearance rules live in a neutral module so the admin client can share
+// them; re-exported here so server callers keep a single import point.
+export {
+  ROOM_ACCENT_COLORS,
+  ROOM_VIBE_MODES,
+  normalizeRoomColor,
+  normalizeRoomVibeMode,
+  roomAudioFlagsForVibeMode,
+  sanitizeRoomAppearance,
+} from "../room-config.js";
+
 export function mapRoomRow(row) {
   if (!row) return null;
   return {

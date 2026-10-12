@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listRooms } from "@/lib/server/rooms";
+import { listRooms, createRoom } from "@/lib/server/rooms";
 import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities, canHost } from "@/lib/server/capabilities";
@@ -8,7 +8,6 @@ import { getSpace, getSpaceMembers } from "@/lib/server/spaces";
 import { createNotification } from "@/lib/server/notifications";
 import { getUserDoc } from "@/lib/server/auth";
 import { serialize } from "@/lib/server/serialize";
-import { slugify } from "@/lib/server/rooms";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -41,9 +40,37 @@ export async function POST(req) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const { name, description = "", maxParticipants = 20, groupId = "", spaceId = "", kind = "standard", publicPreview = false, opensAt = null, recordingAllowed = true, replayVisibility = "members" } = await req.json();
+  const body = await req.json();
+  const {
+    name,
+    description = "",
+    maxParticipants = 20,
+    groupId = "",
+    spaceId = "",
+    kind = "standard",
+    publicPreview = false,
+    opensAt = null,
+    alwaysOn = false,
+    vibe = "",
+    vibeMode = "",
+    color = "",
+    rule = "",
+    imageUrl = "",
+    musicUrl = "",
+    musicFileId = "",
+    musicName = "",
+    musicPlaying = false,
+    recordingAllowed = true,
+    replayVisibility = "members",
+  } = body || {};
   if (!name || typeof name !== "string") {
     return NextResponse.json({ error: "Lounge name required" }, { status: 400 });
+  }
+  if (name.length > 120) {
+    return NextResponse.json({ error: "Lounge name must be 120 characters or fewer" }, { status: 400 });
+  }
+  if (typeof description === "string" && description.length > 5000) {
+    return NextResponse.json({ error: "Description must be 5000 characters or fewer" }, { status: 400 });
   }
   if (groupId && spaceId) {
     return NextResponse.json({ error: "A lounge belongs to a group OR a space, not both" }, { status: 400 });
@@ -87,27 +114,30 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid schedule" }, { status: 400 });
   }
 
-  let room = null;
-  try {
-    const slug = `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`;
-    const created = await prisma.room.create({
-      data: {
-        name,
-        slug,
-        description: description || "",
-        status: "active",
-        maxParticipants: Number(maxParticipants) || 20,
-        groupId: groupId || "",
-        spaceId: spaceId || "",
-        kind: kind === "broadcast" ? "broadcast" : "standard",
-        publicPreview: !!publicPreview,
-        opensAt: parsedOpensAt || null,
-        createdBy: auth.user.uid,
-      },
-    });
-    room = { id: created.id, slug, name, description, kind };
-  } catch (err) {
-    logError("room.create_failed", { error: err.message });
+  const room = await createRoom({
+    name,
+    description,
+    maxParticipants,
+    groupId,
+    spaceId,
+    kind,
+    publicPreview,
+    createdBy: auth.user.uid,
+    opensAt: parsedOpensAt,
+    alwaysOn,
+    vibe,
+    vibeMode,
+    color,
+    rule,
+    imageUrl,
+    musicUrl,
+    musicFileId,
+    musicName,
+    musicPlaying,
+    recordingAllowed,
+    replayVisibility,
+  });
+  if (!room.id) {
     return NextResponse.json({ error: "Failed to create room" }, { status: 500 });
   }
 
@@ -116,7 +146,16 @@ export async function POST(req) {
     actorName: auth.userDoc?.name || auth.user.email || "",
     action: "room.created",
     targetId: room.id,
-    metadata: { name, slug: room.slug, groupId, spaceId, kind, opened: !!parsedOpensAt },
+    metadata: {
+      name,
+      slug: room.slug,
+      groupId,
+      spaceId,
+      kind: room.kind,
+      alwaysOn: !!alwaysOn,
+      vibeMode,
+      opened: !!parsedOpensAt,
+    },
   });
 
   if (room.kind === "broadcast" && !parsedOpensAt) {

@@ -3,19 +3,36 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
+import { ROOM_VIBE_MODES, roomAudioFlagsForVibeMode } from "@/lib/room-config";
 import ContentEditor from "@/components/admin/ContentEditor";
 import styles from "./admin.module.css";
 
+const EMPTY_FORM = {
+  name: "",
+  description: "",
+  maxParticipants: 20,
+  groupId: "",
+  spaceId: "",
+  kind: "standard",
+  publicPreview: false,
+  opensAt: "",
+  alwaysOn: false,
+  vibe: "",
+  vibeMode: "",
+  color: "",
+  rule: "",
+  imageUrl: "",
+  musicUrl: "",
+  musicFileId: "",
+  musicName: "",
+  musicPlaying: false,
+  recordingAllowed: true,
+  replayVisibility: "members",
+};
+
 export default function AdminRoomsPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState(20);
-  const [groupId, setGroupId] = useState("");
-  const [spaceId, setSpaceId] = useState("");
-  const [kind, setKind] = useState("standard");
-  const [publicPreview, setPublicPreview] = useState(false);
-  const [opensAt, setOpensAt] = useState("");
+  const [form, setForm] = useState(EMPTY_FORM);
   const [hostId, setHostId] = useState("");
   const [coHostIds, setCoHostIds] = useState([]);
   const [members, setMembers] = useState([]);
@@ -23,9 +40,12 @@ export default function AdminRoomsPage() {
   const [spaces, setSpaces] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [role, setRole] = useState("member");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingMusic, setUploadingMusic] = useState(false);
+
+  const set = useCallback((key, value) => setForm((prev) => ({ ...prev, [key]: value })), []);
 
   const loadRooms = useCallback(async () => {
     const res = await fetch("/api/rooms");
@@ -58,6 +78,55 @@ export default function AdminRoomsPage() {
     return unsub;
   }, [router, loadRooms, loadGroups, loadSpaces]);
 
+  async function handleCoverUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setUploadingCover(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const res = await fetch("/api/upload?kind=cover", { method: "POST", body: data });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || "Cover upload failed");
+      } else {
+        set("imageUrl", json.url || json.dataUrl || "");
+      }
+    } catch {
+      setError("Cover upload failed");
+    }
+    setUploadingCover(false);
+  }
+
+  async function handleMusicUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setUploadingMusic(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const res = await fetch("/api/rooms/music/upload", { method: "POST", body: data });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || "Music upload failed");
+      } else {
+        setForm((prev) => ({
+          ...prev,
+          musicFileId: json.id || "",
+          musicUrl: "",
+          musicName: prev.musicName || file.name.replace(/\.[^.]+$/, ""),
+        }));
+      }
+    } catch {
+      setError("Music upload failed");
+    }
+    setUploadingMusic(false);
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     setError("");
@@ -66,14 +135,8 @@ export default function AdminRoomsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name,
-        description,
-        maxParticipants,
-        groupId,
-        spaceId,
-        kind,
-        publicPreview,
-        opensAt: opensAt ? new Date(opensAt).toISOString() : null,
+        ...form,
+        opensAt: form.opensAt ? new Date(form.opensAt).toISOString() : null,
       }),
     });
     const data = await res.json();
@@ -109,14 +172,7 @@ export default function AdminRoomsPage() {
       });
     }
 
-    setName("");
-    setDescription("");
-    setMaxParticipants(20);
-    setGroupId("");
-    setSpaceId("");
-    setKind("standard");
-    setPublicPreview(false);
-    setOpensAt("");
+    setForm(EMPTY_FORM);
     setHostId("");
     setCoHostIds([]);
     await loadRooms();
@@ -136,11 +192,14 @@ export default function AdminRoomsPage() {
     await loadRooms();
   }
 
-  useEffect(() => {
-    fetch("/api/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => data && setRole(data.role));
-  }, []);
+  const audioPreview = roomAudioFlagsForVibeMode(form.vibeMode);
+  const audioSummary = [
+    audioPreview.autoAudioVideo ? "camera + mic on" : null,
+    audioPreview.forceMuteOnJoin ? "mics start muted" : null,
+    audioPreview.raiseHandToTalk ? "raise hand to talk" : null,
+    audioPreview.disableAudio ? "audio off" : null,
+  ].filter(Boolean);
+  const selectedVibe = ROOM_VIBE_MODES.find((m) => m.value === form.vibeMode);
 
   return (
       <div className={styles.container}>
@@ -156,8 +215,8 @@ export default function AdminRoomsPage() {
               className={styles.input}
               type="text"
               required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
             />
           </div>
           <div className={styles.field}>
@@ -166,57 +225,157 @@ export default function AdminRoomsPage() {
               id="description"
               className={styles.textarea}
               rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
             />
           </div>
+
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="max">Max participants</label>
+            <label className={styles.label}>Cover image</label>
+            <div className={styles.coverRow}>
+              <div
+                className={styles.coverPreview}
+                style={form.imageUrl ? { backgroundImage: `url(${form.imageUrl})` } : undefined}
+                aria-hidden="true"
+              >
+                {!form.imageUrl && <span className={styles.coverPlaceholder}>No image</span>}
+              </div>
+              <div className={styles.coverActions}>
+                <label className={styles.uploadButton}>
+                  {uploadingCover ? "Uploading…" : "Upload image"}
+                  <input type="file" accept="image/*" onChange={handleCoverUpload} hidden />
+                </label>
+                {form.imageUrl && (
+                  <button type="button" className={styles.toggle} onClick={() => set("imageUrl", "")}>
+                    Remove
+                  </button>
+                )}
+                <small className={styles.help}>
+                  Shown on the Lounges page. JPG, PNG, WebP or GIF, up to 8&nbsp;MB.
+                </small>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.fieldRow}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="color">Accent colour</label>
+              <div className={styles.colorRow}>
+                <input
+                  id="color"
+                  className={styles.colorInput}
+                  type="color"
+                  value={form.color || "#a78bfa"}
+                  onChange={(e) => set("color", e.target.value)}
+                />
+                <input
+                  className={styles.input}
+                  type="text"
+                  placeholder="#a78bfa"
+                  value={form.color}
+                  onChange={(e) => set("color", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="max">Max participants</label>
+              <input
+                id="max"
+                className={styles.input}
+                type="number"
+                min={2}
+                max={500}
+                value={form.maxParticipants}
+                onChange={(e) => set("maxParticipants", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="vibeMode">Vibe</label>
+            <select
+              id="vibeMode"
+              className={styles.input}
+              value={form.vibeMode}
+              onChange={(e) => set("vibeMode", e.target.value)}
+            >
+              {ROOM_VIBE_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value}>{mode.label}</option>
+              ))}
+            </select>
+            <small className={styles.help}>
+              {selectedVibe?.description || ""}
+              {audioSummary.length ? ` Enforced: ${audioSummary.join(", ")}.` : ""}
+            </small>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="vibe">Vibe label (optional)</label>
             <input
-              id="max"
+              id="vibe"
               className={styles.input}
-              type="number"
-              min={2}
-              max={100}
-              value={maxParticipants}
-              onChange={(e) => setMaxParticipants(e.target.value)}
+              type="text"
+              placeholder="e.g. social, focus, calm"
+              value={form.vibe}
+              onChange={(e) => set("vibe", e.target.value)}
             />
           </div>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="group">Group (optional)</label>
-            <select
-              id="group"
+            <label className={styles.label} htmlFor="rule">House rule (optional)</label>
+            <input
+              id="rule"
               className={styles.input}
-              value={groupId}
-              onChange={(e) => setGroupId(e.target.value)}
-            >
-              <option value="">Main community</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>{group.name}</option>
-              ))}
-            </select>
+              type="text"
+              placeholder="e.g. Cameras and mics on — be kind."
+              value={form.rule}
+              onChange={(e) => set("rule", e.target.value)}
+            />
           </div>
+
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="space">Space (optional)</label>
-            <select
-              id="space"
+            <label className={styles.label} htmlFor="musicName">Background music</label>
+            <input
+              id="musicName"
               className={styles.input}
-              value={spaceId}
-              onChange={(e) => setSpaceId(e.target.value)}
-            >
-              <option value="">No space</option>
-              {spaces.map((space) => (
-                <option key={space.id} value={space.id}>{space.name}</option>
-              ))}
-            </select>
+              type="text"
+              placeholder="Track name (optional)"
+              value={form.musicName}
+              onChange={(e) => set("musicName", e.target.value)}
+            />
+            <div className={styles.coverRow}>
+              <label className={styles.uploadButton}>
+                {uploadingMusic ? "Uploading…" : "Upload audio"}
+                <input type="file" accept="audio/*" onChange={handleMusicUpload} hidden />
+              </label>
+              <input
+                className={styles.input}
+                type="url"
+                placeholder="…or paste an audio URL"
+                value={form.musicUrl}
+                onChange={(e) => setForm((prev) => ({ ...prev, musicUrl: e.target.value, musicFileId: "" }))}
+              />
+            </div>
+            <small className={styles.help}>
+              {form.musicFileId ? "Audio file uploaded." : "Uploaded files are limited to 750 KB; use a URL for larger tracks."}
+            </small>
+            <label className={styles.checkCard}>
+              <input
+                type="checkbox"
+                checked={form.musicPlaying}
+                onChange={(e) => set("musicPlaying", e.target.checked)}
+              />
+              <span className={styles.checkText}>
+                <strong>Play as soon as the lounge opens</strong>
+              </span>
+            </label>
           </div>
+
           <div className={styles.field}>
             <label className={styles.label} htmlFor="kind">Lounge type</label>
             <select
               id="kind"
               className={styles.input}
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
+              value={form.kind}
+              onChange={(e) => set("kind", e.target.value)}
             >
               <option value="standard">Video chat (everyone speaks)</option>
               <option value="broadcast">Broadcast (host speaks, members watch)</option>
@@ -228,13 +387,45 @@ export default function AdminRoomsPage() {
               id="opensAt"
               className={styles.input}
               type="datetime-local"
-              value={opensAt}
-              onChange={(e) => setOpensAt(e.target.value)}
+              value={form.opensAt}
+              onChange={(e) => set("opensAt", e.target.value)}
             />
             <small className={styles.help}>
               Members can only join from this time onward. Leave blank to open now.
             </small>
           </div>
+
+          <div className={styles.fieldRow}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="group">Group (optional)</label>
+              <select
+                id="group"
+                className={styles.input}
+                value={form.groupId}
+                onChange={(e) => setForm((prev) => ({ ...prev, groupId: e.target.value, spaceId: "" }))}
+              >
+                <option value="">Main community</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>{group.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="space">Space (optional)</label>
+              <select
+                id="space"
+                className={styles.input}
+                value={form.spaceId}
+                onChange={(e) => setForm((prev) => ({ ...prev, spaceId: e.target.value, groupId: "" }))}
+              >
+                <option value="">No space</option>
+                {spaces.map((space) => (
+                  <option key={space.id} value={space.id}>{space.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className={styles.field}>
             <label className={styles.label} htmlFor="host">Host</label>
             <select
@@ -276,20 +467,55 @@ export default function AdminRoomsPage() {
                 ))}
             </div>
           </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Public preview</label>
+
+          <div className={styles.checkGrid}>
             <label className={styles.checkCard}>
               <input
                 type="checkbox"
-                checked={publicPreview}
-                onChange={(e) => setPublicPreview(e.target.checked)}
+                checked={form.alwaysOn}
+                onChange={(e) => set("alwaysOn", e.target.checked)}
+              />
+              <span className={styles.checkText}>
+                <strong>Always open</strong>
+                <small>Opens 24/7 and leads the live banner.</small>
+              </span>
+            </label>
+            <label className={styles.checkCard}>
+              <input
+                type="checkbox"
+                checked={form.recordingAllowed}
+                onChange={(e) => set("recordingAllowed", e.target.checked)}
+              />
+              <span className={styles.checkText}>
+                <strong>Allow recording</strong>
+              </span>
+            </label>
+            <label className={styles.checkCard}>
+              <input
+                type="checkbox"
+                checked={form.publicPreview}
+                onChange={(e) => set("publicPreview", e.target.checked)}
               />
               <span className={styles.checkText}>
                 <strong>Show on the public explore page</strong>
-                <small>Reveals this lounge (name, description) to visitors.</small>
+                <small>Reveals the name and description to visitors.</small>
               </span>
             </label>
           </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="replayVisibility">Replay visibility</label>
+            <select
+              id="replayVisibility"
+              className={styles.input}
+              value={form.replayVisibility}
+              onChange={(e) => set("replayVisibility", e.target.value)}
+            >
+              <option value="members">Members</option>
+              <option value="owner">Owner only</option>
+            </select>
+          </div>
+
           <button className={styles.submit} type="submit" disabled={busy}>
             {busy ? "Creating…" : "Create room"}
           </button>
@@ -306,6 +532,7 @@ export default function AdminRoomsPage() {
                   <p className={styles.itemName}>{room.name}</p>
                   <p className={styles.itemMeta}>
                     {room.status} · {room.maxParticipants} max · {room.slug}
+                    {room.alwaysOn ? " · always open" : ""}
                     {room.opensAt
                       ? ` · opens ${new Date(room.opensAt.toMillis ? room.opensAt.toMillis() : room.opensAt).toLocaleString()}`
                       : " · open now"}
@@ -326,9 +553,9 @@ export default function AdminRoomsPage() {
                   </button>
                   <button
                     className={styles.toggle}
-                    onClick={() => setEditing(editing === rooms.id ? null : rooms.id)}
+                    onClick={() => setEditing(editing === room.id ? null : room.id)}
                   >
-                    {editing === rooms.id ? "Close" : "Edit"}
+                    {editing === room.id ? "Close" : "Edit"}
                   </button>
                   <button className={styles.delete} onClick={() => handleDelete(room.id)}>
                     Delete

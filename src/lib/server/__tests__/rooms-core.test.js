@@ -1,6 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isRoomLive, mapRoomRow, pickBannerRooms } from "../rooms-core.js";
+import {
+  isRoomLive,
+  mapRoomRow,
+  pickBannerRooms,
+  normalizeRoomColor,
+  normalizeRoomVibeMode,
+  roomAudioFlagsForVibeMode,
+  sanitizeRoomAppearance,
+  ROOM_VIBE_MODES,
+} from "../rooms-core.js";
 
 test("isRoomLive: always-on rooms stay live despite a stale schedule", () => {
   assert.equal(
@@ -122,4 +131,85 @@ test("pickBannerRooms: rooms with no createdAt do not throw", () => {
   const picked = pickBannerRooms([{ name: "NoDate" }, { name: "Dated", createdAt: at(1) }]);
   assert.equal(picked[0].name, "Dated");
   assert.equal(picked[1].name, "NoDate");
+});
+
+test("normalizeRoomVibeMode: only known modes survive", () => {
+  for (const mode of ROOM_VIBE_MODES) assert.equal(normalizeRoomVibeMode(mode.value), mode.value);
+  assert.equal(normalizeRoomVibeMode("LOUD"), "");
+  assert.equal(normalizeRoomVibeMode(null), "");
+  assert.equal(normalizeRoomVibeMode(7), "");
+});
+
+test("roomAudioFlagsForVibeMode: each vibe maps to exactly one enforced policy", () => {
+  assert.deepEqual(roomAudioFlagsForVibeMode("auto"), {
+    autoAudioVideo: true,
+    forceMuteOnJoin: false,
+    raiseHandToTalk: false,
+    disableAudio: false,
+  });
+  assert.deepEqual(roomAudioFlagsForVibeMode("force-mute"), {
+    autoAudioVideo: false,
+    forceMuteOnJoin: true,
+    raiseHandToTalk: false,
+    disableAudio: false,
+  });
+  assert.deepEqual(roomAudioFlagsForVibeMode("raise-hand"), {
+    autoAudioVideo: false,
+    forceMuteOnJoin: false,
+    raiseHandToTalk: true,
+    disableAudio: false,
+  });
+  assert.deepEqual(roomAudioFlagsForVibeMode("silent"), {
+    autoAudioVideo: false,
+    forceMuteOnJoin: false,
+    raiseHandToTalk: false,
+    disableAudio: true,
+  });
+  assert.deepEqual(roomAudioFlagsForVibeMode(""), {
+    autoAudioVideo: false,
+    forceMuteOnJoin: false,
+    raiseHandToTalk: false,
+    disableAudio: false,
+  });
+});
+
+test("normalizeRoomColor: accepts 3/6-digit hex, normalises, rejects the rest", () => {
+  assert.equal(normalizeRoomColor("#ABC"), "#aabbcc");
+  assert.equal(normalizeRoomColor("  #E91E63 "), "#e91e63");
+  assert.equal(normalizeRoomColor("e91e63"), "");
+  assert.equal(normalizeRoomColor("#12345"), "");
+  assert.equal(normalizeRoomColor("red"), "");
+  assert.equal(normalizeRoomColor(null), "");
+});
+
+test("sanitizeRoomAppearance: derives audio flags from vibeMode and ignores injected flags", () => {
+  const data = sanitizeRoomAppearance({ vibeMode: "force-mute", autoAudioVideo: true, disableAudio: true });
+  assert.equal(data.vibeMode, "force-mute");
+  assert.equal(data.forceMuteOnJoin, true);
+  assert.equal(data.autoAudioVideo, false);
+  assert.equal(data.disableAudio, false);
+});
+
+test("sanitizeRoomAppearance: clamps sizes and defaults recording + visibility", () => {
+  const data = sanitizeRoomAppearance({ maxParticipants: 9999 });
+  assert.equal(data.maxParticipants, 500);
+  assert.equal(sanitizeRoomAppearance({ maxParticipants: 1 }).maxParticipants, 2);
+  assert.equal(sanitizeRoomAppearance({ maxParticipants: "abc" }).maxParticipants, 20);
+  assert.equal(data.recordingAllowed, true);
+  assert.equal(data.replayVisibility, "members");
+  assert.equal(sanitizeRoomAppearance({ replayVisibility: "everyone" }).replayVisibility, "members");
+  assert.equal(sanitizeRoomAppearance({ replayVisibility: "owner" }).replayVisibility, "owner");
+});
+
+test("sanitizeRoomAppearance: trims text and rejects an invalid colour", () => {
+  const data = sanitizeRoomAppearance({
+    rule: "  Be kind  ",
+    vibe: "  social  ",
+    color: "not-a-colour",
+    imageUrl: "  https://example.com/x.jpg  ",
+  });
+  assert.equal(data.rule, "Be kind");
+  assert.equal(data.vibe, "social");
+  assert.equal(data.color, "");
+  assert.equal(data.imageUrl, "https://example.com/x.jpg");
 });

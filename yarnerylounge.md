@@ -382,6 +382,33 @@ the 24h link expires.
   shaped by `src/lib/server/push-core.js` (actor name → title, internal-only
   `href` → tap target) and covered by node tests.
 
+## Lounge builder parity (October 2026)
+
+- Admin-created lounges (`/admin/rooms` → `POST /api/rooms`) can now carry the
+  **full appearance config** the seeded signature lounges have: cover image,
+  accent colour, vibe / vibe mode (audio policy), house rule, background music
+  (upload or URL, plus autoplay), max participants (up to 500), an optional
+  **always-on** flag, and recording + replay visibility. Previously only nine
+  columns were written, so an admin lounge had no cover, colour, vibe, music or
+  audio policy.
+- Room rules live in a dependency-free module `src/lib/room-config.js`
+  (`ROOM_VIBE_MODES`, `normalizeRoomVibeMode`, `roomAudioFlagsForVibeMode`,
+  `normalizeRoomColor`, `sanitizeRoomAppearance`), shared by the server and the
+  admin UI and covered by node tests. `vibeMode` is the single source of the
+  four audio flags (`autoAudioVideo`, `forceMuteOnJoin`, `raiseHandToTalk`,
+  `disableAudio`) so a room can never advertise one vibe while enforcing another.
+- `createRoom()` now persists the full config; the create form gained cover
+  upload (reuses `/api/upload?kind=cover`), a colour picker, a vibe select with a
+  live "enforced" summary, music upload/URL and the new toggles. Existing rooms
+  are editable through the same allow-list (`content-fields.js` room spec) — the
+  generic `ContentEditor` gained `select` and `number` field types.
+- `/rooms` now renders a **Community lounges** section below the four signature
+  rooms. `listVisibleCommunityRooms()` returns active, non-canonical rooms the
+  viewer may actually open (staff see all; members see unscoped lounges, their
+  groups/spaces, and rooms they host), mirroring `resolveRoomAccess` so no card
+  links to a 404. Uploaded covers are painted as a background so no remote image
+  host needs allow-listing.
+
 ## Studio video library (October 2026)
 
 - New member-visible **Studio** at `/community/studio` (linked from the
