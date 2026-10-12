@@ -20,6 +20,5 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          NEXT_PUBLIC_LIVEKIT_URL: ${{ secrets.NEXT_PUBLIC_LIVEKIT_URL }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
           DATABASE_URL: ${{ secrets.POSTGRES_PRISMA_URL }}

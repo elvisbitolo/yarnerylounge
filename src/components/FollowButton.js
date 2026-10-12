@@ -72,8 +72,6 @@ export default function FollowButton({
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [listType]);
 
-  if (isSelf) return null;
-
   function openList(type) {
     setListMembers([]);
     setListTruncated(false);
@@ -106,25 +104,27 @@ export default function FollowButton({
   return (
     <>
     <div className={styles.followStats}>
-      <button
-        onClick={toggle}
-        disabled={busy}
-        style={{
-          height: 36,
-          padding: "0 20px",
-          borderRadius: 999,
-          border: following ? "1px solid var(--primary, #f42e79)" : "none",
-          background: following ? "#ffffff" : "var(--primary, #f42e79)",
-          color: following ? "var(--primary, #f42e79)" : "#ffffff",
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: busy ? "default" : "pointer",
-          opacity: busy ? 0.6 : 1,
-          transition: "all 0.15s ease",
-        }}
-      >
-        {busy ? "..." : following ? "Following" : "Follow"}
-      </button>
+      {!isSelf && (
+        <button
+          onClick={toggle}
+          disabled={busy}
+          style={{
+            height: 36,
+            padding: "0 20px",
+            borderRadius: 999,
+            border: following ? "1px solid var(--primary, #f42e79)" : "none",
+            background: following ? "#ffffff" : "var(--primary, #f42e79)",
+            color: following ? "var(--primary, #f42e79)" : "#ffffff",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.6 : 1,
+            transition: "all 0.15s ease",
+          }}
+        >
+          {busy ? "..." : following ? "Following" : "Follow"}
+        </button>
+      )}
       <button
         type="button"
         className={styles.listCount}

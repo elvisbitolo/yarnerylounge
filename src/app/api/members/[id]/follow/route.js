@@ -5,6 +5,14 @@ import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
+// Upper bound on how many members the followers/following dialog lists. We fetch
+// one extra row to detect truncation without a second count query.
+const LIST_LIMIT = 100;
+
+// Suspended accounts never appear in a public list. `suspended` is nullable, so
+// `{ not: true }` (rather than `{ equals: false }`) keeps rows where it is null.
+const VISIBLE = { NOT: { suspended: true } };
+
 export async function GET(req, { params }) {
   const { id } = await params;
   const user = await getCurrentUser();
@@ -14,11 +22,17 @@ export async function GET(req, { params }) {
 
   const list = req.nextUrl.searchParams.get("list");
   if (list === "followers" || list === "following") {
+    const limited = rateLimitGuard(`follow-list:${user.uid}`, { limit: 60 });
+    if (limited) return limited;
+
+    const isFollowers = list === "followers";
     try {
       const rows = await getPrisma().follow.findMany({
-        where: list === "followers" ? { followingId: id } : { followerId: id },
+        where: isFollowers
+          ? { followingId: id, follower: VISIBLE }
+          : { followerId: id, following: VISIBLE },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: LIST_LIMIT + 1,
         select: {
           follower: {
             select: { id: true, name: true, username: true, photoURL: true, extra: true, suspended: true },
@@ -28,11 +42,14 @@ export async function GET(req, { params }) {
           },
         },
       });
+
+      const truncated = rows.length > LIST_LIMIT;
       const members = rows
-        .map((row) => (list === "followers" ? row.follower : row.following))
+        .slice(0, LIST_LIMIT)
+        .map((row) => (isFollowers ? row.follower : row.following))
         .filter((member) => {
           const extra = member.extra && typeof member.extra === "object" ? member.extra : {};
-          return member.name && !member.suspended && extra.profileVisibility !== "private";
+          return member.name && extra.profileVisibility !== "private";
         })
         .map(({ id: memberId, name, username, photoURL }) => ({
           id: memberId,
@@ -41,7 +58,7 @@ export async function GET(req, { params }) {
           photoURL: photoURL || "",
         }));
 
-      return NextResponse.json({ members, truncated: rows.length === 100 });
+      return NextResponse.json({ members, truncated });
     } catch (err) {
       logError("follows.prisma_list_failed", { list, error: err.message });
       return NextResponse.json({ error: "Failed to load member list" }, { status: 500 });

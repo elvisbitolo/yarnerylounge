@@ -110,10 +110,9 @@ export default async function MemberProfilePage({ params }) {
     safe(prisma.sticker.findMany({ where: { toUid: id } }), []),
     safe(prisma.gamification.findUnique({ where: { id } }), null),
     (async () => {
-      if (isSelf) return { following: false, followerCount: 0, followingCount: 0 };
       const { isFollowing, getFollowerCount, getFollowingCount } = await import("@/lib/server/follows");
       const [fol, fc, fgc] = await Promise.all([
-        isFollowing(viewer.uid, id),
+        isSelf ? Promise.resolve(false) : isFollowing(viewer.uid, id),
         getFollowerCount(id),
         getFollowingCount(id),
       ]);
@@ -276,23 +275,21 @@ const coverUrl = member.coverPhotoURL || "";
             {member.headline && <p className={styles.headline}>{member.headline}</p>}
             {member.location && <p className={styles.location}>{member.location}</p>}
             {member.country && <p className={styles.location}>{member.country}</p>}
-            {!isSelf && (
-              <div className={styles.headerActions}>
-                <FollowButton
-                  targetUserId={id}
-                  targetName={member.name}
-                  initialFollowing={Boolean(followData.following)}
-                  initialFollowerCount={Number(followData.followerCount) || 0}
-                  initialFollowingCount={Number(followData.followingCount) || 0}
-                  isSelf={isSelf}
-                />
-                {!safetyData.blocked && (
-                  <Link className={styles.messageBtn} href={`/chat?with=${id}`}>
-                    Message
-                  </Link>
-                )}
-              </div>
-            )}
+            <div className={styles.headerActions}>
+              <FollowButton
+                targetUserId={id}
+                targetName={member.name}
+                initialFollowing={Boolean(followData.following)}
+                initialFollowerCount={Number(followData.followerCount) || 0}
+                initialFollowingCount={Number(followData.followingCount) || 0}
+                isSelf={isSelf}
+              />
+              {!isSelf && !safetyData.blocked && (
+                <Link className={styles.messageBtn} href={`/chat?with=${id}`}>
+                  Message
+                </Link>
+              )}
+            </div>
             {!isSelf && <MemberSafetyControls targetId={id} targetName={member.name} />}
             {member.bio && <p className={styles.bio}>{member.bio}</p>}
             {socialLinks.length > 0 && (
