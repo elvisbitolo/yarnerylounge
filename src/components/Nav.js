@@ -94,6 +94,7 @@ const COMMUNITY_ITEMS = [
   { href: "/events", key: "events" },
   { href: "/gallery", key: "gallery" },
   { href: "/recordings", key: "recordings" },
+  { href: "/community/studio", key: "studio" },
   { href: "/portfolio", key: "portfolio" },
   { href: "/leaderboard", key: "leaderboard" },
 ];
