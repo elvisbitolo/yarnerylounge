@@ -1,4 +1,7 @@
-export const PRESENCE_WINDOW_MS = 90_000;
+// A member counts as online for two minutes after their last heartbeat. The
+// heartbeat runs every 30s, but background tabs are throttled to ~1/min, so a
+// window this size keeps the indicator from flickering online/away.
+export const PRESENCE_WINDOW_MS = 120_000;
 
 export const ONLINE_MEMBER_LIMIT = 12;
 

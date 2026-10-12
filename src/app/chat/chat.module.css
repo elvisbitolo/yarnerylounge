@@ -213,6 +213,7 @@
 }
 
 .bubble {
+  position: relative;
   max-width: min(70%, 560px);
   padding: 6px 13px;
   border-radius: 16px 16px 16px 4px;
@@ -1320,6 +1321,14 @@
 }
 
 .railItem:hover {
+  background: #232329;
+}
+
+.railItemUnread {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.railItemUnread:hover {
   background: #232329;
 }
 

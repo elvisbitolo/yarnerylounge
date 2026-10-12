@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { isOnlineRow, onlineMembers } from "@/lib/server/presence-core";
+import { isOnlineRow, lastActiveFrom, onlineMembers } from "@/lib/server/presence-core";
 import { activeRoomsForUsers } from "@/lib/server/room-presence";
 
 function parseIds(value) {
@@ -75,7 +75,14 @@ export async function GET(req) {
     const now = Date.now();
     const rooms = await activeRoomsForUsers(ids, now);
     const presence = Object.fromEntries(
-      rows.map((row) => [row.id, { online: isOnlineRow(row, now), room: rooms[row.id] || null }])
+      rows.map((row) => [
+        row.id,
+        {
+          online: isOnlineRow(row, now),
+          room: rooms[row.id] || null,
+          lastSeen: lastActiveFrom(row.extra),
+        },
+      ])
     );
     return NextResponse.json({ presence });
   } catch (err) {

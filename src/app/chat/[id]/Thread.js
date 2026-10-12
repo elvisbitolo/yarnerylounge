@@ -1056,7 +1056,9 @@ export default function Thread({
           return (
             <div
               key={msg.id}
-              className={grouped ? `${tStyles.threadMessage} ${tStyles.grouped}` : tStyles.threadMessage}
+              className={`${tStyles.threadMessage} ${grouped ? tStyles.grouped : ""} ${
+                isMine ? tStyles.msgMine : tStyles.msgTheirs
+              }`}
             >
               {showDayDivider && (
                 <div className={tStyles.dayDivider}>{dayDividerLabel(millis)}</div>

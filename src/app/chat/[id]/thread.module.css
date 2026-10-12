@@ -356,30 +356,55 @@
   padding: 0 1px;
 }
 
-/* Reply actions row */
+/* Reply actions: a floating pill that hugs the outer edge of the bubble. It is
+   positioned absolutely so it never adds height to the message — the bubble
+   stays only as tall as its content, and the toolbar simply fades in on
+   hover / focus / long-press. */
 .replyActions {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #2b2b35;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+/* Incoming bubbles sit left, so the toolbar docks to their right edge;
+   outgoing bubbles sit right, so it docks to their left edge. */
+.msgTheirs .replyActions {
+  left: calc(100% - 32px);
+}
+
+.msgMine .replyActions {
+  right: calc(100% - 32px);
 }
 
 .threadMessage:hover .replyActions,
 .threadMessage:focus-within .replyActions,
 .actionsOpen .replyActions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* Touch: keep the toolbar hidden until a long-press reveals it. */
 @media (hover: none) {
   .threadMessage:hover .replyActions {
     opacity: 0;
+    pointer-events: none;
   }
 
   .actionsOpen .replyActions {
     opacity: 1;
+    pointer-events: auto;
   }
 }
 
