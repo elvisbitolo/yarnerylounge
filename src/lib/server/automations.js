@@ -6,6 +6,7 @@ import { awardPoints } from "@/lib/server/gamification";
 import { addSpaceMember } from "@/lib/server/spaces";
 import { getOrCreateDm, addMessage } from "@/lib/server/chat";
 import { recordAutomationRun } from "@/lib/server/automation-history";
+import { sendPushToUser } from "@/lib/server/push";
 import { logError } from "@/lib/server/log";
 
 export { fillTemplate };
@@ -199,7 +200,7 @@ async function executeAction(automation, context) {
     if (!subjectUid) return;
     const title = fillTemplate(config.title, values) || "Secret Yarnery";
     const body = fillTemplate(config.body, values) || "You have a new notification.";
-    await sendPushToUser(subjectUid, title, body, config.href || "/dashboard");
+    await sendPushToUser(subjectUid, { title, body, url: config.href || "/dashboard" });
   }
 }
 
@@ -245,33 +246,6 @@ export async function runAutomations(trigger, context = {}) {
       });
     }
   }
-}
-
-async function sendPushToUser(uid, title, body, url = "/dashboard") {
-  const webpush = await import("web-push");
-  const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
-  const vapidSubject = process.env.VAPID_SUBJECT;
-  if (!vapidPublic || !vapidPrivate || !vapidSubject) {
-    throw new Error("Push not configured — add VAPID keys.");
-  }
-  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
-
-  let sub = null;
-  const prisma = getPrisma();
-  if (prisma) {
-    try {
-      const row = await prisma.pushSubscription.findUnique({ where: { id: uid } });
-      if (row) sub = { endpoint: row.endpoint, keys: row.keys };
-    } catch (err) {
-      logError("automations.prisma_push_failed", { error: err.message });
-    }
-  }
-  if (!sub) return;
-  await webpush.sendNotification(
-    { endpoint: sub.endpoint, keys: sub.keys },
-    JSON.stringify({ title, body, url })
-  );
 }
 
 export function fireCourseCompleted({ subjectUid, subjectName, memberName, memberEmail, courseId, courseName }) {

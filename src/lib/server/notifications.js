@@ -1,6 +1,9 @@
+import { after } from "next/server";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { getUserDoc } from "@/lib/server/auth";
+import { sendPushToUser } from "@/lib/server/push";
+import { buildPushPayload } from "@/lib/server/push-core";
 
 const NOTIFICATION_TYPE_TO_PREF = {
   comment: "feed",
@@ -56,6 +59,22 @@ async function shouldNotify(userId, type) {
   return prefs[prefKey] !== false;
 }
 
+// Deliver the push after the response is sent so the triggering action (a
+// comment, a follow, a cron tick) never waits on a push service. `after()` is
+// only valid in a request scope; outside one (older cron/CLI callers) fall back
+// to a fire-and-forget call.
+function dispatchPush(userId, payload) {
+  const run = () =>
+    sendPushToUser(userId, payload).catch((err) =>
+      logError("notifications.push_failed", { error: err?.message })
+    );
+  try {
+    after(run);
+  } catch {
+    run();
+  }
+}
+
 export async function createNotification({
   userId,
   type,
@@ -79,13 +98,18 @@ export async function createNotification({
     read: false,
     createdAt: new Date(),
   };
+  const prisma = getPrisma();
+  if (!prisma) return;
   try {
-    const prisma = getPrisma();
-    if (!prisma) return;
     await prisma.notification.create({ data });
   } catch (err) {
     logError("notifications.prisma_create_failed", { error: err.message });
+    return;
   }
+
+  // Mirror the in-app row to the member's devices so members who are not on the
+  // site are recalled too. Respects the same type→preference gate above.
+  dispatchPush(userId, buildPushPayload({ actorName, text, href }));
 }
 
 export async function listNotifications(uid, limit = 50) {

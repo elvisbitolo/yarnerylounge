@@ -365,3 +365,19 @@ the 24h link expires.
   are ignored and duplicate load-more requests are prevented.
 - New-post polling is paused while searching, so it does not announce matches
   as if they were new posts in the unfiltered feed.
+
+## Notifications → web push (October 2026)
+
+- `createNotification` now fans out to web push, so members who are **not** on
+  the site are recalled for every follow, comment, mention, RSVP, daily match,
+  group/space activity, recognition and automation — not just those already
+  looking at the bell. The in-app row stays the durable source of truth.
+- Delivery is best-effort and deferred: `dispatchPush()` runs the send inside
+  Next's `after()` so push latency never slows the triggering action, and falls
+  back to fire-and-forget outside a request scope. The same
+  type→`notificationPreferences` gate that guards the in-app row guards the push.
+- New shared module `src/lib/server/push.js` (`sendPushToUser`) is the single
+  web-push sender; `automations.js` now delegates to it (and reads **all** a
+  member's subscriptions instead of just the row keyed by uid). The payload is
+  shaped by `src/lib/server/push-core.js` (actor name → title, internal-only
+  `href` → tap target) and covered by node tests.
