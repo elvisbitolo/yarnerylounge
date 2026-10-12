@@ -48,6 +48,18 @@ const SECTIONS = [
     ),
   },
   {
+    href: "/community/studio",
+    title: "Studio",
+    description: "Talks, tutorials and stitch-alongs from the founders — the Secret Yarnery studio, on demand.",
+    icon: (
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2.5" y="6" width="14" height="12" rx="2.5" />
+        <path d="M16.5 10.5l5-3v9l-5-3z" />
+        <path d="M9.5 10.2v3.6l3.2-1.8z" />
+      </svg>
+    ),
+  },
+  {
     href: "/leaderboard",
     title: "Leaderboard",
     description: "Points, streaks and badges for showing up — see who's leading the lounge this week and earn your spot.",

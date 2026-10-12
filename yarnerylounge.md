@@ -381,3 +381,28 @@ the 24h link expires.
   member's subscriptions instead of just the row keyed by uid). The payload is
   shaped by `src/lib/server/push-core.js` (actor name → title, internal-only
   `href` → tap target) and covered by node tests.
+
+## Studio video library (October 2026)
+
+- New member-visible **Studio** at `/community/studio` (linked from the
+  `/community` hub), where the founders publish talks, tutorials and
+  stitch-alongs. Any signed-in member can watch; only the `STUDIO_ADMIN_EMAILS`
+  allowlist (defaults to `secretyarnery@gmail.com` and `elvisbitolo11@gmail.com`)
+  can publish or delete. The gate is enforced **server-side** on every write
+  route, so hiding the UI is never the only protection.
+- Videos are large, so the browser uploads straight to Supabase Storage via
+  short-lived **signed upload URLs** (`/api/studio/videos` `init` → direct
+  `uploadToSignedUrl` → `finalize`): the bytes never pass through a Vercel
+  Function's body cap. Each clip has a required cover/poster image.
+- The catalogue is a JSON manifest object (`studio/manifest.json`) in the
+  existing private `recordings` bucket (videos at `studio/videos/<id>/`), so no
+  `prisma/schema.prisma` change was needed. Pure parsing/validation lives in
+  `src/lib/server/studio-core.js` (`parseStudioAdminEmails`, `normalizeStudioVideo`,
+  `parseStudioManifest`, path builders) and is covered by node tests; storage and
+  persistence live in `src/lib/server/studio.js`.
+- Playback/covers are signed on demand (`GET /api/studio/videos/[id]` for the
+  video, bulk `createSignedUrls` for covers). UI (`StudioLibrary`,
+  `StudioUploader`, `studio.module.css`) is responsive across phone/tablet/desktop.
+- Deployment note: real videos need the Supabase project **Global file size
+  limit** raised above the Free 50 MB cap; the Studio otherwise publishes only
+  small clips. Set `STUDIO_ADMIN_EMAILS` to change the uploader list.
