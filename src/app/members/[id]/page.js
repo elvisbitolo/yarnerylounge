@@ -280,6 +280,7 @@ const coverUrl = member.coverPhotoURL || "";
               <div className={styles.headerActions}>
                 <FollowButton
                   targetUserId={id}
+                  targetName={member.name}
                   initialFollowing={Boolean(followData.following)}
                   initialFollowerCount={Number(followData.followerCount) || 0}
                   initialFollowingCount={Number(followData.followingCount) || 0}
