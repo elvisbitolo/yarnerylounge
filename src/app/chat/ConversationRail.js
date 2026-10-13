@@ -9,6 +9,7 @@ import { chatListTime } from "@/lib/chat-time";
 import { hasSearchQuery } from "@/lib/chat-search-core";
 import { applyPrefsToConversations } from "@/lib/chat-settings-core";
 import { getChatPrefs, initChatPrefs, saveChatSettings, useChatPrefs } from "@/lib/chat-prefs-store";
+import { initAppearance } from "@/lib/chat-appearance-store";
 import { shouldPlayMessageSound, playMessageChime } from "@/lib/chat-sound";
 import {
   subscribeTyping,
@@ -55,6 +56,7 @@ export default function ConversationRail({
   selfUid,
   settingsInit,
   prefsByIdInit,
+  appearanceInit = null,
 }) {
   const router = useRouter();
   const [convs, setConvs] = useState(conversations);
@@ -108,6 +110,7 @@ export default function ConversationRail({
   // survives a reload.
   useEffect(() => {
     initChatPrefs({ settings: settingsInit, prefsById: prefsByIdInit });
+    initAppearance(appearanceInit);
     // A server snapshot wins over a stale local flag until the drawer writes
     // a new value.
     if (typeof settingsInit?.typingHidden === "boolean") {

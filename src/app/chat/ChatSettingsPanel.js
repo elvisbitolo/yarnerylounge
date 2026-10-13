@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { Eye, EyeOff, Type, Volume2, X } from "lucide-react";
+import { Eye, EyeOff, Palette, Type, Volume2, X } from "lucide-react";
 import { saveChatSettings, useChatPrefs } from "@/lib/chat-prefs-store";
 import { setTypingHidden } from "@/lib/chat-typing-core";
+import { useAppearance, saveChatAppearance } from "@/lib/chat-appearance-store";
+import WallpaperPicker from "./WallpaperPicker";
 import styles from "./chat.module.css";
 
 function Toggle({ checked, onChange, icon: Icon, label, hint }) {
@@ -35,6 +37,7 @@ function Toggle({ checked, onChange, icon: Icon, label, hint }) {
 // server via the settings API; the shared prefs store mirrors the result.
 export default function ChatSettingsPanel({ open, onClose }) {
   const { settings } = useChatPrefs();
+  const appearance = useAppearance();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -127,6 +130,29 @@ export default function ChatSettingsPanel({ open, onClose }) {
               icon={Volume2}
               label="Message sounds"
               hint="Play a soft chime for new messages"
+            />
+          </section>
+
+          <section className={styles.settingsSection}>
+            <h3 className={styles.settingsSectionTitle}>Appearance</h3>
+            <div className={styles.settingsRow}>
+              <span className={styles.settingsIcon}>
+                <Palette size={16} aria-hidden="true" />
+              </span>
+              <span className={styles.settingsLabelWrap}>
+                <span className={styles.settingsLabel}>Chat wallpaper</span>
+                <span className={styles.settingsHint}>
+                  A background for every conversation. Override per chat from
+                  its info panel.
+                </span>
+              </span>
+            </div>
+            <WallpaperPicker
+              value={appearance.wallpaper}
+              customUrl={appearance.customWallpaper}
+              showUpload
+              onPick={(wallpaper) => saveChatAppearance({ wallpaper })}
+              onUpload={(customWallpaper) => saveChatAppearance({ customWallpaper })}
             />
           </section>
 

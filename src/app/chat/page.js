@@ -42,6 +42,7 @@ export default async function ChatPage({ searchParams }) {
 
   const chatSettings = mergeChatSettings({}, userDoc?.extra?.chatSettings);
   const prefsById = userDoc?.extra?.chatPrefs || {};
+  const appearance = userDoc?.extra?.appearance || null;
 
   return (
       <MobilePanels
@@ -54,6 +55,7 @@ export default async function ChatPage({ searchParams }) {
             selfUid={user.uid}
             settingsInit={chatSettings}
             prefsByIdInit={prefsById}
+            appearanceInit={appearance}
           />
         }
         empty={

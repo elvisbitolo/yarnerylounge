@@ -32,6 +32,7 @@ export default async function ConversationPage({ params }) {
   const chatSettings = mergeChatSettings({}, userDoc?.extra?.chatSettings);
   const prefsById = userDoc?.extra?.chatPrefs || {};
   const starredByConversation = userDoc?.extra?.starredMessages || {};
+  const appearance = userDoc?.extra?.appearance || null;
   const presenceHidden = chatSettings.onlineVisibility !== "everyone";
   const otherMemberId = presenceIds[0] || "";
 
@@ -46,6 +47,7 @@ export default async function ConversationPage({ params }) {
             selfUid={user.uid}
             settingsInit={chatSettings}
             prefsByIdInit={prefsById}
+            appearanceInit={appearance}
           />
         }
         thread={
@@ -64,6 +66,7 @@ export default async function ConversationPage({ params }) {
             presenceHidden={presenceHidden}
             otherMemberId={otherMemberId}
             initialStars={starredByConversation}
+            appearanceInit={appearance}
           />
         }
       />

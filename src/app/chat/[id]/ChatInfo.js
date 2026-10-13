@@ -5,6 +5,8 @@ import { Archive, ArrowLeft, Bell, Pin, Search, ShieldBan, Star, X } from "lucid
 import { MUTE_DURATIONS, muteSelectionFromPrefs } from "@/lib/chat-settings-core";
 import { rawPrefsFor, resolvedPrefs, saveConversationPrefs } from "@/lib/chat-prefs-store";
 import { setStarred } from "@/lib/chat-star-store";
+import { useAppearance, saveChatAppearance, appearanceForConversation } from "@/lib/chat-appearance-store";
+import WallpaperPicker from "../WallpaperPicker";
 import { chatFullTimeLabel } from "@/lib/chat-time";
 import styles from "../chat.module.css";
 
@@ -28,6 +30,7 @@ export default function ChatInfo({
   const [blocked, setBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [starredList, setStarredList] = useState(null);
+  const appearance = useAppearance();
 
   async function loadStarred() {
     setStarredList(null);
@@ -249,6 +252,19 @@ export default function ChatInfo({
               <span className={styles.settingsActionLabel}>Search this conversation</span>
               <ArrowLeft size={15} className={styles.settingsActionArrow} aria-hidden="true" />
             </button>
+          </section>
+
+          <section className={styles.settingsSection}>
+            <h3 className={styles.settingsSectionTitle}>Chat wallpaper</h3>
+            <p className={styles.settingsNote}>
+              Set a background just for this chat. Pick Default to use your
+              Chat settings choice.
+            </p>
+            <WallpaperPicker
+              value={appearanceForConversation(appearance, conversationId)}
+              customUrl={appearance.customWallpaper}
+              onPick={(wallpaper) => saveChatAppearance({ conversationId, wallpaper })}
+            />
           </section>
 
           <section className={styles.settingsSection}>

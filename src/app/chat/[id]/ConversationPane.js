@@ -6,6 +6,7 @@ import ChatInfo from "./ChatInfo";
 import Thread from "./Thread";
 import ForwardPicker from "./ForwardPicker";
 import { initStars } from "@/lib/chat-star-store";
+import { initAppearance } from "@/lib/chat-appearance-store";
 import styles from "../chat.module.css";
 
 // Owns the message-search state that the header and the thread share: the
@@ -28,6 +29,7 @@ export default function ConversationPane({
   presenceHidden = false,
   otherMemberId = "",
   initialStars = {},
+  appearanceInit = null,
 }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,6 +41,10 @@ export default function ConversationPane({
   useEffect(() => {
     initStars(initialStars);
   }, [initialStars]);
+
+  useEffect(() => {
+    initAppearance(appearanceInit);
+  }, [appearanceInit]);
 
   function startForward(msg) {
     setForwardMsg(msg);

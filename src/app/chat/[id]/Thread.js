@@ -18,6 +18,8 @@ import {
 import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, ChevronDown, Mic, Play, Pause, Video, Star, Copy, Forward, MoreHorizontal } from "lucide-react";
 import MessageInfo from "./MessageInfo";
 import { useStarredIds, setStarred as persistStarred } from "@/lib/chat-star-store";
+import { useAppearance } from "@/lib/chat-appearance-store";
+import { wallpaperBackgroundFor } from "@/lib/chat-appearance-core";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -312,6 +314,8 @@ export default function Thread({
   const [copiedId, setCopiedId] = useState(null);
   const moreMenuRef = useRef(null);
   const starredIds = useStarredIds(conversationId);
+  const appearance = useAppearance();
+  const wallpaperBackground = wallpaperBackgroundFor(appearance, conversationId);
   const [pendingId, setPendingId] = useState(null);
   const pendingIdRef = useRef(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -1072,7 +1076,10 @@ export default function Thread({
   const newBelow = showJump ? Math.max(0, messages.length - lastSeenCount) : 0;
 
   return (
-    <div className={styles.threadBody}>
+    <div
+      className={styles.threadBody}
+      style={wallpaperBackground ? { background: wallpaperBackground } : undefined}
+    >
       {pinnedMessages.length > 0 && (
         <div className={tStyles.pinnedBar}>
           <span className={tStyles.pinnedLabel}><Pin size={12} /> Pinned</span>
