@@ -2,7 +2,7 @@
   "name": "Yarnery Lounge",
   "short_name": "Yarnery",
   "description": "Paid membership community with live video rooms, courses, events and groups.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",

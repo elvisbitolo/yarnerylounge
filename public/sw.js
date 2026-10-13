@@ -1,15 +1,46 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v14";
+const VERSION = "v15";
 
-// NEVER touch API requests: a cached /api/me JSON that carries a uid replays
-// long after the session cookie is gone, which makes reconcileSessionCookie()
-// on /login + /signing-in believe a dead session is alive and bounce them in an
-// infinite login <-> signing-in reload loop.
+// API requests are left to the network by default: a cached /api/me JSON that
+// carries a uid replays long after the session cookie is gone, which makes
+// reconcileSessionCookie() on /login + /signing-in believe a dead session is
+// alive and bounce them in an infinite login <-> signing-in reload loop. Only
+// the explicit GET whitelist in CACHEABLE_API_PATHS is ever cached.
 const isApiRequest = (url) => {
   try { return new URL(url).pathname.startsWith("/api/"); } catch { return false; }
 };
+
+// Idempotent GET APIs whose payload may be replayed while offline. Anything
+// session-bearing or mutating (/api/me, /api/auth/*, POSTs) must stay OFF this
+// list: replaying /api/me is what causes the login <-> signing-in reload loop
+// documented above. The dashboard command endpoint returns every section the
+// dashboard renders, so caching it lets the shell paint with last-known data.
+const CACHEABLE_API_PATHS = ["/api/dashboard/command"];
+
+const isCacheableApi = (url) => {
+  try {
+    return CACHEABLE_API_PATHS.includes(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+};
+
+// Authenticated app-shell routes. The topbar + sidebar live in the root layout,
+// so any signed-in document carries the chrome; warming a handful of primary
+// screens means an installed PWA opens to a real, hydratable page offline.
+// Each is fetched with the SW's same-origin cookie jar and only stored when it
+// resolves to its own path (a redirect to /login is never cached).
+const SHELL_URLS = [
+  "/dashboard",
+  "/feed",
+  "/chat",
+  "/notifications",
+  "/community",
+  "/members",
+  "/calendar",
+];
 
 // Everything Next.js emits for the current build, including the Turbopack
 // module registry that each chunk binds its imports against.
@@ -69,19 +100,40 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
+// Best-effort warm of the signed-in shell + dashboard data. Runs after
+// activation (once per release). Signed-out visitors simply skip: every fetch
+// that redirects to /login fails the same-path check and is left uncached.
+const warmShell = async () => {
+  const cache = await caches.open(VERSION);
+  await Promise.all(
+    [...SHELL_URLS, ...CACHEABLE_API_PATHS].map(async (url) => {
+      try {
+        const target = new URL(url, self.location.origin);
+        const response = await fetch(target.href, { credentials: "same-origin" });
+        if (!response || !response.ok) return;
+        if (new URL(response.url).pathname !== target.pathname) return;
+        await cache.put(url, response.clone());
+      } catch {
+        // Offline, signed out, or the route errored -- skip this entry.
+      }
+    })
+  );
+};
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== VERSION).map((key) => caches.delete(key))))
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key !== VERSION).map((key) => caches.delete(key)));
+      await self.clients.claim();
+      await warmShell();
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || !request.url.startsWith(self.location.origin)) return;
-  if (isApiRequest(request.url)) return;
 
   // Only a real 200 for the exact URL is worth caching. Following a redirect
   // to /login or /signup caches that auth shell under the requested URL, which
@@ -95,6 +147,30 @@ self.addEventListener("fetch", (event) => {
     }
   };
 
+  // Whitelisted GET APIs: fresh data when online, last-known payload offline so
+  // the dashboard can still paint its KPIs / activity. Everything else under
+  // /api/ is left untouched (see isApiRequest).
+  if (isCacheableApi(request.url)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (isCacheable(response)) {
+            const copy = response.clone();
+            caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then(
+            (cached) => cached || new Response("", { status: 503, statusText: "Service Unavailable" })
+          )
+        )
+    );
+    return;
+  }
+
+  if (isApiRequest(request.url)) return;
+
   // Next.js build output. A document from one build and a chunk from another
   // is a half-applied deploy: a consumer chunk reaches a module namespace that
   // predates the export it calls, and you get "x.y is not a function" thrown
@@ -103,9 +179,17 @@ self.addEventListener("fetch", (event) => {
   // when the network is genuinely gone.
   if (isStaticBuildAsset(request.url)) {
     event.respondWith(
-      fetch(request).catch(() =>
-        caches.match(request).then((cached) => cached || offlineResponse())
-      )
+      fetch(request)
+        .then((response) => {
+          // Filenames are content-hashed, so a cached copy can never be
+          // half-applied: store it for the offline shell to hydrate from.
+          if (isCacheable(response)) {
+            const copy = response.clone();
+            caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || offlineResponse()))
     );
     return;
   }
@@ -123,10 +207,10 @@ self.addEventListener("fetch", (event) => {
         .then(
           (response) => response || offlineResponse(),
           () =>
-            caches.match(request).then((cached) => {
-              if (cached) return cached;
-              return caches.match("/");
-            }).then((cached) => cached || offlineResponse())
+            caches.match(request)
+              .then((cached) => (cached ? cached : caches.match("/dashboard")))
+              .then((cached) => (cached ? cached : caches.match("/")))
+              .then((cached) => cached || offlineResponse())
         )
     );
     return;

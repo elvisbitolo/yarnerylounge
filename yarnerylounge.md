@@ -433,3 +433,25 @@ the 24h link expires.
 - Deployment note: real videos need the Supabase project **Global file size
   limit** raised above the Free 50 MB cap; the Studio otherwise publishes only
   small clips. Set `STUDIO_ADMIN_EMAILS` to change the uploader list.
+
+## PWA offline shell (October 2026)
+
+- The installed PWA previously only worked offline for the **public** pages: the
+  service worker cached documents but never the `_next/static` build chunks, so a
+  cached shell had no JS to hydrate, and the signed-in shell was never warmed.
+- `public/sw.js` now (a) stores content-hashed `_next/static` responses so a
+  cached document can hydrate offline, (b) **warms the signed-in shell** after
+  activation (`SHELL_URLS`: `/dashboard`, `/feed`, `/chat`, `/notifications`,
+  `/community`, `/members`, `/calendar`), and (c) caches the whitelisted, safe
+  GET `/api/dashboard/command` (`CACHEABLE_API_PATHS`) network-first so the
+  dashboard paints its last-known KPIs/activity when offline.
+- The topbar + sidebar live in the root layout, so any warmed document carries
+  the chrome — offline the member gets the real dashboard and navigation shell
+  instead of the "You're offline" page. Warming uses the SW's same-origin cookie
+  jar and never caches a response that redirected (`/login`), so signed-out
+  visitors are unaffected. `manifest.webmanifest` `start_url` is `/dashboard`.
+- Still server-driven: client-side links to screens that were never visited while
+  online can't render offline (App Router RSC fetches aren't cached), and
+  interactive writes (chat send, RSVP) need the network. API caching stays
+  opt-in — never add session-bearing or mutating routes to `CACHEABLE_API_PATHS`.
+- Bump `VERSION` in `public/sw.js` on every release, as before.
