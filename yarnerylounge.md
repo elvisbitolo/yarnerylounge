@@ -455,3 +455,30 @@ the 24h link expires.
   interactive writes (chat send, RSVP) need the network. API caching stays
   opt-in — never add session-bearing or mutating routes to `CACHEABLE_API_PATHS`.
 - Bump `VERSION` in `public/sw.js` on every release, as before.
+
+## Member email & re-engagement (October 2026)
+
+- All outbound mail goes through `sendEmail()` in `src/lib/server/email.js`
+  (Resend); if `RESEND_API_KEY`/`EMAIL_FROM` are unset it logs
+  `email.not_configured` and silently skips, which is why a "missing" email is
+  usually an unset env var or an unverified sending domain rather than a bug.
+- The weekly **"This Week at the Secret Yarnery"** digest
+  (`/api/automations/digest`) was written but never triggered: it exported only
+  `POST` and was absent from `vercel.json`. It now runs via `GET` (Vercel Cron
+  issues GET + `Authorization: Bearer $CRON_SECRET`) on **Mondays 14:00 UTC**
+  (`0 14 * * 1`).
+- The digest's opt-out was reading a legacy `extra.emailPreferences.weeklyDigest`
+  key that the UI never writes, so the Account toggle didn't control it. Both the
+  digest and the new re-engagement mail now honour the real
+  `notificationPreferences.automations` toggle (with the legacy key still
+  respected) through the shared `isAutomationEmailOptOut()` helper.
+- New warm **re-engagement** mail (`/api/cron/re-engagement`, daily 15:00 UTC):
+  `src/lib/server/re-engagement-core.js` selects members whose
+  `extra.lastActiveAt` is 14+ days old, whose account is 3+ days old, and who
+  weren't nudged in the last 21 days, then sends a friendly "we missed you" with
+  links back to the feed, a live lounge and the calendar. Sent members get
+  `extra.reengagementSentAt` stamped to de-dupe future runs; per-run cap is 100
+  to stay inside the 60s cron budget. Selection + copy are node-tested and free
+  of Prisma/fetch.
+- **Prod checklist:** set `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_APP_URL`
+  and `CRON_SECRET` in Vercel, and verify the sending domain in Resend.

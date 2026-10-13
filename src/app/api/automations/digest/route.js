@@ -3,6 +3,7 @@ import { sendEmail } from "@/lib/server/email";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
+import { isAutomationEmailOptOut } from "@/lib/server/re-engagement-core";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,7 +18,7 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;");
 }
 
-export async function POST(req) {
+async function runDigest(req) {
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -130,9 +131,9 @@ export async function POST(req) {
   try {
     const rows = await prisma.user.findMany({
       take: 200,
-      select: { email: true, extra: true },
+      select: { email: true, extra: true, notificationPreferences: true },
     });
-    usersForDigest = rows.map((r) => ({ email: r.email, emailPreferences: r.extra?.emailPreferences }));
+    usersForDigest = rows;
   } catch (err) {
     logError("digest.prisma_users_read_failed", { error: err.message });
   }
@@ -141,7 +142,7 @@ export async function POST(req) {
 
   for (const u of usersForDigest) {
     if (!u.email) { skipped++; continue; }
-    if (u.emailPreferences?.weeklyDigest === false) { skipped++; continue; }
+    if (isAutomationEmailOptOut(u)) { skipped++; continue; }
 
     try {
       await sendEmail({
@@ -165,3 +166,7 @@ export async function POST(req) {
     timestamp: new Date().toISOString(),
   });
 }
+
+// Vercel Cron invokes with GET; POST stays for manual/back-compat triggers.
+export const GET = runDigest;
+export const POST = runDigest;
