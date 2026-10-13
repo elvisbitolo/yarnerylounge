@@ -2,12 +2,14 @@ import { Geist, Geist_Mono, Assistant } from "next/font/google";
 import { cookies } from "next/headers";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { organizationJsonLd, websiteJsonLd, SITE_DESCRIPTION } from "@/lib/seo";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Providers from "@/components/Providers";
 import PushSetup from "@/components/PushSetup";
 import GlobalTheme from "@/components/GlobalTheme";
 import LoungeExpiryGuard from "@/components/LoungeExpiryGuard";
+import JsonLd from "@/components/JsonLd";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -33,8 +35,12 @@ export const metadata = {
     default: "Secret Yarnery",
     template: "%s — Secret Yarnery",
   },
-  description:
-    "Secret Yarnery is a paid membership community with live video lounges, courses, events, groups and real conversations — connect, learn and grow together in one place.",
+  description: SITE_DESCRIPTION,
+  applicationName: "Secret Yarnery",
+  category: "community",
+  authors: [{ name: "Secret Yarnery" }],
+  creator: "Secret Yarnery",
+  publisher: "Secret Yarnery",
   manifest: "/manifest.webmanifest",
   other: {
     "google-site-verification": "EO1A_95MmyPuFD2ULeSrZ2xzliMUJEdAWtRmclDUwPo",
@@ -63,6 +69,9 @@ export const metadata = {
   },
   alternates: {
     canonical: CANONICAL_ORIGIN,
+    types: {
+      "application/rss+xml": "/feed.xml",
+    },
   },
 };
 
@@ -82,6 +91,7 @@ export default async function RootLayout({ children }) {
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${assistant.variable}`}>
       <body>
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Providers messages={messages} locale={locale}>
           <LoungeExpiryGuard />
           <PushSetup />

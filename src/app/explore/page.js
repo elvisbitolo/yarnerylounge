@@ -1,15 +1,23 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getExploreData } from "@/lib/server/explore";
+import {
+  publicMetadata,
+  breadcrumbJsonLd,
+  eventJsonLd,
+  courseJsonLd,
+} from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 import styles from "./explore.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Explore — Secret Yarnery",
+export const metadata = publicMetadata({
+  title: "Explore the community",
   description:
-    "A preview of the Secret Yarnery community: live lounges, events, courses and spaces. Join to take part.",
-};
+    "A preview of the Secret Yarnery community: live lounges, upcoming events, courses and spaces. Join to take part.",
+  path: "/explore",
+});
 
 function formatTime(millis) {
   return new Date(millis).toLocaleString(undefined, {
@@ -25,6 +33,16 @@ export default async function ExplorePage() {
 
   return (
     <main className={styles.page}>
+      <JsonLd
+        data={[
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Explore", path: "/explore" },
+          ]),
+          ...data.events.map(eventJsonLd),
+          ...data.courses.map(courseJsonLd),
+        ]}
+      />
       <header className={styles.header}>
         <Link className={styles.brand} href="/">
           <Image src="/brand/secretyarnery-logo.webp" alt="Secret Yarnery" width={90} height={28} className={styles.brandLogo} priority />

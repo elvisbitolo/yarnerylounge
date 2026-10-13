@@ -1,12 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { publicMetadata } from "@/lib/seo";
 import styles from "../terms/terms.module.css";
 
-export const metadata = {
+export const metadata = publicMetadata({
   title: "Privacy Policy",
   description:
     "Learn what information Secret Yarnery collects, how it is used and shared, and how to make a privacy request.",
-};
+  path: "/privacy",
+});
 
 const LANDING_URL =
   process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";

@@ -1,11 +1,13 @@
 import LandingNav from "@/components/LandingNav";
+import { publicMetadata } from "@/lib/seo";
 import styles from "./guidelines.module.css";
 
-export const metadata = {
+export const metadata = publicMetadata({
   title: "Community Guidelines",
   description:
     "Secret Yarnery's community guidelines — how we keep this a respectful, focused space for every member.",
-};
+  path: "/guidelines",
+});
 
 const SECTIONS = [
   {

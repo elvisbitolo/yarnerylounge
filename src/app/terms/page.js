@@ -1,12 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { publicMetadata } from "@/lib/seo";
 import styles from "./terms.module.css";
 
-export const metadata = {
-  title: "Terms of Service — Christa's Secret Swipe Speakeasy",
+export const metadata = publicMetadata({
+  title: "Terms of Service",
   description:
-    "The official Terms of Service for Christa's Secret Speakeasy, covering the Zero-Tolerance Policy, acceptable use, host responsibilities, enforcement, and platform rights.",
-};
+    "The official Terms of Service for Secret Yarnery, covering the Zero-Tolerance Policy, acceptable use, host responsibilities, enforcement, and platform rights.",
+  path: "/terms",
+});
 
 const LANDING_URL =
   process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import LandingNav from "@/components/LandingNav";
+import { publicMetadata } from "@/lib/seo";
 import styles from "./about.module.css";
 
-export const metadata = {
+export const metadata = publicMetadata({
   title: "About",
   description:
     "Learn about Secret Yarnery — a paid membership community for live video lounges, courses, events and real conversations.",
-};
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

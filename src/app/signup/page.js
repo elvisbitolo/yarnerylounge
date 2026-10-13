@@ -1,7 +1,15 @@
 import { cookies } from "next/headers";
 import { AUTH_COOKIE } from "@/lib/server/auth";
 import { isOpenAccess } from "@/lib/server/access-policy";
+import { publicMetadata } from "@/lib/seo";
 import SignupForm from "./SignupForm";
+
+export const metadata = publicMetadata({
+  title: "Join",
+  description:
+    "Create your free Secret Yarnery account — live video lounges, courses, events and a community that connects in real time. Cancel anytime.",
+  path: "/signup",
+});
 
 // Server shell for the sign-up page. Two facts the client cannot know on its
 // own are resolved here, so the very first paint is already the right screen:

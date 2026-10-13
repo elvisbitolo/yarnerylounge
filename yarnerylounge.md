@@ -482,3 +482,41 @@ the 24h link expires.
   of Prisma/fetch.
 - **Prod checklist:** set `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_APP_URL`
   and `CRON_SECRET` in Vercel, and verify the sending domain in Resend.
+
+## Public SEO surface (October 2026)
+
+- The whole app used to be a wall: `/` 308'd to `/api/auth/reentry` and every
+  content route redirects to `/login`, so a crawler could only see a handful of
+  legal pages — and the sitemap even advertised `/rooms` and `/spaces`, which
+  return redirects. Search visibility was effectively zero.
+- **`/` is now a real, server-rendered landing page** (200) built from the
+  previously-unused `landing` message namespace: hero, "what's inside", lounge
+  and upcoming-event/course previews, an FAQ, and a footer. A visitor that
+  carries the session cookie is still handed to `/api/auth/reentry` (→ dashboard,
+  or signup if the session is stale); crawlers always get the page.
+- **Member content stays private.** `/articles`, `/topics`, rooms, spaces, events
+  and courses remain behind the auth wall — the site promises "your personal data
+  stays private". The public, client-controlled surface is `/explore` (driven by
+  the existing `publicPreview` flags) plus the legal/marketing pages.
+- **`src/lib/seo.js`** is the single source of truth: `SITE_URL`/name/description,
+  the `PUBLIC_ROUTES` allow-list, `publicMetadata()` (canonical + OG + Twitter)
+  and JSON-LD builders (`Organization`, `WebSite`, `BreadcrumbList`, `Event`,
+  `Course`, `FAQPage`). `src/components/JsonLd.js` renders the script tags.
+  Organization/WebSite are injected once in the root layout; the landing page
+  emits FAQ + event/course nodes; `/explore` emits breadcrumb + event/course.
+- **sitemap / robots** now agree: the sitemap lists only public 200 URLs, and
+  `robots.txt` allows the public pages (incl. `/feed.xml`) while disallowing every
+  gated route so crawl budget isn't wasted on login redirects.
+- **RSS:** `GET /feed.xml` (`src/app/feed.xml/route.js`) publishes the public
+  `publicPreview` events/courses/lounges; advertised via the root metadata
+  `alternates.types`. It never includes members-only data.
+- **Deferred — localized URLs.** `localePrefix` is still `"never"` (cookie
+  based), so FR/DE content is not separately indexable and `hreflang` is not
+  possible. Switching to `"as-needed"` requires moving the whole `src/app` tree
+  under `src/app/[locale]/` (next-intl passes prefixed paths through, it does not
+  rewrite them back) and composing next-intl middleware into `src/proxy.js`.
+  That is a dedicated, well-tested change, not a config flip.
+- **Manual, off-page (not code):** Google Search Console (submit the sitemap,
+  watch Coverage/Queries — the verification meta tag is already in the layout),
+  Google Business Profile, and craft-audience channels (Pinterest, YouTube,
+  Ravelry, Reddit r/crochet, craft-blogger backlinks).

@@ -1,36 +1,16 @@
-import { getExploreData } from "@/lib/server/explore";
-import { CANONICAL_ORIGIN } from "@/lib/server/origin";
+import { PUBLIC_ROUTES, absoluteUrl } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+// Only genuinely public, indexable pages belong here. Login-walled content
+// (rooms, events, courses, articles, members …) returns a redirect to /login
+// for crawlers, so advertising it in the sitemap would just burn crawl budget.
+export const dynamic = "force-static";
 
-export default async function sitemap() {
-  const base = CANONICAL_ORIGIN;
-
-  const staticRoutes = ["/signup", "/login", "/about", "/guidelines", "/terms"].map(
-    (path) => ({
-      url: `${base}${path}`,
-      lastModified: new Date(),
-      changeFrequency: path === "/signup" ? "weekly" : "monthly",
-      priority: path === "/signup" ? 1 : 0.7,
-    })
-  );
-
-  const data = await getExploreData(50);
-
-  const routes = [
-    ...data.rooms.map((room) => ({
-      url: `${base}/rooms/${room.slug}`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.6,
-    })),
-    ...data.spaces.map((space) => ({
-      url: `${base}/spaces/${space.slug}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.6,
-    })),
-  ];
-
-  return [...staticRoutes, ...routes];
+export default function sitemap() {
+  const lastModified = new Date();
+  return PUBLIC_ROUTES.map(({ path, changeFrequency, priority }) => ({
+    url: absoluteUrl(path),
+    lastModified,
+    changeFrequency,
+    priority,
+  }));
 }
