@@ -31,6 +31,7 @@ export default async function ConversationPage({ params }) {
 
   const chatSettings = mergeChatSettings({}, userDoc?.extra?.chatSettings);
   const prefsById = userDoc?.extra?.chatPrefs || {};
+  const starredByConversation = userDoc?.extra?.starredMessages || {};
   const presenceHidden = chatSettings.onlineVisibility !== "everyone";
   const otherMemberId = presenceIds[0] || "";
 
@@ -62,6 +63,7 @@ export default async function ConversationPage({ params }) {
             hideReceipts={chatSettings.readReceipts === false}
             presenceHidden={presenceHidden}
             otherMemberId={otherMemberId}
+            initialStars={starredByConversation}
           />
         }
       />

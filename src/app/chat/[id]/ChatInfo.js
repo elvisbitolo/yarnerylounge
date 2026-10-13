@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Archive, ArrowLeft, Bell, Pin, Search, ShieldBan, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Archive, ArrowLeft, Bell, Pin, Search, ShieldBan, Star, X } from "lucide-react";
 import { MUTE_DURATIONS, muteSelectionFromPrefs } from "@/lib/chat-settings-core";
 import { rawPrefsFor, resolvedPrefs, saveConversationPrefs } from "@/lib/chat-prefs-store";
+import { setStarred } from "@/lib/chat-star-store";
+import { chatFullTimeLabel } from "@/lib/chat-time";
 import styles from "../chat.module.css";
 
 // The per-chat info drawer, opened from the thread header. It mirrors
@@ -19,11 +21,46 @@ export default function ChatInfo({
   isDm = false,
   otherMemberId = "",
   onOpenSearch,
+  onOpenMessage,
 }) {
   const [prefs, setPrefsState] = useState(() => resolvedPrefs(conversationId));
   const [muteKey, setMuteKey] = useState(() => muteSelectionFromPrefs(rawPrefsFor(conversationId)));
   const [blocked, setBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [starredList, setStarredList] = useState(null);
+
+  async function loadStarred() {
+    setStarredList(null);
+    try {
+      const res = await fetch(`/api/chat/starred?conversationId=${encodeURIComponent(conversationId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setStarredList(Array.isArray(data.messages) ? data.messages : []);
+    } catch {
+      setStarredList([]);
+    }
+  }
+
+  const loadStarredStable = useCallback(loadStarred, [conversationId]);
+
+  async function removeStar(messageId) {
+    setStarredList((rows) => (rows || []).filter((row) => row.id !== messageId));
+    setStarred(conversationId, messageId, false);
+    try {
+      const res = await fetch("/api/chat/starred", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, messageId, starred: false }),
+      });
+      if (!res.ok) {
+        setStarred(conversationId, messageId, true);
+        await loadStarred();
+      }
+    } catch {
+      setStarred(conversationId, messageId, true);
+      await loadStarred();
+    }
+  }
 
   useEffect(() => {
     if (!open) return undefined;
@@ -31,12 +68,13 @@ export default function ChatInfo({
     setPrefsState(current);
     setMuteKey(muteSelectionFromPrefs(rawPrefsFor(conversationId)));
     setBusy(false);
+    loadStarredStable();
     const onKeyDown = (event) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, conversationId, onClose]);
+  }, [open, conversationId, onClose, loadStarredStable]);
 
   if (!open) return null;
 
@@ -211,6 +249,50 @@ export default function ChatInfo({
               <span className={styles.settingsActionLabel}>Search this conversation</span>
               <ArrowLeft size={15} className={styles.settingsActionArrow} aria-hidden="true" />
             </button>
+          </section>
+
+          <section className={styles.settingsSection}>
+            <h3 className={styles.settingsSectionTitle}>Starred</h3>
+            {starredList === null ? (
+              <p className={styles.settingsNote}>Loading…</p>
+            ) : starredList.length === 0 ? (
+              <p className={styles.settingsNote}>
+                Nothing starred yet. Use the ⭐ on a message to bookmark it here.
+              </p>
+            ) : (
+              <div className={styles.starredList}>
+                {starredList.map((row) => (
+                  <div key={row.id} className={styles.starredItem}>
+                    <button
+                      type="button"
+                      className={styles.starredRow}
+                      onClick={() => onOpenMessage && onOpenMessage(row.id)}
+                    >
+                      <span className={styles.starredSender}>{row.senderName}</span>
+                      <span className={styles.starredText}>
+                        {row.text ||
+                          (row.attachment?.kind === "image"
+                            ? "📷 photo"
+                            : row.attachment?.kind === "audio"
+                              ? "🎤 voice note"
+                              : row.attachment?.name
+                                ? `📎 ${row.attachment.name}`
+                                : "…")}
+                      </span>
+                      <span className={styles.starredTime}>{chatFullTimeLabel(row.starredAt || row.createdAt)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.starredRemove}
+                      aria-label="Remove star"
+                      onClick={() => removeStar(row.id)}
+                    >
+                      <Star size={13} fill="currentColor" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {isDm && otherMemberId && (

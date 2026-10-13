@@ -15,7 +15,9 @@ import {
   readTypingHidden,
   TYPING_THROTTLE_MS,
 } from "@/lib/chat-typing-core";
-import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, ChevronDown, Mic, Play, Pause, Video } from "lucide-react";
+import { Pin, Paperclip, Image as ImageIcon, Lock, Smile, Check, CheckCheck, ChevronDown, Mic, Play, Pause, Video, Star, Copy, Forward, MoreHorizontal } from "lucide-react";
+import MessageInfo from "./MessageInfo";
+import { useStarredIds, setStarred as persistStarred } from "@/lib/chat-star-store";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -261,6 +263,9 @@ export default function Thread({
   searchQuery = "",
   onSearchChange = () => {},
   hideReceipts = false,
+  jumpTarget = null,
+  onJumpHandled = () => {},
+  onForward = () => {},
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [hasOlder, setHasOlder] = useState(initialHasMore);
@@ -302,6 +307,11 @@ export default function Thread({
   const [lastSeenCount, setLastSeenCount] = useState(initialMessages.length);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [reactionsOpen, setReactionsOpen] = useState(null);
+  const [moreOpen, setMoreOpen] = useState(null);
+  const [infoMsg, setInfoMsg] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+  const moreMenuRef = useRef(null);
+  const starredIds = useStarredIds(conversationId);
   const [pendingId, setPendingId] = useState(null);
   const pendingIdRef = useRef(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -924,6 +934,9 @@ export default function Thread({
       if (mentionDropdownRef.current && !mentionDropdownRef.current.contains(e.target)) {
         closeMentions();
       }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setMoreOpen(null);
+      }
     }
     document.addEventListener("mousedown", onPointerDown);
     return () => {
@@ -931,6 +944,16 @@ export default function Thread({
       if (mentionFetchRef.current) clearTimeout(mentionFetchRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!jumpTarget) return undefined;
+    const el = document.getElementById(`msg-${jumpTarget.id}`);
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const id = setTimeout(() => {
+      onJumpHandled();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [jumpTarget, onJumpHandled]);
 
   async function toggleReaction(msg, emoji, e) {
     e?.stopPropagation();
@@ -977,6 +1000,54 @@ export default function Thread({
     } catch {
       // transient
     }
+  }
+
+  async function toggleStar(msg) {
+    const willStar = !starredIds.has(msg.id);
+    persistStarred(conversationId, msg.id, willStar);
+    try {
+      const res = await fetch(`/api/chat/starred`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, messageId: msg.id, starred: willStar }),
+      });
+      if (!res.ok) {
+        persistStarred(conversationId, msg.id, !willStar);
+      }
+    } catch {
+      persistStarred(conversationId, msg.id, !willStar);
+    }
+  }
+
+  async function copyMessage(msg) {
+    const text =
+      msg.text ||
+      (msg.attachment?.kind === "image"
+        ? "📷 photo"
+        : msg.attachment?.kind === "audio"
+          ? "🎤 voice note"
+          : msg.attachment?.kind === "recording"
+            ? "📹 recording"
+            : msg.attachment?.name
+              ? `📎 ${msg.attachment.name}`
+              : "");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(msg.id);
+      setTimeout(() => setCopiedId((cur) => (cur === msg.id ? null : cur)), 1600);
+    } catch {
+      // clipboard unavailable (e.g. insecure context) — just no-op
+    }
+  }
+
+  function forwardMessage(msg) {
+    setMoreOpen(null);
+    onForward(msg);
+  }
+
+  function openMessageInfo(msg) {
+    setMoreOpen(null);
+    setInfoMsg(msg);
   }
 
   function reactionSummary(msg) {
@@ -1057,6 +1128,7 @@ export default function Thread({
           return (
             <div
               key={msg.id}
+              id={`msg-${msg.id}`}
               className={`${tStyles.threadMessage} ${grouped ? tStyles.grouped : ""} ${
                 isMine ? tStyles.msgMine : tStyles.msgTheirs
               }`}
@@ -1134,15 +1206,26 @@ export default function Thread({
                   </a>
                 )}
                 <div className={tStyles.bubbleMeta}>
-                  <span className={styles.bubbleTime}>{chatTimeLabel(millis)}</span>
-                  {isMine &&
-                    (msg.sending ? (
-                      <Check size={13} className={tStyles.tickSent} aria-label="Sending" />
-                    ) : readByOthers ? (
-                      <CheckCheck size={13} className={tStyles.tickRead} aria-label="Read" />
-                    ) : (
-                      <CheckCheck size={13} className={tStyles.tickDelivered} aria-label="Delivered" />
-                    ))}
+                  <button
+                    type="button"
+                    className={tStyles.metaInfoBtn}
+                    title="Message info"
+                    aria-label="Message info"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openMessageInfo(msg);
+                    }}
+                  >
+                    <span className={styles.bubbleTime}>{chatTimeLabel(millis)}</span>
+                    {isMine &&
+                      (msg.sending ? (
+                        <Check size={13} className={tStyles.tickSent} aria-label="Sending" />
+                      ) : readByOthers ? (
+                        <CheckCheck size={13} className={tStyles.tickRead} aria-label="Read" />
+                      ) : (
+                        <CheckCheck size={13} className={tStyles.tickDelivered} aria-label="Delivered" />
+                      ))}
+                  </button>
                 </div>
                 {canWriteChat && (
                 <div className={tStyles.replyActions}>
@@ -1172,6 +1255,66 @@ export default function Thread({
                   >
                     {msg.pinned ? <><Pin size={10} /> Pinned</> : <><Pin size={10} /> Pin</>}
                   </button>
+                  <button
+                    type="button"
+                    aria-label={starredIds.has(msg.id) ? "Unstar message" : "Star message"}
+                    className={starredIds.has(msg.id) ? tStyles.starBtnActive : tStyles.replyBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStar(msg);
+                    }}
+                  >
+                    <Star size={14} fill={starredIds.has(msg.id) ? "currentColor" : "none"} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="More actions"
+                    className={tStyles.replyBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMoreOpen(moreOpen === msg.id ? null : msg.id);
+                    }}
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                  {moreOpen === msg.id && (
+                    <div className={tStyles.moreMenu} ref={moreMenuRef}>
+                      <button
+                        type="button"
+                        className={tStyles.moreItem}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyMessage(msg);
+                          setMoreOpen(null);
+                        }}
+                      >
+                        <Copy size={13} aria-hidden="true" />
+                        {copiedId === msg.id ? "Copied ✓" : "Copy"}
+                      </button>
+                      <button
+                        type="button"
+                        className={tStyles.moreItem}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          forwardMessage(msg);
+                        }}
+                      >
+                        <Forward size={13} aria-hidden="true" />
+                        Forward
+                      </button>
+                      <button
+                        type="button"
+                        className={tStyles.moreItem}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openMessageInfo(msg);
+                        }}
+                      >
+                        <CheckCheck size={13} aria-hidden="true" />
+                        Message info
+                      </button>
+                    </div>
+                  )}
                   <button
                     type="button"
                     className={tStyles.replyBtn}
@@ -1469,6 +1612,14 @@ export default function Thread({
           </a>
         </div>
       )}
+
+      <MessageInfo
+        key={infoMsg?.id || "none"}
+        open={!!infoMsg}
+        onClose={() => setInfoMsg(null)}
+        conversationId={conversationId}
+        messageId={infoMsg?.id || ""}
+      />
     </div>
   );
 }

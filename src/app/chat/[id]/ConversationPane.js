@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ChatHeader from "./ChatHeader";
 import ChatInfo from "./ChatInfo";
 import Thread from "./Thread";
+import ForwardPicker from "./ForwardPicker";
+import { initStars } from "@/lib/chat-star-store";
 import styles from "../chat.module.css";
 
 // Owns the message-search state that the header and the thread share: the
 // header toggles/collects the query, the thread filters by it. Also owns the
-// per-chat info drawer, which the header's avatar/title open.
+// per-chat info drawer (which the header's avatar/title open), the forward
+// picker, and the scroll-to-message target for opening a starred message.
 export default function ConversationPane({
   conversationId,
   uid,
@@ -24,10 +27,23 @@ export default function ConversationPane({
   hideReceipts = false,
   presenceHidden = false,
   otherMemberId = "",
+  initialStars = {},
 }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
+  const [forwardMsg, setForwardMsg] = useState(null);
+  const [forwardSeq, setForwardSeq] = useState(0);
+  const [jumpTarget, setJumpTarget] = useState(null);
+
+  useEffect(() => {
+    initStars(initialStars);
+  }, [initialStars]);
+
+  function startForward(msg) {
+    setForwardMsg(msg);
+    setForwardSeq((n) => n + 1);
+  }
 
   function toggleSearch() {
     setSearchOpen((open) => {
@@ -35,6 +51,15 @@ export default function ConversationPane({
       return !open;
     });
   }
+
+  function openMessage(id) {
+    setInfoOpen(false);
+    setJumpTarget({ id, n: (jumpTarget?.n || 0) + 1 });
+  }
+
+  const handleJumpHandled = useCallback(() => {
+    setTimeout(() => setJumpTarget(null), 0);
+  }, []);
 
   return (
     <div className={styles.thread}>
@@ -62,6 +87,9 @@ export default function ConversationPane({
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         hideReceipts={hideReceipts}
+        jumpTarget={jumpTarget}
+        onJumpHandled={handleJumpHandled}
+        onForward={startForward}
       />
       <ChatInfo
         open={infoOpen}
@@ -75,6 +103,15 @@ export default function ConversationPane({
           setSearchOpen(true);
           setSearchQuery("");
         }}
+        onOpenMessage={openMessage}
+      />
+      <ForwardPicker
+        key={forwardSeq || 1}
+        open={!!forwardMsg}
+        onClose={() => setForwardMsg(null)}
+        conversationId={conversationId}
+        messageId={forwardMsg?.id || ""}
+        msg={forwardMsg}
       />
     </div>
   );

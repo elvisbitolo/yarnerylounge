@@ -2018,3 +2018,251 @@
   margin-right: 4px;
   vertical-align: -1px;
 }
+
+/* Centered modal (forward picker, message info) */
+.chatModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(8, 8, 12, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.chatModal {
+  width: 420px;
+  max-width: 100%;
+  max-height: 80vh;
+  background: #1b1b22;
+  border: 1px solid #2c2c35;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalIn 0.16s ease;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+
+@keyframes modalIn {
+  from {
+    transform: translateY(10px) scale(0.98);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.chatModalBody {
+  padding: 10px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+/* Message info rows */
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+  border-bottom: 1px solid #27272a;
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoRowIcon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.infoRowLabel {
+  width: 110px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #9b9bab;
+}
+
+.infoRowLabelEmpty {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.infoReaderName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f2f2f2;
+  overflow-wrap: anywhere;
+}
+
+.infoRowValue {
+  flex: 1;
+  font-size: 13px;
+  color: #d7d7dd;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.infoReadersHead {
+  margin: 8px 2px 2px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+}
+
+/* Forward picker */
+.forwardItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 8px;
+  border: none;
+  background: none;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.forwardItem:hover {
+  background: #26262f;
+}
+
+.forwardItem:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.forwardAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #2b2b35;
+  color: #f2f2f2;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.forwardTitle {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f2f2f2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forwardType {
+  color: #9b9bab;
+  font-weight: 500;
+}
+
+.forwardSend {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.forwardStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 2px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Starred messages list in the chat info drawer */
+.starredList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.starredItem {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #2c2c35;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.starredRow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.starredRow:hover {
+  background: #26262f;
+}
+
+.starredSender {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.starredText {
+  font-size: 13px;
+  color: #d7d7dd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.starredTime {
+  font-size: 11px;
+  color: #9b9bab;
+}
+
+.starredRemove {
+  width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #22222a;
+  color: #ffd98a;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.starredRemove:hover {
+  background: #2b2b35;
+  color: var(--primary);
+}
