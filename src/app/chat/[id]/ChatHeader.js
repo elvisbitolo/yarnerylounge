@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import BackButton from "@/components/BackButton";
 import PresenceStatus from "../PresenceStatus";
-import { Search, X } from "lucide-react";
+import { Info, Search, X } from "lucide-react";
 import { subscribeTyping, getTypingState, typingLabel } from "@/lib/chat-typing-core";
 import styles from "../chat.module.css";
 
@@ -12,7 +12,7 @@ const EMPTY_TYPING = [];
 // The conversation header: avatar, name, presence (or a live typing line), then
 // compact search that expands in place, plus call affordances. Typing is read
 // from the ephemeral store the thread publishes to, so the subtitle flips to
-// "typing…" without a round trip.
+// "typing…" without a round trip. The avatar/name open the per-chat info.
 export default function ChatHeader({
   title,
   photoURL,
@@ -24,6 +24,8 @@ export default function ChatHeader({
   searchQuery,
   onToggleSearch,
   onSearchChange,
+  onOpenInfo,
+  presenceHidden = false,
 }) {
   const typingNames = useSyncExternalStore(
     subscribeTyping,
@@ -42,26 +44,36 @@ export default function ChatHeader({
           <div className={styles.threadBack}>
             <BackButton fallback="/chat" label="Chats" />
           </div>
-          <div className={styles.headerAvatar} aria-hidden="true">
-            {photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoURL} alt="" className={styles.headerAvatarImg} />
-            ) : (
-              <span>{initial}</span>
-            )}
-          </div>
-          <div className={styles.headerIdentity}>
-            <h1 className={styles.threadTitle}>{title || "Member"}</h1>
-            {typingText ? (
-              <span className={styles.typingLine}>{typingText}</span>
-            ) : inLoungeName ? (
-              <span className={styles.headerLounge}>In {inLoungeName}</span>
-            ) : isGroup && participantIds.length > 0 ? (
-              <PresenceStatus userIds={participantIds} />
-            ) : participantIds.length > 0 ? (
-              <PresenceStatus userId={participantIds[0]} />
-            ) : null}
-          </div>
+          <button
+            type="button"
+            className={styles.headerIdentityBtn}
+            onClick={onOpenInfo}
+            aria-label={`Chat info for ${title || "this conversation"}`}
+            title="Chat info"
+          >
+            <span className={styles.headerAvatar} aria-hidden="true">
+              {photoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoURL} alt="" className={styles.headerAvatarImg} />
+              ) : (
+                <span>{initial}</span>
+              )}
+            </span>
+            <span className={styles.headerIdentity}>
+              <span className={styles.threadTitle}>{title || "Member"}</span>
+              <span className={styles.headerSubline}>
+                {typingText ? (
+                  <span className={styles.typingLine}>{typingText}</span>
+                ) : inLoungeName ? (
+                  <span className={styles.headerLounge}>In {inLoungeName}</span>
+                ) : isGroup && participantIds.length > 0 ? (
+                  <PresenceStatus userIds={participantIds} hidden={presenceHidden} />
+                ) : participantIds.length > 0 ? (
+                  <PresenceStatus userId={participantIds[0]} hidden={presenceHidden} />
+                ) : null}
+              </span>
+            </span>
+          </button>
         </div>
         <div className={styles.headerActions}>
           <button
@@ -72,6 +84,15 @@ export default function ChatHeader({
             onClick={onToggleSearch}
           >
             {searchOpen ? <X size={17} /> : <Search size={17} />}
+          </button>
+          <button
+            type="button"
+            className={styles.headerIconBtn}
+            aria-label="Chat info"
+            title="Chat info"
+            onClick={onOpenInfo}
+          >
+            <Info size={17} />
           </button>
         </div>
       </div>

@@ -1701,3 +1701,320 @@
   font-size: 12px;
   color: #8a8a98;
 }
+
+/* Header identity is a button that opens chat info */
+.headerIdentityBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  border-radius: 8px;
+}
+
+.headerIdentityBtn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.headerIdentityBtn:hover .headerAvatar {
+  box-shadow: 0 0 0 3px rgba(46, 189, 104, 0.16);
+}
+
+.headerSubline {
+  display: block;
+  font-size: 12px;
+  min-width: 0;
+}
+
+/* Settings drawer + per-chat info drawer */
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(8, 8, 12, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settingsDrawer {
+  width: 340px;
+  max-width: 92vw;
+  height: 100%;
+  background: #1b1b22;
+  border-left: 1px solid #2c2c35;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: drawerIn 0.18s ease;
+}
+
+@keyframes drawerIn {
+  from {
+    transform: translateX(16px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.drawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #27272a;
+}
+
+.drawerTitle {
+  font-size: 16px;
+  font-weight: 800;
+  color: #f2f2f2;
+  margin: 0;
+}
+
+.settingsBody {
+  padding: 10px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+}
+
+.settingsSectionTitle {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  margin: 0 0 6px;
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  min-width: 0;
+}
+
+.settingsIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+  color: #9b9bab;
+}
+
+.settingsLabelWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.settingsLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f2f2f2;
+}
+
+.settingsHint {
+  font-size: 12px;
+  color: #8a8a98;
+}
+
+.settingsNote {
+  font-size: 12px;
+  color: #8a8a98;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.toggle {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid #3a3a45;
+  background: #24242b;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.toggle:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.toggleKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #9b9bab;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.toggleOn {
+  background: rgba(46, 189, 104, 0.22);
+  border-color: var(--primary);
+}
+
+.toggleOn .toggleKnob {
+  transform: translateX(18px);
+  background: var(--primary);
+}
+
+.segmentGroup {
+  display: inline-flex;
+  border: 1px solid #3a3a45;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.segmentBtn {
+  border: none;
+  background: #24242b;
+  color: #b9b9c2;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmentBtn + .segmentBtn {
+  border-left: 1px solid #3a3a45;
+}
+
+.segmentBtnActive {
+  background: var(--primary);
+  color: #101014;
+}
+
+.muteOptions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.muteOption {
+  border: 1px solid #3a3a45;
+  background: #24242b;
+  color: #b9b9c2;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.muteOption:hover {
+  background: #2c2c35;
+}
+
+.muteOptionActive {
+  background: rgba(46, 189, 104, 0.16);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.muteOption:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.settingsActionRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 9px 0;
+  cursor: pointer;
+  color: #f2f2f2;
+  text-align: left;
+}
+
+.settingsActionRow:hover .settingsActionLabel {
+  color: var(--primary);
+}
+
+.settingsActionRow:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.settingsActionLabel {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.settingsActionArrow {
+  flex-shrink: 0;
+  color: #8a8a98;
+}
+
+.infoIdentity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0 8px;
+}
+
+.infoAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #2b2b35;
+  color: #f2f2f2;
+  font-size: 24px;
+  font-weight: 700;
+  background-size: cover;
+  background-position: center;
+}
+
+.infoName {
+  font-size: 16px;
+  font-weight: 800;
+  color: #f2f2f2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* Rail: pinned chats carry a small pin glyph */
+.railPin {
+  color: var(--primary);
+  margin-right: 4px;
+  vertical-align: -1px;
+}

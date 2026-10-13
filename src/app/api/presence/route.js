@@ -57,10 +57,15 @@ export async function GET(req) {
         select: { id: true, name: true, photoURL: true, extra: true },
       });
       const now = Date.now();
-      const uids = rows
-        .filter((row) => row.id !== user.uid && isOnlineRow(row, now))
+      // Members who chose "online visibility: nobody" don't appear on the member
+      // directory's online strip, nor in any live-presence list.
+      const visibleRows = rows.filter(
+        (row) => row.id !== user.uid && row.extra?.chatSettings?.onlineVisibility !== "nobody"
+      );
+      const uids = visibleRows
+        .filter((row) => isOnlineRow(row, now))
         .map((row) => row.id);
-      return NextResponse.json({ members: onlineMembers(rows, { excludeId: user.uid }), uids });
+      return NextResponse.json({ members: onlineMembers(visibleRows, { excludeId: user.uid }), uids });
     } catch (err) {
       logError("presence.online_failed", { error: err.message });
       return NextResponse.json({ error: "Presence unavailable" }, { status: 503 });
@@ -72,10 +77,13 @@ export async function GET(req) {
 
   try {
     const rows = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, extra: true } });
+    const visibleRows = rows.filter(
+      (row) => row.id === user.uid || row.extra?.chatSettings?.onlineVisibility !== "nobody"
+    );
     const now = Date.now();
     const rooms = await activeRoomsForUsers(ids, now);
     const presence = Object.fromEntries(
-      rows.map((row) => [
+      visibleRows.map((row) => [
         row.id,
         {
           online: isOnlineRow(row, now),

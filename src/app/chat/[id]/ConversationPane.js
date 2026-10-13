@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import ChatHeader from "./ChatHeader";
+import ChatInfo from "./ChatInfo";
 import Thread from "./Thread";
 import styles from "../chat.module.css";
 
 // Owns the message-search state that the header and the thread share: the
-// header toggles/collects the query, the thread filters by it.
+// header toggles/collects the query, the thread filters by it. Also owns the
+// per-chat info drawer, which the header's avatar/title open.
 export default function ConversationPane({
   conversationId,
   uid,
@@ -19,9 +21,13 @@ export default function ConversationPane({
   participantIds = [],
   conversationType,
   inLoungeName = "",
+  hideReceipts = false,
+  presenceHidden = false,
+  otherMemberId = "",
 }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [infoOpen, setInfoOpen] = useState(false);
 
   function toggleSearch() {
     setSearchOpen((open) => {
@@ -43,6 +49,8 @@ export default function ConversationPane({
         searchQuery={searchQuery}
         onToggleSearch={toggleSearch}
         onSearchChange={setSearchQuery}
+        onOpenInfo={() => setInfoOpen(true)}
+        presenceHidden={presenceHidden}
       />
       <Thread
         conversationId={conversationId}
@@ -53,6 +61,20 @@ export default function ConversationPane({
         canWriteChat={canWriteChat}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        hideReceipts={hideReceipts}
+      />
+      <ChatInfo
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        conversationId={conversationId}
+        title={title}
+        photoURL={photoURL}
+        isDm={conversationType === "dm"}
+        otherMemberId={otherMemberId}
+        onOpenSearch={() => {
+          setSearchOpen(true);
+          setSearchQuery("");
+        }}
       />
     </div>
   );

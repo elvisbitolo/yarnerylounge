@@ -9,6 +9,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
 import { validateReplyText } from "@/lib/server/chat-core";
+import { containsMention, isConversationMuted } from "@/lib/chat-settings-core";
 
 const MAX_ATTACHMENT_LENGTH = 700_000;
 const IMAGE_MIME = /^image\/(png|jpe?g|gif|webp|avif)$/;
@@ -231,14 +232,29 @@ export async function POST(req, { params }) {
         if (prisma) {
           const row = await prisma.user.findUnique({
             where: { id: otherId },
-            select: { email: true, notifications: true },
+            select: { email: true, notifications: true, username: true, extra: true },
           });
-          if (row) other = { email: row.email || "", notifications: row.notifications || "" };
+          if (row) {
+            other = {
+              email: row.email || "",
+              notifications: row.notifications || "",
+              username: row.username || "",
+              extra: row.extra,
+            };
+          }
         }
       } catch (err) {
         logError("chat.prisma_dm_recipient_failed", { error: err.message });
       }
-      if (other && other.notifications !== "off") {
+      // A muted conversation stays quiet — except when the message @-mentions
+      // the recipient directly, so a specific ask still breaks through.
+      const convPrefs =
+        other && other.extra && other.extra.chatPrefs && other.extra.chatPrefs[conversationId]
+          ? other.extra.chatPrefs[conversationId]
+          : {};
+      const muted = isConversationMuted(convPrefs);
+      const mentioned = containsMention(text, other && other.username);
+      if (other && other.notifications !== "off" && (!muted || mentioned)) {
         const snippet = text || (attachment?.kind === "image" ? "📷 Photo" : `📎 ${attachment?.name || "File"}`);
         await createNotification({
           userId: otherId,

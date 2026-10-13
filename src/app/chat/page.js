@@ -3,6 +3,7 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listConversations, getOrCreateDm, getOrCreateGroupChat, getOrCreateSpaceChat } from "@/lib/server/chat";
 import { isGroupMember } from "@/lib/server/groups";
 import { isSpaceMember } from "@/lib/server/spaces";
+import { mergeChatSettings } from "@/lib/chat-settings-core";
 import ConversationRail from "./ConversationRail";
 import MobilePanels from "./MobilePanels";
 import styles from "./chat.module.css";
@@ -39,6 +40,9 @@ export default async function ChatPage({ searchParams }) {
 
   const conversations = await listConversations(user.uid);
 
+  const chatSettings = mergeChatSettings({}, userDoc?.extra?.chatSettings);
+  const prefsById = userDoc?.extra?.chatPrefs || {};
+
   return (
       <MobilePanels
         activeId=""
@@ -48,6 +52,8 @@ export default async function ChatPage({ searchParams }) {
             conversations={conversations}
             activeId=""
             selfUid={user.uid}
+            settingsInit={chatSettings}
+            prefsByIdInit={prefsById}
           />
         }
         empty={

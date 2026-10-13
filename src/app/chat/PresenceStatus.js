@@ -8,7 +8,7 @@ import styles from "./chat.module.css";
 // Reads presence for one member (DM) or a set (group). When a member is in a
 // lounge, the status becomes "In <Lounge>" and links straight to the room.
 // DMs read "Online" or "Last seen …" so the header never just says "Away".
-export default function PresenceStatus({ userId, userIds = [] }) {
+export default function PresenceStatus({ userId, userIds = [], hidden = false }) {
   const ids = [...new Set([userId, ...userIds].filter(Boolean))];
   const idsKey = ids.join(",");
   const [onlineCount, setOnlineCount] = useState(0);
@@ -16,6 +16,7 @@ export default function PresenceStatus({ userId, userIds = [] }) {
   const [lastSeen, setLastSeen] = useState(null);
 
   useEffect(() => {
+    if (hidden) return undefined;
     let active = true;
     const refresh = async () => {
       try {
@@ -42,9 +43,9 @@ export default function PresenceStatus({ userId, userIds = [] }) {
       active = false;
       clearInterval(refreshTimer);
     };
-  }, [idsKey]);
+  }, [idsKey, hidden]);
 
-  if (!ids.length) return null;
+  if (!ids.length || hidden) return null;
 
   if (room && userIds.length === 0) {
     return (

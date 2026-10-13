@@ -2,6 +2,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { encryptText, decryptText } from "@/lib/server/crypto";
 import { BLOCKED_KEY, isSafetyId } from "./member-safety-core.js";
+import { readChatPrefs, resolveChatPrefs } from "@/lib/chat-settings-core";
 
 function toMillisValue(v) {
   if (v == null) return null;
@@ -325,6 +326,7 @@ export async function listConversations(uid) {
               : data.type === "dm"
                 ? (resolvedName || (otherId ? "Member" : "Chat"))
                 : data.name || "Group chat";
+            const prefsOut = resolveChatPrefs(readChatPrefs(viewerExtra, data.id));
             return {
               id: data.id,
               type: data.type,
@@ -339,9 +341,14 @@ export async function listConversations(uid) {
               lastSenderId: meta[data.id]?.lastSenderId || "",
               unreadCount: meta[data.id]?.unreadCount || 0,
               updatedAt: toMillisValue(row.updatedAt) || 0,
+              ...prefsOut,
             };
           })
-          .sort((a, b) => b.updatedAt - a.updatedAt);
+          .sort(
+            (a, b) =>
+              (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+              (b.pinnedAt || b.updatedAt) - (a.pinnedAt || a.updatedAt)
+          );
       }
     } catch (err) {
       logError("chat.prisma_list_convos_failed", { error: err.message });
@@ -605,6 +612,19 @@ export async function markConversationRead(conversationId, uid) {
         where: { id: conversationId },
         data: { lastReadAt: { ...currentReadAt, [uid]: now } },
       });
+
+      // Respect the viewer's read-receipts setting: when off, we still move the
+      // viewer's own unread position (that's local to them) but stop broadcasting
+      // "seen" ticks to senders.
+      let hideReceipts = false;
+      try {
+        const viewer = await prisma.user.findUnique({ where: { id: uid }, select: { extra: true } });
+        hideReceipts = !!(viewer && viewer.extra && viewer.extra.chatSettings
+          && viewer.extra.chatSettings.readReceipts === false);
+      } catch {
+        hideReceipts = false;
+      }
+      if (hideReceipts) return true;
 
       const msgs = await prisma.conversationMessage.findMany({
         where: { conversationId, senderId: { not: uid } },

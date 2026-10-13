@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCheck, Eye, EyeOff } from "lucide-react";
+import { CheckCheck, Eye, EyeOff, Pin, Settings2 } from "lucide-react";
 import { subscribeInbox } from "@/lib/chat-realtime";
 import { chatListTime } from "@/lib/chat-time";
 import { hasSearchQuery } from "@/lib/chat-search-core";
+import { applyPrefsToConversations } from "@/lib/chat-settings-core";
+import { getChatPrefs, initChatPrefs, saveChatSettings, useChatPrefs } from "@/lib/chat-prefs-store";
+import { shouldPlayMessageSound, playMessageChime } from "@/lib/chat-sound";
 import {
   subscribeTyping,
   getTypingState,
@@ -15,16 +18,19 @@ import {
   getTypingHiddenServer,
   setTypingHidden,
 } from "@/lib/chat-typing-core";
+import ChatSettingsPanel from "./ChatSettingsPanel";
 import styles from "./chat.module.css";
 
 const EMPTY_TYPING = {};
 
 // Lounges are the "space" conversations; groups are the multi-member chats.
+// Archived conversations only surface through their own filter.
 const FILTERS = [
   { key: "all", label: "All" },
   { key: "unread", label: "Unread" },
   { key: "lounges", label: "Lounges" },
   { key: "groups", label: "Groups" },
+  { key: "archived", label: "Archived" },
 ];
 
 function initial(name) {
@@ -36,16 +42,26 @@ function unread(conv) {
 }
 
 function matchesFilter(conv, filter) {
-  if (filter === "unread") return unread(conv);
-  if (filter === "lounges") return conv.type === "space";
-  if (filter === "groups") return conv.type === "group";
-  return true;
+  if (filter === "archived") return conv.archived === true;
+  if (filter === "unread") return unread(conv) && !conv.archived;
+  if (filter === "lounges") return conv.type === "space" && !conv.archived;
+  if (filter === "groups") return conv.type === "group" && !conv.archived;
+  return !conv.archived;
 }
 
-export default function ConversationRail({ conversations, activeId, selfUid }) {
+export default function ConversationRail({
+  conversations,
+  activeId,
+  selfUid,
+  settingsInit,
+  prefsByIdInit,
+}) {
   const router = useRouter();
   const [convs, setConvs] = useState(conversations);
   const prevConversationsRef = useRef(conversations);
+  // Snapshot of last-seen inbox state per conversation id, used to decide when
+  // a *new* message arrived (so the chime stays silent for things already seen).
+  const lastInboxByRef = useRef(null);
   const [query, setQuery] = useState("");
   const [listFilter, setListFilter] = useState("all");
   const [showNewChat, setShowNewChat] = useState(false);
@@ -54,12 +70,17 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
   const [searching, setSearching] = useState(false);
   const [startError, setStartError] = useState("");
   const [liveRooms, setLiveRooms] = useState([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Results from the server search: conversations whose *message history*
   // matches, and every member whose name/username matches. Seeded empty and
   // refreshed on a debounce so typing stays instant.
   const [historyHits, setHistoryHits] = useState([]);
   const [memberHits, setMemberHits] = useState([]);
   const [remoteSearching, setRemoteSearching] = useState(false);
+
+  // Global settings + per-conversation prefs live in the shared store so the
+  // rail, the settings drawer and the chat-info drawer stay in sync.
+  const chatPrefs = useChatPrefs();
 
   // Typing is ephemeral and published by the open thread, so the list preview
   // reads the same store the header uses.
@@ -82,6 +103,24 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
     setConvs(conversations);
   }, [conversations]);
 
+  // Seed the shared prefs store once per mount from the server-rendered
+  // snapshot; the server stays the source of truth for everything that
+  // survives a reload.
+  useEffect(() => {
+    initChatPrefs({ settings: settingsInit, prefsById: prefsByIdInit });
+    // A server snapshot wins over a stale local flag until the drawer writes
+    // a new value.
+    if (typeof settingsInit?.typingHidden === "boolean") {
+      setTypingHidden(settingsInit.typingHidden);
+    }
+    // The first inbox snapshot is the conversation list we rendered with, so a
+    // fresh poll never chimes for messages that were already on screen.
+    lastInboxByRef.current = Object.fromEntries(
+      (conversations || []).map((conv) => [conv.id, conv])
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Live inbox: when any of the member's conversations changes (a message
   // lands, read state moves), refresh the list so previews and order stay
   // current without a page reload. The 30s poll is only a fallback.
@@ -94,7 +133,33 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
         const res = await fetch("/api/conversations", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data.conversations)) setConvs(data.conversations);
+          if (Array.isArray(data.conversations)) {
+            const incoming = data.conversations;
+            // Play the chime when a *new* message from someone else lands in a
+            // conversation that has sounds on and isn't muted. Diffing against
+            // the previous snapshot keeps repeats (refresh / own reads) silent.
+            const before = lastInboxByRef.current || null;
+            const live = getChatPrefs();
+            if (before && live.settings.messageSound !== false) {
+              for (const conv of incoming) {
+                const prev = before[conv.id];
+                const hasNewMessage =
+                  (conv.lastMessageAt || 0) > (prev?.lastMessageAt || 0) &&
+                  conv.lastSenderId &&
+                  conv.lastSenderId !== selfUid;
+                if (!hasNewMessage) continue;
+                const rawPrefs = live.prefs[conv.id] || {};
+                const mutedByConv =
+                  rawPrefs.muted === true ||
+                  (rawPrefs.mutedUntil || 0) > Date.now();
+                if (shouldPlayMessageSound({ messageSound: live.settings.messageSound, muted: mutedByConv, fromSelf: false })) {
+                  playMessageChime();
+                }
+              }
+            }
+            lastInboxByRef.current = Object.fromEntries(incoming.map((c) => [c.id, c]));
+            setConvs(incoming);
+          }
         }
       } catch {
         // keep the current list; the next event or poll retries
@@ -115,7 +180,7 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
       cleanup();
       clearInterval(timer);
     };
-  }, []);
+  }, [selfUid]);
 
   // "Live now" strip: which lounges have people in them right now. Replaces the
   // old page-wide pink banner with a compact, actionable row inside the list.
@@ -224,7 +289,26 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
     }
   }
 
-  const unreadCount = useMemo(() => convs.filter(unread).length, [convs]);
+  async function toggleTypingHidden() {
+    const next = !typingHidden;
+    const updated = await saveChatSettings({ typingHidden: next });
+    if (updated) setTypingHidden(next);
+  }
+
+  // Live pin/archive/mute flags: the store mirrors per-conversation pref writes
+  // immediately, so a just-pinned chat jumps to the top without a reload. Pinned
+  // chats sort first (most recent pin wins), then by recency.
+  const convsByPref = useMemo(
+    () =>
+      applyPrefsToConversations(convs, chatPrefs.prefs).sort(
+        (a, b) =>
+          (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+          (b.pinnedAt || b.updatedAt) - (a.pinnedAt || a.updatedAt)
+      ),
+    [convs, chatPrefs.prefs]
+  );
+
+  const unreadCount = useMemo(() => convsByPref.filter(unread).length, [convsByPref]);
 
   const historyById = useMemo(() => {
     const map = new Map();
@@ -237,7 +321,7 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
   // order. Rows carry the snippet so the list says *why* a chat matched.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = convs.filter((c) => matchesFilter(c, listFilter));
+    const list = convsByPref.filter((c) => matchesFilter(c, listFilter));
     if (!q) return list.map((c) => ({ conv: c, snippet: "", matchCount: 0 }));
 
     const localMatches = list.filter(
@@ -259,7 +343,7 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
         matchCount: hit?.matchCount || 0,
       };
     });
-  }, [convs, query, listFilter, historyHits, historyById]);
+  }, [convsByPref, query, listFilter, historyHits, historyById]);
 
   const searchActive = hasSearchQuery(query);
 
@@ -272,7 +356,17 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
             <button
               type="button"
               className={styles.iconToggle}
-              onClick={() => setTypingHidden(!typingHidden)}
+              onClick={() => setSettingsOpen(true)}
+              aria-pressed={settingsOpen}
+              aria-label="Chat settings"
+              title="Chat settings"
+            >
+              <Settings2 size={15} />
+            </button>
+            <button
+              type="button"
+              className={styles.iconToggle}
+              onClick={toggleTypingHidden}
               aria-pressed={typingHidden}
               aria-label={typingHidden ? "Show my typing indicator" : "Hide my typing indicator"}
               title={typingHidden ? "Show my typing indicator" : "Hide my typing indicator"}
@@ -442,6 +536,9 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
                     <span className={styles.railBody}>
                       <span className={styles.railTop}>
                         <span className={`${styles.railName} ${unreadChat ? styles.railNameUnread : ""}`}>
+                          {conv.pinned && (
+                            <Pin size={12} className={styles.railPin} aria-label="Pinned" />
+                          )}
                           {conv.title}
                         </span>
                         <span className={styles.railTime}>{chatListTime(conv.lastMessageAt)}</span>
@@ -481,6 +578,8 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
           </ul>
         )}
       </div>
+
+      <ChatSettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </aside>
   );
 }

@@ -260,6 +260,7 @@ export default function Thread({
   canWriteChat = false,
   searchQuery = "",
   onSearchChange = () => {},
+  hideReceipts = false,
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [hasOlder, setHasOlder] = useState(initialHasMore);
@@ -1051,7 +1052,7 @@ export default function Thread({
             millis - prevMillis < GROUP_WINDOW_MS;
           const replies = msg.replies || [];
           const readByOthers =
-            !!msg.readBy && Object.keys(msg.readBy).some((readerId) => readerId !== uid);
+            !hideReceipts && !!msg.readBy && Object.keys(msg.readBy).some((readerId) => readerId !== uid);
           const isExpanded = expandedThreads[msg.id] || false;
           return (
             <div
