@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CheckCheck, Eye, EyeOff } from "lucide-react";
 import { subscribeInbox } from "@/lib/chat-realtime";
 import { chatListTime } from "@/lib/chat-time";
+import { hasSearchQuery } from "@/lib/chat-search-core";
 import {
   subscribeTyping,
   getTypingState,
@@ -53,6 +54,12 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
   const [searching, setSearching] = useState(false);
   const [startError, setStartError] = useState("");
   const [liveRooms, setLiveRooms] = useState([]);
+  // Results from the server search: conversations whose *message history*
+  // matches, and every member whose name/username matches. Seeded empty and
+  // refreshed on a debounce so typing stays instant.
+  const [historyHits, setHistoryHits] = useState([]);
+  const [memberHits, setMemberHits] = useState([]);
+  const [remoteSearching, setRemoteSearching] = useState(false);
 
   // Typing is ephemeral and published by the open thread, so the list preview
   // reads the same store the header uses.
@@ -158,6 +165,44 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
     return () => clearTimeout(t);
   }, [memberQuery, showNewChat, selfUid]);
 
+  // Full-history + member search. The list below still filters locally for an
+  // instant response; this only adds what the client cannot know — matches
+  // buried in message history, and members the viewer has no chat with yet.
+  useEffect(() => {
+    const q = query.trim();
+    if (!hasSearchQuery(q)) {
+      // defer the clear so it never runs synchronously inside the effect body
+      const clearTimer = setTimeout(() => {
+        setHistoryHits([]);
+        setMemberHits([]);
+        setRemoteSearching(false);
+      }, 0);
+      return () => clearTimeout(clearTimer);
+    }
+    let active = true;
+    const t = setTimeout(async () => {
+      if (active) setRemoteSearching(true);
+      try {
+        const res = await fetch(`/api/chat/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+        const data = res.ok ? await res.json() : null;
+        if (!active) return;
+        setHistoryHits(Array.isArray(data?.conversations) ? data.conversations : []);
+        setMemberHits(Array.isArray(data?.members) ? data.members : []);
+      } catch {
+        if (active) {
+          setHistoryHits([]);
+          setMemberHits([]);
+        }
+      } finally {
+        if (active) setRemoteSearching(false);
+      }
+    }, 220);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [query]);
+
   async function startWith(member) {
     setStartError("");
     try {
@@ -181,15 +226,42 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
 
   const unreadCount = useMemo(() => convs.filter(unread).length, [convs]);
 
+  const historyById = useMemo(() => {
+    const map = new Map();
+    for (const hit of historyHits) map.set(hit.conversationId, hit);
+    return map;
+  }, [historyHits]);
+
+  // Local title/last-message matches stay first (instant and familiar); then the
+  // conversations the server found by full message history, in its recency
+  // order. Rows carry the snippet so the list says *why* a chat matched.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = convs.filter((c) => matchesFilter(c, listFilter));
-    if (!q) return list;
-    return list.filter((c) =>
-      (c.title || "").toLowerCase().includes(q) ||
-      (c.lastMessage || "").toLowerCase().includes(q)
+    const list = convs.filter((c) => matchesFilter(c, listFilter));
+    if (!q) return list.map((c) => ({ conv: c, snippet: "", matchCount: 0 }));
+
+    const localMatches = list.filter(
+      (c) =>
+        (c.title || "").toLowerCase().includes(q) ||
+        (c.lastMessage || "").toLowerCase().includes(q)
     );
-  }, [convs, query, listFilter]);
+    const localIds = new Set(localMatches.map((c) => c.id));
+    const order = new Map(historyHits.map((hit, index) => [hit.conversationId, index]));
+    const historyMatches = list
+      .filter((c) => !localIds.has(c.id) && historyById.has(c.id))
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+
+    return [...localMatches, ...historyMatches].map((c) => {
+      const hit = historyById.get(c.id);
+      return {
+        conv: c,
+        snippet: hit?.snippets?.[0]?.text || "",
+        matchCount: hit?.matchCount || 0,
+      };
+    });
+  }, [convs, query, listFilter, historyHits, historyById]);
+
+  const searchActive = hasSearchQuery(query);
 
   return (
     <aside className={styles.rail}>
@@ -299,21 +371,58 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
       )}
 
       <div className={styles.railListWrap}>
+        {searchActive && memberHits.length > 0 && (
+          <div className={styles.searchSection}>
+            <p className={styles.searchSectionLabel}>Members</p>
+            <ul className={styles.memberList}>
+              {memberHits.map((m) => (
+                <li key={m.uid}>
+                  <button
+                    type="button"
+                    className={styles.memberRow}
+                    onClick={() => startWith(m)}
+                  >
+                    <span
+                      className={styles.railAvatar}
+                      style={m.photoURL ? { backgroundImage: `url(${m.photoURL})` } : undefined}
+                    >
+                      {!m.photoURL && initial(m.name)}
+                    </span>
+                    <span className={styles.memberName}>{m.name || "Member"}</span>
+                    {m.username && <span className={styles.memberUsername}>@{m.username}</span>}
+                    <span className={styles.memberAction}>Message</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {searchActive && (
+          <p className={styles.searchSectionLabel}>
+            Chats
+            {remoteSearching && <span className={styles.searchNote}> · searching…</span>}
+          </p>
+        )}
+
         {filtered.length === 0 ? (
           <p className={styles.railEmpty}>
             {query
-              ? "No chats match your search."
+              ? memberHits.length > 0
+                ? "No chats match — but you can message someone above."
+                : "No chats match your search."
               : listFilter === "unread"
                 ? "You're all caught up."
                 : "No conversations yet. Start one with + New chat."}
           </p>
         ) : (
           <ul className={styles.railList}>
-            {filtered.map((conv) => {
+            {filtered.map(({ conv, snippet, matchCount }) => {
               const isActive = conv.id === activeId;
               const unreadChat = unread(conv);
               const typingNames = typingByConversation[conv.id] || [];
-              const previewText = typingNames.length > 0 ? "typing…" : conv.lastMessage || "Say hi!";
+              const previewText =
+                typingNames.length > 0 ? "typing…" : snippet || conv.lastMessage || "Say hi!";
               const mine = !!conv.lastSenderId && conv.lastSenderId === selfUid;
               return (
                 <li key={conv.id}>
@@ -349,6 +458,11 @@ export default function ConversationRail({ conversations, activeId, selfUid }) {
                         >
                           {previewText}
                         </span>
+                        {snippet && matchCount > 1 && typingNames.length === 0 && (
+                          <span className={styles.matchBadge} title={`${matchCount} matching messages`}>
+                            {matchCount > 99 ? "99+" : matchCount}
+                          </span>
+                        )}
                         {mine && (
                           <CheckCheck size={13} className={styles.railTicks} aria-label="Delivered" />
                         )}

@@ -1287,6 +1287,61 @@
   white-space: nowrap;
 }
 
+.memberUsername {
+  font-size: 12px;
+  color: #8b8b9b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberAction {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.searchSection {
+  padding: 6px 8px 2px;
+}
+
+.searchSectionLabel {
+  margin: 0;
+  padding: 10px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b8b9b;
+}
+
+.searchNote {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #6b6b7b;
+}
+
+.matchBadge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(233, 30, 99, 0.16);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .railListWrap {
   flex: 1;
   min-height: 0;
