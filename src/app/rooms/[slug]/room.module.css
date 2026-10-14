@@ -31,23 +31,23 @@
   background: #ffffff;
   border: 1px solid #e5d9dc;
   border-radius: 16px;
-  padding: 22px 22px 18px;
+  padding: 16px 18px 13px;
   text-align: center;
   box-shadow: 0 28px 56px -32px rgba(37, 35, 41, 0.3);
 }
 
 .title {
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 800;
   color: #252329;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
 }
 
 .subtitle {
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.4;
   color: #716a70;
-  margin: 0 0 14px;
+  margin: 0 0 10px;
 }
 
 .error {
@@ -62,7 +62,7 @@
 
 .join {
   width: 100%;
-  height: 44px;
+  height: 40px;
   background: #c2185b;
   color: #ffffff;
   border: none;
@@ -88,11 +88,11 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 200px;
+  max-height: 150px;
   border-radius: 12px;
   overflow: hidden;
   background: #2a2026;
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2888,7 +2888,7 @@
 /* Media preflight (prejoin) */
 
 .previewWrap {
-  margin-bottom: 16px;
+  margin-bottom: 11px;
 }
 
 /* Non-blocking status pill overlaying the Jitsi stage */
@@ -2961,10 +2961,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   max-width: min(360px, 84vw);
-  padding: 26px 34px;
-  border-radius: 22px;
+  padding: 17px 26px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow: 0 24px 60px -22px rgba(96, 24, 46, 0.5);
@@ -2977,8 +2977,8 @@
 }
 
 .stageJoinSpinner {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 3px solid rgba(233, 30, 99, 0.22);
   border-top-color: #e91e63;
@@ -2987,7 +2987,7 @@
 
 .stageJoinTitle {
   margin: 2px 0 0;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: #2b2326;
 }
@@ -3014,8 +3014,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  margin-top: 6px;
-  padding: 9px 18px;
+  margin-top: 3px;
+  padding: 7px 16px;
   border: 0;
   border-radius: 999px;
   background: linear-gradient(90deg, #e91e63, #c2185b);
