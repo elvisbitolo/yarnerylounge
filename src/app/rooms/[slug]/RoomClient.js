@@ -68,7 +68,9 @@ const TOKEN_REQUEST_TIMEOUT_MS = 15000;
 
 // The JaaS web client boots + signals asynchronously inside its iframe; keep the
 // wait visible and recoverable instead of a silent black screen that hangs.
-const CONNECT_STALL_MS = 15000;
+// Offer "hang tight or retry" early so a stuck boot never traps the user; the
+// hard timeout below still governs when we give up entirely.
+const CONNECT_STALL_MS = 6000;
 const CONNECT_TIMEOUT_MS = 40000;
 const TOKEN_TTL_MS = 45000;
 
