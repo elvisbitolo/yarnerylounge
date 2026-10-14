@@ -26,6 +26,13 @@
   --primary-active: #ad1457;
   --primary-contrast: #ffffff;
 
+  /* Chat accent — overridden per-user inside the conversation thread only
+     (see chat-appearance-core). Defaults to the brand magenta so the rest of
+     the app is unaffected. --chat-accent-text is the text color that sits on
+     accent bubbles; every offered accent is curated for legibility with it. */
+  --chat-accent: var(--primary);
+  --chat-accent-text: #ffffff;
+
   /* 3-4. Secondary (Deep magenta-black) */
   --secondary: #6d0f35;
   --secondary-light: #ad1457;

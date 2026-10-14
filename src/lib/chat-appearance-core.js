@@ -1,16 +1,18 @@
-// Chat appearance (WhatsApp-style wallpaper). Viewers pick a chat background
-// globally in Chat settings or per conversation from the chat-info drawer; an
-// optional custom image can be uploaded. Everything is stored in the same
-// user.extra JSON bag as the other chat prefs, under `extra.appearance`:
+// Chat appearance (WhatsApp-style wallpaper + accent). Viewers pick a chat
+// background globally in Chat settings or per conversation from the chat-info
+// drawer; an optional custom image can be uploaded. A chat accent color can
+// also be chosen globally. Everything is stored in the same user.extra JSON
+// bag as the other chat prefs, under `extra.appearance`:
 //
 //   appearance = {
 //     wallpaper: "default" | presetId | "custom",
 //     customWallpaper: "data:image/...;base64,...",   // only when custom
-//     perChat: { [conversationId]: "default" | presetId | "custom" }
+//     perChat: { [conversationId]: "default" | presetId | "custom" },
+//     accent: null | accentId                        // null = brand default
 //   }
 //
-// Only the id is stored for presets — the actual background lives here, so the
-// set can be adjusted without touching anyone's stored data.
+// Only the id is stored for presets/accents — the actual styling lives here,
+// so the set can be adjusted without touching anyone's stored data.
 
 // Each preset is a CSS `background` value applied to the thread.
 export const CHAT_WALLPAPERS = [
@@ -39,7 +41,31 @@ export const CHAT_WALLPAPERS = [
 
 export const WALLPAPER_IDS = new Set(CHAT_WALLPAPERS.map((w) => w.id));
 
-export const DEFAULT_APPEARANCE = { wallpaper: "default", customWallpaper: "" };
+// Chat accent colors. Every entry is curated for legibility in BOTH of the
+// places an accent lands:
+//   1. As the .mine bubble background — so its color paired with the near-white
+//      bubble text keeps WCAG-style contrast (>= a few :1, min for large/high
+//      visibility text like chat bubbles).
+//   2. As small accent *text* (names, timestamps, reactions, links, divider)
+//      on the dark incoming bubble/thread surface (#26262e ish) — so it has to
+//      sit bright enough to read on near-black too.
+// Light pastels are deliberately excluded: on a pale bubble the fixed
+// near-white bubble "chrome" (time, ticks, action tint) would wash out. The
+// whole set reads as white-on-color, so bubble text stays crisp.
+export const CHAT_ACCENTS = [
+  { id: "rose", label: "Rose", color: "#e14a68" },
+  { id: "berry", label: "Berry", color: "#c9316b" },
+  { id: "grape", label: "Grape", color: "#8e5cf7" },
+  { id: "indigo", label: "Indigo", color: "#5b6beb" },
+  { id: "ocean", label: "Ocean", color: "#2f86eb" },
+  { id: "teal", label: "Teal", color: "#0f9d8b" },
+  { id: "forest", label: "Forest", color: "#2e8b57" },
+  { id: "ember", label: "Ember", color: "#d9592c" },
+];
+
+export const ACCENT_IDS = new Set(CHAT_ACCENTS.map((a) => a.id));
+
+export const DEFAULT_APPEARANCE = { wallpaper: "default", customWallpaper: "", accent: null };
 
 // Custom wallpapers are compressed on the client and capped here so they stay
 // small inside the user's extra JSON.
@@ -57,7 +83,16 @@ export function isWallpaperChoice(value) {
   return value === "default" || value === "custom" || WALLPAPER_IDS.has(value);
 }
 
-// Merges a PATCH (wallpaper choice and/or a custom image) onto the stored
+const isKnownAccent = (value) => typeof value === "string" && ACCENT_IDS.has(value);
+
+// The accent color to theme the thread with, or `null` for the brand default.
+export function accentColorFor(appearance) {
+  const app = baseOf(appearance);
+  if (!isKnownAccent(app.accent)) return null;
+  return CHAT_ACCENTS.find((a) => a.id === app.accent).color;
+}
+
+// Merges a PATCH (wallpaper choice, custom image and/or accent) onto the stored
 // appearance. A new custom image always wins and becomes the chosen wallpaper;
 // a choice pointing at "custom" is only honored if an image is already stored.
 export function applyAppearancePatch(current, patch) {
@@ -65,6 +100,7 @@ export function applyAppearancePatch(current, patch) {
   const merged = {
     wallpaper: typeof base.wallpaper === "string" ? base.wallpaper : "default",
     customWallpaper: typeof base.customWallpaper === "string" ? base.customWallpaper : "",
+    accent: isKnownAccent(base.accent) ? base.accent : null,
   };
   const patchBase = baseOf(patch);
   if (isSafeCustomWallpaper(patchBase.customWallpaper)) {
@@ -76,6 +112,11 @@ export function applyAppearancePatch(current, patch) {
     } else if (patchBase.wallpaper === "custom" && merged.customWallpaper) {
       merged.wallpaper = "custom";
     }
+  }
+  if (patchBase.accent === "default" || patchBase.accent === null) {
+    merged.accent = null;
+  } else if (isKnownAccent(patchBase.accent)) {
+    merged.accent = patchBase.accent;
   }
   return merged;
 }
@@ -90,6 +131,7 @@ export function applyPerChatOverride(current, conversationId, value) {
   return {
     wallpaper: typeof base.wallpaper === "string" ? base.wallpaper : "default",
     customWallpaper: typeof base.customWallpaper === "string" ? base.customWallpaper : "",
+    accent: isKnownAccent(base.accent) ? base.accent : null,
     perChat,
   };
 }

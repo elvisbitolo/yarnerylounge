@@ -1,11 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { DEFAULT_APPEARANCE } from "@/lib/chat-appearance-core";
+import { ACCENT_IDS, DEFAULT_APPEARANCE } from "@/lib/chat-appearance-core";
 
-// Shared client-side view of the viewer's chat appearance (wallpaper). The
-// thread, the settings drawer and the chat-info override all read and write
-// through here so a wallpaper change applies everywhere at once.
+// Shared client-side view of the viewer's chat appearance (wallpaper + accent).
+// The thread, the settings drawer and the chat-info override all read and write
+// through here so a change applies everywhere at once.
 
 let state = { ...DEFAULT_APPEARANCE, perChat: {} };
 
@@ -20,26 +20,25 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
+const isKnownAccent = (value) => typeof value === "string" && ACCENT_IDS.has(value);
+
+function fromServer(appearance) {
+  if (!appearance || typeof appearance !== "object") return { ...DEFAULT_APPEARANCE, perChat: {} };
+  return {
+    wallpaper: typeof appearance.wallpaper === "string" ? appearance.wallpaper : "default",
+    customWallpaper: typeof appearance.customWallpaper === "string" ? appearance.customWallpaper : "",
+    perChat: appearance.perChat && typeof appearance.perChat === "object" ? appearance.perChat : {},
+    accent: isKnownAccent(appearance.accent) ? appearance.accent : null,
+  };
+}
+
 export function initAppearance(appearance) {
-  if (!appearance || typeof appearance !== "object") {
-    state = { ...DEFAULT_APPEARANCE, perChat: {} };
-  } else {
-    state = {
-      wallpaper: typeof appearance.wallpaper === "string" ? appearance.wallpaper : "default",
-      customWallpaper: typeof appearance.customWallpaper === "string" ? appearance.customWallpaper : "",
-      perChat: appearance.perChat && typeof appearance.perChat === "object" ? appearance.perChat : {},
-    };
-  }
+  state = fromServer(appearance);
   emit();
 }
 
 export function setAppearance(appearance) {
-  if (!appearance || typeof appearance !== "object") return;
-  state = {
-    wallpaper: typeof appearance.wallpaper === "string" ? appearance.wallpaper : "default",
-    customWallpaper: typeof appearance.customWallpaper === "string" ? appearance.customWallpaper : "",
-    perChat: appearance.perChat && typeof appearance.perChat === "object" ? appearance.perChat : {},
-  };
+  state = fromServer(appearance);
   emit();
 }
 

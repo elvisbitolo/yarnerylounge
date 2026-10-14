@@ -5,6 +5,7 @@ import { Eye, EyeOff, Palette, Type, Volume2, X } from "lucide-react";
 import { saveChatSettings, useChatPrefs } from "@/lib/chat-prefs-store";
 import { setTypingHidden } from "@/lib/chat-typing-core";
 import { useAppearance, saveChatAppearance } from "@/lib/chat-appearance-store";
+import AccentPicker from "./AccentPicker";
 import WallpaperPicker from "./WallpaperPicker";
 import styles from "./chat.module.css";
 
@@ -153,6 +154,22 @@ export default function ChatSettingsPanel({ open, onClose }) {
               showUpload
               onPick={(wallpaper) => saveChatAppearance({ wallpaper })}
               onUpload={(customWallpaper) => saveChatAppearance({ customWallpaper })}
+            />
+            <div className={styles.settingsRow}>
+              <span className={styles.settingsIcon}>
+                <Palette size={16} aria-hidden="true" />
+              </span>
+              <span className={styles.settingsLabelWrap}>
+                <span className={styles.settingsLabel}>Chat color</span>
+                <span className={styles.settingsHint}>
+                  Tint your bubbles, names and links. Every color keeps message
+                  text readable.
+                </span>
+              </span>
+            </div>
+            <AccentPicker
+              value={appearance.accent}
+              onPick={(accent) => saveChatAppearance({ accent: accent === null ? "default" : accent })}
             />
           </section>
 

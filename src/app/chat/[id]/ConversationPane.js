@@ -6,7 +6,8 @@ import ChatInfo from "./ChatInfo";
 import Thread from "./Thread";
 import ForwardPicker from "./ForwardPicker";
 import { initStars } from "@/lib/chat-star-store";
-import { initAppearance } from "@/lib/chat-appearance-store";
+import { initAppearance, useAppearance } from "@/lib/chat-appearance-store";
+import { accentColorFor } from "@/lib/chat-appearance-core";
 import styles from "../chat.module.css";
 
 // Owns the message-search state that the header and the thread share: the
@@ -37,6 +38,9 @@ export default function ConversationPane({
   const [forwardMsg, setForwardMsg] = useState(null);
   const [forwardSeq, setForwardSeq] = useState(0);
   const [jumpTarget, setJumpTarget] = useState(null);
+  const appearance = useAppearance();
+  const accent = accentColorFor(appearance);
+  const accentVars = accent ? { "--chat-accent": accent, "--chat-accent-text": "#ffffff" } : undefined;
 
   useEffect(() => {
     initStars(initialStars);
@@ -68,7 +72,7 @@ export default function ConversationPane({
   }, []);
 
   return (
-    <div className={styles.thread}>
+    <div className={styles.thread} style={accentVars}>
       <ChatHeader
         title={title}
         photoURL={photoURL}

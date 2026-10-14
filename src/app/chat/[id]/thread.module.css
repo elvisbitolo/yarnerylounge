@@ -55,7 +55,7 @@
 }
 
 .replyMine {
-  background: var(--primary);
+  background: var(--chat-accent);
   color: #ffffff;
   align-self: flex-end;
 }
@@ -79,7 +79,7 @@
 }
 
 .replyBubbleText a {
-  color: var(--primary);
+  color: var(--chat-accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -89,7 +89,7 @@
 }
 
 .replyBubble .bubbleName {
-  color: var(--primary);
+  color: var(--chat-accent);
 }
 
 .replyMine .bubbleName {
@@ -113,7 +113,7 @@
 }
 
 .replyBtn:hover {
-  color: var(--primary);
+  color: var(--chat-accent);
   background: #2b2b35;
 }
 
@@ -135,7 +135,7 @@
   padding: 2px 8px;
   border: none;
   background: rgba(233, 30, 99, 0.18);
-  color: var(--primary);
+  color: var(--chat-accent);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -173,13 +173,13 @@
 }
 
 .replyInput:focus {
-  border-color: var(--primary);
+  border-color: var(--chat-accent);
 }
 
 .replySend {
   height: 36px;
   padding: 0 14px;
-  background: var(--primary);
+  background: var(--chat-accent);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -191,7 +191,7 @@
 }
 
 .replySend:hover:not(:disabled) {
-  background: var(--primary-hover);
+  filter: brightness(0.92);
 }
 
 .replySend:disabled {
@@ -286,7 +286,7 @@
 }
 
 .searchInput:focus {
-  border-color: var(--primary);
+  border-color: var(--chat-accent);
 }
 
 .searchClear {
@@ -329,7 +329,7 @@
 }
 
 .bubbleText a {
-  color: var(--primary);
+  color: var(--chat-accent);
   text-decoration: underline;
   text-decoration-color: rgba(var(--primary-rgb, 124, 58, 237), 0.4);
   text-underline-offset: 2px;
@@ -337,7 +337,7 @@
 }
 
 .bubbleText a:hover {
-  text-decoration-color: var(--primary);
+  text-decoration-color: var(--chat-accent);
 }
 
 .mine .bubbleText a {
@@ -469,10 +469,10 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border: 1px solid var(--primary);
+  border: 1px solid var(--chat-accent);
   border-radius: 999px;
   background: rgba(233, 30, 99, 0.2);
-  color: var(--primary);
+  color: var(--chat-accent);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -620,7 +620,7 @@
 }
 
 .loadOlder:hover:not(:disabled) {
-  border-color: var(--primary);
+  border-color: var(--chat-accent);
   background: #2b2b35;
 }
 
@@ -714,7 +714,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: var(--primary);
+  background: var(--chat-accent);
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
@@ -742,7 +742,7 @@
   padding: 2px 8px;
   border: none;
   background: #2a2333;
-  color: var(--primary);
+  color: var(--chat-accent);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

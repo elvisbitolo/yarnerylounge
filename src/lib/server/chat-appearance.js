@@ -1,6 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
-import { applyAppearancePatch, applyPerChatOverride, DEFAULT_APPEARANCE } from "@/lib/chat-appearance-core";
+import { ACCENT_IDS, applyAppearancePatch, applyPerChatOverride, DEFAULT_APPEARANCE } from "@/lib/chat-appearance-core";
 
 const extraOf = (row) => (row && row.extra && typeof row.extra === "object" ? row.extra : {});
 const appearanceOf = (extra) =>
@@ -11,14 +11,12 @@ export async function getAppearance(uid) {
   if (!prisma) return { ...DEFAULT_APPEARANCE };
   try {
     const row = await prisma.user.findUnique({ where: { id: uid }, select: { extra: true } });
+    const stored = appearanceOf(extraOf(row));
     return {
-      wallpaper: typeof appearanceOf(extraOf(row)).wallpaper === "string"
-        ? appearanceOf(extraOf(row)).wallpaper
-        : "default",
-      customWallpaper: typeof appearanceOf(extraOf(row)).customWallpaper === "string"
-        ? appearanceOf(extraOf(row)).customWallpaper
-        : "",
-      perChat: appearanceOf(extraOf(row)).perChat || {},
+      wallpaper: typeof stored.wallpaper === "string" ? stored.wallpaper : "default",
+      customWallpaper: typeof stored.customWallpaper === "string" ? stored.customWallpaper : "",
+      perChat: stored.perChat || {},
+      accent: typeof stored.accent === "string" && ACCENT_IDS.has(stored.accent) ? stored.accent : null,
     };
   } catch (err) {
     logError("chat-appearance.read_failed", { error: err.message });
