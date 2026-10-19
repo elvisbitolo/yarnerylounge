@@ -69,7 +69,7 @@ export function isConversationMuted(prefs, now = Date.now()) {
 }
 
 // Composes a new prefs object from a mute selection ("off"/"1h"/"8h"/"always").
-export function applyMuteSelection(prefs, value) {
+export function applyMuteSelection(prefs, value, now = Date.now()) {
   const base = prefs && typeof prefs === "object" ? prefs : {};
   if (value === "off") {
     const { muted, mutedUntil, ...rest } = base;
@@ -79,7 +79,7 @@ export function applyMuteSelection(prefs, value) {
   const windowMs = MUTE_WINDOW_MS[value];
   if (!windowMs) return base;
   const { muted, ...rest } = base;
-  return { ...rest, mutedUntil: Date.now() + windowMs };
+  return { ...rest, mutedUntil: now + windowMs };
 }
 
 // Best-effort mapping from stored prefs back to a mute-duration selection so a
@@ -94,7 +94,7 @@ export function muteSelectionFromPrefs(prefs, now = Date.now()) {
 // Validates a per-conversation prefs patch: `muted` takes a mute duration,
 // `pinned`/`archived` take booleans. "off" unmutes explicitly, so it still
 // counts as a write (wiping the mute window).
-export function normalizeConversationPrefPatch(patch) {
+export function normalizeConversationPrefPatch(patch, now = Date.now()) {
   const out = {};
   if (patch == null || typeof patch !== "object") return out;
   if ("muted" in patch && MUTE_DURATIONS.some((d) => d.value === patch.muted)) {
@@ -102,11 +102,11 @@ export function normalizeConversationPrefPatch(patch) {
       out.muted = false;
       out.mutedUntil = 0;
     } else {
-      Object.assign(out, applyMuteSelection({}, patch.muted));
+      Object.assign(out, applyMuteSelection({}, patch.muted, now));
     }
   }
-  if (typeof patch.pinned === "boolean") out.pinnedAt = patch.pinned ? Date.now() : 0;
-  if (typeof patch.archived === "boolean") out.archivedAt = patch.archived ? Date.now() : 0;
+  if (typeof patch.pinned === "boolean") out.pinnedAt = patch.pinned ? now : 0;
+  if (typeof patch.archived === "boolean") out.archivedAt = patch.archived ? now : 0;
   return out;
 }
 

@@ -55,9 +55,9 @@ describe("chat-settings-core", () => {
 
   it("applies mute durations to prefs", () => {
     const now = Date.now();
-    const timed = applyMuteSelection({}, "8h");
+    const timed = applyMuteSelection({}, "8h", now);
     assert.equal(timed.muted, undefined);
-    assert.ok(timed.mutedUntil > now + 7 * 60 * 60 * 1000);
+    assert.equal(timed.mutedUntil, now + 8 * 60 * 60 * 1000);
     const always = applyMuteSelection({}, "always");
     assert.equal(always.muted, true);
     const off = applyMuteSelection({ muted: true, pinnedAt: 5 }, "off");
@@ -86,16 +86,15 @@ describe("chat-settings-core", () => {
       mutedUntil: 0,
     });
     const now = Date.now();
-    const pinPatch = normalizeConversationPrefPatch({ pinned: true, archived: true });
-    assert.ok(pinPatch.pinnedAt >= now);
-    assert.ok(pinPatch.archivedAt >= now);
-    const unpinPatch = normalizeConversationPrefPatch({ pinned: false });
+    const pinPatch = normalizeConversationPrefPatch({ pinned: true, archived: true }, now);
+    assert.equal(pinPatch.pinnedAt, now);
+    assert.equal(pinPatch.archivedAt, now);
+    const unpinPatch = normalizeConversationPrefPatch({ pinned: false }, now);
     assert.equal(unpinPatch.pinnedAt, 0);
-    const timedPatch = normalizeConversationPrefPatch({ muted: "1h", pinned: true });
-    assert.ok(timedPatch.mutedUntil > now);
-    assert.ok(timedPatch.mutedUntil <= now + 60 * 60 * 1000);
+    const timedPatch = normalizeConversationPrefPatch({ muted: "1h", pinned: true }, now);
+    assert.equal(timedPatch.mutedUntil, now + 60 * 60 * 1000);
     assert.equal(timedPatch.muted, undefined);
-    assert.ok(timedPatch.pinnedAt >= now);
+    assert.equal(timedPatch.pinnedAt, now);
   });
 
   it("merges a conversation pref patch without clobbering siblings", () => {
