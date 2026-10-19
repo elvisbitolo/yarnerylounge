@@ -41,6 +41,22 @@ export function isLiveAnnouncer(user) {
   return Boolean(email) && email === LIVE_ANNOUNCER_EMAIL;
 }
 
+/**
+ * Whether this join belongs to the announcer, given what the database said.
+ *
+ * `rowId` is the id of the account that holds LIVE_ANNOUNCER_EMAIL in the
+ * database: a string means the lookup ran and found her, `null` means the
+ * lookup ran and found nobody (a configuration error), and `undefined` means
+ * the lookup could not run at all. The uid comparison wins whenever the
+ * lookup ran, because the session's email claim is optional — a token without
+ * it silently reduced the whole broadcast to `not_announcer`, which is
+ * deliberately logged nowhere, so the feature just went quiet with no trace.
+ */
+export function decideAnnouncer({ rowId, uid, email } = {}) {
+  if (rowId !== undefined) return Boolean(uid) && rowId === uid;
+  return isLiveAnnouncer({ email });
+}
+
 /** "Christa is live in Happy Hour Hub" */
 export function buildLiveMessage(roomName) {
   const room = String(roomName || "").trim();

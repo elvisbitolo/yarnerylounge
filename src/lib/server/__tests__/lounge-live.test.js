@@ -6,6 +6,7 @@ import {
   LIVE_PRESENCE_GRACE_MS,
   buildLiveEmail,
   buildLiveMessage,
+  decideAnnouncer,
   isLoungeLiveEnabled,
   isLiveAnnouncer,
   pickAnnouncerRoom,
@@ -51,6 +52,23 @@ test("the announcer match ignores case and surrounding whitespace", () => {
 test("a lookalike address is not the announcer", () => {
   assert.equal(isLiveAnnouncer({ email: "secretyarnery@gmail.com.evil.example" }), false);
   assert.equal(isLiveAnnouncer({ email: "notsecretyarnery@gmail.com" }), false);
+});
+
+test("a successful database lookup decides by uid, even with no email claim", () => {
+  assert.equal(decideAnnouncer({ rowId: "u1", uid: "u1", email: "" }), true);
+  assert.equal(decideAnnouncer({ rowId: "u1", uid: "u1" }), true);
+  assert.equal(decideAnnouncer({ rowId: "u1", uid: "u2", email: "secretyarnery@gmail.com" }), false);
+});
+
+test("a lookup that found nobody is never the announcer", () => {
+  assert.equal(decideAnnouncer({ rowId: null, uid: "u1", email: "secretyarnery@gmail.com" }), false);
+  assert.equal(decideAnnouncer({ rowId: null, uid: "u1" }), false);
+});
+
+test("when the lookup could not run, the email claim decides as before", () => {
+  assert.equal(decideAnnouncer({ uid: "u1", email: "secretyarnery@gmail.com" }), true);
+  assert.equal(decideAnnouncer({ uid: "u2", email: "someone.else@example.com" }), false);
+  assert.equal(decideAnnouncer({ uid: "u3" }), false);
 });
 
 // ----------------------------------------------------------------- message

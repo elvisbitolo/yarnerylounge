@@ -19,8 +19,8 @@ import {
   LIVE_PRESENCE_GRACE_MS,
   buildLiveEmail,
   buildLiveMessage,
+  decideAnnouncer,
   isLoungeLiveEnabled,
-  isLiveAnnouncer,
   pickAnnouncerRoom,
   selectRecipients,
   shouldAnnounce,
@@ -134,6 +134,32 @@ async function pushToUser({ userId, title, body, url }) {
 }
 
 /**
+ * Whether this join is the announcer's, preferring the database's uid for
+ * LIVE_ANNOUNCER_EMAIL over the session's email claim, which can be absent.
+ * Loud on lookup problems: a misconfigured LOUNGE_LIVE_ANNOUNCER_EMAIL or a
+ * token without an email claim used to fail as a silent `not_announcer`
+ * (never logged anywhere), which is how the broadcast went quiet with no
+ * trace to explain it.
+ */
+async function matchesAnnouncer(user, prisma) {
+  if (!user?.uid) return false;
+  if (!prisma) return decideAnnouncer({ uid: user.uid, email: user.email });
+  try {
+    const row = await prisma.user.findFirst({
+      where: { email: { equals: LIVE_ANNOUNCER_EMAIL, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!row) {
+      logError("lounge-live.announcer_missing", { expectedEmail: LIVE_ANNOUNCER_EMAIL });
+    }
+    return decideAnnouncer({ rowId: row?.id ?? null, uid: user.uid, email: user.email });
+  } catch (err) {
+    logError("lounge-live.announcer_lookup_failed", { error: err.message });
+    return decideAnnouncer({ uid: user.uid, email: user.email });
+  }
+}
+
+/**
  * Announce the announcer's arrival in `room` to every other active member.
  *
  * Never throws: a member's join must not fail because Resend timed out or a
@@ -142,13 +168,18 @@ async function pushToUser({ userId, title, body, url }) {
  * @returns {Promise<{announced: boolean, reason: string, notified?: number, push?: number, email?: number}>}
  */
 export async function announceLoungeLive({ user, room, now = Date.now() }) {
+  const prisma = getPrisma();
+  const announcer = await matchesAnnouncer(user, prisma);
+
   const verdict = shouldAnnounce({
     enabled: isLoungeLiveEnabled(),
-    announcer: isAnnouncerUser(user),
+    announcer,
     roomName: room?.name || "",
   });
   if (!verdict.announce) {
-    if (verdict.reason !== "not_announcer") {
+    // The announcer's own path always leaves a log line — every other member's
+    // join is `not_announcer` and must stay silent or the logs fill up.
+    if (announcer) {
       logInfo("lounge-live.skipped", { reason: verdict.reason, roomId: room?.id || null });
     }
     return { announced: false, reason: verdict.reason };
@@ -171,7 +202,6 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
     return { announced: false, reason: guard.reason };
   }
 
-  const prisma = getPrisma();
   if (!prisma) return { announced: false, reason: "no_db" };
 
   let recipients = [];
@@ -208,7 +238,7 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
         if (prefs && prefs.events === false) return;
 
         try {
-          await createNotification({
+          const created = await createNotification({
             userId: member.id,
             type: NOTIFICATION_TYPE,
             actorId: user.uid,
@@ -217,7 +247,7 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
             href,
             text: message,
           });
-          notified += 1;
+          if (created) notified += 1;
         } catch (err) {
           logError("lounge-live.notify_failed", { userId: member.id, error: err.message });
         }
@@ -250,10 +280,6 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
     emailed,
   });
   return { announced: true, reason: "live", notified, push: pushed, email: emailed };
-}
-
-function isAnnouncerUser(user) {
-  return isLiveAnnouncer(user);
 }
 
 /**

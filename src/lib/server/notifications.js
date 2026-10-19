@@ -75,6 +75,14 @@ function dispatchPush(userId, payload) {
   }
 }
 
+/**
+ * Create one in-app notification (and mirror it to the member's push devices).
+ *
+ * Returns whether the row was actually written: the pref gate and the write
+ * itself both swallow failures silently, so callers that count deliveries —
+ * the lounge-live broadcast counts every recipient — must not treat an
+ * undefined return as success.
+ */
 export async function createNotification({
   userId,
   type,
@@ -85,7 +93,7 @@ export async function createNotification({
   text,
 }) {
   const enabled = await shouldNotify(userId, type);
-  if (!enabled) return;
+  if (!enabled) return false;
 
   const data = {
     userId,
@@ -99,17 +107,18 @@ export async function createNotification({
     createdAt: new Date(),
   };
   const prisma = getPrisma();
-  if (!prisma) return;
+  if (!prisma) return false;
   try {
     await prisma.notification.create({ data });
   } catch (err) {
     logError("notifications.prisma_create_failed", { error: err.message });
-    return;
+    return false;
   }
 
   // Mirror the in-app row to the member's devices so members who are not on the
   // site are recalled too. Respects the same type→preference gate above.
   dispatchPush(userId, buildPushPayload({ actorName, text, href }));
+  return true;
 }
 
 export async function listNotifications(uid, limit = 50) {

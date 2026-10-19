@@ -243,7 +243,13 @@ export async function POST(req) {
         after(async () => {
           try {
             await announceLoungeLive({
-              user: { uid: auth.user.uid, email: auth.user.email, name: displayName },
+              user: {
+                uid: auth.user.uid,
+                // The DB row is the fallback because the session's email claim
+                // is optional — without it the announcer match fails silently.
+                email: auth.user.email || userDoc?.email || "",
+                name: displayName,
+              },
               room: { id: room.id, name: room.name, slug: room.slug },
               now: joinedAt.getTime(),
             });
@@ -251,6 +257,10 @@ export async function POST(req) {
             logError("lounge-live.failed", { error: err?.message });
           }
         });
+      } else {
+        // The master switch being off used to leave no trace at all; one line
+        // per join makes a dead broadcast visible in the function logs.
+        logInfo("lounge-live.disabled", { roomId: room.id });
       }
     }
 
