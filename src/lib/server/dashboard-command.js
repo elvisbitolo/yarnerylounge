@@ -361,6 +361,7 @@ async function getMyNextBlocks(uid, limit) {
     const rows = await prisma.availability.findMany({
       where: {
         userId: uid,
+        pinned: false,
         OR: [{ endAt: { gte: new Date() } }, { recurring: { startsWith: "weekly" } }],
       },
       orderBy: { startAt: "asc" },
@@ -394,9 +395,10 @@ async function getMyNextBlocks(uid, limit) {
   }
 }
 
-// Blocks other members pinned to the What's On band. The viewer's own pins are
-// filtered out because their blocks already appear in "your next block" -- the
-// band is about discovering other people's offers of time.
+// Blocks members pinned to the What's On band. The viewer's own pins are
+// included and flagged: pinning is a deliberate "show this to everyone" act, so
+// hiding it from the person who did it reads as broken. Own pins are excluded
+// from "your next block" instead, so a block never appears twice.
 async function getPinnedBlocks(uid, limit, roomNameBySlug) {
   const prisma = getPrisma();
   if (!prisma) return [];
@@ -404,7 +406,6 @@ async function getPinnedBlocks(uid, limit, roomNameBySlug) {
     const rows = await prisma.availability.findMany({
       where: {
         pinned: true,
-        ...(uid ? { userId: { not: uid } } : {}),
         OR: [{ endAt: { gte: new Date() } }, { recurring: { startsWith: "weekly" } }],
       },
       orderBy: { startAt: "asc" },
@@ -423,6 +424,7 @@ async function getPinnedBlocks(uid, limit, roomNameBySlug) {
           id: block.id,
           title: block.title,
           hostName: block.userName || "",
+          isMine: Boolean(uid) && block.userId === uid,
           startAt: nextAt,
           endAt: new Date(Date.parse(nextAt) + durationMs).toISOString(),
           recurring: block.recurring,

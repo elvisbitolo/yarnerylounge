@@ -121,7 +121,9 @@ export default function EventsSpotlight({ data }) {
                         href="/calendar"
                       >
                         <span className={styles.spotKicker}>
-                          {t("pinnedBy", { name: block.hostName || t("member") })}
+                          {block.isMine
+                            ? t("pinnedByYou")
+                            : t("pinnedBy", { name: block.hostName || t("member") })}
                         </span>
                         {blockWhen(block.startAt, block.endAt, block.timeZone)}
                         <span className={styles.spotTitle}>{block.title}</span>

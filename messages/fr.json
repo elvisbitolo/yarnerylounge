@@ -148,6 +148,7 @@
     "spotlightLoadError": "« À l'affiche » n'a pas pu être chargé.",
     "pinned": "Épinglé par les membres",
     "pinnedBy": "Épinglé par {name}",
+    "pinnedByYou": "Épinglé par vous",
     "recentlyHappened": "Récemment passé",
     "showWhatsOn": "Afficher « À l'affiche »",
     "hideWhatsOn": "Masquer « À l'affiche »"

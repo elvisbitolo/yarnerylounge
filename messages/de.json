@@ -148,6 +148,7 @@
     "spotlightLoadError": "„Was ansteht“ konnte nicht geladen werden.",
     "pinned": "Von Mitgliedern angepinnt",
     "pinnedBy": "Angepinnt von {name}",
+    "pinnedByYou": "Von dir angepinnt",
     "recentlyHappened": "Zuletzt passiert",
     "showWhatsOn": "„Was ansteht“ anzeigen",
     "hideWhatsOn": "„Was ansteht“ ausblenden"
