@@ -27,6 +27,24 @@
   padding: 40px 36px;
 }
 
+/* The consent screen renders the form alone — no artwork panel beside it —
+   so it must not inherit the shared two-column auth grid: one child in that
+   grid strands the form in the left half next to an empty right half. One
+   narrow card instead, centred on the screen with its contents centred too. */
+.authContainerCenter {
+  grid-template-columns: 1fr;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.authContainerCenter .authForm {
+  text-align: center;
+}
+
+.authContainerCenter .tosLabel {
+  justify-content: center;
+}
+
 .authImage {
   position: relative;
   overflow: hidden;

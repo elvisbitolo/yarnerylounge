@@ -58,72 +58,74 @@ export default function ConsentForm() {
   }
 
   return (
-    <div className={styles.authContainer}>
-      <div className={styles.authForm}>
-        <p className={styles.brand}>
-          <span className={styles.brandWord}>Secret Yarnery</span>
-        </p>
-
-        <h1 className={styles.title}>{t("consentTitle")}</h1>
-        <p className={styles.subtitle}>{t("consentIntro")}</p>
-
-        {/* The instruction, in its own paragraph: what to read, what to tick,
-            and what happens if they do not. */}
-        <p className={styles.subtitle}>{t("consentHow")}</p>
-
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
+    <main className={styles.page}>
+      <div className={`${styles.authContainer} ${styles.authContainerCenter}`}>
+        <div className={styles.authForm}>
+          <p className={styles.brand}>
+            <span className={styles.brandWord}>Secret Yarnery</span>
           </p>
-        )}
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div className={styles.tosField}>
-            <label className={styles.tosLabel}>
-              <input
-                className={styles.tosCheckbox}
-                type="checkbox"
-                checked={accepted}
-                required
-                aria-invalid={tosError}
-                onChange={(e) => {
-                  setAccepted(e.target.checked);
-                  if (e.target.checked) setTosError(false);
-                }}
-              />
-              <span>
-                {t.rich("tosCheckbox", {
-                  terms: (chunks) => (
-                    <Link className={styles.link} href="/terms">
-                      {chunks}
-                    </Link>
-                  ),
-                })}
-              </span>
-            </label>
-            {tosError && (
-              <p className={styles.tosError} role="alert">
-                {t("tosRequired")}
-              </p>
-            )}
-          </div>
+          <h1 className={styles.title}>{t("consentTitle")}</h1>
+          <p className={styles.subtitle}>{t("consentIntro")}</p>
 
-          <button className={styles.submit} type="submit" disabled={busy}>
-            {busy ? t("consentWorking") : t("consentSubmit")}
-          </button>
-        </form>
+          {/* The instruction, in its own paragraph: what to read, what to tick,
+              and what happens if they do not. */}
+          <p className={styles.subtitle}>{t("consentHow")}</p>
 
-        <p className={styles.subtitle}>
-          <button
-            type="button"
-            className={styles.linkBtn}
-            onClick={handleSignOut}
-            disabled={busy}
-          >
-            {t("consentSignOut")}
-          </button>
-        </p>
+          {error && (
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+          )}
+
+          <form onSubmit={handleSubmit} noValidate>
+            <div className={styles.tosField}>
+              <label className={styles.tosLabel}>
+                <input
+                  className={styles.tosCheckbox}
+                  type="checkbox"
+                  checked={accepted}
+                  required
+                  aria-invalid={tosError}
+                  onChange={(e) => {
+                    setAccepted(e.target.checked);
+                    if (e.target.checked) setTosError(false);
+                  }}
+                />
+                <span>
+                  {t.rich("tosCheckbox", {
+                    terms: (chunks) => (
+                      <Link className={styles.link} href="/terms">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
+                </span>
+              </label>
+              {tosError && (
+                <p className={styles.tosError} role="alert">
+                  {t("tosRequired")}
+                </p>
+              )}
+            </div>
+
+            <button className={styles.submit} type="submit" disabled={busy}>
+              {busy ? t("consentWorking") : t("consentSubmit")}
+            </button>
+          </form>
+
+          <p className={styles.subtitle}>
+            <button
+              type="button"
+              className={styles.linkBtn}
+              onClick={handleSignOut}
+              disabled={busy}
+            >
+              {t("consentSignOut")}
+            </button>
+          </p>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
