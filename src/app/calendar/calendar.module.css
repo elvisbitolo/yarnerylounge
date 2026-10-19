@@ -668,6 +668,28 @@
   border-color: var(--secondary-light);
 }
 
+/* Native selects keep their own white system background regardless of the
+   .input colors, which on a white text colour renders as an invisible
+   white-on-white box. Take the appearance over so the dropdown wears the
+   same dark surface and light text as the rest of the form, and give it
+   an explicit chevron so it still reads as a control. */
+select.input {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}
+
+/* The dropdown list itself: platforms that honour option colours get the
+   same dark palette instead of a stray white popup. */
+select.input option {
+  background: #1c1c22;
+  color: #f7f7f9;
+}
+
 .fieldRow {
   display: flex;
   gap: 10px;
