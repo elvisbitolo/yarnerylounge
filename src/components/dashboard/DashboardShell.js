@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import StatCard from "./StatCard";
 import AudienceChart from "./AudienceChart";
-import RevenueChart from "./RevenueChart";
 import {
   WelcomeBanner,
   QuickActions,
@@ -19,14 +18,6 @@ import {
 import EventsSpotlight from "./EventsSpotlight";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
-
-function formatMoney(cents) {
-  if (cents == null) return "—";
-  return `$${(cents / 100).toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })}`;
-}
 
 function StatSkeleton() {
   return (
@@ -173,21 +164,9 @@ export default function DashboardShell() {
         theme="rose"
       />
     );
-    if (isStaff && statsValue.revenue) {
-      kpis.push(
-        <StatCard
-          key="revenue"
-          label={t("estMonthlyRevenue")}
-          value={formatMoney(statsValue.revenue.estMonthlyCents)}
-          deltaLabel={t("activeSubscribers", { count: statsValue.revenue.activeSubs })}
-          theme="amber"
-        />
-      );
-    } else {
-      kpis.push(
-        <StatCard key="points" label={t("yourPoints")} value={(user.points || 0).toLocaleString()} deltaLabel={t("communityRecognition")} theme="emerald" />
-      );
-    }
+    kpis.push(
+      <StatCard key="points" label={t("yourPoints")} value={(user.points || 0).toLocaleString()} deltaLabel={t("communityRecognition")} theme="emerald" />
+    );
     kpis.push(
       <StatCard
         key="engagement"
@@ -267,11 +246,6 @@ export default function DashboardShell() {
           {isStaff && (
             <div className={styles.card}>
               <AudienceChart />
-            </div>
-          )}
-          {isStaff && (
-            <div className={styles.card}>
-              <RevenueChart />
             </div>
           )}
 

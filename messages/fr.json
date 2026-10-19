@@ -98,8 +98,6 @@
     "roomsLive": "{count, plural, =0 {0 salons en direct} one {# salon en direct} other {# salons en direct}}",
     "yourPoints": "Vos points",
     "communityRecognition": "reconnaissance communautaire",
-    "estMonthlyRevenue": "Revenu mensuel est.",
-    "activeSubscribers": "{count, plural, =0 {0 abonnés actifs} one {# abonné actif} other {# abonnés actifs}}",
     "engagement": "Engagement",
     "activeThisWeek": "{count} actifs cette semaine",
     "recentActivity": "Activité récente",
