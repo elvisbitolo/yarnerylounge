@@ -19,7 +19,6 @@ export const SHOPIFY_URL =
 // behind the auth wall (see src/proxy.js AUTH_ROUTES) and must never appear in
 // the sitemap or as a canonical target.
 export const PUBLIC_ROUTES = [
-  { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/explore", changeFrequency: "daily", priority: 0.9 },
   { path: "/about", changeFrequency: "monthly", priority: 0.7 },
   { path: "/guidelines", changeFrequency: "monthly", priority: 0.5 },
