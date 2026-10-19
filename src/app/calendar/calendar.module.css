@@ -652,6 +652,13 @@
   color: #d8d8e3;
 }
 
+.fieldHint {
+  margin: -2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #9a9aa8;
+}
+
 .input {
   width: 100%;
   box-sizing: border-box;

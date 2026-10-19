@@ -9,7 +9,7 @@ import { listConversations } from "@/lib/server/chat";
 import { listNotifications } from "@/lib/server/notifications";
 import { getLeaderboard, getGamification } from "@/lib/server/gamification";
 import { getUserMemberships } from "@/lib/server/dashboard";
-import { serializeAvailability, nextOccurrenceAt } from "@/lib/server/availability-core";
+import { serializeAvailability, nextOccurrenceAt, previousOccurrenceAt } from "@/lib/server/availability-core";
 import { getPerkTier } from "@/lib/server/perks";
 import { logError } from "@/lib/server/log";
 import {
@@ -394,14 +394,118 @@ async function getMyNextBlocks(uid, limit) {
   }
 }
 
+// Blocks other members pinned to the What's On band. The viewer's own pins are
+// filtered out because their blocks already appear in "your next block" -- the
+// band is about discovering other people's offers of time.
+async function getPinnedBlocks(uid, limit, roomNameBySlug) {
+  const prisma = getPrisma();
+  if (!prisma) return [];
+  try {
+    const rows = await prisma.availability.findMany({
+      where: {
+        pinned: true,
+        ...(uid ? { userId: { not: uid } } : {}),
+        OR: [{ endAt: { gte: new Date() } }, { recurring: { startsWith: "weekly" } }],
+      },
+      orderBy: { startAt: "asc" },
+      take: 100,
+    });
+    return rows
+      .map(serializeAvailability)
+      .map((block) => {
+        const nextAt = nextOccurrenceAt(block);
+        if (!nextAt) return null;
+        const durationMs = Math.max(
+          new Date(block.endAt).getTime() - new Date(block.startAt).getTime(),
+          0
+        );
+        return {
+          id: block.id,
+          title: block.title,
+          hostName: block.userName || "",
+          startAt: nextAt,
+          endAt: new Date(Date.parse(nextAt) + durationMs).toISOString(),
+          recurring: block.recurring,
+          roomSlug: block.roomSlug || "",
+          roomName: block.roomSlug ? roomNameBySlug.get(block.roomSlug) || "" : "",
+          timeZone: block.timeZone || null,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+      .slice(0, limit);
+  } catch (err) {
+    logError("dashboard-command.prisma_pinned_blocks_failed", { error: err.message, uid });
+    return [];
+  }
+}
+
+// Six weeks of history: long enough that a block someone ran last month still
+// shows up, short enough that the row stays about "just happened". Recurring
+// blocks contribute their most recent occurrence, not their original anchor.
+const RECENT_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
+
+async function getRecentHappened(events, limit, roomNameBySlug) {
+  const now = Date.now();
+  const items = [];
+
+  for (const event of events) {
+    const start = toMillis(event.startTime);
+    const end = toMillis(event.endTime) || start;
+    if (!start || end > now || now - end > RECENT_WINDOW_MS) continue;
+    items.push({
+      id: `event-${event.occurrenceId || event.id}`,
+      kind: "event",
+      title: event.title || "Event",
+      startTime: start,
+      roomSlug: event.roomSlug || "",
+      roomName: event.roomSlug ? roomNameBySlug.get(event.roomSlug) || "" : "",
+      hostName: "",
+      href: `/events/${event.id}`,
+    });
+  }
+
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.availability.findMany({
+        orderBy: { startAt: "desc" },
+        take: 200,
+      });
+      for (const block of rows.map(serializeAvailability)) {
+        const prevAt = previousOccurrenceAt(block, new Date(now));
+        if (!prevAt) continue;
+        const start = Date.parse(prevAt);
+        if (!Number.isFinite(start) || now - start > RECENT_WINDOW_MS) continue;
+        items.push({
+          id: `block-${block.id}`,
+          kind: "availability",
+          title: block.title,
+          startTime: start,
+          roomSlug: block.roomSlug || "",
+          roomName: block.roomSlug ? roomNameBySlug.get(block.roomSlug) || "" : "",
+          hostName: block.userName || "",
+          href: "/calendar",
+        });
+      }
+    } catch (err) {
+      logError("dashboard-command.prisma_recent_failed", { error: err.message });
+    }
+  }
+
+  return items.sort((a, b) => b.startTime - a.startTime).slice(0, limit);
+}
+
 // Data for the full-width "What's On" band directly under the welcome banner:
-// the next meetups plus the viewer's own next availability block. Occurrence
-// ids key recurring events; hrefs always point at the base event page.
+// the next meetups, blocks members pinned for everyone, the viewer's own next
+// availability block, and a short "recently happened" history. Occurrence ids
+// key recurring events; hrefs always point at the base event page.
 export async function getDashboardSpotlight(uid, limit = 5) {
   const now = Date.now();
   const roomList = await listRooms();
   const roomNameBySlug = new Map(roomList.map((room) => [room.slug, room.name || room.slug]));
-  const upcoming = expandEvents(await listEvents())
+  const allEvents = await listEvents();
+  const upcoming = expandEvents(allEvents)
     .filter((event) => toMillis(event.startTime) > now)
     .slice(0, limit);
 
@@ -418,7 +522,13 @@ export async function getDashboardSpotlight(uid, limit = 5) {
     }))
   );
 
-  return { events, myBlocks: await getMyNextBlocks(uid, 2) };
+  const [myBlocks, pinnedBlocks, recent] = await Promise.all([
+    getMyNextBlocks(uid, 2),
+    getPinnedBlocks(uid, 4, roomNameBySlug),
+    getRecentHappened(allEvents, 4, roomNameBySlug),
+  ]);
+
+  return { events, myBlocks, pinnedBlocks, recent };
 }
 
 export async function getDashboardUpcomingRooms(limit = 4) {

@@ -145,7 +145,12 @@
     "noEventsYet": "Noch keine Treffen in Sicht. Trage deine Verfügbarkeit ein, damit Mitglieder mitmachen können.",
     "meetup": "Treffen",
     "availabilityTag": "Verfügbarkeit",
-    "spotlightLoadError": "„Was ansteht“ konnte nicht geladen werden."
+    "spotlightLoadError": "„Was ansteht“ konnte nicht geladen werden.",
+    "pinned": "Von Mitgliedern angepinnt",
+    "pinnedBy": "Angepinnt von {name}",
+    "recentlyHappened": "Zuletzt passiert",
+    "showWhatsOn": "„Was ansteht“ anzeigen",
+    "hideWhatsOn": "„Was ansteht“ ausblenden"
   },
   "feed": {
     "title": "Feed",

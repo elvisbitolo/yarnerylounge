@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   nextOccurrenceAt,
+  previousOccurrenceAt,
   normalizeRecurring,
   normalizeTimeZone,
   recurringWeekday,
@@ -313,4 +314,67 @@ test("parseAvailabilityInput clamps lengths and normalizes recurring and zone", 
   assert.equal(junk.note, "");
   assert.equal(junk.roomSlug, "");
   assert.ok(parseAvailabilityInput({ title: 42, startAt: "2026-11-02T18:00:00.000Z", endAt: "2026-11-02T19:00:00.000Z" }).error);
+});
+test("parseAvailabilityInput pins only on an explicit true", () => {
+  const base = {
+    title: "x",
+    startAt: "2026-11-02T18:00:00.000Z",
+    endAt: "2026-11-02T19:00:00.000Z",
+  };
+  assert.equal(parseAvailabilityInput({ ...base, pinned: true }).pinned, true);
+  // Absent, falsy, and non-boolean payloads mean "not pinned" rather than an
+  // error: older clients never send the field at all.
+  assert.equal(parseAvailabilityInput(base).pinned, false);
+  assert.equal(parseAvailabilityInput({ ...base, pinned: false }).pinned, false);
+  assert.equal(parseAvailabilityInput({ ...base, pinned: "true" }).pinned, false);
+  assert.equal(parseAvailabilityInput({ ...base, pinned: 1 }).pinned, false);
+});
+
+test("previousOccurrenceAt: one-off block counts only once it has started", () => {
+  const now = new Date("2026-09-15T12:00:00.000Z");
+  assert.equal(
+    previousOccurrenceAt({ startAt: "2026-09-01T18:00:00.000Z", recurring: "none" }, now),
+    "2026-09-01T18:00:00.000Z"
+  );
+  assert.equal(
+    previousOccurrenceAt({ startAt: "2026-09-20T18:00:00.000Z", recurring: "none" }, now),
+    null
+  );
+});
+
+test("previousOccurrenceAt: weekly block reports its most recent repeat", () => {
+  const now = new Date("2026-09-15T12:00:00.000Z");
+  // Anchor Tue Sep 8; the next Sunday would be Sep 20, so the latest happened
+  // occurrence is Sep 8 itself.
+  assert.equal(
+    previousOccurrenceAt({ startAt: "2026-09-08T18:00:00.000Z", recurring: "weekly" }, now),
+    "2026-09-08T18:00:00.000Z"
+  );
+  // Three weeks on, that latest occurrence has advanced with the calendar --
+  // but only as far as the last repeat that actually started: Sep 29 18:00 is
+  // still in the future at noon, so the answer is Sep 22 18:00.
+  assert.equal(
+    previousOccurrenceAt(
+      { startAt: "2026-09-08T18:00:00.000Z", recurring: "weekly" },
+      new Date("2026-09-29T12:00:00.000Z")
+    ),
+    "2026-09-22T18:00:00.000Z"
+  );
+});
+
+test("previousOccurrenceAt: weekday repeat and malformed dates", () => {
+  // Anchor is a Wednesday but the block repeats Mondays; the most recent
+  // Monday before the anchor-plus-n-weeks window is what happened.
+  assert.equal(
+    previousOccurrenceAt(
+      { startAt: "2026-09-16T18:00:00.000Z", recurring: "weekly-1" },
+      new Date("2026-09-22T12:00:00.000Z")
+    ),
+    "2026-09-21T18:00:00.000Z"
+  );
+  assert.equal(previousOccurrenceAt({ startAt: "not-a-date", recurring: "none" }), null);
+  assert.equal(
+    previousOccurrenceAt({ startAt: "2026-12-01T18:00:00.000Z", recurring: "weekly" }, new Date("2026-09-01T00:00:00.000Z")),
+    null
+  );
 });

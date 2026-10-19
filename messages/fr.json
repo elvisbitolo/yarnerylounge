@@ -145,7 +145,12 @@
     "noEventsYet": "Aucun rendez-vous en vue. Publiez votre disponibilité pour que les membres puissent participer.",
     "meetup": "Rencontre",
     "availabilityTag": "Disponibilité",
-    "spotlightLoadError": "« À l'affiche » n'a pas pu être chargé."
+    "spotlightLoadError": "« À l'affiche » n'a pas pu être chargé.",
+    "pinned": "Épinglé par les membres",
+    "pinnedBy": "Épinglé par {name}",
+    "recentlyHappened": "Récemment passé",
+    "showWhatsOn": "Afficher « À l'affiche »",
+    "hideWhatsOn": "Masquer « À l'affiche »"
   },
   "feed": {
     "title": "Fil d'actualité",

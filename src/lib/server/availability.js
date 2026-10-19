@@ -21,6 +21,7 @@ import {
   weeklyFirstOccurrence,
   serializeAvailability,
   nextOccurrenceAt,
+  previousOccurrenceAt,
   recurringDayMatches,
   availabilityWindowWhere,
   toIso,
@@ -50,6 +51,7 @@ export {
   weeklyFirstOccurrence,
   serializeAvailability,
   nextOccurrenceAt,
+  previousOccurrenceAt,
   recurringDayMatches,
   availabilityWindowWhere,
 };
@@ -170,7 +172,7 @@ export async function toggleAvailabilityRsvp(availabilityId, user) {
   return { error: "Database unavailable", status: 500 };
 }
 
-export async function createAvailability({ userId, userName, userAvatar, title, note, roomSlug, startAt, endAt, recurring, timeZone, eventId }) {
+export async function createAvailability({ userId, userName, userAvatar, title, note, roomSlug, startAt, endAt, recurring, timeZone, pinned, eventId }) {
   const data = {
     userId,
     userName: userName || "Member",
@@ -185,6 +187,7 @@ export async function createAvailability({ userId, userName, userAvatar, title, 
     // stays 11:00 in the creator's own zone across DST.
     timeZone: normalizeTimeZone(timeZone),
     recurring: normalizeRecurring(recurring),
+    pinned: pinned === true,
     rsvpCount: 0,
     createdAt: new Date(),
   };
@@ -227,7 +230,7 @@ export async function linkAvailabilityEvent(availabilityId, eventId) {
 // from the block mirrors the change (time, title, note, room, cadence) so the
 // two never drift apart. A timeZone that parsed to null keeps the stored pin:
 // an edit that silently dropped it would reinterpret every future occurrence.
-export async function updateAvailability(id, uid, { title, note, roomSlug, startAt, endAt, recurring, timeZone }) {
+export async function updateAvailability(id, uid, { title, note, roomSlug, startAt, endAt, recurring, timeZone, pinned }) {
   const prisma = getPrisma();
   if (!prisma) return { error: "Database unavailable", status: 500 };
   try {
@@ -243,6 +246,7 @@ export async function updateAvailability(id, uid, { title, note, roomSlug, start
       startAt: new Date(startAt),
       endAt: new Date(endAt),
       recurring,
+      pinned: pinned === true,
       ...(timeZone ? { timeZone } : {}),
     };
 

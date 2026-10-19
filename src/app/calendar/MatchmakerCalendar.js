@@ -949,6 +949,9 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue, initial }) {
   // real meetup that shows up on /events. Not every block should become one.
   // Editing never touches promotion: the block and its meetup move together.
   const [makeEvent, setMakeEvent] = useState(false);
+  // Opt-in: pinning surfaces the block on everyone's dashboard What's On band.
+  // Unlike promotion this is reversible, so it is offered on create and edit.
+  const [pinned, setPinned] = useState(() => initial?.pinned === true);
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState("");
 
@@ -972,6 +975,7 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue, initial }) {
       timeZone: browserZone,
       recurring,
       note,
+      pinned,
     };
     // Promotion is a create-time decision; edits never add or remove a meetup.
     if (!isEdit) payload.makeEvent = makeEvent;
@@ -1093,8 +1097,21 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue, initial }) {
               </span>
             </label>
           )}
-          {localError && <p className={styles.error}>{localError}</p>}
-          <div className={styles.modalActions}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <input
+                type="checkbox"
+                checked={pinned}
+                onChange={(e) => setPinned(e.target.checked)}
+              />{" "}
+              Pin to What&apos;s On
+            </span>
+          </label>
+          <p className={styles.fieldHint}>
+            Pinned blocks show up on everyone&apos;s dashboard so members can see when you&apos;ll
+            be stitching.
+          </p>
+          {localError && <p className={styles.error}>{localError}</p>}          <div className={styles.modalActions}>
             <button type="button" className={styles.cancelBtn} onClick={onClose}>
               Cancel
             </button>

@@ -129,6 +129,10 @@ export function parseAvailabilityInput(body) {
     minutes,
     recurring: normalizeRecurring(body?.recurring),
     timeZone: normalizeTimeZone(body?.timeZone),
+    // Opt-in: surface the block on everyone's dashboard What's On band. Absent
+    // or non-boolean input means "not pinned" rather than a validator error --
+    // older clients simply never send the field.
+    pinned: body?.pinned === true,
   };
 }
 
@@ -154,6 +158,7 @@ export function serializeAvailability(docOrRow) {
     // uses this to avoid listing the same slot twice.
     eventId: data.eventId || null,
     timeZone: normalizeTimeZone(data.timeZone),
+    pinned: data.pinned === true,
   };
 }
 
@@ -166,6 +171,22 @@ export function nextOccurrenceAt(slot, now = new Date()) {
   const first = weeklyFirstOccurrence(start, slot.recurring);
   if (first.getTime() >= now.getTime()) return first.toISOString();
   const k = Math.ceil((now.getTime() - first.getTime()) / WEEK_MS);
+  return new Date(first.getTime() + k * WEEK_MS).toISOString();
+}
+
+// The most recent occurrence strictly at or before `now`, or null when nothing
+// has happened yet. The mirror of nextOccurrenceAt, used by the dashboard's
+// "recently happened" row: a recurring block whose anchor has long passed still
+// has a real last occurrence, and a one-off only counts once it has started.
+export function previousOccurrenceAt(slot, now = new Date()) {
+  const start = new Date(slot.startAt);
+  if (!Number.isFinite(start.getTime())) return null;
+  if (normalizeRecurring(slot.recurring) === "none") {
+    return start.getTime() <= now.getTime() ? start.toISOString() : null;
+  }
+  const first = weeklyFirstOccurrence(start, slot.recurring);
+  if (first.getTime() > now.getTime()) return null;
+  const k = Math.floor((now.getTime() - first.getTime()) / WEEK_MS);
   return new Date(first.getTime() + k * WEEK_MS).toISOString();
 }
 

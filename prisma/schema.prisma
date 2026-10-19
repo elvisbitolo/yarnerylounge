@@ -1056,6 +1056,10 @@ model Availability {
   endAt       DateTime  @db.Timestamptz(3)
   recurring   String?   // weekly | none
   rsvpCount   Int?      @default(0)
+  // Member opt-in: a pinned block is surfaced to everyone in the dashboard's
+  // What's On band, so members can see who is up for stitching soon without
+  // opening the full calendar. Off by default; the owner can toggle it.
+  pinned      Boolean   @default(false)
   createdAt   DateTime  @default(now())
   // Set when this block has been promoted to a real meetup. NULL while the
   // block is only an offer of time. Unique so one meetup maps to one block.

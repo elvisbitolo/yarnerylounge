@@ -1002,6 +1002,119 @@
   color: var(--card-muted, var(--dash-muted, #8a7c6f));
 }
 
+/* Collapsible header: link + chevron toggle, with a count chip so the band
+   still says something while it is folded shut. */
+.spotCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--dash-accent, #f42e79);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.spotHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spotToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--dash-border, #eadfd2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dash-muted, #8a7c6f);
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease;
+}
+
+.spotToggle:hover {
+  border-color: var(--dash-accent, #f42e79);
+  color: var(--dash-accent, #f42e79);
+}
+
+.spotChevron,
+.spotChevronOpen {
+  transition: transform 0.18s ease;
+}
+
+.spotChevronOpen {
+  transform: rotate(180deg);
+}
+
+.spotSection {
+  margin-top: 18px;
+}
+
+.spotSection:first-child {
+  margin-top: 0;
+}
+
+.spotSectionTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--card-muted, var(--dash-muted, #8a7c6f));
+}
+
+/* A member-pinned block: gold-ish accent border so it reads as a featured
+   offer of time, distinct from the viewer's own block. */
+.spotPinned {
+  border-color: var(--dash-accent, #f42e79);
+  border-left-width: 4px;
+}
+
+.spotRecent {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spotRecentItem {
+  display: grid;
+  grid-template-columns: 92px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.14s ease;
+}
+
+.spotRecentItem:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.spotRecentItem .spotTitle {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotRecentItem .spotMeta {
+  max-width: 40vw;
+}
+
 @media (max-width: 640px) {
   .spotRail {
     grid-auto-columns: minmax(185px, 80%);

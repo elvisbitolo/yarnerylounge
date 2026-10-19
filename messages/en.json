@@ -145,7 +145,12 @@
     "noEventsYet": "No meetups on the horizon yet. Post your availability so members can stitch along.",
     "meetup": "Meetup",
     "availabilityTag": "Availability",
-    "spotlightLoadError": "What's On couldn't load."
+    "spotlightLoadError": "What's On couldn't load.",
+    "pinned": "Pinned by members",
+    "pinnedBy": "Pinned by {name}",
+    "recentlyHappened": "Recently happened",
+    "showWhatsOn": "Show What's On",
+    "hideWhatsOn": "Hide What's On"
   },
   "feed": {
     "title": "Feed",

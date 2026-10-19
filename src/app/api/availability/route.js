@@ -32,7 +32,7 @@ export async function POST(req) {
   const body = await req.json();
   const parsed = parseAvailabilityInput(body);
   if (parsed.error) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const { title, note, roomSlug, startAt, endAt, recurring } = parsed;
+  const { title, note, roomSlug, startAt, endAt, recurring, pinned } = parsed;
 
   const sub = await getAccessSub(auth.user.uid);
   const userDoc = auth.userDoc || {};
@@ -60,6 +60,7 @@ export async function POST(req) {
     endAt,
     timeZone,
     recurring,
+    pinned,
   });
   const blockId = typeof created === "object" ? created.id : created;
 
