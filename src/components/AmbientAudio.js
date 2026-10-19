@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Volume2, Volume1, VolumeX, SlidersHorizontal } from "lucide-react";
 import useDraggableFloat from "@/lib/use-draggable-float";
 
-function generateAmbientWav() {
+function generateAmbientPad() {
   const sampleRate = 22050;
   const duration = 8;
   const numSamples = sampleRate * duration;
@@ -54,9 +54,7 @@ function generateAmbientWav() {
   }
 
   const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return "data:audio/wav;base64," + btoa(binary);
+  return new Blob([bytes], { type: "audio/wav" });
 }
 
 export default function AmbientAudio({
@@ -103,7 +101,17 @@ export default function AmbientAudio({
     volumeRef.current = volume;
   }, [volume]);
 
-  const ambientWav = useMemo(() => (active ? generateAmbientWav() : ""), [active]);
+  // The generated pad is served to the <audio> element as a blob: object URL.
+  // A data: URL would be refused by the app's Content-Security-Policy
+  // (media-src is 'self' blob: and the storage host), which silently made the
+  // music control do nothing -- play() rejects on the blocked source.
+  const [ambientWav, setAmbientWav] = useState("");
+  useEffect(() => {
+    if (!active) return undefined;
+    const url = URL.createObjectURL(generateAmbientPad());
+    setAmbientWav(url);
+    return () => URL.revokeObjectURL(url);
+  }, [active]);
 
   const baseSrc = useMemo(() => {
     if (!active) return "";
@@ -125,7 +133,14 @@ export default function AmbientAudio({
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !src) return;
+    // No source means the element unmounted; the browser fires no pause event
+    // for that, so the reported state has to be retracted here or the header
+    // button keeps claiming music is playing.
+    if (!src) {
+      setPlaying(false);
+      return;
+    }
+    if (!audio) return;
 
     audio.volume = volumeRef.current;
 
@@ -206,6 +221,7 @@ export default function AmbientAudio({
       // Releasing the override collapses the source back to silence in rooms
       // whose backdrop is a video, so a stop really is a stop.
       setManualStart(false);
+      setPlaying(false);
       return;
     }
     setManualStart(true);
@@ -234,6 +250,7 @@ export default function AmbientAudio({
       const audio = audioRef.current;
       if (audio && !audio.paused) audio.pause();
       setManualStart(false);
+      setPlaying(false);
     }
     function start() {
       const audio = audioRef.current;

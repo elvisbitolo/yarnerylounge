@@ -31,6 +31,17 @@ test("csp: media-src allows blob: for object URLs", () => {
   assert.ok(directive(prod, "media-src").includes("blob:"));
 });
 
+test("csp: media-src allows the lounge's generated ambient pad", () => {
+  // Regression: the pad shipped as a data: URL, which media-src refused, so
+  // the play/stop control in every always-on lounge did nothing at all --
+  // <audio> reported MEDIA_ERR_SRC_NOT_SUPPORTED with only a console warning.
+  // The pad is a blob: object URL now; both forms stay allowed so either
+  // implementation keeps working.
+  const media = directive(prod, "media-src");
+  assert.ok(media.includes("blob:"), "media-src must keep blob: for the pad");
+  assert.ok(media.includes("data:"), "media-src must keep data: for the pad");
+});
+
 test("csp: production does not ship unsafe-eval", () => {
   assert.ok(!directive(prod, "script-src").includes("'unsafe-eval'"));
 });
