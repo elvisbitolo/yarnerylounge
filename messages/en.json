@@ -686,7 +686,9 @@
     "recordingWorking": "Working…",
     "recordingStartHint": "Start recording this lounge",
     "recordingStopHint": "Stop recording",
-    "recordFail": "Couldn't change the recording state. Please try again."
+    "recordFail": "Couldn't change the recording state. Please try again.",
+    "playMusic": "Play music",
+    "stopMusic": "Stop music"
   },
   "recordings": {
     "title": "Recordings",

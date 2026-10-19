@@ -686,7 +686,9 @@
     "recordingWorking": "En cours…",
     "recordingStartHint": "Enregistrer ce salon",
     "recordingStopHint": "Arrêter l'enregistrement",
-    "recordFail": "Impossible de modifier l'état de l'enregistrement. Veuillez réessayer."
+    "recordFail": "Impossible de modifier l'état de l'enregistrement. Veuillez réessayer.",
+    "playMusic": "Lancer la musique",
+    "stopMusic": "Arrêter la musique"
   },
   "recordings": {
     "title": "Enregistrements",

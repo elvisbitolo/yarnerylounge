@@ -686,7 +686,9 @@
     "recordingWorking": "Wird verarbeitet…",
     "recordingStartHint": "Diese Lounge aufnehmen",
     "recordingStopHint": "Aufnahme beenden",
-    "recordFail": "Der Aufnahmestatus konnte nicht geändert werden. Bitte erneut versuchen."
+    "recordFail": "Der Aufnahmestatus konnte nicht geändert werden. Bitte erneut versuchen.",
+    "playMusic": "Musik starten",
+    "stopMusic": "Musik stoppen"
   },
   "recordings": {
     "title": "Aufzeichnungen",

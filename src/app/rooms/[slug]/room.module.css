@@ -786,6 +786,42 @@
   cursor: default;
 }
 
+/* Header music control. It mirrors the floating player pill, so it uses the
+   same pill language as the record button but in the room's calm accent
+   rather than the recording red. */
+.musicBtn,
+.musicBtnOn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  background: rgba(167, 139, 250, 0.12);
+  color: #d5c7ff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.musicBtn:hover {
+  background: rgba(167, 139, 250, 0.22);
+  border-color: rgba(167, 139, 250, 0.6);
+}
+
+.musicBtnOn {
+  border-color: rgba(167, 139, 250, 0.7);
+  background: rgba(167, 139, 250, 0.26);
+  color: #ffffff;
+}
+
+.musicBtnOn:hover {
+  background: rgba(167, 139, 250, 0.34);
+}
+
 .recordBtnLive {
   display: inline-flex;
   align-items: center;
@@ -796,8 +832,7 @@
   background: #3a0d1a;
   color: #ff9db0;
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 12px;  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;

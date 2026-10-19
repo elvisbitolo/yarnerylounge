@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX } from "lucide-react";
+import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -190,6 +190,9 @@ export default function RoomClient({
   const [blockedEmails, setBlockedEmails] = useState(() => new Set());
   const [controlsNotice, setControlsNotice] = useState("");
 
+  // ---- Background music (played by AmbientAudio; this header only asks) ----
+  const [musicOn, setMusicOn] = useState(false);
+
   // ---- Media state (camera/mic live their own lifecycle) ----
   const [videoDesired, setVideoDesired] = useState(true);
   const [micDesired, setMicDesired] = useState(true);
@@ -237,10 +240,22 @@ export default function RoomClient({
   const audioLocked = disableAudio || forceMuteOnJoin;
   const canRecord = isStaff || isHost || isCoHost;
 
+  // AmbientAudio owns the <audio> element and reports its state; the header
+  // button only mirrors it, so both controls can never disagree.
+  useEffect(() => {
+    function onState(event) {
+      setMusicOn(Boolean(event?.detail?.playing));
+    }
+    window.addEventListener("speakeasy-music-state", onState);
+    window.dispatchEvent(new CustomEvent("speakeasy-music-query"));
+    return () => window.removeEventListener("speakeasy-music-state", onState);
+  }, []);
+
+  const musicAvailable = alwaysOn;
+
   // Always-on lounges are joinable any time; only scheduled (non-alwaysOn)
   // rooms gate on the next upcoming start for non-hosts.
-  const waiting = !alwaysOn && Boolean(opensAt) && !isHost && now < opensAt;
-  const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
+  const waiting = !alwaysOn && Boolean(opensAt) && !isHost && now < opensAt;  const waitSeconds = waiting ? Math.max(0, Math.ceil((opensAt - now) / 1000)) : 0;
   const connectSeconds =
     phase === "connecting" && connectAt ? Math.max(0, Math.floor((now - connectAt) / 1000)) : 0;
 
@@ -1221,7 +1236,7 @@ export default function RoomClient({
 
   const connectedRoom = (
     <main className={styles.page}>
-      <RoomBackground show={alwaysOn && phase === "connected"} musicActive={!!musicPlaying} />
+      <RoomBackground show={alwaysOn && phase === "connected"} musicActive={musicOn} />
       <div className={styles.roomWrap}>
         <AmbientAudio
           active={alwaysOn}
@@ -1245,6 +1260,20 @@ export default function RoomClient({
                 <span className={styles.liveDot} aria-hidden="true" />
                 {t("live")} · {participantCount}
               </span>
+              {musicAvailable && (
+                <button
+                  type="button"
+                  className={musicOn ? styles.musicBtnOn : styles.musicBtn}
+                  aria-pressed={musicOn}
+                  onClick={() =>
+                    window.dispatchEvent(new CustomEvent("speakeasy-music-command"))
+                  }
+                  title={musicOn ? t("stopMusic") : t("playMusic")}
+                >
+                  <Music size={15} aria-hidden="true" />
+                  {musicOn ? t("stopMusic") : t("playMusic")}
+                </button>
+              )}
               {canRecord ? (
                 <button
                   type="button"

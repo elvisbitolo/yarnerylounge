@@ -78,6 +78,11 @@ export default function AmbientAudio({
     return localStorage.getItem("speakeasy_continuous_music") === "true";
   });
   const [showSlider, setShowSlider] = useState(false);
+  // A lounge whose backdrop is a video stays silent until someone asks for
+  // music: auto-playing both would fight each other. The room header's music
+  // button (or the player pill) flips this, after which the ambient pad fills
+  // in whenever the room has no uploaded track configured.
+  const [manualStart, setManualStart] = useState(false);
 
   const musicDrag = useDraggableFloat({
     storageKey: "yarnerylounge-music-pos",
@@ -104,9 +109,9 @@ export default function AmbientAudio({
     if (!active) return "";
     if (musicPlaying && musicFileId) return `/api/rooms/music/stream?id=${musicFileId}`;
     if (musicPlaying && musicUrl) return musicUrl;
-    if (hasVideoBackdrop) return "";
+    if (hasVideoBackdrop && !manualStart) return "";
     return ambientWav;
-  }, [active, musicPlaying, musicFileId, musicUrl, hasVideoBackdrop, ambientWav]);
+  }, [active, musicPlaying, musicFileId, musicUrl, hasVideoBackdrop, ambientWav, manualStart]);
 
   const src = baseSrc;
 
@@ -196,14 +201,74 @@ export default function AmbientAudio({
 
   function toggle() {
     const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
+    if (audio && !audio.paused) {
+      audio.pause();
+      // Releasing the override collapses the source back to silence in rooms
+      // whose backdrop is a video, so a stop really is a stop.
+      setManualStart(false);
+      return;
+    }
+    setManualStart(true);
+    if (audio) {
       audio.volume = volumeRef.current;
       audio.play().catch(() => {});
-    } else {
-      audio.pause();
     }
   }
+
+  // With a video backdrop and no uploaded track there is no <audio> element
+  // until someone asks for music, so the intent has to outlive the press: when
+  // the source appears, honour it.
+  useEffect(() => {
+    if (!manualStart || !src) return;
+    const audio = audioRef.current;
+    if (!audio || !audio.paused) return;
+    audio.volume = volumeRef.current;
+    audio.play().catch(() => {});
+  }, [manualStart, src]);
+
+  // The room header owns no audio element of its own; it dispatches these
+  // window events so this component stays the single owner of playback. The
+  // state event keeps the header button in sync with the floating pill.
+  useEffect(() => {
+    function stop() {
+      const audio = audioRef.current;
+      if (audio && !audio.paused) audio.pause();
+      setManualStart(false);
+    }
+    function start() {
+      const audio = audioRef.current;
+      setManualStart(true);
+      if (audio && audio.paused) {
+        audio.volume = volumeRef.current;
+        audio.play().catch(() => {});
+      }
+    }
+    function onCommand(event) {
+      const want = event?.detail?.playing;
+      if (want === true) return start();
+      if (want === false) return stop();
+      const audio = audioRef.current;
+      return audio && !audio.paused ? stop() : start();
+    }
+    window.addEventListener("speakeasy-music-command", onCommand);
+    return () => window.removeEventListener("speakeasy-music-command", onCommand);
+  }, []);
+
+  useEffect(() => {
+    // Publishing on mount matters: the room header may attach its listener
+    // after this component's effects have already run, so it also asks for a
+    // fresh snapshot with the query event.
+    function publish() {
+      window.dispatchEvent(
+        new CustomEvent("speakeasy-music-state", {
+          detail: { playing, available: Boolean(src) },
+        })
+      );
+    }
+    publish();
+    window.addEventListener("speakeasy-music-query", publish);
+    return () => window.removeEventListener("speakeasy-music-query", publish);
+  }, [playing, src]);
 
   function handleVolumeChange(e) {
     const newVol = parseFloat(e.target.value);
