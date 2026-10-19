@@ -37,6 +37,10 @@ export default function EventsSpotlight({ data }) {
   const recent = data?.recent || [];
   const attending = events.length + pinned.length;
   const empty = attending === 0 && myBlocks.length === 0;
+  // The chip drives discovery of the folded band, so it counts everything the
+  // band would reveal -- including the history row, which is the only section
+  // some members have.
+  const badge = attending + myBlocks.length + recent.length;
 
   const blockWhen = (startAt, endAt, timeZone) => (
     <span className={styles.spotWhen}>
@@ -57,7 +61,7 @@ export default function EventsSpotlight({ data }) {
       <div className={styles.cardHeader}>
         <h2 className={styles.cardTitle} id="whats-on-title">
           {t("whatsOn")}
-          {attending > 0 && <span className={styles.spotCount}>{attending}</span>}
+          {badge > 0 && <span className={styles.spotCount}>{badge}</span>}
         </h2>
         <div className={styles.spotHeadActions}>
           <Link className={styles.cardLink} href="/events">
