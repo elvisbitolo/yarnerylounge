@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import MemberBadge from "@/components/MemberBadge";
 import { roleBadgeLabel } from "@/lib/profile/roles";
-import { tierLabel } from "@/lib/server/plans";
+import { memberBadgeTooltip } from "@/lib/server/plans";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
 import { composeLayout, LAYOUT_NOW } from "./avatarLayout";
 import { pinFromVirtual } from "@/lib/members-layout-core";
@@ -770,7 +770,7 @@ export default function MembersDirectory({
                         {slot.size >= 34 && (
                           <span
                             className={styles.tierDot}
-                            title={`${tierLabel(member.plan)} member`}
+                            title={memberBadgeTooltip(member.plan, member.role)}
                           >
                             <MemberBadge plan={member.plan} role={member.role} size={12} tooltip={false} showHost={false} />
                           </span>

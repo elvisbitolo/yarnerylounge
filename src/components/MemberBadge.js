@@ -1,7 +1,7 @@
 "use client";
 
 import { useMembership } from "@/lib/membership";
-import { tierBadge, displayTier } from "@/lib/server/plans";
+import { tierBadge, displayTier, memberBadgeTooltip } from "@/lib/server/plans";
 import TierIcon from "./TierIcon";
 
 // Shared member tier badge + host pill. The tier badge comes from plans.js
@@ -45,7 +45,7 @@ export default function MemberBadge({
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, verticalAlign: "middle" }}>
       {showTier && (
         <span
-          title={tooltip ? `${badge.label} member` : undefined}
+          title={tooltip ? memberBadgeTooltip(plan || membership?.planKey, role) : undefined}
           style={{
             fontSize: size,
             lineHeight: 1,

@@ -55,7 +55,13 @@ export const TIER_BADGE = {
 };
 
 function normalize(tier) {
-  const t = LEGACY_ALIASES[tier] || tier;
+  if (tier == null) return null;
+  // Case- and separator-insensitive: real rows exist with plan "Moving In"
+  // (capitalised, space-separated), which used to miss TIERS entirely and fall
+  // back to Flirting labels while the badge glyph beside it still resolved to
+  // the Diamond through role precedence.
+  const key = String(tier).trim().toLowerCase().replace(/\s+/g, "-");
+  const t = LEGACY_ALIASES[key] || key;
   return TIERS.includes(t) ? t : null;
 }
 
@@ -102,6 +108,17 @@ export function tierBadge(tier) {
 // and falls back to Flirting for anything unrecognised.
 export function displayTier(plan, role) {
   return tierForRole(role) || normalize(plan) || "flirting";
+}
+
+// The exact hover text MemberBadge renders for a plan/role. Components that
+// suppress the inner title (to avoid nested title attributes — e.g. the
+// directory's tier dot) must set it themselves from THIS helper, never from
+// tierLabel(plan): a raw plan skips the role precedence and case handling, so
+// a moderator with plan "Moving In" or no plan at all drew the gem while the
+// tooltip beside it read "Flirting member".
+export function memberBadgeTooltip(plan, role) {
+  const badge = tierBadge(displayTier(plan, role));
+  return badge ? `${badge.label} member` : null;
 }
 
 export function tierRank(tier) {

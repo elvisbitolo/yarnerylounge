@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TIERS, tierRank, tierLabel, meetsTier, tierBadge } from "../plans.js";
+import { TIERS, tierRank, tierLabel, meetsTier, tierBadge, displayTier, memberBadgeTooltip } from "../plans.js";
 
 test("TIERS order is flirting, hooking-up, moving-in", () => {
   assert.deepEqual(TIERS, ["flirting", "hooking-up", "moving-in"]);
@@ -33,6 +33,38 @@ test("tierLabel maps tiers and defaults", () => {
   assert.equal(tierLabel("plus"), "Hooking Up");
   assert.equal(tierLabel("host"), "Moving In");
   assert.equal(tierLabel("nope"), "Flirting");
+});
+
+test("tier names are matched case-insensitively (real rows hold 'Moving In')", () => {
+  assert.equal(tierLabel("Moving In"), "Moving In");
+  assert.equal(tierLabel("moving in"), "Moving In");
+  assert.equal(tierLabel("  MOVING-IN "), "Moving In");
+  assert.equal(tierLabel("Hooking Up"), "Hooking Up");
+  assert.equal(displayTier("Moving In", "member"), "moving-in");
+  assert.equal(tierBadge("Hooking Up").icon, "crown");
+  assert.equal(tierLabel(null), "Flirting");
+  assert.equal(tierLabel(undefined), "Flirting");
+});
+
+test("memberBadgeTooltip always agrees with the glyph the badge draws", () => {
+  // The directory bug: role precedence made the glyph a Diamond while a
+  // plan-only title beside it read "Flirting member".
+  assert.equal(memberBadgeTooltip("Moving In", "moderator"), "Diamond member");
+  assert.equal(memberBadgeTooltip(null, "owner"), "Diamond member");
+  assert.equal(memberBadgeTooltip("flirting", "host"), "Diamond member");
+  assert.equal(memberBadgeTooltip("moving-in", "member"), "Diamond member");
+  assert.equal(memberBadgeTooltip("hooking-up", "member"), "Hooking Up member");
+  assert.equal(memberBadgeTooltip(null, "member"), "Flirting member");
+  for (const [plan, role] of [
+    ["flirting", "owner"],
+    [null, "host"],
+    ["moving-in", "member"],
+    ["Moving In", "moderator"],
+    ["premium", null],
+  ]) {
+    const badge = tierBadge(displayTier(plan, role));
+    assert.equal(memberBadgeTooltip(plan, role), `${badge.label} member`);
+  }
 });
 
 test("tierBadge: every tier has a distinct icon", () => {
