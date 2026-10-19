@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AccountTabs from "../AccountTabs";
 import UsernameForm from "../UsernameForm";
+import ChangePasswordForm from "./ChangePasswordForm";
 import LogoutButton from "../LogoutButton";
 import styles from "../account.module.css";
 import { loadAccount } from "../account-data";
@@ -26,6 +27,8 @@ export default async function AccountSettingsPage() {
         <AccountTabs />
 
         <UsernameForm initialUsername={userDoc?.username || ""} />
+
+        <ChangePasswordForm />
 
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>Your account</h2>
