@@ -16,17 +16,22 @@ export async function GET() {
     events: true,
     mentions: true,
     automations: true,
+    // Watch alerts default on. Stored rows predate this key, so defaults are
+    // merged rather than replaced — a saved row without `watch` must show an
+    // On toggle instead of an undefined that reads as Off.
+    watch: true,
   };
-  // No new key here on purpose: `lounge_live` maps onto the existing "events"
-  // preference (see NOTIFICATION_TYPE_TO_PREF in notifications.js), so members
-  // inherit the toggle they already understand and the UI needs no change.
+  // No new key for `lounge_live` on purpose: it maps onto the existing
+  // "events" preference (see NOTIFICATION_TYPE_TO_PREF in notifications.js), so
+  // members inherit the toggle they already understand. `watch` is different:
+  // a per-member subscription has no existing bucket to ride.
   try {
     const row = await prisma.user.findUnique({
       where: { id: user.uid },
       select: { notificationPreferences: true },
     });
     if (row && row.notificationPreferences) {
-      prefs = row.notificationPreferences;
+      prefs = { ...prefs, ...row.notificationPreferences };
     }
   } catch (err) {
     logError("notifications.prisma_prefs_read_failed", { error: err.message });
@@ -48,6 +53,7 @@ export async function PUT(req) {
     events: !!body.events,
     mentions: !!body.mentions,
     automations: !!body.automations,
+    watch: !!body.watch,
   };
 
   try {

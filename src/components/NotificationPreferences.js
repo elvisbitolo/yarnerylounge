@@ -9,6 +9,7 @@ const PREF_KEYS = [
   { key: "events", label: "Events", hint: "Event reminders, and when the owner goes live in a lounge" },
   { key: "mentions", label: "Mentions", hint: "When someone @mentions you" },
   { key: "automations", label: "Automations", hint: "Digest emails and automated notifications" },
+  { key: "watch", label: "Watched members", hint: "When someone you're watching comes online or enters a lounge" },
 ];
 
 export default function NotificationPreferences() {

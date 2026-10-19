@@ -13,7 +13,7 @@ import MembersMap from "./MembersMap";
 import MemberFilters from "./MemberFilters";
 import { MEMBER_TABS, applyMemberTab, emptyViewMessage } from "@/lib/members/tabs-core";
 import styles from "./members.module.css";
-import { MapPin, MessageCircle } from "lucide-react";
+import { Bell, MapPin, MessageCircle, ShieldBan, VolumeX } from "lucide-react";
 
 const CRAFTS = [
   { value: "crochet", label: "Crochet" },
@@ -133,7 +133,10 @@ function useViewportKey() {
 }
 
 const TOOLTIP_W = 300;
-const TOOLTIP_H = 400;
+// Roughly the tallest content the tooltip can reach (bio + common list +
+// the Block/Mute/Notify row + notes); used only to decide whether to flip
+// above or below the avatar.
+const TOOLTIP_H = 460;
 const HIDE_DELAY = 220;
 
 export default function MembersDirectory({
@@ -151,6 +154,11 @@ export default function MembersDirectory({
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [hover, setHover] = useState(null);
   const [matchTarget, setMatchTarget] = useState(null);
+  // Block/Mute/Notify state for the member under the pointer. Fetched lazily
+  // on first hover and cached per member, so re-hovering does not re-ask the
+  // API and the safety row never flashes empty.
+  const [safety, setSafety] = useState(null);
+  const safetyCache = useRef(new Map());
   // Real-time online presence (heartbeat window), seeded from the server render
   // and refreshed on an interval so dots track members coming and going.
   const [onlineUids, setOnlineUids] = useState(
@@ -248,6 +256,66 @@ export default function MembersDirectory({
     clearTimeout(hideTimer.current);
     const rect = e.currentTarget.getBoundingClientRect();
     setHover({ member, rect, common: commoStrings(viewer, member) });
+    loadSafety(member.id);
+  }
+
+  function loadSafety(memberId) {
+    const cached = safetyCache.current.get(memberId);
+    if (cached) {
+      setSafety({ ...cached, busy: false, error: "" });
+      return;
+    }
+    setSafety({ targetId: memberId, loading: true });
+    fetch(`/api/members/safety?targetId=${encodeURIComponent(memberId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) throw new Error("load failed");
+        const next = {
+          targetId: memberId,
+          iBlocked: !!data.iBlocked,
+          theyBlocked: !!data.theyBlocked,
+          muted: !!data.muted,
+          watching: !!data.watching,
+        };
+        safetyCache.current.set(memberId, next);
+        // A newer hover may have replaced this entry while the fetch was in
+        // flight; only apply it to the tooltip it belongs to.
+        setSafety((prev) => (prev && prev.targetId === memberId ? next : prev));
+      })
+      .catch(() => {
+        setSafety((prev) =>
+          prev && prev.targetId === memberId ? { targetId: memberId, failed: true } : prev
+        );
+      });
+  }
+
+  async function toggleSafety(action) {
+    if (!hover || !safety || safety.loading || safety.failed || safety.busy) return;
+    const memberId = hover.member.id;
+    if (safety.targetId !== memberId) return;
+    setSafety((prev) => ({ ...prev, busy: true, error: "" }));
+    try {
+      const res = await fetch("/api/members/safety", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetId: memberId, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not update this member.");
+      const next = {
+        targetId: memberId,
+        iBlocked: !!data.iBlocked,
+        theyBlocked: !!data.theyBlocked,
+        muted: !!data.muted,
+        watching: !!data.watching,
+      };
+      safetyCache.current.set(memberId, next);
+      setSafety((prev) => (prev && prev.targetId === memberId ? next : prev));
+    } catch (err) {
+      setSafety((prev) =>
+        prev && prev.targetId === memberId ? { ...prev, busy: false, error: err.message } : prev
+      );
+    }
   }
 
   function scheduleHide() {
@@ -800,6 +868,41 @@ export default function MembersDirectory({
                 ))}
               </ul>
             </div>
+          )}
+          {safety && safety.targetId === hover.member.id && (
+            <div className={styles.tooltipSafety}>
+              <button
+                type="button"
+                className={`${styles.safetyBtn}${safety.iBlocked ? ` ${styles.safetyBlocked}` : ""}`}
+                disabled={safety.loading || safety.failed || safety.busy}
+                onClick={() => toggleSafety(safety.iBlocked ? "unblock" : "block")}
+              >
+                <ShieldBan size={13} /> {safety.iBlocked ? "Unblock" : "Block"}
+              </button>
+              <button
+                type="button"
+                className={`${styles.safetyBtn}${safety.muted ? ` ${styles.safetyMuted}` : ""}`}
+                disabled={safety.loading || safety.failed || safety.busy}
+                onClick={() => toggleSafety(safety.muted ? "unmute" : "mute")}
+              >
+                <VolumeX size={13} /> {safety.muted ? "Unmute" : "Mute"}
+              </button>
+              <button
+                type="button"
+                className={`${styles.safetyBtn}${safety.watching ? ` ${styles.safetyWatching}` : ""}`}
+                disabled={safety.loading || safety.failed || safety.busy || safety.theyBlocked}
+                title="Notify me when they come online or enter a lounge"
+                onClick={() => toggleSafety(safety.watching ? "unwatch" : "watch")}
+              >
+                <Bell size={13} /> {safety.watching ? "Notifying" : "Notify"}
+              </button>
+            </div>
+          )}
+          {safety && safety.targetId === hover.member.id && safety.theyBlocked && (
+            <p className={styles.safetyNote}>This member blocked you.</p>
+          )}
+          {safety && safety.targetId === hover.member.id && safety.error && (
+            <p className={styles.safetyError} role="status">{safety.error}</p>
           )}
           <div className={styles.tooltipActions}>
             <button

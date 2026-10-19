@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
-import { isOnlineRow, lastActiveFrom, onlineMembers } from "@/lib/server/presence-core";
+import { isOnline, isOnlineRow, lastActiveFrom, onlineMembers } from "@/lib/server/presence-core";
 import { activeRoomsForUsers } from "@/lib/server/room-presence";
+import { notifyWatchersOnline } from "@/lib/server/member-watch";
 
 function parseIds(value) {
   return [...new Set(String(value || "").split(",").map((id) => id.trim()).filter(Boolean))].slice(0, 50);
@@ -22,10 +23,19 @@ export async function POST() {
   try {
     const row = await prisma.user.findUnique({ where: { id: user.uid }, select: { extra: true } });
     const extra = row?.extra && typeof row.extra === "object" ? row.extra : {};
+    // A heartbeat that lands after the online window has expired is a genuine
+    // "came back" event — the moment watchers signed up for. Read the old
+    // stamp before writing so a second tab's heartbeat in the same window sees
+    // online and stays quiet. Runs post-response: watch fan-out must never
+    // delay the heartbeat itself.
+    const wasOnline = isOnline(lastActiveFrom(extra));
     await prisma.user.update({
       where: { id: user.uid },
       data: { extra: { ...extra, lastActiveAt: new Date().toISOString() }, updatedAt: new Date() },
     });
+    if (!wasOnline) {
+      after(() => notifyWatchersOnline(user.uid));
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     logError("presence.heartbeat_failed", { error: err.message });

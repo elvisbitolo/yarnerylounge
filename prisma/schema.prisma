@@ -132,6 +132,8 @@ model User {
   matchDecisionsMade     MatchDecision[] @relation("MatchDecisionActor")
   matchDecisionsReceived MatchDecision[] @relation("MatchDecisionTarget")
   roomPresence           RoomPresence[]
+  watchesMade            MemberWatch[]   @relation("WatchWatcher")
+  watchesReceived        MemberWatch[]   @relation("WatchTarget")
 
   // Delegated-account access. A grantee signs in with their own credentials
   // and their own Session row, but while a grant is active they resolve to the
@@ -234,6 +236,31 @@ model Follow {
   @@index([followerId])
   @@index([followingId])
   @@unique([followerId, followingId])
+}
+
+// "Notify me when they're around": one row per (watcher, target) pair, created
+// from the member hover tooltip on /members.
+//
+// The timestamps record the last notification sent per trigger, not the last
+// time the trigger fired — they are the per-pair cooldown that keeps a flapping
+// presence heartbeat or a refresh re-join from spamming the watcher. lastRoomId
+// makes a re-entry into a *different* lounge notify again even inside the
+// cooldown window, which is the event members actually asked for.
+model MemberWatch {
+  id                   String    @id @default(cuid())
+  watcherId            String
+  targetId             String
+  createdAt            DateTime  @default(now())
+  lastOnlineNotifiedAt DateTime?
+  lastRoomId           String?
+  lastRoomNotifiedAt   DateTime?
+
+  watcher User @relation("WatchWatcher", fields: [watcherId], references: [id], onDelete: Cascade)
+  target  User @relation("WatchTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  // Reverse lookup by targetId (the fan-out query) is the hot path.
+  @@index([targetId])
+  @@unique([watcherId, targetId])
 }
 
 model Notification {

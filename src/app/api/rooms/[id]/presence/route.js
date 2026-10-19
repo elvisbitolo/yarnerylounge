@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { requireRoomAccess } from "@/lib/server/room-access";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/server/room-presence";
 import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 import { getScopedHostRights } from "@/lib/server/hosts";
+import { notifyWatchersRoom } from "@/lib/server/member-watch";
 
 export const dynamic = "force-dynamic";
 
@@ -50,12 +51,18 @@ export async function POST(req, { params }) {
   // never checked, so every lounge accepted unlimited concurrent members.
   // Only on a genuine new join: a heartbeat for a seat already held must never
   // be refused, or a room filling up would freeze the people inside it.
+  //
+  // `alreadyPresent` doubles as the watch trigger's freshness check: a page
+  // refresh re-sends "join" while the old session's presence row is still
+  // active, and that re-join is not an event worth announcing.
+  let alreadyPresent = false;
   if (status !== "leave") {
-    const [headcount, rights, alreadyPresent] = await Promise.all([
+    const [headcount, rights, present] = await Promise.all([
       countActiveRoomParticipants(room.id),
       getScopedHostRights(auth.user.uid, "room", room.id),
       hasActiveRoomPresence(room.id, auth.user.uid),
     ]);
+    alreadyPresent = present;
     if (headcount.ok) {
       const exempt =
         auth.userDoc?.role === "owner" ||
@@ -88,5 +95,10 @@ export async function POST(req, { params }) {
   const input = { sessionId, roomId: room.id, userId: auth.user.uid };
   const result = status === "leave" ? await leaveRoomPresence(input) : await touchRoomPresence(input);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 409 });
+  if (status === "join" && !alreadyPresent) {
+    // Tell the target's watchers they walked in, post-response. The fan-out
+    // re-checks each watcher's room access, so a private lounge never leaks.
+    after(() => notifyWatchersRoom(auth.user.uid, room));
+  }
   return NextResponse.json({ ok: true });
 }
