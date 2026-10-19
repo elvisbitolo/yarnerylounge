@@ -169,12 +169,16 @@ const USER_UPSERT = `
     "expiresAt" = EXCLUDED."expiresAt",
     "updatedAt" = now()`;
 
+// provider must NOT be 'open-access': subscription-core.js drops those rows
+// as signup-override artifacts ("not a purchase") and the member falls back to
+// Flirting on /membership while the badge (reading User.plan) says Diamond.
+// 'admin' marks a real host-granted plan that is allowed to govern access.
 const SUBSCRIPTION_UPSERT = `
   INSERT INTO "Subscription"
     ("id", "userId", "provider", "status", "plan", "planName", "tier", "role", "updatedAt", "currentPeriodEnd")
-  VALUES ($1, $1, 'open-access', 'active', 'moving-in', 'Moving In', 'moving-in', 'member', $2, $3)
+  VALUES ($1, $1, 'admin', 'active', 'moving-in', 'Moving In', 'moving-in', 'member', $2, $3)
   ON CONFLICT ("id") DO UPDATE SET
-    "provider" = 'open-access',
+    "provider" = 'admin',
     "status" = 'active',
     "plan" = 'moving-in',
     "planName" = 'Moving In',

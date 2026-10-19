@@ -351,6 +351,11 @@ test("a real purchase still decides access", () => {
     { provider: "shopify", status: "active", tier: "moving-in", priceId: "gid://shopify/PriceVariant/1" },
     { provider: "shopify", status: "active", tier: "hooking-up", priceId: "gid://shopify/PriceVariant/2" },
     { provider: "stripe", status: "trialing", tier: "premium", priceId: "price_1" },
+    // Host-granted plans (scripts/add-moving-in.mjs) are grants of record, not
+    // signup-override artifacts. Writing them with provider "open-access" made
+    // effectiveSubscription drop the row: the badge said Diamond while
+    // /membership said Flirting for every onboarded member.
+    { provider: "admin", status: "active", tier: "moving-in", plan: "moving-in", planName: "Moving In" },
   ]) {
     assert.equal(effectiveSubscription(paid), paid, `a real purchase was dropped: ${paid.tier}`);
     assert.equal(isOpenAccessRow(paid), false);
