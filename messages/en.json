@@ -138,7 +138,16 @@
     "goLive": "Go live",
     "addProject": "Add a project",
     "askQuestion": "Ask a question",
-    "shareWin": "Share a win"
+    "shareWin": "Share a win",
+    "whatsOn": "What's On",
+    "openCalendar": "Open calendar",
+    "seeAllEvents": "See all events",
+    "postAvailability": "Post availability",
+    "yourNextBlock": "Your next block",
+    "noEventsYet": "No meetups on the horizon yet. Post your availability so members can stitch along.",
+    "meetup": "Meetup",
+    "availabilityTag": "Availability",
+    "spotlightLoadError": "What's On couldn't load."
   },
   "feed": {
     "title": "Feed",

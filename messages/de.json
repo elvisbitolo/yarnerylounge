@@ -138,7 +138,16 @@
     "goLive": "Live gehen",
     "addProject": "Projekt hinzufügen",
     "askQuestion": "Frage stellen",
-    "shareWin": "Erfolg teilen"
+    "shareWin": "Erfolg teilen",
+    "whatsOn": "Was ansteht",
+    "openCalendar": "Kalender öffnen",
+    "seeAllEvents": "Alle Events ansehen",
+    "postAvailability": "Verfügbarkeit eintragen",
+    "yourNextBlock": "Dein nächster Block",
+    "noEventsYet": "Noch keine Treffen in Sicht. Trage deine Verfügbarkeit ein, damit Mitglieder mitmachen können.",
+    "meetup": "Treffen",
+    "availabilityTag": "Verfügbarkeit",
+    "spotlightLoadError": "„Was ansteht“ konnte nicht geladen werden."
   },
   "feed": {
     "title": "Feed",

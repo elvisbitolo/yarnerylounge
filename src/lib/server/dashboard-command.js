@@ -9,6 +9,7 @@ import { listConversations } from "@/lib/server/chat";
 import { listNotifications } from "@/lib/server/notifications";
 import { getLeaderboard, getGamification } from "@/lib/server/gamification";
 import { getUserMemberships } from "@/lib/server/dashboard";
+import { serializeAvailability, nextOccurrenceAt } from "@/lib/server/availability-core";
 import { getPerkTier } from "@/lib/server/perks";
 import { logError } from "@/lib/server/log";
 import {
@@ -349,6 +350,77 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
   return [];
 }
 
+// The viewer's own next availability blocks (recurring rows included: their
+// startAt is only the anchor, so the next occurrence is computed rather than
+// read). Powers the "Your next block" cards in the What's On band.
+async function getMyNextBlocks(uid, limit) {
+  if (!uid) return [];
+  const prisma = getPrisma();
+  if (!prisma) return [];
+  try {
+    const rows = await prisma.availability.findMany({
+      where: {
+        userId: uid,
+        OR: [{ endAt: { gte: new Date() } }, { recurring: { startsWith: "weekly" } }],
+      },
+      orderBy: { startAt: "asc" },
+      take: 100,
+    });
+    return rows
+      .map(serializeAvailability)
+      .map((block) => {
+        const nextAt = nextOccurrenceAt(block);
+        if (!nextAt) return null;
+        const durationMs = Math.max(
+          new Date(block.endAt).getTime() - new Date(block.startAt).getTime(),
+          0
+        );
+        return {
+          id: block.id,
+          title: block.title,
+          startAt: nextAt,
+          endAt: new Date(Date.parse(nextAt) + durationMs).toISOString(),
+          recurring: block.recurring,
+          roomSlug: block.roomSlug || "",
+          timeZone: block.timeZone || null,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+      .slice(0, limit);
+  } catch (err) {
+    logError("dashboard-command.prisma_spotlight_blocks_failed", { error: err.message, uid });
+    return [];
+  }
+}
+
+// Data for the full-width "What's On" band directly under the welcome banner:
+// the next meetups plus the viewer's own next availability block. Occurrence
+// ids key recurring events; hrefs always point at the base event page.
+export async function getDashboardSpotlight(uid, limit = 5) {
+  const now = Date.now();
+  const roomList = await listRooms();
+  const roomNameBySlug = new Map(roomList.map((room) => [room.slug, room.name || room.slug]));
+  const upcoming = expandEvents(await listEvents())
+    .filter((event) => toMillis(event.startTime) > now)
+    .slice(0, limit);
+
+  const events = await Promise.all(
+    upcoming.map(async (event) => ({
+      id: event.occurrenceId || event.id,
+      href: `/events/${event.id}`,
+      title: event.title || "Upcoming event",
+      startTime: toMillis(event.startTime),
+      endTime: event.endTime ? toMillis(event.endTime) : null,
+      roomSlug: event.roomSlug || "",
+      roomName: event.roomSlug ? roomNameBySlug.get(event.roomSlug) || "" : "",
+      rsvpCount: (await listRsvps(event.id)).length,
+    }))
+  );
+
+  return { events, myBlocks: await getMyNextBlocks(uid, 2) };
+}
+
 export async function getDashboardUpcomingRooms(limit = 4) {
   const now = Date.now();
   const [rooms, events] = await Promise.all([listRooms(), listEvents()]);
@@ -584,11 +656,12 @@ export async function getDashboardCommandData(uid, userDoc) {
     },
   };
 
-  const [stats, activity, upcomingRooms, messages, content, notifications, needsAttention, onboarding, leaderboard] =
+  const [stats, activity, upcomingRooms, spotlight, messages, content, notifications, needsAttention, onboarding, leaderboard] =
     await Promise.all([
       attempt(() => getDashboardStats(uid, userDoc)),
       attempt(() => getDashboardActivity(uid, role, memberships)),
       attempt(() => getDashboardUpcomingRooms()),
+      attempt(() => getDashboardSpotlight(uid)),
       attempt(() => getDashboardMessages(uid)),
       attempt(() => getDashboardContent()),
       attempt(() => getDashboardNotifications(uid)),
@@ -603,6 +676,7 @@ export async function getDashboardCommandData(uid, userDoc) {
     stats,
     activity,
     upcomingRooms,
+    spotlight,
     messages,
     content,
     notifications,

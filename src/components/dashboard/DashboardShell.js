@@ -16,6 +16,7 @@ import {
   ContentPerformance,
   NeedsAttention,
 } from "./Sections";
+import EventsSpotlight from "./EventsSpotlight";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -144,7 +145,7 @@ export default function DashboardShell() {
     );
   }
 
-  const { user, isStaff, stats, activity, upcomingRooms, content, needsAttention, leaderboard } = data;
+  const { user, isStaff, stats, activity, upcomingRooms, spotlight, content, needsAttention, leaderboard } = data;
 
   const statsValue = stats?.ok ? stats.value : null;
   const activityValue = activity?.ok ? activity.value : [];
@@ -241,6 +242,16 @@ export default function DashboardShell() {
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} />
         </div>
+        {/* Option A: the full-width What's On band sits directly under the
+            welcome banner so events are impossible to miss, and above the
+            quick actions so they keep their grid lead. */}
+        {spotlight && (
+          spotlight.ok ? (
+            <EventsSpotlight data={spotlight.value} />
+          ) : (
+            <SectionError message={t("spotlightLoadError")} onRetry={handleRetry} />
+          )
+        )}
         <div data-tour="tour-actions">
           <QuickActions isStaff={isStaff} />
         </div>

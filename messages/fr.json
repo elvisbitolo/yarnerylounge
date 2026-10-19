@@ -138,7 +138,16 @@
     "goLive": "Passer en direct",
     "addProject": "Ajouter un projet",
     "askQuestion": "Poser une question",
-    "shareWin": "Partager une victoire"
+    "shareWin": "Partager une victoire",
+    "whatsOn": "À l'affiche",
+    "openCalendar": "Ouvrir le calendrier",
+    "seeAllEvents": "Voir tous les événements",
+    "postAvailability": "Publier ma disponibilité",
+    "yourNextBlock": "Votre prochain créneau",
+    "noEventsYet": "Aucun rendez-vous en vue. Publiez votre disponibilité pour que les membres puissent participer.",
+    "meetup": "Rencontre",
+    "availabilityTag": "Disponibilité",
+    "spotlightLoadError": "« À l'affiche » n'a pas pu être chargé."
   },
   "feed": {
     "title": "Fil d'actualité",

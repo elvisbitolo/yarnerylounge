@@ -876,3 +876,143 @@
   color: #fff;
   opacity: 0.92;
 }
+
+/* ------------------------------------------------------------------
+   What's On band (Option A): full-width, directly under the welcome
+   banner. A horizontal rail so several upcoming meetups and the
+   member's own next block are visible without scrolling the page.
+   ------------------------------------------------------------------ */
+
+.spotlight {
+  margin-bottom: 20px;
+  border-color: color-mix(in srgb, var(--dash-accent, #f42e79) 35%, var(--dash-border, #eadfd2));
+}
+
+.spotRail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(215px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+
+.spotCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  min-width: 0;
+  background: var(--card-bg, var(--dash-surface, #fff));
+  border: 1px solid var(--card-border, var(--dash-border, #eadfd2));
+  border-radius: 12px;
+  text-decoration: none;
+  scroll-snap-align: start;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.spotCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(10, 14, 42, 0.1);
+}
+
+.spotCardMine {
+  border-left: 4px solid var(--dash-accent, #f42e79);
+}
+
+.spotKicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dash-accent, #f42e79);
+}
+
+.spotWhen {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.spotDay {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--card-muted, var(--dash-muted, #8a7c6f));
+}
+
+.spotTime {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--card-text, var(--dash-text, #0a0e2a));
+  font-variant-numeric: tabular-nums;
+}
+
+.spotTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--card-text, var(--dash-text, #0a0e2a));
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.spotMeta {
+  font-size: 12px;
+  color: var(--card-muted, var(--dash-muted, #8a7c6f));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotFoot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.spotCta {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 16px;
+  border-radius: 10px;
+  background: var(--dash-accent, #f42e79);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.14s ease;
+}
+
+.spotCta:hover {
+  background: var(--dash-accent-hover, #d81f66);
+}
+
+.spotEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.spotEmptyText {
+  font-size: 14px;
+  color: var(--card-muted, var(--dash-muted, #8a7c6f));
+}
+
+@media (max-width: 640px) {
+  .spotRail {
+    grid-auto-columns: minmax(185px, 80%);
+  }
+
+  .spotFoot {
+    justify-content: stretch;
+  }
+
+  .spotCta {
+    width: 100%;
+    justify-content: center;
+  }
+}
