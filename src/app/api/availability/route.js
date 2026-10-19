@@ -5,11 +5,7 @@ import { getAccessSub } from "@/lib/server/subscription";
 import {
   createAvailability,
   listAvailability,
-  AVAILABILITY_MAX_TITLE,
-  AVAILABILITY_MAX_NOTE,
-  AVAILABILITY_MAX_MINUTES,
-  AVAILABILITY_MIN_MINUTES,
-  normalizeRecurring,
+  parseAvailabilityInput,
   normalizeTimeZone,
   linkAvailabilityEvent,
 } from "@/lib/server/availability";
@@ -34,23 +30,9 @@ export async function POST(req) {
   if (denied) return denied;
 
   const body = await req.json();
-  const title = (typeof body.title === "string" ? body.title : "").trim().slice(0, AVAILABILITY_MAX_TITLE);
-  const note = (typeof body.note === "string" ? body.note : "").trim().slice(0, AVAILABILITY_MAX_NOTE);
-  const roomSlug = typeof body.roomSlug === "string" ? body.roomSlug.trim().slice(0, 60) : "";
-  const startAt = Date.parse(body.startAt);
-  const endAt = Date.parse(body.endAt);
-
-  if (!title) return NextResponse.json({ error: "Add a short title for your availability block" }, { status: 400 });
-  if (!Number.isFinite(startAt) || !Number.isFinite(endAt)) {
-    return NextResponse.json({ error: "Pick a valid start and end time" }, { status: 400 });
-  }
-  const minutes = Math.round((endAt - startAt) / 60000);
-  if (minutes < AVAILABILITY_MIN_MINUTES) {
-    return NextResponse.json({ error: `Blocks must be at least ${AVAILABILITY_MIN_MINUTES} minutes long` }, { status: 400 });
-  }
-  if (minutes > AVAILABILITY_MAX_MINUTES) {
-    return NextResponse.json({ error: "Blocks can't be longer than 24 hours" }, { status: 400 });
-  }
+  const parsed = parseAvailabilityInput(body);
+  if (parsed.error) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { title, note, roomSlug, startAt, endAt, recurring } = parsed;
 
   const sub = await getAccessSub(auth.user.uid);
   const userDoc = auth.userDoc || {};
@@ -62,13 +44,11 @@ export async function POST(req) {
   // before that. Check both, or the "stored profile zone" fallback silently
   // never fires for existing members.
   const storedZone = userDoc.timezone || (userDoc.extra && typeof userDoc.extra === "object" ? userDoc.extra.timezone : "");
-  const timeZone =
-    normalizeTimeZone(body.timeZone) || normalizeTimeZone(storedZone);
+  const timeZone = parsed.timeZone || normalizeTimeZone(storedZone);
 
   // Opt-in promotion: the block is created first, then a meetup is derived from
   // it and the two are linked. Doing it in this order means a failure while
   // creating the event leaves a usable block rather than nothing.
-  const recurring = normalizeRecurring(body.recurring);
   const created = await createAvailability({
     userId: auth.user.uid,
     userName: userDoc.name || auth.user.displayName || "Member",
@@ -88,8 +68,8 @@ export async function POST(req) {
     const event = await createEvent({
       title,
       description: note,
-      // startAt/endAt are the validated epoch-ms values parsed at the top of the
-      // handler; body.startAt/body.endAt are the raw strings and are unvalidated.
+      // startAt/endAt are the validated epoch-ms values from
+      // parseAvailabilityInput; body.startAt/body.endAt are raw strings.
       startTime: startAt,
       endTime: endAt,
       roomSlug,

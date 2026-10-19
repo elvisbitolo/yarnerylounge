@@ -10,6 +10,9 @@ import {
   availabilityWindowWhere,
   availabilityListOrder,
   AVAILABILITY_LIST_LIMIT,
+  AVAILABILITY_MAX_TITLE,
+  AVAILABILITY_MAX_NOTE,
+  parseAvailabilityInput,
 } from "../availability-core.js";
 
 test("normalizeRecurring keeps none, weekly, and weekday values only", () => {
@@ -246,4 +249,68 @@ test("normalizeTimeZone accepts real IANA zones and rejects non-zones", () => {
   assert.equal(normalizeTimeZone("../../etc/passwd"), null);
   // A bare city name is not a zone and would throw at Intl/Postgres.
   assert.equal(normalizeTimeZone("Nairobi"), null);
+});
+
+test("parseAvailabilityInput accepts a valid block and returns sanitized fields", () => {
+  const parsed = parseAvailabilityInput({
+    title: "  Morning stitch  ",
+    note: "bring tea",
+    roomSlug: "velvet-den",
+    startAt: "2026-11-02T18:00:00.000Z",
+    endAt: "2026-11-02T19:30:00.000Z",
+    recurring: "weekly-2",
+    timeZone: "America/New_York",
+  });
+  assert.equal(parsed.error, undefined);
+  assert.equal(parsed.title, "Morning stitch");
+  assert.equal(parsed.note, "bring tea");
+  assert.equal(parsed.roomSlug, "velvet-den");
+  assert.equal(parsed.startAt, Date.parse("2026-11-02T18:00:00.000Z"));
+  assert.equal(parsed.endAt, Date.parse("2026-11-02T19:30:00.000Z"));
+  assert.equal(parsed.minutes, 90);
+  assert.equal(parsed.recurring, "weekly-2");
+  assert.equal(parsed.timeZone, "America/New_York");
+});
+
+test("parseAvailabilityInput rejects missing title, bad times, and bad durations", () => {
+  const startAt = "2026-11-02T18:00:00.000Z";
+  assert.match(parseAvailabilityInput({ title: "", startAt, endAt: startAt }).error, /title/i);
+  assert.match(parseAvailabilityInput({ title: "x" }).error, /start and end/);
+  assert.match(parseAvailabilityInput({ title: "x", startAt: "not-a-date", endAt: startAt }).error, /start and end/);
+
+  const base = { title: "x", startAt };
+  assert.match(parseAvailabilityInput({ ...base, endAt: "2026-11-02T18:05:00.000Z" }).error, /at least 15/);
+  assert.match(parseAvailabilityInput({ ...base, endAt: "2026-11-03T19:00:00.000Z" }).error, /24 hours/);
+});
+
+test("parseAvailabilityInput clamps lengths and normalizes recurring and zone", () => {
+  const parsed = parseAvailabilityInput({
+    title: "x".repeat(200),
+    note: "y".repeat(500),
+    roomSlug: "z".repeat(100),
+    startAt: "2026-11-02T18:00:00.000Z",
+    endAt: "2026-11-02T19:00:00.000Z",
+    recurring: "daily",
+    timeZone: "UTC",
+  });
+  assert.equal(parsed.error, undefined);
+  assert.equal(parsed.title.length, AVAILABILITY_MAX_TITLE);
+  assert.equal(parsed.note.length, AVAILABILITY_MAX_NOTE);
+  assert.equal(parsed.roomSlug.length, 60);
+  assert.equal(parsed.recurring, "none");
+  assert.equal(parsed.timeZone, null);
+
+  // Non-string payloads must not throw; they sanitize to empty values, and a
+  // non-string title produces the same member-facing error as a missing one.
+  const junk = parseAvailabilityInput({
+    title: "ok",
+    note: 42,
+    roomSlug: 42,
+    startAt: "2026-11-02T18:00:00.000Z",
+    endAt: "2026-11-02T19:00:00.000Z",
+  });
+  assert.equal(junk.error, undefined);
+  assert.equal(junk.note, "");
+  assert.equal(junk.roomSlug, "");
+  assert.ok(parseAvailabilityInput({ title: 42, startAt: "2026-11-02T18:00:00.000Z", endAt: "2026-11-02T19:00:00.000Z" }).error);
 });

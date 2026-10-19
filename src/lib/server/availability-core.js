@@ -99,6 +99,39 @@ export function weeklyFirstOccurrence(startAt, recurring) {
   return new Date(start.getTime() + shift * DAY_MS);
 }
 
+// Shared validation for create (POST) and edit (PATCH): one rule set, or an
+// edit could save a block the create path would reject. Returns the sanitized
+// fields on success or `{ error }` with a member-facing message on failure.
+export function parseAvailabilityInput(body) {
+  const title = (typeof body?.title === "string" ? body.title : "").trim().slice(0, AVAILABILITY_MAX_TITLE);
+  const note = (typeof body?.note === "string" ? body.note : "").trim().slice(0, AVAILABILITY_MAX_NOTE);
+  const roomSlug = typeof body?.roomSlug === "string" ? body.roomSlug.trim().slice(0, 60) : "";
+  const startAt = Date.parse(body?.startAt);
+  const endAt = Date.parse(body?.endAt);
+
+  if (!title) return { error: "Add a short title for your availability block" };
+  if (!Number.isFinite(startAt) || !Number.isFinite(endAt)) {
+    return { error: "Pick a valid start and end time" };
+  }
+  const minutes = Math.round((endAt - startAt) / 60000);
+  if (minutes < AVAILABILITY_MIN_MINUTES) {
+    return { error: `Blocks must be at least ${AVAILABILITY_MIN_MINUTES} minutes long` };
+  }
+  if (minutes > AVAILABILITY_MAX_MINUTES) {
+    return { error: "Blocks can't be longer than 24 hours" };
+  }
+  return {
+    title,
+    note,
+    roomSlug,
+    startAt,
+    endAt,
+    minutes,
+    recurring: normalizeRecurring(body?.recurring),
+    timeZone: normalizeTimeZone(body?.timeZone),
+  };
+}
+
 export function serializeAvailability(docOrRow) {
   const data = typeof docOrRow?.data === "function" ? docOrRow.data() : docOrRow;
   const id = typeof docOrRow?.data === "function" ? docOrRow.id : docOrRow.id;

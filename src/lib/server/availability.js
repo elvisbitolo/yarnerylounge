@@ -14,6 +14,7 @@ import {
   roomNameFor,
   normalizeRecurring,
   normalizeTimeZone,
+  parseAvailabilityInput,
   recurringWeekday,
   recurringLabel,
   recurringShortLabel,
@@ -25,8 +26,9 @@ import {
   toIso,
 } from "@/lib/server/availability-core";
 
-// Re-exported for the API routes. linkAvailabilityEvent is declared with
-// `export async function` below, so it must not be listed here as well.
+// Re-exported for the API routes. linkAvailabilityEvent and updateAvailability
+// are declared with `export async function` below, so they must not be listed
+// here as well.
 export {
   AVAILABILITY_LIST_LIMIT,
   availabilityListOrder,
@@ -41,6 +43,7 @@ export {
   roomNameFor,
   normalizeRecurring,
   normalizeTimeZone,
+  parseAvailabilityInput,
   recurringWeekday,
   recurringLabel,
   recurringShortLabel,
@@ -217,6 +220,57 @@ export async function linkAvailabilityEvent(availabilityId, eventId) {
     // the caller can surface that rather than silently creating a second one.
     logError("availability.prisma_link_event_failed", { error: err.message });
     return { ok: false, error: err.message };
+  }
+}
+
+// Member-facing edit: same ownership rule as delete, and the meetup derived
+// from the block mirrors the change (time, title, note, room, cadence) so the
+// two never drift apart. A timeZone that parsed to null keeps the stored pin:
+// an edit that silently dropped it would reinterpret every future occurrence.
+export async function updateAvailability(id, uid, { title, note, roomSlug, startAt, endAt, recurring, timeZone }) {
+  const prisma = getPrisma();
+  if (!prisma) return { error: "Database unavailable", status: 500 };
+  try {
+    const slot = await prisma.availability.findUnique({ where: { id } });
+    if (!slot) return { error: "Slot not found", status: 404 };
+    if (slot.userId !== uid) return { error: "You can only edit your own slots", status: 403 };
+
+    const data = {
+      title,
+      note,
+      roomSlug,
+      color: roomColorFor(roomSlug),
+      startAt: new Date(startAt),
+      endAt: new Date(endAt),
+      recurring,
+      ...(timeZone ? { timeZone } : {}),
+    };
+
+    const steps = [prisma.availability.update({ where: { id }, data })];
+    if (slot.eventId) {
+      const event = await prisma.event.findUnique({ where: { id: slot.eventId }, select: { id: true } });
+      if (event) {
+        steps.push(
+          prisma.event.update({
+            where: { id: slot.eventId },
+            data: {
+              title,
+              description: note,
+              startTime: new Date(startAt),
+              endTime: new Date(endAt),
+              roomSlug,
+              // Same cadence rule as promotion: the block is the source of truth.
+              recurrence: recurring === "none" ? null : { freq: "weekly", interval: 1, count: 52 },
+            },
+          })
+        );
+      }
+    }
+    await prisma.$transaction(steps);
+    return { ok: true, eventId: slot.eventId || null };
+  } catch (err) {
+    logError("availability.prisma_update_failed", { error: err.message });
+    return { error: "Database unavailable", status: 500 };
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Globe, Plus, Trash2, Users, ChevronLeft, ChevronRight, X, Bell } from "lucide-react";
+import { CalendarDays, Globe, Pencil, Plus, Trash2, Users, ChevronLeft, ChevronRight, X, Bell } from "lucide-react";
 import {
   RECURRING_OPTIONS,
   recurringLabel,
@@ -122,6 +122,8 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  // The member's own block currently open for editing (see updateSlot below).
+  const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [toast, setToast] = useState("");
@@ -181,15 +183,16 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   }, []);
 
   useEffect(() => {
-    if (!selected && !showAdd) return undefined;
+    if (!selected && !showAdd && !editing) return undefined;
     function onKeyDown(event) {
       if (event.key !== "Escape") return;
       setSelected(null);
       setShowAdd(false);
+      setEditing(null);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected, showAdd]);
+  }, [selected, showAdd, editing]);
 
   const mine = useMemo(() => {
     const set = new Set();
@@ -420,6 +423,29 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     }
   }
 
+  async function updateSlot(id, fields) {
+    setError("");
+    try {
+      const res = await fetch(`/api/availability/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(fields),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Could not update your block");
+        return false;
+      }
+      setToast("Your block is updated");
+      await refresh();
+      return true;
+    } catch {
+      setError("Could not update your block");
+      return false;
+    }
+  }
+
   async function deleteSlot(id) {
     try {
       const res = await fetch(`/api/availability/${id}`, { method: "DELETE", credentials: "include" });
@@ -523,6 +549,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           className={styles.addBtn}
           onClick={() => {
             setError("");
+            setEditing(null);
             setShowAdd(true);
           }}
           aria-haspopup="dialog"
@@ -851,6 +878,18 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
         />
       )}
 
+      {editing && (
+        <AddAvailabilityForm
+          initial={editing}
+          onClose={() => {
+            setEditing(null);
+            setError("");
+          }}
+          onSave={(fields) => updateSlot(editing.id, fields)}
+          defaultValue={new Date()}
+        />
+      )}
+
       {selected && (
         <SelectedModal
           block={selected}
@@ -859,6 +898,10 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           timeZone={timeZone}
           now={now}
           onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditing(selected);
+            setSelected(null);
+          }}
           onDelete={() => deleteSlot(selected.id).then(() => setSelected(null))}
           onToggle={() => toggleRsvp(selected)}
           onRemind={() => toggleReminder(selected)}
@@ -871,9 +914,8 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   );
 }
 
-function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
-  const [title, setTitle] = useState("");
-  const [roomSlug, setRoomSlug] = useState("");
+function AddAvailabilityForm({ onClose, onSave, defaultValue, initial }) {
+  const isEdit = Boolean(initial);
   // Seed the date picker from the viewer's own day. toISOString().slice(0,10)
   // is UTC and pre-filled tomorrow for anyone east of Greenwich after local
   // midnight but before the UTC date rolls over.
@@ -881,15 +923,31 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
     () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     []
   );
-  const [startDate, setStartDate] = useState(
-    () => dayKeyFor(defaultValue, browserZone) || ""
+  const [title, setTitle] = useState(() => initial?.title || "");
+  const [roomSlug, setRoomSlug] = useState(() => initial?.roomSlug || "");
+  const [startDate, setStartDate] = useState(() =>
+    isEdit
+      ? dayKeyFor(new Date(initial.startAt), browserZone) || ""
+      : dayKeyFor(defaultValue, browserZone) || ""
   );
-  const [startTime, setStartTime] = useState("18:00");
-  const [duration, setDuration] = useState("90");
-  const [recurring, setRecurring] = useState("none");
-  const [note, setNote] = useState("");
+  // In edit mode the clock fields are seeded from the stored instant read in
+  // this browser's zone. handleSubmit re-parses `${startDate}T${startTime}` as
+  // a local wall clock, so seeding from local hours/minutes round-trips exactly.
+  const [startTime, setStartTime] = useState(() => {
+    if (!isEdit) return "18:00";
+    const d = new Date(initial.startAt);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  });
+  const [duration, setDuration] = useState(() => {
+    if (!isEdit) return "90";
+    const mins = Math.round((new Date(initial.endAt) - new Date(initial.startAt)) / 60000);
+    return String(Number.isFinite(mins) && mins > 0 ? mins : 90);
+  });
+  const [recurring, setRecurring] = useState(() => initial?.recurring || "none");
+  const [note, setNote] = useState(() => initial?.note || "");
   // Opt-in: a block is an offer of time by default, and promoting it creates a
   // real meetup that shows up on /events. Not every block should become one.
+  // Editing never touches promotion: the block and its meetup move together.
   const [makeEvent, setMakeEvent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -906,7 +964,7 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
     setSaving(true);
     // `picked` above is parsed without an offset, so it means this browser's
     // wall clock. Ship the zone that interpretation relied on.
-    const ok = await onSave({
+    const payload = {
       title: title.trim(),
       roomSlug,
       startAt: start.toISOString(),
@@ -914,8 +972,10 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
       timeZone: browserZone,
       recurring,
       note,
-      makeEvent,
-    });
+    };
+    // Promotion is a create-time decision; edits never add or remove a meetup.
+    if (!isEdit) payload.makeEvent = makeEvent;
+    const ok = await onSave(payload);
     setSaving(false);
     if (ok) onClose();
   }
@@ -924,13 +984,17 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
     <div className={styles.modalBackdrop} onMouseDown={onClose} role="presentation">
       <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-availability-title">
         <div className={styles.modalHead}>
-          <h2 id="add-availability-title" className={styles.modalTitle}>Add Availability</h2>
+          <h2 id="add-availability-title" className={styles.modalTitle}>
+            {isEdit ? "Edit Availability" : "Add Availability"}
+          </h2>
           <button className={styles.iconBtn} onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
         </div>
         <p className={styles.modalSub}>
-          Broadcast when you&apos;ll have your hook in hand. Members will see you on the calendar and can stitch along.
+          {isEdit
+            ? "Update when you'll be online — everyone on the calendar sees the change right away."
+            : "Broadcast when you'll have your hook in hand. Members will see you on the calendar and can stitch along."}
         </p>
         <form onSubmit={handleSubmit} className={styles.addForm}>
           <label className={styles.field}>
@@ -983,6 +1047,10 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Duration</span>
               <select value={duration} onChange={(e) => setDuration(e.target.value)} className={styles.input}>
+                {/* An edited block can carry a duration outside the preset list. */}
+                {!["30", "60", "90", "120", "180"].includes(duration) && (
+                  <option value={duration}>{duration} min</option>
+                )}
                 <option value="30">30 min</option>
                 <option value="60">1 hour</option>
                 <option value="90">1.5 hours</option>
@@ -993,6 +1061,9 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Repeat</span>
               <select value={recurring} onChange={(e) => setRecurring(e.target.value)} className={styles.input}>
+                {/* Legacy blocks store bare "weekly" (own weekday), which the
+                    normalised option list no longer includes. */}
+                {recurring === "weekly" && <option value="weekly">Every week</option>}
                 {RECURRING_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -1010,16 +1081,18 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue }) {
               className={styles.input}
             />
           </label>
-          <label className={styles.fieldRow}>
-            <span className={styles.fieldLabel}>
-              <input
-                type="checkbox"
-                checked={makeEvent}
-                onChange={(e) => setMakeEvent(e.target.checked)}
-              />{" "}
-              Also post this as a meetup
-            </span>
-          </label>
+          {!isEdit && (
+            <label className={styles.fieldRow}>
+              <span className={styles.fieldLabel}>
+                <input
+                  type="checkbox"
+                  checked={makeEvent}
+                  onChange={(e) => setMakeEvent(e.target.checked)}
+                />{" "}
+                Also post this as a meetup
+              </span>
+            </label>
+          )}
           {localError && <p className={styles.error}>{localError}</p>}
           <div className={styles.modalActions}>
             <button type="button" className={styles.cancelBtn} onClick={onClose}>
@@ -1042,6 +1115,7 @@ function SelectedModal({
   timeZone,
   now,
   onClose,
+  onEdit,
   onDelete,
   onToggle,
   onRemind,
@@ -1103,9 +1177,14 @@ function SelectedModal({
               </button>
             </>
           ) : mine ? (
-            <button className={styles.dangerBtn} onClick={onDelete}>
-              <Trash2 size={15} /> Delete
-            </button>
+            <>
+              <button className={styles.cancelBtn} onClick={onEdit}>
+                <Pencil size={15} /> Edit
+              </button>
+              <button className={styles.dangerBtn} onClick={onDelete}>
+                <Trash2 size={15} /> Delete
+              </button>
+            </>
           ) : (
             <button className={styles.saveBtn} onClick={onToggle} disabled={busy}>
               <Users size={15} /> {block.rsvpCount && block.rsvpCount > 0 ? `Stitching along (${block.rsvpCount})` : "Stitch Along"}
