@@ -85,7 +85,7 @@ const REMINDERS_STORAGE_KEY = "yarnery-calendar-reminders";
 
 function browserTimeZone() {
   if (typeof window === "undefined") return "UTC";
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
 function initialTimeZone() {
