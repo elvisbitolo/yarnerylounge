@@ -281,7 +281,22 @@ export function zonedDateTimeToDate(dayKey, clock, timeZone) {
     if (delta === 0) break;
     guess += delta;
   }
-  return new Date(guess);
+
+  // If the requested wall time does not exist during a spring-forward gap,
+  // offset correction oscillates between the times on either side. Choose the
+  // closest representable wall time, preferring the later time on a tie.
+  const candidates = [guess - 60 * 60 * 1000, guess, guess + 60 * 60 * 1000];
+  candidates.sort((left, right) => {
+    const wallDelta = (instant) => {
+      const p = zonedParts(new Date(instant), timeZone);
+      if (!p) return Infinity;
+      return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - target;
+    };
+    const leftDelta = wallDelta(left);
+    const rightDelta = wallDelta(right);
+    return Math.abs(leftDelta) - Math.abs(rightDelta) || rightDelta - leftDelta;
+  });
+  return new Date(candidates[0]);
 }
 
 // Add calendar days in the selected zone rather than adding 24 hours to an
