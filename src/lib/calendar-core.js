@@ -250,3 +250,74 @@ export function layoutOverlaps(items = []) {
     cols: layout.get(index)?.cols ?? 1,
   }));
 }
+
+
+// Build a stable calendar-day anchor at noon in the selected IANA time zone.
+// Noon avoids the usual daylight-saving transition hour and makes calendar
+// navigation independent of the viewer machine's own zone.
+export function dateForCalendarDay(dayKey, timeZone) {
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(dayKey || "");
+  if (!match) return new Date(NaN);
+  return zonedDateTimeToDate(dayKey, "12:00", timeZone);
+}
+
+// Convert a wall-clock date/time in an IANA zone to the corresponding instant.
+// The iterative offset correction handles standard and daylight offsets without
+// relying on the computer's local zone. If a requested wall time falls into a
+// DST gap, the result resolves to the closest representable instant.
+export function zonedDateTimeToDate(dayKey, clock, timeZone) {
+  const dateMatch = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(dayKey || "");
+  const timeMatch = /^(\\d{2}):(\\d{2})$/.exec(clock || "");
+  if (!dateMatch || !timeMatch || !timeZone) return new Date(NaN);
+  const [, y, mo, d] = dateMatch;
+  const [, h, mi] = timeMatch;
+  const target = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
+  let guess = target;
+  for (let i = 0; i < 4; i += 1) {
+    const p = zonedParts(new Date(guess), timeZone);
+    if (!p) return new Date(NaN);
+    const represented = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+    const delta = target - represented;
+    if (delta === 0) break;
+    guess += delta;
+  }
+  return new Date(guess);
+}
+
+// Add calendar days in the selected zone rather than adding 24 hours to an
+// instant. This remains correct across daylight-saving changes and midnight.
+export function addCalendarDays(instant, amount, timeZone) {
+  const key = dayKeyFor(instant, timeZone);
+  if (!key) return new Date(NaN);
+  const [year, month, day] = key.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + amount, 12));
+  const nextKey = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(next.getUTCDate()).padStart(2, "0")}`;
+  return dateForCalendarDay(nextKey, timeZone);
+}
+
+export function calendarWeekday(instant, timeZone) {
+  const key = dayKeyFor(instant, timeZone);
+  if (!key) return NaN;
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+export function calendarMonthKey(instant, timeZone) {
+  const key = dayKeyFor(instant, timeZone);
+  return key ? key.slice(0, 7) : "";
+}
+
+// Event-specific offset (not today's offset), useful for future events that
+// cross a daylight-saving boundary.
+export function formatZoneOffset(instant, timeZone) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      timeZoneName: "shortOffset",
+    }).formatToParts(toDate(instant));
+    const value = parts.find((part) => part.type === "timeZoneName")?.value || "";
+    return value.replace(/^GMT/, "UTC");
+  } catch {
+    return "";
+  }
+}
