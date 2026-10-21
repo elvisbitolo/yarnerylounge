@@ -232,8 +232,7 @@ test("normalizeTimeZone accepts real IANA zones and rejects non-zones", () => {
   // Region-qualified: needed to survive a DST transition in its own zone.
   assert.equal(normalizeTimeZone("America/Argentina/Buenos_Aires"), "America/Argentina/Buenos_Aires");
 
-  // "UTC" is what some browsers report, and it carries no DST information, so a
-  // recurring block pinned to it would drift twice a year.
+  // UTC is a valid explicit wall-clock zone; it never has a DST transition.
   assert.equal(normalizeTimeZone("UTC"), "UTC");
   assert.equal(normalizeTimeZone("GMT"), null);
   assert.equal(normalizeTimeZone("Z"), null);
