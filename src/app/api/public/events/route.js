@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { expandEvents } from "@/lib/server/events";
+import { nextOccurrenceAt } from "@/lib/server/availability-core";
 import {
   PUBLIC_EVENT_SELECT,
   nextOccurrences,
@@ -10,8 +11,10 @@ import {
 } from "@/lib/server/public-events-core";
 
 // Public calendar feed for the Shopify landing page (secretyarnery.com).
-// Event titles, descriptions and times are intentionally public, including
-// events marked members-only. Private room details are never returned.
+// Includes scheduled Event records (including members-only events) and
+// explicitly pinned, unpromoted Availability hangouts. Only pinned hangouts
+// are eligible: pinning is the member's opt-in to share the block with others.
+// Private room details, member names, avatars and notes are never returned.
 export const dynamic = "force-dynamic";
 
 const RESPONSE_HEADERS = {
@@ -33,23 +36,67 @@ export async function GET(req) {
   try {
     const now = new Date();
 
-    // Read event anchors before filtering occurrences. Filtering in SQL by
-    // startTime excludes recurring events whose original anchor has passed;
-    // the recurrence expander is responsible for determining their next date.
-    // A bounded, newest-first read avoids the previous split queries and the
-    // arbitrary 366-day cutoff while keeping the public request predictable.
-    const rows = await prisma.event.findMany({
+    // Include every scheduled event type, including members-only events.
+    // Expand recurring anchors before filtering by upcoming occurrence.
+    const eventRows = await prisma.event.findMany({
       orderBy: [{ startTime: "desc" }, { createdAt: "desc" }],
       take: 500,
       select: PUBLIC_EVENT_SELECT,
     });
 
-    const upcoming = expandEvents(rows).filter(
-      (event) => Number.isFinite(new Date(event.startTime).getTime()) &&
+    const scheduledEvents = expandEvents(eventRows).filter(
+      (event) =>
+        Number.isFinite(new Date(event.startTime).getTime()) &&
         new Date(event.startTime).getTime() >= now.getTime()
     );
-    const events = nextOccurrences(upcoming)
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+
+    // The signed-in Events page also shows standalone hangouts from
+    // Availability. The old public endpoint never queried this model, so a
+    // calendar made up of hangouts could appear empty on the Shopify page.
+    // Only explicitly pinned blocks are shared publicly, and promoted blocks
+    // are excluded because their linked Event is already in scheduledEvents.
+    const availabilityRows = await prisma.availability.findMany({
+      where: { pinned: true, eventId: null },
+      orderBy: [{ startAt: "desc" }, { createdAt: "desc" }],
+      take: 500,
+      select: {
+        id: true,
+        title: true,
+        startAt: true,
+        endAt: true,
+        recurring: true,
+      },
+    });
+
+    const publicHangouts = availabilityRows
+      .map((slot) => {
+        const nextAt = nextOccurrenceAt(slot, now);
+        if (!nextAt) return null;
+
+        const startTime = new Date(nextAt);
+        const originalStart = new Date(slot.startAt).getTime();
+        const originalEnd = new Date(slot.endAt).getTime();
+        const duration = Number.isFinite(originalEnd - originalStart)
+          ? Math.max(originalEnd - originalStart, 0)
+          : 0;
+
+        return {
+          id: `availability-${slot.id}`,
+          title: slot.title || "Community hangout",
+          description: "",
+          startTime,
+          endTime: duration ? new Date(startTime.getTime() + duration) : null,
+          roomSlug: "",
+          room: null,
+        };
+      })
+      .filter(Boolean);
+
+    const events = nextOccurrences([...scheduledEvents, ...publicHangouts])
+      .sort(
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      )
       .slice(0, limit)
       .map(toPublicEvent);
 
