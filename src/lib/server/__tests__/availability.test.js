@@ -298,7 +298,7 @@ test("parseAvailabilityInput clamps lengths and normalizes recurring and zone", 
   assert.equal(parsed.note.length, AVAILABILITY_MAX_NOTE);
   assert.equal(parsed.roomSlug.length, 60);
   assert.equal(parsed.recurring, "none");
-  assert.equal(parsed.timeZone, null);
+  assert.equal(parsed.timeZone, "UTC");
 
   // Non-string payloads must not throw; they sanitize to empty values, and a
   // non-string title produces the same member-facing error as a missing one.
