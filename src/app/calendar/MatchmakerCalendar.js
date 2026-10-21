@@ -6,7 +6,6 @@ import { CalendarDays, Globe, Pencil, Plus, Trash2, Users, ChevronLeft, ChevronR
 import {
   RECURRING_OPTIONS,
   recurringLabel,
-  recurringDayMatches,
   recurringWeekday,
 } from "@/lib/server/availability-core";
 import {
@@ -21,6 +20,13 @@ import {
   nowOffset,
   timeZoneDisplay,
   windowHeightPx,
+  addCalendarDays,
+  calendarMonthKey,
+  calendarWeekday,
+  dateForCalendarDay,
+  formatZoneOffset,
+  zonedDateTimeToDate,
+  zonedParts,
 } from "@/lib/calendar-core";
 import { buildEventIcs, icsFilename } from "@/lib/ics-core";
 import styles from "./calendar.module.css";
@@ -58,10 +64,18 @@ const EXTRA_ZONES = [
   "America/Chicago",
   "America/Los_Angeles",
   "America/Toronto",
+  "America/Vancouver",
+  "America/Mexico_City",
+  "America/Sao_Paulo",
+  "Europe/Paris",
   "Asia/Dubai",
+  "Asia/Singapore",
   "Asia/Kolkata",
+  "Asia/Seoul",
   "Asia/Tokyo",
+  "Australia/Perth",
   "Australia/Sydney",
+  "Pacific/Auckland",
   "UTC",
 ];
 
@@ -71,7 +85,7 @@ const REMINDERS_STORAGE_KEY = "yarnery-calendar-reminders";
 
 function browserTimeZone() {
   if (typeof window === "undefined") return "UTC";
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
 function initialTimeZone() {
@@ -81,12 +95,6 @@ function initialTimeZone() {
   } catch {
     return browserTimeZone();
   }
-}
-
-function startOfDay(d) {
-  const c = new Date(d);
-  c.setHours(0, 0, 0, 0);
-  return c;
 }
 
 function addDays(d, n) {
@@ -99,13 +107,73 @@ function addMinutes(d, m) {
   return new Date(d.getTime() + m * 60000);
 }
 
-function snapToWeekday(start, recurring) {
+function snapToWeekday(start, recurring, timeZone) {
   const wd = recurringWeekday(recurring);
   if (wd == null) return start;
-  const d = new Date(start);
-  const shift = (wd - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + shift);
-  return d;
+  const weekday = calendarWeekday(start, timeZone);
+  const shift = (wd - weekday + 7) % 7;
+  if (shift === 0) return start;
+  const targetKey = dayKeyFor(addCalendarDays(start, shift, timeZone), timeZone);
+  const parts = zonedParts(start, timeZone);
+  if (!parts || !targetKey) return start;
+  return zonedDateTimeToDate(
+    targetKey,
+    `${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`,
+    timeZone
+  );
+}
+
+// Resolve a recurring availability occurrence on a viewer's calendar day.
+// Recurrence is anchored to the creator's wall clock and IANA zone, while the
+// occurrence is grouped under the day it actually falls on for this viewer.
+function recurringOccurrenceOnDay(block, day, viewerZone) {
+  if (!block.recurring || block.recurring === "none") return null;
+  const sourceZone = block.timeZone || viewerZone;
+  const originalStart = new Date(block.startAt);
+  const originalEnd = new Date(block.endAt || block.startAt);
+  if (!Number.isFinite(originalStart.getTime())) return null;
+
+  const sourceParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: sourceZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(originalStart).reduce((parts, part) => {
+    if (part.type !== "literal") parts[part.type] = part.value;
+    return parts;
+  }, {});
+  const originalKey = `${sourceParts.year}-${sourceParts.month}-${sourceParts.day}`;
+  const wantedWeekday = recurringWeekday(block.recurring);
+  const anchorWeekday = calendarWeekday(originalStart, sourceZone);
+  const repeatsOn = wantedWeekday == null ? anchorWeekday : wantedWeekday;
+  const viewerKey = dayKeyFor(day, viewerZone);
+  const duration = Number.isFinite(originalEnd.getTime())
+    ? Math.max(0, originalEnd.getTime() - originalStart.getTime())
+    : 0;
+
+  // A viewer-day can overlap two source-zone dates. Check a small surrounding
+  // window so UTC+14 and UTC-12 members see the same occurrence exactly once.
+  for (let offset = -2; offset <= 2; offset += 1) {
+    const candidateDay = addCalendarDays(day, offset, sourceZone);
+    const candidateKey = dayKeyFor(candidateDay, sourceZone);
+    if (!candidateKey || candidateKey < originalKey) continue;
+    if (calendarWeekday(candidateDay, sourceZone) !== repeatsOn) continue;
+    const start = zonedDateTimeToDate(
+      candidateKey,
+      `${sourceParts.hour}:${sourceParts.minute}`,
+      sourceZone
+    );
+    if (!Number.isFinite(start.getTime()) || dayKeyFor(start, viewerZone) !== viewerKey) continue;
+    return {
+      ...block,
+      startAt: start.toISOString(),
+      endAt: new Date(start.getTime() + duration).toISOString(),
+    };
+  }
+  return null;
 }
 
 export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
@@ -114,7 +182,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   // The single zone every label and grid offset is derived from. Resolved on the
   // client so the server's zone never leaks in; UTC until mounted. Members can
   // pin it to a home city via the chip.
-  const [timeZone, setTimeZone] = useState(() => initialTimeZone());
+  const [timeZone, setTimeZone] = useState("UTC");
   const [availability, setAvailability] = useState([]);
   const [events, setEvents] = useState([]);
   const [filters, setFilters] = useState(() => ({ event: true, availability: true, course: true }));
@@ -157,6 +225,13 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // Hydrate the saved/browser zone after the first render to keep server and
+    // client markup consistent, then use the member's actual local preference.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate browser preference after SSR
+    setTimeZone(initialTimeZone());
   }, []);
 
   useEffect(() => {
@@ -310,22 +385,32 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     setToast("Calendar file downloaded");
   }
 
+  // Calendar columns represent dates in the selected IANA zone, not the
+  // computer's local zone. Each day anchor is noon in that zone so DST and
+  // cross-midnight boundaries cannot shift the visible date.
   const viewStart = useMemo(() => {
-    const base = startOfDay(anchor);
+    const anchorKey = dayKeyFor(anchor, timeZone);
+    if (!anchorKey) return new Date(NaN);
     if (view === "month") {
-      return new Date(base.getFullYear(), base.getMonth(), 1);
+      const monthKey = calendarMonthKey(anchor, timeZone);
+      return dateForCalendarDay(`${monthKey}-01`, timeZone);
     }
-    const day = base.getDay();
-    return addDays(base, -day);
-  }, [anchor, view]);
+    const base = dateForCalendarDay(anchorKey, timeZone);
+    return addCalendarDays(base, -calendarWeekday(base, timeZone), timeZone);
+  }, [anchor, view, timeZone]);
 
   const days = useMemo(() => {
-    if (view === "day") return [startOfDay(anchor)];
-    if (view === "week") return Array.from({ length: 7 }, (_, i) => addDays(viewStart, i));
-    const first = startOfDay(viewStart);
-    const total = 7 * 6;
-    return Array.from({ length: total }, (_, i) => addDays(first, i - first.getDay()));
-  }, [view, viewStart, anchor]);
+    if (view === "day") {
+      return [dateForCalendarDay(dayKeyFor(anchor, timeZone), timeZone)];
+    }
+    if (view === "week") {
+      return Array.from({ length: 7 }, (_, i) => addCalendarDays(viewStart, i, timeZone));
+    }
+    const monthKey = calendarMonthKey(anchor, timeZone);
+    const first = dateForCalendarDay(`${monthKey}-01`, timeZone);
+    const gridStart = addCalendarDays(first, -calendarWeekday(first, timeZone), timeZone);
+    return Array.from({ length: 42 }, (_, i) => addCalendarDays(gridStart, i, timeZone));
+  }, [view, viewStart, anchor, timeZone]);
 
   const windowStartHour = showAllHours ? 0 : DEFAULT_WINDOW_START_MINUTES / 60;
   const windowEndHour = showAllHours ? 24 : DEFAULT_WINDOW_END_MINUTES / 60;
@@ -390,11 +475,12 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const blocksForDay = (day) => {
     const key = dayKeyFor(day, timeZone);
     return visibleItems
-      .filter((a) => {
-        if (a.recurring !== "none" && a.recurring) {
-          return recurringDayMatches(a, day);
+      .flatMap((item) => {
+        if (item.recurring && item.recurring !== "none") {
+          const occurrence = recurringOccurrenceOnDay(item, day, timeZone);
+          return occurrence ? [occurrence] : [];
         }
-        return dayKeyFor(a.startAt, timeZone) === key;
+        return dayKeyFor(item.startAt, timeZone) === key ? [item] : [];
       })
       .sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
   };
@@ -482,16 +568,18 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
 
   function navigate(dir) {
     if (view === "month") {
-      setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1));
-    } else if (view === "week") {
-      setAnchor(addDays(anchor, dir * 7));
+      const key = calendarMonthKey(anchor, timeZone);
+      const [year, month] = key.split("-").map(Number);
+      const target = new Date(Date.UTC(year, month - 1 + dir, 1, 12));
+      const targetKey = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, "0")}-01`;
+      setAnchor(dateForCalendarDay(targetKey, timeZone));
     } else {
-      setAnchor(addDays(anchor, dir));
+      setAnchor(addCalendarDays(anchor, view === "week" ? dir * 7 : dir, timeZone));
     }
   }
 
   function gotoToday() {
-    setAnchor(new Date());
+    setAnchor(dateForCalendarDay(dayKeyFor(new Date(), timeZone), timeZone));
   }
 
   function changeTimeZone(next) {
@@ -510,7 +598,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const agendaDays = days
     .map((day) => ({ day, key: dayKeyFor(day, timeZone), blocks: blocksForDay(day) }))
     .filter((entry) => entry.blocks.length > 0)
-    .filter((entry) => view !== "month" || entry.day.getMonth() === anchor.getMonth());
+    .filter((entry) => view !== "month" || calendarMonthKey(entry.day, timeZone) === calendarMonthKey(anchor, timeZone));
 
   return (
     <>
@@ -622,7 +710,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
             <span className={styles.upNextLabel}>Up next</span>
             <span className={styles.upNextTitle}>{nextUp.title}</span>
             <span className={styles.upNextWhen}>
-              {formatDay(nextUp.startAt, timeZone)} · {formatClock(nextUp.startAt, timeZone)}
+              {formatDay(nextUp.startAt, timeZone)} · {formatClock(nextUp.startAt, timeZone)} {formatZoneOffset(nextUp.startAt, timeZone)}
               {nextUp.roomName ? ` · ${nextUp.roomName}` : ""}
             </span>
           </div>
@@ -671,7 +759,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                       onClick={() => setSelected(block)}
                     >
                       <span className={styles.agendaTime}>
-                        {formatClock(block.startAt, timeZone)}
+                        {formatClock(block.startAt, timeZone)} {formatZoneOffset(block.startAt, timeZone)}
                       </span>
                       <span
                         className={`${styles.swatch} ${
@@ -718,17 +806,17 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
                     <div
                       key={key}
                       className={`${styles.dayCol} ${
-                        day.getDay() === 0 || day.getDay() === 6 ? styles.weekendCol : ""
+                        calendarWeekday(day, timeZone) === 0 || calendarWeekday(day, timeZone) === 6 ? styles.weekendCol : ""
                       }`}
                     >
                       <div
                         className={`${styles.dayHead} ${isToday ? styles.todayHead : ""}`}
                       >
-                        <span>{WEEKDAYS[day.getDay()]}</span>
+                        <span>{WEEKDAYS[calendarWeekday(day, timeZone)]}</span>
                         <span
                           className={`${styles.dayNum} ${isToday ? styles.todayNum : ""}`}
                         >
-                          {day.getDate()}
+                          {Number(key.slice(-2))}
                         </span>
                       </div>
                       <div
@@ -822,7 +910,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
               {days.map((day) => {
                 const key = dayKeyFor(day, timeZone);
                 const blocks = blocksForDay(day);
-                const inMonth = day.getMonth() === anchor.getMonth();
+                const inMonth = calendarMonthKey(day, timeZone) === calendarMonthKey(anchor, timeZone);
                 return (
                   <div
                     key={key}
@@ -875,6 +963,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           }}
           onSave={createSlot}
           defaultValue={new Date()}
+          timeZone={timeZone}
         />
       )}
 
@@ -887,6 +976,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           }}
           onSave={(fields) => updateSlot(editing.id, fields)}
           defaultValue={new Date()}
+          timeZone={timeZone}
         />
       )}
 
@@ -914,29 +1004,24 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   );
 }
 
-function AddAvailabilityForm({ onClose, onSave, defaultValue, initial }) {
+function AddAvailabilityForm({ onClose, onSave, defaultValue, initial, timeZone }) {
   const isEdit = Boolean(initial);
   // Seed the date picker from the viewer's own day. toISOString().slice(0,10)
   // is UTC and pre-filled tomorrow for anyone east of Greenwich after local
   // midnight but before the UTC date rolls over.
-  const browserZone = useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    []
-  );
+  const formTimeZone = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [title, setTitle] = useState(() => initial?.title || "");
   const [roomSlug, setRoomSlug] = useState(() => initial?.roomSlug || "");
   const [startDate, setStartDate] = useState(() =>
     isEdit
-      ? dayKeyFor(new Date(initial.startAt), browserZone) || ""
-      : dayKeyFor(defaultValue, browserZone) || ""
+      ? dayKeyFor(new Date(initial.startAt), formTimeZone) || ""
+      : dayKeyFor(defaultValue, formTimeZone) || ""
   );
-  // In edit mode the clock fields are seeded from the stored instant read in
-  // this browser's zone. handleSubmit re-parses `${startDate}T${startTime}` as
-  // a local wall clock, so seeding from local hours/minutes round-trips exactly.
+  // Seed and parse date/time fields in the selected calendar zone, not the
+  // device zone, so choosing London while in Nairobi still schedules London time.
   const [startTime, setStartTime] = useState(() => {
     if (!isEdit) return "18:00";
-    const d = new Date(initial.startAt);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    return formatClock(initial.startAt, formTimeZone);
   });
   const [duration, setDuration] = useState(() => {
     if (!isEdit) return "90";
@@ -961,18 +1046,22 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue, initial }) {
       setLocalError("Give your block a fun title.");
       return;
     }
-    const picked = new Date(`${startDate}T${startTime}`);
-    const start = snapToWeekday(picked, recurring);
+    const picked = zonedDateTimeToDate(startDate, startTime, formTimeZone);
+    if (!Number.isFinite(picked.getTime())) {
+      setLocalError("Choose a valid date, time, and time zone.");
+      return;
+    }
+    const start = snapToWeekday(picked, recurring, formTimeZone);
     const end = addMinutes(start, Number(duration) || 90);
     setSaving(true);
-    // `picked` above is parsed without an offset, so it means this browser's
-    // wall clock. Ship the zone that interpretation relied on.
+    // ISO timestamps preserve the exact instant; timeZone preserves the
+    // intended wall clock for recurring availability and future edits.
     const payload = {
       title: title.trim(),
       roomSlug,
       startAt: start.toISOString(),
       endAt: end.toISOString(),
-      timeZone: browserZone,
+      timeZone: formTimeZone,
       recurring,
       note,
       pinned,
@@ -1153,9 +1242,10 @@ function SelectedModal({
         </div>
         <p className={styles.modalSub}>
           <CalendarDays size={14} /> {formatDay(block.startAt, timeZone)} ·{" "}
-          {formatClock(block.startAt, timeZone)}
-          {block.endAt && ` – ${formatClock(block.endAt, timeZone)}`}
+          {formatClock(block.startAt, timeZone)} {formatZoneOffset(block.startAt, timeZone)}
+          {block.endAt && ` – ${formatClock(block.endAt, timeZone)} ${formatZoneOffset(block.endAt, timeZone)}`}
           {String(block.recurring) !== "none" && ` — ${recurringLabel(block.recurring)}`}
+          <span className={styles.fieldHint}>Times shown in {timeZone.replace(/_/g, " ")}.</span>
         </p>
         {block.roomSlug && (
           <p className={styles.selRoom}>
