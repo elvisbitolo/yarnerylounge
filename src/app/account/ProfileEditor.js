@@ -20,6 +20,7 @@ import styles from "./account.module.css";
 import coverStyles from "./cover.module.css";
 import { Image as ImageIcon } from "lucide-react";
 import Cropper from "react-easy-crop";
+import SignatureColorPicker from "./SignatureColorPicker";
 
 const QUESTIONS_PER_PAGE = 3;
 const QUIZ_PAGE_COUNT = Math.ceil(QUIZ_QUESTIONS.length / QUESTIONS_PER_PAGE);
@@ -1401,31 +1402,12 @@ export default function ProfileEditor({ initial, memberId }) {
           );
         })}
       </div>
-      <div className={styles.colorRow}>
-        {favoriteColors.slice(0, 3).map((color, i) => (
-          <div key={i} className={styles.colorWheel}>
-            <div
-              className={styles.wheelRing}
-              style={{
-                background: `conic-gradient(${color}, #ffffff 25%, ${color} 50%, #ffffff 75%, ${color})`,
-              }}
-            >
-              <div className={styles.wheelFace} />
-              <input
-                type="color"
-                value={color}
-                aria-label={`Colour ${i + 1}`}
-                onChange={(e) => setColor(i, e.target.value)}
-              />
-            </div>
-            <span className={styles.wheelLabel}>Colour {i + 1}</span>
-          </div>
-        ))}
-        <div className={styles.colorWheel}>
-          <div className={styles.palettePreview} style={{ background: colorGradient(favoriteColors) }} />
-          <span className={styles.wheelLabel}>Preview</span>
-        </div>
-      </div>
+      <SignatureColorPicker
+        colors={favoriteColors}
+        onColorsChange={setFavoriteColors}
+        presets={PALETTE_PRESETS}
+        colorGradient={colorGradient}
+      />
 
       <h3 className={styles.sectionTitle}>Social links</h3>
       <p className={styles.fieldHint} style={{ marginTop: -8, marginBottom: 12 }}>
