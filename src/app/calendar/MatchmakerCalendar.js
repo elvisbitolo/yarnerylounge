@@ -64,10 +64,18 @@ const EXTRA_ZONES = [
   "America/Chicago",
   "America/Los_Angeles",
   "America/Toronto",
+  "America/Vancouver",
+  "America/Mexico_City",
+  "America/Sao_Paulo",
+  "Europe/Paris",
   "Asia/Dubai",
+  "Asia/Singapore",
   "Asia/Kolkata",
+  "Asia/Seoul",
   "Asia/Tokyo",
+  "Australia/Perth",
   "Australia/Sydney",
+  "Pacific/Auckland",
   "UTC",
 ];
 
@@ -87,12 +95,6 @@ function initialTimeZone() {
   } catch {
     return browserTimeZone();
   }
-}
-
-function startOfDay(d) {
-  const c = new Date(d);
-  c.setHours(0, 0, 0, 0);
-  return c;
 }
 
 function addDays(d, n) {
@@ -180,7 +182,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   // The single zone every label and grid offset is derived from. Resolved on the
   // client so the server's zone never leaks in; UTC until mounted. Members can
   // pin it to a home city via the chip.
-  const [timeZone, setTimeZone] = useState(() => initialTimeZone());
+  const [timeZone, setTimeZone] = useState("UTC");
   const [availability, setAvailability] = useState([]);
   const [events, setEvents] = useState([]);
   const [filters, setFilters] = useState(() => ({ event: true, availability: true, course: true }));
@@ -223,6 +225,12 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // Hydrate the saved/browser zone after the first render to keep server and
+    // client markup consistent, then use the member's actual local preference.
+    setTimeZone(initialTimeZone());
   }, []);
 
   useEffect(() => {
@@ -1233,9 +1241,10 @@ function SelectedModal({
         </div>
         <p className={styles.modalSub}>
           <CalendarDays size={14} /> {formatDay(block.startAt, timeZone)} ·{" "}
-          {formatClock(block.startAt, timeZone)}
-          {block.endAt && ` – ${formatClock(block.endAt, timeZone)}`}
+          {formatClock(block.startAt, timeZone)} {formatZoneOffset(block.startAt, timeZone)}
+          {block.endAt && ` – ${formatClock(block.endAt, timeZone)} ${formatZoneOffset(block.endAt, timeZone)}`}
           {String(block.recurring) !== "none" && ` — ${recurringLabel(block.recurring)}`}
+          <span className={styles.fieldHint}>Times shown in {timeZone.replace(/_/g, " ")}.</span>
         </p>
         {block.roomSlug && (
           <p className={styles.selRoom}>
