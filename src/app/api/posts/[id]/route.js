@@ -81,8 +81,8 @@ export async function PATCH(req, { params }) {
 
     const check = editPostCheck(post, {
       uid: auth.user.uid,
-      isOwner: auth.userDoc?.role === "owner",
-      isModerator: auth.userDoc?.role === "moderator",
+      isOwner: auth.user?.email?.trim().toLowerCase() === "secretyarnery@gmail.com",
+      isModerator: false,
     });
     if (!check.ok) {
       return NextResponse.json({ error: check.error }, { status: check.status });

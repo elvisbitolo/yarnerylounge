@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/server/cron-auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { createNotification } from "@/lib/server/notifications";
 import { pickDailyBlindDate } from "@/lib/server/blind-date";
@@ -59,8 +60,7 @@ async function eligibleUids() {
 }
 
 export async function GET(req) {
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

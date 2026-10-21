@@ -41,13 +41,14 @@ export default function PostMenu({ items = [], title = "More", label }) {
           display: "inline-flex",
           alignItems: "center",
           gap: 4,
-          border: "1px solid var(--border, #e5e7eb)",
-          background: "transparent",
+          border: "1px solid #27272a",
+          background: "#27272a",
           borderRadius: 8,
           padding: "4px 8px",
           cursor: "pointer",
           font: "inherit",
-          color: "inherit",
+          color: "#ffffff",
+          transition: "background 0.15s ease, border-color 0.15s ease",
         }}
       >
         <MoreHorizontal size={15} />

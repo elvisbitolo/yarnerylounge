@@ -9,6 +9,7 @@
 // pulls via after(). Run it often enough to leave real margin inside 24h.
 
 import { NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/server/cron-auth";
 import { pullRecording } from "@/lib/server/recordings";
 import { isSourceExpired } from "@/lib/server/recordings-core";
 import { getPrisma } from "@/lib/db/prisma";
@@ -22,7 +23,7 @@ export const maxDuration = 300;
 const BATCH_SIZE = 3;
 
 export async function GET(req) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
