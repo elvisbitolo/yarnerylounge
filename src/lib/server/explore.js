@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
-import { listEvents, expandEvents } from "@/lib/server/events";
+import { expandEvents } from "@/lib/server/events";
+import { PUBLIC_EVENT_WHERE, nextOccurrences } from "@/lib/server/public-events-core";
 
 function toMillis(value) {
   if (!value) return 0;
@@ -19,7 +20,7 @@ export async function getExploreData(limit = 6) {
   try {
     const [roomRows, eventRows, courseRows, spaceRows] = await Promise.all([
       prisma.room.findMany({ orderBy: { createdAt: "desc" } }),
-      prisma.event.findMany({ orderBy: { startTime: "asc" } }),
+      prisma.event.findMany({ where: PUBLIC_EVENT_WHERE, orderBy: { startTime: "asc" } }),
       prisma.course.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.space.findMany({ orderBy: { createdAt: "desc" } }),
     ]);
@@ -66,17 +67,23 @@ export async function getExploreData(limit = 6) {
       .map(({ publicPreview, status, ...rest }) => rest);
 
     const now = Date.now();
-    const events = expandEvents(
-      eventRows.map((row) => ({
-        id: row.id,
-        title: row.title,
-        description: row.description || "",
-        startTime: toMillis(row.startTime),
-        publicPreview: !!row.publicPreview,
-      }))
+    const events = nextOccurrences(
+      expandEvents(
+        eventRows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          description: row.description || "",
+          startTime: toMillis(row.startTime),
+          endTime: row.endTime ? toMillis(row.endTime) : null,
+          // Recurring meetups keep their first occurrence as the anchor, so
+          // the rule has to travel with the row for the series to expand.
+          recurrence: row.recurrence,
+          publicPreview: !!row.publicPreview,
+        }))
+      )
+        .filter((event) => event.publicPreview && toMillis(event.startTime) > now)
+        .sort((a, b) => toMillis(a.startTime) - toMillis(b.startTime))
     )
-      .filter((event) => event.publicPreview && toMillis(event.startTime) > now)
-      .sort((a, b) => toMillis(a.startTime) - toMillis(b.startTime))
       .slice(0, safeLimit)
       .map((event) => ({
         id: event.id,

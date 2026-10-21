@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { expandEvents } from "@/lib/server/events";
+import { Prisma } from "@/generated/prisma/client";
+import {
+  PUBLIC_EVENT_SELECT,
+  nextOccurrences,
+  parsePublicLimit,
+  publicEventWhere,
+  toPublicEvent,
+} from "@/lib/server/public-events-core";
 
 // Public event preview for the Shopify landing page (secretyarnery.com) and
 // other marketing surfaces. No auth, no members-only meetups, and a lean
@@ -14,10 +22,7 @@ const CACHE_HEADERS = {
 };
 
 export async function GET(req) {
-  const rawLimit = Number(req.nextUrl.searchParams.get("limit"));
-  const limit = Number.isFinite(rawLimit)
-    ? Math.min(Math.max(Math.trunc(rawLimit), 1), 12)
-    : 6;
+  const limit = parsePublicLimit(req.nextUrl.searchParams.get("limit"));
 
   const prisma = getPrisma();
   if (!prisma) {
@@ -25,34 +30,47 @@ export async function GET(req) {
   }
 
   try {
+    const now = new Date();
     // Recurring meetups (promoted availability blocks) keep a first-occurrence
     // anchor that can already be in the past, so a bare startTime >= now query
-    // would hide every repeating event after its first run. Read anchors from
-    // the last year, expand, then keep the future occurrences.
-    const cutoff = new Date(Date.now() - 366 * 24 * 60 * 60 * 1000);
-    const rows = await prisma.event.findMany({
-      where: { membersOnly: false, startTime: { gte: cutoff } },
-      orderBy: { startTime: "asc" },
-      take: 300,
-    });
-    const now = Date.now();
-    const upcoming = expandEvents(rows)
-      .filter((event) => new Date(event.startTime).getTime() >= now)
-      .slice(0, limit);
+    // would hide every repeating event after its first run. Read those anchors
+    // from the last year and expand them afterwards.
+    const cutoff = new Date(now.getTime() - 366 * 24 * 60 * 60 * 1000);
 
-    return NextResponse.json(
-      {
-        events: upcoming.map((event) => ({
-          id: event.id,
-          title: event.title || "Speakeasy event",
-          description: (event.description || "").slice(0, 160),
-          startTime: new Date(event.startTime).toISOString(),
-          endTime: event.endTime ? new Date(event.endTime).toISOString() : null,
-          roomSlug: event.roomSlug || "",
-        })),
-      },
-      { headers: CACHE_HEADERS }
+    // Two reads instead of one. The single query read the oldest 300 anchors
+    // in the window, so once a year held 300 past events the feed could not
+    // show an upcoming one at all; upcoming anchors are read on their own
+    // now. Past anchors are only read for recurring events, and the most
+    // recent ones are the ones that can still have occurrences ahead.
+    const [upcomingAnchors, pastRecurringAnchors] = await Promise.all([
+      prisma.event.findMany({
+        where: publicEventWhere({ startTime: { gte: now } }),
+        orderBy: { startTime: "asc" },
+        take: 100,
+        select: PUBLIC_EVENT_SELECT,
+      }),
+      prisma.event.findMany({
+        where: publicEventWhere({
+          AND: [
+            { startTime: { gte: cutoff, lt: now } },
+            { recurrence: { not: Prisma.DbNull } },
+          ],
+        }),
+        orderBy: { startTime: "desc" },
+        take: 50,
+        select: PUBLIC_EVENT_SELECT,
+      }),
+    ]);
+
+    const occurrences = expandEvents([...upcomingAnchors, ...pastRecurringAnchors]).filter(
+      (event) => new Date(event.startTime).getTime() >= now.getTime()
     );
+
+    // One card per event, at its next occurrence: a weekly meetup used to
+    // take every slot in the feed with copies of itself.
+    const events = nextOccurrences(occurrences).slice(0, limit).map(toPublicEvent);
+
+    return NextResponse.json({ events }, { headers: CACHE_HEADERS });
   } catch (err) {
     logError("public_events.failed", { error: err.message });
     return NextResponse.json({ events: [] }, { headers: CACHE_HEADERS, status: 500 });
