@@ -4,6 +4,7 @@ import { blockedMemberIdsFor } from "@/lib/server/member-safety";
 import { rankResults } from "@/lib/server/search-engine";
 import { logError } from "@/lib/server/log";
 import { normalizeQuery, summarizeMatches } from "@/lib/chat-search-core";
+import { withNotSuspended } from "@/lib/server/member-visibility-core";
 
 // The decrypt budget for a single search.
 //
@@ -66,13 +67,12 @@ export async function searchMembersForChat(uid, query, limit = CHAT_MEMBER_LIMIT
 
   try {
     const rows = await prisma.user.findMany({
-      where: {
-        suspended: { not: true },
+      where: withNotSuspended({
         OR: [
           { name: { contains: q, mode: "insensitive" } },
           { username: { contains: q, mode: "insensitive" } },
         ],
-      },
+      }),
       select: { id: true, name: true, username: true, photoURL: true },
       take: limit * 4,
     });

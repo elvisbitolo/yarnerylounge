@@ -6,6 +6,7 @@ import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { isOnline, isOnlineRow, lastActiveFrom, onlineMembers } from "@/lib/server/presence-core";
 import { activeRoomsForUsers } from "@/lib/server/room-presence";
 import { notifyWatchersOnline } from "@/lib/server/member-watch";
+import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 
 function parseIds(value) {
   return [...new Set(String(value || "").split(",").map((id) => id.trim()).filter(Boolean))].slice(0, 50);
@@ -62,7 +63,7 @@ export async function GET(req) {
       // table scan.
       const rows = await prisma.user.findMany({
         take: 500,
-        where: { suspended: { not: true } },
+        where: NOT_SUSPENDED,
         orderBy: { updatedAt: "desc" },
         select: { id: true, name: true, photoURL: true, extra: true },
       });

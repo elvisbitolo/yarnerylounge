@@ -5,6 +5,7 @@ import { logError } from "@/lib/server/log";
 import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
 import { compareMovingInPriority } from "@/lib/server/blind-date-core";
 import { getMovingInPriorityIds } from "@/lib/server/match-priority";
+import { withNotSuspended } from "@/lib/server/member-visibility-core";
 
 function similarityScore(a, b) {
   let score = 0;
@@ -160,7 +161,7 @@ export async function GET(req) {
   try {
     const rows = await prisma.user.findMany({
       take: 500,
-      where: { id: { not: exclude }, suspended: { not: true } },
+      where: withNotSuspended({ id: { not: exclude } }),
       select: userSelect,
     });
     movingInPriorityIds = await getMovingInPriorityIds(rows, prisma);

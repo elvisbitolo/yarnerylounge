@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { getRoom } from "@/lib/server/rooms";
+import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 
 const BATCH_LIMIT = 400;
 export const ANNOUNCEMENT_MAX = 2000;
@@ -10,7 +11,7 @@ async function communityRecipients() {
   if (prisma) {
     try {
       const rows = await prisma.user.findMany({
-        where: { suspended: { not: true } },
+        where: NOT_SUSPENDED,
         take: 1000,
         select: { id: true },
       });

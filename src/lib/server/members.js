@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { mapUserRow, mapLeaderboardMemberRow } from "./members-core.js";
+import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 
 function gamiOf(row) {
   return row.gamification ? row.gamification : null;
@@ -11,7 +12,7 @@ export async function listMembers(limit = 300) {
   if (prisma) {
     try {
       const rows = await prisma.user.findMany({
-        where: { suspended: { not: true } },
+        where: NOT_SUSPENDED,
         orderBy: { name: "asc" },
         take: limit,
         include: { gamification: { select: { points: true, badges: true } } },

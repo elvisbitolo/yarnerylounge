@@ -4,14 +4,15 @@ import { followUser, unfollowUser, isFollowing, getFollowerCount, getFollowingCo
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { notSuspendedRelation } from "@/lib/server/member-visibility-core";
 
 // Upper bound on how many members the followers/following dialog lists. We fetch
 // one extra row to detect truncation without a second count query.
 const LIST_LIMIT = 100;
 
-// Suspended accounts never appear in a public list. `suspended` is nullable, so
-// `{ not: true }` (rather than `{ equals: false }`) keeps rows where it is null.
-const VISIBLE = { NOT: { suspended: true } };
+// Suspended accounts never appear in a public list. The visibility rule lives in
+// member-visibility-core so every listing agrees on it.
+const VISIBLE = notSuspendedRelation();
 
 export async function GET(req, { params }) {
   const { id } = await params;

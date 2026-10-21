@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { notSuspendedRelation } from "@/lib/server/member-visibility-core";
 
 function toMillisValue(v) {
   if (v == null) return null;
@@ -95,7 +96,9 @@ export async function getFollowerCount(userId) {
   try {
     const prisma = getPrisma();
     if (!prisma) return 0;
-    return await prisma.follow.count({ where: { followingId: userId } });
+    // Counted with the same visibility rule the list uses, so the number beside
+    // the dialog matches the names inside it.
+    return await prisma.follow.count({ where: { followingId: userId, follower: notSuspendedRelation() } });
   } catch (err) {
     logError("follows.prisma_follower_count_failed", { error: err.message });
     return 0;
@@ -106,7 +109,7 @@ export async function getFollowingCount(userId) {
   try {
     const prisma = getPrisma();
     if (!prisma) return 0;
-    return await prisma.follow.count({ where: { followerId: userId } });
+    return await prisma.follow.count({ where: { followerId: userId, following: notSuspendedRelation() } });
   } catch (err) {
     logError("follows.prisma_following_count_failed", { error: err.message });
     return 0;

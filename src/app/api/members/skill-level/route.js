@@ -6,6 +6,7 @@ import { BLOCKED_KEY, isSafetyId } from "@/lib/server/member-safety";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { compareMovingInPriority } from "@/lib/server/blind-date-core";
 import { getMovingInPriorityIds } from "@/lib/server/match-priority";
+import { withNotSuspended } from "@/lib/server/member-visibility-core";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function GET() {
 
     const rows = await prisma.user.findMany({
       take: 500,
-      where: { id: { not: auth.user.uid }, suspended: { not: true } },
+      where: withNotSuspended({ id: { not: auth.user.uid } }),
       select: {
         id: true,
         name: true,

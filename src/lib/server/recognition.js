@@ -6,6 +6,7 @@ import {
 } from "@/lib/server/recognition-core";
 import { awardPoints } from "@/lib/server/gamification";
 import { createNotification } from "@/lib/server/notifications";
+import { withNotSuspended } from "@/lib/server/member-visibility-core";
 
 export { RECOGNITION_POINTS };
 
@@ -122,7 +123,7 @@ export async function getRecognitionLeaderboard(limit = 20) {
   if (prisma) {
     try {
       const rows = await prisma.user.findMany({
-        where: { recognitionCount: { gt: 0 }, suspended: { not: true } },
+        where: withNotSuspended({ recognitionCount: { gt: 0 } }),
         orderBy: { recognitionCount: "desc" },
         take: safeLimit,
         select: { id: true, name: true, recognitionCount: true },

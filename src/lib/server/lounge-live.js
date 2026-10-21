@@ -10,6 +10,7 @@
 import { createNotification } from "@/lib/server/notifications";
 import { sendEmail } from "@/lib/server/email";
 import { logError, logInfo } from "@/lib/server/log";
+import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 import { getPrisma } from "@/lib/db/prisma";
 import { ROOM_PRESENCE_WINDOW_MS, countActiveRoomMembers } from "@/lib/server/room-presence";
 import {
@@ -207,7 +208,7 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
   let recipients = [];
   try {
     const rows = await prisma.user.findMany({
-      where: { suspended: { not: true } },
+      where: NOT_SUSPENDED,
       select: { id: true, email: true, notificationPreferences: true },
     });
     recipients = selectRecipients(rows, user.uid);

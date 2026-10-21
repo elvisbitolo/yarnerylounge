@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { createNotification } from "./notifications";
+import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 
 const MENTION_REGEX = /@([a-zA-Z0-9_]{1,30})/g;
 
@@ -71,7 +72,7 @@ export async function searchMembersForMention(query, limit = 8) {
     try {
       const rows = await prisma.user.findMany({
         take: 100,
-        where: { suspended: { not: true } },
+        where: NOT_SUSPENDED,
         select: { id: true, name: true, username: true, photoURL: true },
       });
       const matches = [];
