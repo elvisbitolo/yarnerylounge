@@ -40,6 +40,9 @@ export async function POST(req) {
     }
 
     const prisma = getPrisma();
+    if (!prisma) {
+      return NextResponse.json({ error: "service_unavailable", message: "Authentication service is temporarily unavailable." }, { status: 503 });
+    }
     const existingUser = await prisma.user.findUnique({
       where: { id: identity.uid },
     });
