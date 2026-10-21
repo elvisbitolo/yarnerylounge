@@ -21,6 +21,7 @@ import coverStyles from "./cover.module.css";
 import { Image as ImageIcon } from "lucide-react";
 import Cropper from "react-easy-crop";
 import SignatureColorPicker from "./SignatureColorPicker";
+import ProfilePreview from "./ProfilePreview";
 
 const QUESTIONS_PER_PAGE = 3;
 const QUIZ_PAGE_COUNT = Math.ceil(QUIZ_QUESTIONS.length / QUESTIONS_PER_PAGE);
@@ -1131,6 +1132,29 @@ export default function ProfileEditor({ initial, memberId }) {
 
   return (
     <>
+      <ProfilePreview
+        memberId={memberId}
+        name={name}
+        username={initial.username || ""}
+        headline={headline}
+        location={location}
+        country={country}
+        bio={bio}
+        favoriteColors={favoriteColors}
+        crafts={crafts}
+        goToYarn={goToYarn}
+        favoriteHookSize={favoriteHookSize}
+        yearsExperience={yearsExperience}
+        favoriteYarnBrand={favoriteYarnBrand}
+        crochetTechniques={crochetTechniques}
+        crochetMotivation={crochetMotivation}
+        learningNext={learningNext}
+        proudestProject={proudestProject}
+        bestGiftProject={bestGiftProject}
+        socialLinks={socialLinks}
+        photoURL={photoURL}
+        coverPhotoURL={coverPhotoURL}
+      />
       <form className={styles.card} id="profile" onSubmit={handleSave}>
       <h2 className={styles.cardTitle}>Edit profile</h2>
       <div className={styles.identityLine}>
