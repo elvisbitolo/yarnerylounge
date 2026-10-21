@@ -378,7 +378,7 @@
   background: radial-gradient(130% 130% at 50% 8%, #fff8f4 0%, #fbeaf0 48%, #f3dfea 100%);
 }
 
-.jitsiStage :global(div) {
+.jitsiStage :global(div):not(.mediaToast):not(.stagePill) {
   width: 100% !important;
   height: 100% !important;
 }
@@ -3067,22 +3067,24 @@
   left: 16px;
   bottom: 18px;
   z-index: 21;
-  max-width: min(340px, 82%);
+  width: fit-content;
+  height: fit-content;
+  max-width: 220px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 11px;
+  padding: 4px 9px;
   border-radius: 10px;
   background: rgba(37, 35, 41, 0.86);
   color: #ffffff;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.2;
   box-shadow: 0 14px 30px -18px rgba(37, 35, 41, 0.65);
   backdrop-filter: blur(6px);
 }
 
 .mediaToastMic {
-  bottom: 52px;
+  bottom: 48px;
 }
 
 .mediaRetry {
