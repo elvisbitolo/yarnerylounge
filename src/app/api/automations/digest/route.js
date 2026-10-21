@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/server/cron-auth";
 import { sendEmail } from "@/lib/server/email";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
@@ -19,8 +20,7 @@ function escapeHtml(str) {
 }
 
 async function runDigest(req) {
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
