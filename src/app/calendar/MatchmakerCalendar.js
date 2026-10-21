@@ -230,6 +230,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   useEffect(() => {
     // Hydrate the saved/browser zone after the first render to keep server and
     // client markup consistent, then use the member's actual local preference.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate browser preference after SSR
     setTimeZone(initialTimeZone());
   }, []);
 
