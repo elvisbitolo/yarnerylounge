@@ -256,7 +256,7 @@ export function layoutOverlaps(items = []) {
 // Noon avoids the usual daylight-saving transition hour and makes calendar
 // navigation independent of the viewer machine's own zone.
 export function dateForCalendarDay(dayKey, timeZone) {
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(dayKey || "");
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey || "");
   if (!match) return new Date(NaN);
   return zonedDateTimeToDate(dayKey, "12:00", timeZone);
 }
@@ -266,8 +266,8 @@ export function dateForCalendarDay(dayKey, timeZone) {
 // relying on the computer's local zone. If a requested wall time falls into a
 // DST gap, the result resolves to the closest representable instant.
 export function zonedDateTimeToDate(dayKey, clock, timeZone) {
-  const dateMatch = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(dayKey || "");
-  const timeMatch = /^(\\d{2}):(\\d{2})$/.exec(clock || "");
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey || "");
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(clock || "");
   if (!dateMatch || !timeMatch || !timeZone) return new Date(NaN);
   const [, y, mo, d] = dateMatch;
   const [, h, mi] = timeMatch;
