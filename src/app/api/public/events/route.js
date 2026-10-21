@@ -7,15 +7,17 @@ import {
   PUBLIC_EVENT_SELECT,
   nextOccurrences,
   parsePublicLimit,
-  publicEventWhere,
   toPublicEvent,
 } from "@/lib/server/public-events-core";
 
-// Public event preview for the Shopify landing page (secretyarnery.com) and
-// other marketing surfaces. No auth, no members-only meetups, and a lean
-// shape so nothing internal leaks. The landing page fetches this from the
-// visitor's browser, so CORS is wide open; the CDN holds the response for
-// five minutes to match the page's refresh cadence.
+// Public calendar feed for the Shopify landing page (secretyarnery.com).
+// The owner explicitly wants every upcoming calendar event advertised here,
+// including events marked members-only or not opted into Explore preview.
+// This endpoint therefore publishes event title, short description and times
+// to anonymous visitors; it does not grant access to RSVP, join a room, or
+// view member-only event content. Room slugs are still emitted only for
+// publicly previewable, active rooms. The landing page fetches this in-browser,
+// so CORS is open; the CDN caches the feed for five minutes.
 const CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
   "Access-Control-Allow-Origin": "*",
@@ -31,31 +33,28 @@ export async function GET(req) {
 
   try {
     const now = new Date();
-    // Recurring meetups (promoted availability blocks) keep a first-occurrence
-    // anchor that can already be in the past, so a bare startTime >= now query
-    // would hide every repeating event after its first run. Read those anchors
-    // from the last year and expand them afterwards.
+    // Recurring events can have an anchor in the past, so include recent
+    // recurring anchors and expand them to find their next future occurrence.
     const cutoff = new Date(now.getTime() - 366 * 24 * 60 * 60 * 1000);
 
-    // Two reads instead of one. The single query read the oldest 300 anchors
-    // in the window, so once a year held 300 past events the feed could not
-    // show an upcoming one at all; upcoming anchors are read on their own
-    // now. Past anchors are only read for recurring events, and the most
-    // recent ones are the ones that can still have occurrences ahead.
+    // Deliberately do not apply publicEventWhere here: that helper is for
+    // Explore/discovery and excludes members-only or non-preview events.
+    // The marketing calendar has a separate, explicitly broader visibility
+    // contract. Keep the query limited to future events and recent recurrences.
     const [upcomingAnchors, pastRecurringAnchors] = await Promise.all([
       prisma.event.findMany({
-        where: publicEventWhere({ startTime: { gte: now } }),
+        where: { startTime: { gte: now } },
         orderBy: { startTime: "asc" },
         take: 100,
         select: PUBLIC_EVENT_SELECT,
       }),
       prisma.event.findMany({
-        where: publicEventWhere({
+        where: {
           AND: [
             { startTime: { gte: cutoff, lt: now } },
             { recurrence: { not: Prisma.DbNull } },
           ],
-        }),
+        },
         orderBy: { startTime: "desc" },
         take: 50,
         select: PUBLIC_EVENT_SELECT,
@@ -66,8 +65,8 @@ export async function GET(req) {
       (event) => new Date(event.startTime).getTime() >= now.getTime()
     );
 
-    // One card per event, at its next occurrence: a weekly meetup used to
-    // take every slot in the feed with copies of itself.
+    // One card per event, at its next occurrence: recurring events should not
+    // occupy every slot with duplicate cards for the same base event.
     const events = nextOccurrences(occurrences).slice(0, limit).map(toPublicEvent);
 
     return NextResponse.json({ events }, { headers: CACHE_HEADERS });
