@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireModerator, guardJson } from "@/lib/server/authorize";
+import { requireModerator, requireUser, guardJson } from "@/lib/server/authorize";
+import { canManageMemberPlans, MEMBER_PLANS } from "@/lib/server/member-plan-admin";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
 import { deleteMemberData } from "@/lib/server/delete-member-data";
@@ -9,11 +10,31 @@ const SUPABASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 
 export async function PATCH(req, { params }) {
   const { id } = await params;
-  const auth = await requireModerator();
-  const denied = guardJson(auth);
-  if (denied) return denied;
+  const body = await req.json();
+  const { role, suspended, foundingMember, plan } = body;
+  const hasPlan = Object.prototype.hasOwnProperty.call(body, "plan");
+  const planOnly = hasPlan && Object.keys(body).every((key) => key === "plan");
 
-  const { role, suspended, foundingMember } = await req.json();
+  let auth;
+  if (planOnly) {
+    auth = await requireUser();
+    const denied = guardJson(auth);
+    if (denied) return denied;
+    if (!canManageMemberPlans(auth.user.email)) {
+      return NextResponse.json({ error: "Not authorized to change member plans" }, { status: 403 });
+    }
+  } else {
+    auth = await requireModerator();
+    const denied = guardJson(auth);
+    if (denied) return denied;
+    if (hasPlan && !canManageMemberPlans(auth.user.email)) {
+      return NextResponse.json({ error: "Not authorized to change member plans" }, { status: 403 });
+    }
+  }
+
+  if (hasPlan && !MEMBER_PLANS.includes(plan)) {
+    return NextResponse.json({ error: "Invalid member plan" }, { status: 400 });
+  }
 
   const prisma = getPrisma();
   const existing = await prisma.user.findUnique({ where: { id } });
@@ -22,6 +43,7 @@ export async function PATCH(req, { params }) {
   }
 
   const update = {};
+  if (hasPlan) update.plan = plan;
   if (role !== undefined) {
     if (!["member", "moderator"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
@@ -57,14 +79,22 @@ export async function PATCH(req, { params }) {
   await logAudit({
     actorId: auth.user.uid,
     actorName: auth.userDoc?.name || auth.user.email || "",
-    action:
-      role !== undefined
+    action: hasPlan
+      ? "member.plan_changed"
+      : role !== undefined
         ? "member.role_changed"
         : foundingMember !== undefined
           ? "member.founding_changed"
           : "member.suspended",
     targetId: id,
-    metadata: { role, suspended, foundingMember, prevRole: existing.role },
+    metadata: {
+      role,
+      suspended,
+      foundingMember,
+      plan,
+      previousPlan: existing.plan || "flirting",
+      prevRole: existing.role,
+    },
   });
 
   return NextResponse.json({ ok: true });
