@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/server/cron-auth";
+import { isCronAuthorized } from "@/lib/server/cron-auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { createNotification } from "@/lib/server/notifications";
 import { pickDailyBlindDate } from "@/lib/server/blind-date";
