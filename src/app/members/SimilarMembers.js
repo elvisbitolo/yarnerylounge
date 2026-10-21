@@ -23,7 +23,9 @@ export default function SimilarMembers() {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  // The canvas is not mounted during the initial loading render. Re-run this
+  // effect once recommendations arrive so ResizeObserver can measure it.
+  }, [loading, members.length]);
 
   useEffect(() => {
     let active = true;
