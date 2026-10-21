@@ -1407,3 +1407,306 @@
     width: 100%;
   }
 }
+
+
+/* Interactive signature colour picker */
+.signaturePicker {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.85fr);
+  gap: 22px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #e7dce0;
+  border-radius: 16px;
+  background: #fffdfd;
+}
+.signaturePickerMain { min-width: 0; }
+.signaturePickerEyebrow {
+  margin: 0 0 12px;
+  color: #8a7c6f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.signatureTabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.signatureTab {
+  display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 7px;
+  min-width: 0; padding: 10px 8px; border: 1px solid #e7dce0; border-radius: 10px;
+  background: #fff; color: #51454b; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.signatureTabActive { border-color: var(--primary, #d81f66); background: #fff3f7; color: var(--primary, #d81f66); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #d81f66) 12%, transparent); }
+.signatureTabSwatch { width: 15px; height: 15px; border-radius: 50%; border: 1px solid #0002; flex-shrink: 0; }
+.signaturePickerControls { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.signatureHueWheel {
+  position: relative; width: min(100%, 244px); aspect-ratio: 1; border-radius: 50%;
+  padding: 16px; background: conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+  box-shadow: 0 8px 22px #27121c20; touch-action: none;
+}
+.signatureHueWheel::before { content: ""; position: absolute; inset: 13px; border-radius: 50%; background: #fff; }
+.signatureWheelCenter {
+  position: absolute; inset: 31px; overflow: hidden; border-radius: 50%;
+  display: grid; place-items: center; background: #fff; box-shadow: 0 0 0 1px #0001;
+}
+.signatureSatSquare {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(var(--picker-hue, 0) 100% 50%));
+  cursor: crosshair; touch-action: none;
+}
+.signatureSatMarker {
+  position: absolute; width: 17px; height: 17px; border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 1px #2228; transform: translate(-50%, 50%); pointer-events: none;
+}
+.signatureHueDot {
+  position: absolute; top: 50%; left: 50%; width: 18px; height: 18px; border: 3px solid #fff;
+  border-radius: 50%; box-shadow: 0 1px 5px #0006; pointer-events: none;
+}
+.signatureColorField { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.signatureColorField label { font-size: 12px; font-weight: 700; color: #51454b; }
+.signatureHexRow { display: flex; align-items: center; gap: 9px; }
+.signatureSelectedSwatch { width: 42px; height: 42px; flex-shrink: 0; border: 1px solid #0002; border-radius: 10px; }
+.signatureHexInput {
+  width: 100%; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid #d8d0d4;
+  border-radius: 10px; color: #2c2529; background: #fff; font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.signatureHexInput:focus { outline: 2px solid color-mix(in srgb, var(--primary, #d81f66) 30%, transparent); border-color: var(--primary, #d81f66); }
+.signatureReset { align-self: flex-start; border: 0; padding: 4px 0; background: none; color: #8b5369; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.signaturePalettePreview { margin-top: 18px; }
+.signaturePaletteLabel { margin: 0 0 9px; color: #8a7c6f; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.signaturePaletteBlocks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.signaturePaletteBlock { overflow: hidden; min-width: 0; border: 1px solid #e7dce0; border-radius: 11px; background: #fff; }
+.signaturePaletteColor { height: 54px; }
+.signaturePaletteMeta { padding: 8px; }
+.signaturePaletteName { display: block; color: #51454b; font-size: 11px; font-weight: 800; }
+.signaturePaletteHex { display: block; margin-top: 3px; color: #8a7c6f; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.signaturePickerHint { margin: 12px 0 0; color: #8a7c6f; font-size: 12px; line-height: 1.5; }
+@media (max-width: 620px) {
+  .signaturePicker { grid-template-columns: 1fr; padding: 14px; gap: 18px; }
+  .signaturePickerControls { gap: 10px; }
+  .signatureHueWheel { width: min(100%, 270px); }
+  .signatureTabs { gap: 5px; }
+  .signatureTab { padding: 9px 4px; font-size: 11px; }
+  .signaturePaletteColor { height: 42px; }
+  .signaturePaletteMeta { padding: 7px 6px; }
+}
+
+
+/* Live member-profile preview */
+.profilePreviewSection {
+  margin: 24px 0 0;
+  padding: 20px;
+  border: 1px solid #e7dce0;
+  border-radius: 16px;
+  background: #fffdfd;
+}
+.profilePreviewToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.profilePreviewToolbar .cardTitle { margin: 0; }
+.profilePreviewIntro {
+  margin: 5px 0 0;
+  color: #8a7c6f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.profilePreviewToggle {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--primary, #d81f66);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--primary, #d81f66);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.profilePreviewToggle:hover {
+  background: var(--primary, #d81f66);
+  color: #fff;
+}
+.profilePreviewCard {
+  overflow: hidden;
+  margin-top: 18px;
+  border: 1px solid #eadfd2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(90, 60, 40, 0.08);
+}
+.profilePreviewCover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  aspect-ratio: 4 / 1;
+  max-height: 210px;
+  background-color: #f9e8ed;
+  background-image: linear-gradient(135deg, #fdf1f3, #fbe3ec, #efd9d6);
+  background-position: center;
+  background-size: cover;
+  color: #a27d88;
+  font-size: 12px;
+  font-weight: 700;
+}
+.profilePreviewHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 0 22px 18px;
+}
+.profilePreviewAvatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 82px;
+  height: 82px;
+  margin-top: -28px;
+  overflow: hidden;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #090c26, #f42e79);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 800;
+  box-shadow: 0 4px 14px #090c2626;
+}
+.profilePreviewAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profilePreviewIdentity { min-width: 0; padding-top: 12px; }
+.profilePreviewIdentity h3 {
+  margin: 0 0 4px;
+  color: #17171c;
+  font-size: 20px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.profilePreviewUsername,
+.profilePreviewHeadline,
+.profilePreviewLocation {
+  margin: 3px 0 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.profilePreviewUsername,
+.profilePreviewLocation { color: #777487; }
+.profilePreviewHeadline { color: var(--primary, #d81f66); font-weight: 700; }
+.profilePreviewBody { padding: 0 22px 20px; }
+.profilePreviewBio {
+  margin: 0 0 14px;
+  color: #34344a;
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.profilePreviewEmpty {
+  margin: 0 0 14px;
+  color: #9b9bab;
+  font-size: 13px;
+  font-style: italic;
+}
+.profilePreviewLinks,
+.profilePreviewTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.profilePreviewLinks { margin-bottom: 14px; }
+.profilePreviewLinks span {
+  padding: 6px 10px;
+  border: 1px solid #e6e6ef;
+  border-radius: 999px;
+  background: #faf9ff;
+  color: var(--primary, #d81f66);
+  font-size: 12px;
+  font-weight: 700;
+}
+.profilePreviewSectionBlock { margin-top: 14px; }
+.profilePreviewLabel {
+  display: block;
+  margin-bottom: 7px;
+  color: #9b9bab;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.profilePreviewColors { display: flex; gap: 8px; }
+.profilePreviewColor {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #e6e6ef;
+}
+.profilePreviewTags span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--primary, #d81f66);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.profilePreviewDetails {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #e6e6ef;
+  border-radius: 10px;
+  background: #faf9ff;
+}
+.profilePreviewDetails > div {
+  display: grid;
+  grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  padding: 7px 0;
+}
+.profilePreviewDetails > div + div { border-top: 1px solid #eeedf3; }
+.profilePreviewDetails dt {
+  color: #9b9bab;
+  font-size: 12px;
+  font-weight: 700;
+}
+.profilePreviewDetails dd {
+  margin: 0;
+  color: #17171c;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.profilePreviewFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 22px;
+  border-top: 1px solid #f0e7e8;
+  background: #fffafb;
+  color: #8a7c6f;
+  font-size: 12px;
+}
+.profilePreviewFooter a {
+  color: var(--primary, #d81f66);
+  font-weight: 700;
+  text-decoration: none;
+}
+.profilePreviewFooter a:hover { text-decoration: underline; }
+@media (max-width: 560px) {
+  .profilePreviewSection { padding: 14px; }
+  .profilePreviewToolbar { align-items: flex-start; flex-direction: column; }
+  .profilePreviewToggle { width: 100%; }
+  .profilePreviewHeader { gap: 10px; padding: 0 14px 14px; }
+  .profilePreviewAvatar { width: 68px; height: 68px; font-size: 22px; margin-top: -22px; }
+  .profilePreviewIdentity h3 { font-size: 17px; }
+  .profilePreviewBody { padding: 0 14px 16px; }
+  .profilePreviewDetails { padding: 10px; }
+  .profilePreviewDetails > div { grid-template-columns: 1fr; gap: 3px; }
+  .profilePreviewFooter { padding: 12px 14px; }
+}
