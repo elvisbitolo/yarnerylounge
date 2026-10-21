@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import styles from "./NotificationPreferences.module.css";
+import PushNotificationControl from "./PushNotificationControl";
 
 const PREF_KEYS = [
   { key: "chat", label: "Chat messages", hint: "Direct messages and lounge chat" },
@@ -60,6 +61,11 @@ export default function NotificationPreferences() {
 
   return (
     <div>
+      <section className={styles.pushSection} aria-labelledby="push-notifications-heading">
+        <h3 id="push-notifications-heading" className={styles.label}>Browser push notifications</h3>
+        <p className={styles.hint}>Get alerts when you are away from Christa’s Speakeasy. You can turn them off at any time.</p>
+        <PushNotificationControl />
+      </section>
       {PREF_KEYS.map(({ key, label, hint }) => (
         <div key={key} className={styles.row}>
           <div>

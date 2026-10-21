@@ -71,3 +71,14 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+
+.pushSection {
+  margin: 0 0 1rem;
+  padding: 1rem 0 1.25rem;
+  border-bottom: 1px solid #e6e6ef;
+}
+
+.pushSection h3 {
+  margin: 0;
+}

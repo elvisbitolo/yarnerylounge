@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import AccountTabs from "../AccountTabs";
 import EmailNotifications from "../EmailNotifications";
-import PushStatus from "../PushStatus";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import styles from "../account.module.css";
 import { loadAccount } from "../account-data";
@@ -22,7 +21,6 @@ export default async function AccountNotificationsPage() {
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>Notification preferences</h2>
           <EmailNotifications enabled={userDoc?.notifications} />
-          <PushStatus />
         </section>
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>Granular notification preferences</h2>

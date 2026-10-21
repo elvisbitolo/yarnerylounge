@@ -861,6 +861,52 @@ export async function POST(req) {
     } catch (err) {
       logError("posts.prisma_space_members_failed", { error: err.message });
     }
+  } else if (groupId) {
+    try {
+      const members = await prisma.groupMember.findMany({
+        where: { groupId },
+        take: 250,
+        select: { userId: true },
+      });
+      for (const member of members) {
+        if (!member.userId || member.userId === user.uid) continue;
+        await createNotification({
+          userId: member.userId,
+          type: "space_activity",
+          actorId: user.uid,
+          actorName: authorName,
+          targetId: postId,
+          text: "posted in a group you belong to",
+          href: "/feed",
+        });
+      }
+    } catch (err) {
+      logError("posts.prisma_group_members_notify_failed", { error: err.message });
+    }
+  } else {
+    // For community-wide posts, notify followers only rather than broadcasting
+    // every post to every member. Keep the fan-out bounded for request latency.
+    try {
+      const followers = await prisma.follow.findMany({
+        where: { followingId: user.uid },
+        take: 250,
+        select: { followerId: true },
+      });
+      for (const follower of followers) {
+        if (!follower.followerId || follower.followerId === user.uid) continue;
+        await createNotification({
+          userId: follower.followerId,
+          type: "space_activity",
+          actorId: user.uid,
+          actorName: authorName,
+          targetId: postId,
+          text: "published a new community post",
+          href: "/feed",
+        });
+      }
+    } catch (err) {
+      logError("posts.prisma_followers_notify_failed", { error: err.message });
+    }
   }
 
   return NextResponse.json({ id: postId });

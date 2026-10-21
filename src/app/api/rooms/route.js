@@ -205,7 +205,7 @@ async function notifyRoomGoLive({ room, actorId, actorName }) {
     const name = target?.name || "Member";
     await createNotification({
       userId: uid,
-      type: "space_activity",
+      type: "lounge_live",
       actorId,
       actorName,
       targetId: room.id,
