@@ -49,10 +49,10 @@ test("tier names are matched case-insensitively (real rows hold 'Moving In')", (
 test("memberBadgeTooltip always agrees with the glyph the badge draws", () => {
   // The directory bug: role precedence made the glyph a Diamond while a
   // plan-only title beside it read "Flirting member".
-  assert.equal(memberBadgeTooltip("Moving In", "moderator"), "Diamond member");
-  assert.equal(memberBadgeTooltip(null, "owner"), "Diamond member");
-  assert.equal(memberBadgeTooltip("flirting", "host"), "Diamond member");
-  assert.equal(memberBadgeTooltip("moving-in", "member"), "Diamond member");
+  assert.equal(memberBadgeTooltip("Moving In", "moderator"), "Moving In member");
+  assert.equal(memberBadgeTooltip(null, "owner"), "Moving In member");
+  assert.equal(memberBadgeTooltip("flirting", "host"), "Moving In member");
+  assert.equal(memberBadgeTooltip("moving-in", "member"), "Moving In member");
   assert.equal(memberBadgeTooltip("hooking-up", "member"), "Hooking Up member");
   assert.equal(memberBadgeTooltip(null, "member"), "Flirting member");
   for (const [plan, role] of [
@@ -62,9 +62,20 @@ test("memberBadgeTooltip always agrees with the glyph the badge draws", () => {
     ["Moving In", "moderator"],
     ["premium", null],
   ]) {
-    const badge = tierBadge(displayTier(plan, role));
-    assert.equal(memberBadgeTooltip(plan, role), `${badge.label} member`);
+    // The tooltip names the PRODUCT tier, not the badge's marketing label
+    // ("Diamond"), but it must still name the tier the glyph is drawn from.
+    const tier = displayTier(plan, role);
+    assert.ok(tierBadge(tier));
+    assert.equal(memberBadgeTooltip(plan, role), `${tierLabel(tier)} member`);
   }
+});
+
+test("the badge tooltip names the tier, not the badge label", () => {
+  // The top tier's badge is marketed as "Diamond" (gem + cyan), but the plan
+  // the member bought is "Moving In" everywhere else in the product.
+  assert.equal(tierBadge("moving-in").label, "Diamond");
+  assert.notEqual(memberBadgeTooltip("moving-in", "member"), "Diamond member");
+  assert.equal(memberBadgeTooltip("moving-in", "member"), tierLabel("moving-in") + " member");
 });
 
 test("tierBadge: every tier has a distinct icon", () => {

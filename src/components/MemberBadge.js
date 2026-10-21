@@ -28,8 +28,10 @@ export default function MemberBadge({
   const { membership } = useMembership();
   // displayTier applies the shared role-over-plan precedence; the membership
   // provider's resolved tier is the fallback when the plan prop is omitted.
-  const resolvedPlan = displayTier(plan || membership?.planKey, role);
+  // The role falls back to the provider too, so the glyph and the tooltip
+  // below always resolve the same tier.
   const resolvedRole = role || membership?.role || "member";
+  const resolvedPlan = displayTier(plan || membership?.planKey, resolvedRole);
   const badge = tierBadge(resolvedPlan);
   const showTier = Boolean(badge);
   const showHostPill =
@@ -45,7 +47,7 @@ export default function MemberBadge({
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, verticalAlign: "middle" }}>
       {showTier && (
         <span
-          title={tooltip ? memberBadgeTooltip(plan || membership?.planKey, role) : undefined}
+          title={tooltip ? memberBadgeTooltip(plan || membership?.planKey, resolvedRole) : undefined}
           style={{
             fontSize: size,
             lineHeight: 1,

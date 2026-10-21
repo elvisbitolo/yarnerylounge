@@ -46,8 +46,9 @@ export function tierForRole(role) {
 // read as a downgrade to members. The shop page advertises it as the
 // "exclusive Diamond badge", so it is now a true diamond cyan and is labelled
 // "Diamond". The tier itself is still called "Moving In" everywhere else -
-// CAPABILITIES (capabilities-core.js) owns that name, so only this badge's
-// tooltip changes.
+// CAPABILITIES (capabilities-core.js) owns that name. `label` is the badge's
+// own name (the shop/shop copy), NOT the text shown to a member: member-facing
+// badge text goes through memberBadgeTooltip() and uses the tier name.
 export const TIER_BADGE = {
   flirting: { icon: "sparkles", color: "#ec4899", label: "Flirting" },
   "hooking-up": { icon: "crown", color: "#d4a017", label: "Hooking Up" },
@@ -116,9 +117,17 @@ export function displayTier(plan, role) {
 // tierLabel(plan): a raw plan skips the role precedence and case handling, so
 // a moderator with plan "Moving In" or no plan at all drew the gem while the
 // tooltip beside it read "Flirting member".
+//
+// The wording is the PRODUCT tier name (TIER_INFO), not the badge's marketing
+// label (TIER_BADGE). The top tier's badge is called "Diamond" because of how
+// its gem is coloured and marketed, but every other surface — /membership,
+// /account, the shop, entitlements, admin analytics — calls the tier "Moving
+// In", so a member badge reading "Diamond member" contradicted the plan the
+// member had actually bought. The glyph still comes from TIER_BADGE; only the
+// text comes from TIER_INFO.
 export function memberBadgeTooltip(plan, role) {
-  const badge = tierBadge(displayTier(plan, role));
-  return badge ? `${badge.label} member` : null;
+  const tier = displayTier(plan, role);
+  return tierBadge(tier) ? `${tierLabel(tier)} member` : null;
 }
 
 export function tierRank(tier) {
