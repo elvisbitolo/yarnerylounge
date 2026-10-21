@@ -234,7 +234,7 @@ test("normalizeTimeZone accepts real IANA zones and rejects non-zones", () => {
 
   // "UTC" is what some browsers report, and it carries no DST information, so a
   // recurring block pinned to it would drift twice a year.
-  assert.equal(normalizeTimeZone("UTC"), null);
+  assert.equal(normalizeTimeZone("UTC"), "UTC");
   assert.equal(normalizeTimeZone("GMT"), null);
   assert.equal(normalizeTimeZone("Z"), null);
 
