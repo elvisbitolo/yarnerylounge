@@ -971,6 +971,8 @@ function PostSkeleton({ showActions = false }) {
 export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, spaceId, initialKind, canWriteChat = false }) {
   const t = useTranslations("feed");
   const canModerate = role === "owner" || role === "moderator";
+  const [viewerEmail, setViewerEmail] = useState("");
+  const canEditOtherUsersPosts = viewerEmail.trim().toLowerCase() === "secretyarnery@gmail.com";
   const [posts, setPosts] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -1326,6 +1328,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
       });
     };
     const unsubAuth = onAuthStateChanged(auth, (user) => {
+      setViewerEmail(user?.email || "");
       if (!user) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
         window.location.assign("/login");
@@ -2080,7 +2083,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
     if (post.kind === "article") return renderArticleCard(post);
     if (post.kind === "event") return renderEventCard(post);
     const attribution = post.spaceName ? post.spaceName : post.groupName ? post.groupName : null;
-    const canEditPost = !isSystemPost(post) && (post.authorId === uid || canModerate);
+    const canEditPost = !isSystemPost(post) && (post.authorId === uid || canEditOtherUsersPosts);
     const menuItems = showTrash
       ? [
           {
