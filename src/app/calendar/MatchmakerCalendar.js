@@ -6,7 +6,6 @@ import { CalendarDays, Globe, Pencil, Plus, Trash2, Users, ChevronLeft, ChevronR
 import {
   RECURRING_OPTIONS,
   recurringLabel,
-  recurringDayMatches,
   recurringWeekday,
 } from "@/lib/server/availability-core";
 import {
@@ -105,13 +104,65 @@ function addMinutes(d, m) {
   return new Date(d.getTime() + m * 60000);
 }
 
-function snapToWeekday(start, recurring) {
+function snapToWeekday(start, recurring, timeZone) {
   const wd = recurringWeekday(recurring);
   if (wd == null) return start;
-  const d = new Date(start);
-  const shift = (wd - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + shift);
-  return d;
+  const weekday = calendarWeekday(start, timeZone);
+  const shift = (wd - weekday + 7) % 7;
+  return addCalendarDays(start, shift, timeZone);
+}
+
+// Resolve a recurring availability occurrence on a viewer's calendar day.
+// Recurrence is anchored to the creator's wall clock and IANA zone, while the
+// occurrence is grouped under the day it actually falls on for this viewer.
+function recurringOccurrenceOnDay(block, day, viewerZone) {
+  if (!block.recurring || block.recurring === "none") return null;
+  const sourceZone = block.timeZone || viewerZone;
+  const originalStart = new Date(block.startAt);
+  const originalEnd = new Date(block.endAt || block.startAt);
+  if (!Number.isFinite(originalStart.getTime())) return null;
+
+  const sourceParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: sourceZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(originalStart).reduce((parts, part) => {
+    if (part.type !== "literal") parts[part.type] = part.value;
+    return parts;
+  }, {});
+  const originalKey = `${sourceParts.year}-${sourceParts.month}-${sourceParts.day}`;
+  const wantedWeekday = recurringWeekday(block.recurring);
+  const anchorWeekday = calendarWeekday(originalStart, sourceZone);
+  const repeatsOn = wantedWeekday == null ? anchorWeekday : wantedWeekday;
+  const viewerKey = dayKeyFor(day, viewerZone);
+  const duration = Number.isFinite(originalEnd.getTime())
+    ? Math.max(0, originalEnd.getTime() - originalStart.getTime())
+    : 0;
+
+  // A viewer-day can overlap two source-zone dates. Check a small surrounding
+  // window so UTC+14 and UTC-12 members see the same occurrence exactly once.
+  for (let offset = -2; offset <= 2; offset += 1) {
+    const candidateDay = addCalendarDays(day, offset, sourceZone);
+    const candidateKey = dayKeyFor(candidateDay, sourceZone);
+    if (!candidateKey || candidateKey < originalKey) continue;
+    if (calendarWeekday(candidateDay, sourceZone) !== repeatsOn) continue;
+    const start = zonedDateTimeToDate(
+      candidateKey,
+      `${sourceParts.hour}:${sourceParts.minute}`,
+      sourceZone
+    );
+    if (!Number.isFinite(start.getTime()) || dayKeyFor(start, viewerZone) !== viewerKey) continue;
+    return {
+      ...block,
+      startAt: start.toISOString(),
+      endAt: new Date(start.getTime() + duration).toISOString(),
+    };
+  }
+  return null;
 }
 
 export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
@@ -406,11 +457,12 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const blocksForDay = (day) => {
     const key = dayKeyFor(day, timeZone);
     return visibleItems
-      .filter((a) => {
-        if (a.recurring !== "none" && a.recurring) {
-          return recurringDayMatches(a, day);
+      .flatMap((item) => {
+        if (item.recurring && item.recurring !== "none") {
+          const occurrence = recurringOccurrenceOnDay(item, day, timeZone);
+          return occurrence ? [occurrence] : [];
         }
-        return dayKeyFor(a.startAt, timeZone) === key;
+        return dayKeyFor(item.startAt, timeZone) === key ? [item] : [];
       })
       .sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
   };
@@ -981,7 +1033,7 @@ function AddAvailabilityForm({ onClose, onSave, defaultValue, initial, timeZone 
       setLocalError("Choose a valid date, time, and time zone.");
       return;
     }
-    const start = snapToWeekday(picked, recurring);
+    const start = snapToWeekday(picked, recurring, formTimeZone);
     const end = addMinutes(start, Number(duration) || 90);
     setSaving(true);
     // ISO timestamps preserve the exact instant; timeZone preserves the
