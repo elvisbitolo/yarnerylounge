@@ -65,7 +65,11 @@ export default function AmbientAudio({
   hasVideoBackdrop,
   pauseWhenBusy = false,
 }) {
-  const [playing, setPlaying] = useState(false);
+  // The source that is currently playing. Tracking the source rather than a
+  // boolean is what lets the report be retracted without a state write in an
+  // effect: when the source goes away the old value no longer matches, and
+  // when it comes back the value only matches once playback actually resumes.
+  const [playingSrc, setPlayingSrc] = useState("");
   const [volume, setVolume] = useState(() => {
     if (typeof window === "undefined") return 0.7;
     const saved = localStorage.getItem("speakeasy_master_volume");
@@ -109,8 +113,18 @@ export default function AmbientAudio({
   useEffect(() => {
     if (!active) return undefined;
     const url = URL.createObjectURL(generateAmbientPad());
-    setAmbientWav(url);
-    return () => URL.revokeObjectURL(url);
+    // The state update is deferred to a microtask on purpose: setting state
+    // synchronously inside an effect body triggers a cascading render
+    // (react-hooks/set-state-in-effect), and this URL only needs to land
+    // before the <audio> element mounts.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setAmbientWav(url);
+    });
+    return () => {
+      cancelled = true;
+      URL.revokeObjectURL(url);
+    };
   }, [active]);
 
   const baseSrc = useMemo(() => {
@@ -123,6 +137,13 @@ export default function AmbientAudio({
 
   const src = baseSrc;
 
+  // The <audio> element is unmounted when there is no source and the browser
+  // fires no pause event for it, so the "playing" report has to be retracted
+  // when there is nothing to play. Tracking the source instead of a boolean
+  // and deriving the flag here retracts it without a state write in an effect
+  // (react-hooks/set-state-in-effect).
+  const isPlaying = Boolean(src) && playingSrc === src;
+
   // Update HTML audio element volume whenever state changes
   useEffect(() => {
     const audio = audioRef.current;
@@ -133,13 +154,7 @@ export default function AmbientAudio({
 
   useEffect(() => {
     const audio = audioRef.current;
-    // No source means the element unmounted; the browser fires no pause event
-    // for that, so the reported state has to be retracted here or the header
-    // button keeps claiming music is playing.
-    if (!src) {
-      setPlaying(false);
-      return;
-    }
+    if (!src) return;
     if (!audio) return;
 
     audio.volume = volumeRef.current;
@@ -157,6 +172,7 @@ export default function AmbientAudio({
           audio
             .play()
             .then(() => {
+              setPlayingSrc(src);
               let fadeVol = 0;
               const targetVol = volumeRef.current;
               const fadeInterval = setInterval(() => {
@@ -180,10 +196,14 @@ export default function AmbientAudio({
       audio
         .play()
         .then(() => {
-          setPlaying(true);
+          setPlayingSrc(src);
           audio.volume = volumeRef.current;
         })
-        .catch(() => {});
+        .catch(() => {
+          // The browser refused playback (autoplay policy): nothing is
+          // playing, so the report has to say so.
+          setPlayingSrc("");
+        });
     }
 
     prevSrcRef.current = src;
@@ -221,7 +241,7 @@ export default function AmbientAudio({
       // Releasing the override collapses the source back to silence in rooms
       // whose backdrop is a video, so a stop really is a stop.
       setManualStart(false);
-      setPlaying(false);
+      setPlayingSrc("");
       return;
     }
     setManualStart(true);
@@ -250,7 +270,7 @@ export default function AmbientAudio({
       const audio = audioRef.current;
       if (audio && !audio.paused) audio.pause();
       setManualStart(false);
-      setPlaying(false);
+      setPlayingSrc("");
     }
     function start() {
       const audio = audioRef.current;
@@ -278,14 +298,14 @@ export default function AmbientAudio({
     function publish() {
       window.dispatchEvent(
         new CustomEvent("speakeasy-music-state", {
-          detail: { playing, available: Boolean(src) },
+          detail: { playing: isPlaying, available: Boolean(src) },
         })
       );
     }
     publish();
     window.addEventListener("speakeasy-music-query", publish);
     return () => window.removeEventListener("speakeasy-music-query", publish);
-  }, [playing, src]);
+  }, [isPlaying, src]);
 
   function handleVolumeChange(e) {
     const newVol = parseFloat(e.target.value);
@@ -315,7 +335,7 @@ export default function AmbientAudio({
   if (!active) return null;
 
   const currentVolumePercent = Math.round(volume * 100);
-  const VolumeIcon = !playing || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
+  const VolumeIcon = !isPlaying || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
   return (
     <>
@@ -325,8 +345,8 @@ export default function AmbientAudio({
           src={src}
           loop
           preload="auto"
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+          onPlay={() => setPlayingSrc(src)}
+          onPause={() => setPlayingSrc("")}
         />
       )}
 
@@ -345,13 +365,13 @@ export default function AmbientAudio({
               if (musicDrag.wasDragged()) return;
               toggle();
             }}
-            aria-label={playing ? `Mute stream (${currentVolumePercent}%)` : "Play stream"}
+            aria-label={isPlaying ? `Mute stream (${currentVolumePercent}%)` : "Play stream"}
             style={{
               width: 48,
               height: 48,
               borderRadius: 14,
-              border: playing ? "1px solid rgba(167,139,250,0.4)" : "1px solid rgba(255,255,255,0.15)",
-              background: playing
+              border: isPlaying ? "1px solid rgba(167,139,250,0.4)" : "1px solid rgba(255,255,255,0.15)",
+              background: isPlaying
                 ? "linear-gradient(135deg, rgba(109,93,246,0.85), rgba(167,139,250,0.75))"
                 : "rgba(30,30,38,0.9)",
               color: "#fff",
@@ -359,7 +379,7 @@ export default function AmbientAudio({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: playing
+              boxShadow: isPlaying
                 ? "0 4px 20px rgba(109,93,246,0.4)"
                 : "0 2px 12px rgba(0,0,0,0.4)",
               transition: "all 0.2s ease",
