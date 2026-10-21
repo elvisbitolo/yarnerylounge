@@ -62,10 +62,10 @@ export default function PostMenu({ items = [], title = "More", label }) {
             right: 0,
             zIndex: 40,
             minWidth: 190,
-            background: "var(--surface, #fff)",
-            border: "1px solid var(--border, #e5e7eb)",
-            borderRadius: 10,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+            background: "#171717",
+            border: "1px solid #383838",
+            borderRadius: 12,
+            boxShadow: "0 18px 48px rgba(0,0,0,0.48)",
             padding: 6,
             display: "flex",
             flexDirection: "column",
@@ -93,10 +93,10 @@ export default function PostMenu({ items = [], title = "More", label }) {
                 cursor: "pointer",
                 font: "inherit",
                 fontSize: 14,
-                color: item.danger ? "#dc2626" : "inherit",
+                color: item.danger ? "#fb7185" : "#f4f4f5",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--surface-2, #f3f4f6)";
+                e.currentTarget.style.background = item.danger ? "rgba(251, 113, 133, 0.12)" : "#292929";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
