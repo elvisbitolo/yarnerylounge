@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import styles from "./account.module.css";
 
 const DEFAULT_COLORS = ["#2563EB", "#7C3AED", "#06B6D4"];
@@ -52,7 +52,7 @@ export default function SignatureColorPicker({ colors, onColorsChange, presets }
   const dragRef = useRef(false);
   const currentColors = [0, 1, 2].map((i) => colors?.[i] || DEFAULT_COLORS[i]);
   const activeColor = currentColors[activeIndex];
-  const hsv = useMemo(() => rgbToHsv(hexToRgb(activeColor)), [activeColor]);
+  const hsv = rgbToHsv(hexToRgb(activeColor));
   const huePoint = { x: 50 + Math.sin((hsv.h * Math.PI) / 180) * 42, y: 50 - Math.cos((hsv.h * Math.PI) / 180) * 42 };
 
   function setColor(index, value) {
