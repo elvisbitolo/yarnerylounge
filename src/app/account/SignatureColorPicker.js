@@ -137,7 +137,7 @@ export default function SignatureColorPicker({ colors, onColorsChange, presets }
               <div className={styles.signatureWheelCenter}>
                 <div ref={squareRef} className={styles.signatureSatSquare}
                   style={{ "--picker-hue": hsv.h }}
-                  onPointerDown={handleSquarePointerDown}
+                  onPointerDown={(event) => { event.stopPropagation(); handleSquarePointerDown(event); }}
                   onPointerMove={(event) => { if (dragRef.current) updateFromSquare(event); }}
                   onPointerUp={() => { dragRef.current = false; }}
                   onPointerCancel={() => { dragRef.current = false; }}
