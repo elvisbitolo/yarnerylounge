@@ -26,6 +26,7 @@ import {
   dateForCalendarDay,
   formatZoneOffset,
   zonedDateTimeToDate,
+  zonedParts,
 } from "@/lib/calendar-core";
 import { buildEventIcs, icsFilename } from "@/lib/ics-core";
 import styles from "./calendar.module.css";
@@ -109,7 +110,15 @@ function snapToWeekday(start, recurring, timeZone) {
   if (wd == null) return start;
   const weekday = calendarWeekday(start, timeZone);
   const shift = (wd - weekday + 7) % 7;
-  return addCalendarDays(start, shift, timeZone);
+  if (shift === 0) return start;
+  const targetKey = dayKeyFor(addCalendarDays(start, shift, timeZone), timeZone);
+  const parts = zonedParts(start, timeZone);
+  if (!parts || !targetKey) return start;
+  return zonedDateTimeToDate(
+    targetKey,
+    `${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`,
+    timeZone
+  );
 }
 
 // Resolve a recurring availability occurrence on a viewer's calendar day.
