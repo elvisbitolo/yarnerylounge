@@ -10,6 +10,7 @@ const NOTIFICATION_TYPE_TO_PREF = {
   like: "feed",
   mention: "mentions",
   chat: "chat",
+  dm: "chat",
   event_reminder: "events",
   event_rsvp: "events",
   lounge_live: "events",
