@@ -63,7 +63,7 @@ export async function GET(req) {
         await createNotification({
           userId: rsvp.userId,
           type: "event_reminder",
-          actorId: "",
+          actorId: null,
           actorName: "Secret Yarnery",
           targetId: event.id,
           text: `"${event.title}" starts soon — don't miss it.`,
