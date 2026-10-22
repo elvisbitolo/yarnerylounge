@@ -14,6 +14,7 @@ const NOTIFICATION_TYPE_TO_PREF = {
   // Direct-message handlers use "dm"; keep them under the same member preference.
   dm: "chat",
   event_reminder: "events",
+  course_published: "events",
   event_rsvp: "events",
   lounge_live: "events",
   space_activity: "feed",
