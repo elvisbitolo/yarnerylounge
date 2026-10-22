@@ -83,7 +83,7 @@ model User {
   subscription           Subscription?
   sessions               Session[]
   gamification           Gamification?
-  pushSubscription       PushSubscription?
+  pushSubscriptions      PushSubscription[]
   purchases              Purchase[]
   followsFollowing       Follow[]   @relation("Follower")
   followsFollowers       Follow[]   @relation("Following")
@@ -316,13 +316,13 @@ model Invitation {
 }
 
 model PushSubscription {
-  id        String    @id
+  id        String    @id @default(cuid())
   userId    String
-  endpoint  String
+  endpoint  String    @unique
   keys      Json
   updatedAt DateTime  @default(now()) @updatedAt
 
-  user User @relation(fields: [id], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
