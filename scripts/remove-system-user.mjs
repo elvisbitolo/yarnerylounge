@@ -75,15 +75,14 @@ try {
   }
 
   if (references.length === 0) {
-    console.log("Nothing to do: no row points at the account.");
-    await pool.end();
-    process.exit(0);
+    console.log("\nNo row points at the account any more.");
   }
 
   console.log("\nRows pointing at the account:");
   for (const ref of references) {
     console.log(`  ${ref.table_name}.${ref.column_name}: ${ref.count}`);
   }
+  if (references.length === 0) console.log("  (none)");
 
   const postRefs = references.find((r) => r.table_name === "Post" && r.column_name === "authorId");
   const others = references.filter((r) => r !== postRefs);
@@ -101,6 +100,7 @@ try {
     [SYSTEM_ID]
   );
   console.log("\nPosts to repoint to no author:");
+  if (posts.rowCount === 0) console.log("  (none)");
   for (const row of posts.rows) console.log(`  ${row.id} (kind=${row.kind}, pinned=${row.pinned})`);
 
   if (!APPLY) {

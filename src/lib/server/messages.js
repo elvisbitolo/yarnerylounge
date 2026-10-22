@@ -16,7 +16,10 @@ export async function createWelcomeMessage({ uid, plan, role }) {
   await createNotification({
     userId: uid,
     type: "automation",
-    actorId: "system",
+    // The platform speaks for itself here. There is no service account behind
+    // this notification: Notification.actorId is a foreign key to User, so the
+    // actor is null and the byline on the row carries the name.
+    actorId: null,
     actorName: "The Speakeasy Team",
     targetId: "",
     href: "/dashboard",

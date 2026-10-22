@@ -93,7 +93,11 @@ export async function sendAnnouncement({
           data: uids.map((userId) => ({
             userId,
             type: "announcement",
-            actorId: actorId || "",
+            // Notification.actorId is a foreign key to User, so an announcement
+            // without an actor stores null rather than an empty string. The
+            // Announcement row below keeps a string authorId: that column has
+            // no foreign key and is not nullable.
+            actorId: actorId || null,
             actorName: actorName || "Secret Yarnery",
             targetId: scopeId || "",
             href,

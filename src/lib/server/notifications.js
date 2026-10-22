@@ -4,6 +4,7 @@ import { logError } from "@/lib/server/log";
 import { getUserDoc } from "@/lib/server/auth";
 import { sendPushToUser } from "@/lib/server/push";
 import { buildPushPayload } from "@/lib/server/push-core";
+import { notificationRow } from "@/lib/server/notifications-core";
 
 const NOTIFICATION_TYPE_TO_PREF = {
   comment: "feed",
@@ -101,17 +102,15 @@ export async function createNotification({
   const enabled = await shouldNotify(userId, type);
   if (!enabled) return false;
 
-  const data = {
+  const data = notificationRow({
     userId,
     type,
-    actorId: actorId || "",
-    actorName: actorName || "",
-    targetId: targetId || "",
-    href: href || "",
+    actorId,
+    actorName,
+    targetId,
+    href,
     text,
-    read: false,
-    createdAt: new Date(),
-  };
+  });
   const prisma = getPrisma();
   if (!prisma) return false;
   try {

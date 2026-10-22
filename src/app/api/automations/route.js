@@ -56,7 +56,7 @@ async function sendWelcomeMessages() {
       await createNotification({
         userId: user.id,
         type: "system",
-        actorId: "system",
+        actorId: null,
         actorName: "Secret Yarnery",
         href: "/dashboard",
         text: "Welcome to the community! Start by introducing yourself in the Feed or exploring the Members directory.",
@@ -104,7 +104,7 @@ async function sendInactivityNudges() {
       await createNotification({
         userId: user.id,
         type: "system",
-        actorId: "system",
+        actorId: null,
         actorName: "Secret Yarnery",
         href: "/feed",
         text: "We miss you! Check out what's new in the community.",
@@ -147,7 +147,7 @@ async function awardAutoBadges() {
         await createNotification({
           userId: user.id,
           type: "system",
-          actorId: "system",
+          actorId: null,
           actorName: "Secret Yarnery",
           href: "/leaderboard",
           text: `You earned the "${m.label}" badge for reaching ${m.at} points!`,
