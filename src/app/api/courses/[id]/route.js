@@ -6,6 +6,7 @@ import { clean } from "@/lib/server/validate";
 import { serialize } from "@/lib/server/serialize";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { createNotification } from "@/lib/server/notifications";
 
 export async function GET(req, { params }) {
   const { id } = await params;
@@ -76,7 +77,43 @@ export async function PATCH(req, { params }) {
 
   const prisma = getPrisma();
   try {
-    await prisma.course.update({ where: { id }, data: patch });
+    const wasPublished = course.status === "published";
+    const updated = await prisma.course.update({ where: { id }, data: patch });
+
+    // Notify members who have already enrolled or started progress when a
+    // draft becomes available. Avoid notifying on title edits or re-publishing.
+    if (!wasPublished && updated.status === "published") {
+      const [purchases, progress] = await Promise.all([
+        prisma.purchase.findMany({
+          where: { targetType: "course", targetId: id },
+          select: { uid: true },
+        }),
+        prisma.progress.findMany({
+          where: { courseId: id },
+          select: { userId: true },
+        }),
+      ]);
+      const recipientIds = new Set([
+        ...purchases.map((purchase) => purchase.uid),
+        ...progress.map((row) => row.userId),
+      ]);
+      recipientIds.delete(user.uid);
+
+      await Promise.allSettled(
+        [...recipientIds].map((userId) =>
+          createNotification({
+            userId,
+            type: "course_published",
+            actorId: user.uid,
+            actorName: course.title ? "Secret Yarnery" : "Secret Yarnery",
+            targetId: id,
+            href: `/courses/${encodeURIComponent(id)}`,
+            text: `New class available: ${updated.title}`,
+          })
+        )
+      );
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     logError("courses.update_prisma_failed", { error: err.message });
