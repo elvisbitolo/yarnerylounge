@@ -7,6 +7,7 @@ export default function PushSetup() {
   const [signedIn, setSignedIn] = useState(false);
   const [supported, setSupported] = useState(false);
   const [permission, setPermission] = useState("default");
+  const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -31,7 +32,19 @@ export default function PushSetup() {
       Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
     setSupported(canPush);
-    if (canPush) setPermission(Notification.permission);
+    if (!canPush) return;
+    setPermission(Notification.permission);
+
+    let cancelled = false;
+    navigator.serviceWorker.ready
+      .then((registration) => registration.pushManager.getSubscription())
+      .then((subscription) => {
+        if (!cancelled) setSubscribed(Boolean(subscription));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function enableNotifications() {
@@ -40,8 +53,6 @@ export default function PushSetup() {
     setMessage("");
 
     try {
-      // Ensure the server-side session cookie exists before saving a
-      // subscription. The permission request is only made after a user click.
       const me = await fetch("/api/me", { cache: "no-store" });
       if (!me.ok) {
         setMessage("Please sign in again before enabling notifications.");
@@ -76,13 +87,39 @@ export default function PushSetup() {
       const response = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscription }),
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
       });
       if (!response.ok) throw new Error("Could not save this device's subscription.");
 
+      setSubscribed(true);
       setMessage("Push notifications are enabled on this device.");
     } catch {
       setMessage("Could not enable push notifications. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disableNotifications() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/push/subscribe", { method: "DELETE" });
+      if (!response.ok) {
+        setMessage("Could not disable notifications on the server. Please try again.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) await subscription.unsubscribe();
+
+      setSubscribed(false);
+      setMessage("Push notifications are disabled for your account.");
+    } catch {
+      setMessage("Could not disable notifications. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -118,21 +155,29 @@ export default function PushSetup() {
       ) : null}
       <button
         type="button"
-        onClick={enableNotifications}
-        disabled={busy || permission === "denied"}
+        onClick={subscribed ? disableNotifications : enableNotifications}
+        disabled={busy || (!subscribed && permission === "denied")}
         style={{
           minHeight: "40px",
           padding: "0 14px",
           border: 0,
           borderRadius: "999px",
-          background: busy || permission === "denied" ? "#51464e" : "#f6077a",
+          background: busy || (!subscribed && permission === "denied") ? "#51464e" : "#f6077a",
           color: "#fff",
           font: "inherit",
           fontWeight: 700,
-          cursor: busy || permission === "denied" ? "not-allowed" : "pointer",
+          cursor: busy || (!subscribed && permission === "denied") ? "not-allowed" : "pointer",
         }}
       >
-        {busy ? "Enabling…" : permission === "denied" ? "Blocked in browser" : permission === "granted" ? "Finish notification setup" : "Enable notifications"}
+        {busy
+          ? "Please wait…"
+          : subscribed
+            ? "Disable notifications"
+            : permission === "denied"
+              ? "Blocked in browser"
+              : permission === "granted"
+                ? "Finish notification setup"
+                : "Enable notifications"}
       </button>
     </aside>
   );
