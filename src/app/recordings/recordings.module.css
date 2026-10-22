@@ -701,9 +701,15 @@
   flex-shrink: 0;
 }
 
+/* Show portrait recordings without the blurred side-fill baked into Jitsi exports. */
 .playerStage {
+  width: min(100%, 405px);
+  aspect-ratio: 9 / 16;
+  max-height: 70vh;
+  margin: 0 auto;
   border-radius: 8px;
   overflow: hidden;
+  background: #000;
 }
 
 .playerStage:focus-visible {
@@ -713,12 +719,12 @@
 
 .video {
   width: 100%;
-  max-height: 70vh;
+  height: 100%;
   border-radius: 8px;
   background: #000;
   display: block;
-  /* Vertical recordings fit whole rather than being cropped. */
-  object-fit: contain;
+  /* Fill the portrait stage and crop away the blurred side panels. */
+  object-fit: cover;
 }
 
 .playerControls {
