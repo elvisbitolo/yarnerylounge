@@ -1,24 +1,26 @@
 .page {
   min-height: 100vh;
-  background: #1a1a1a;
+  background: #111111;
+  color: #f5f4f2;
 }
 
 .container {
   max-width: 860px;
   margin: 0 auto;
   padding: 48px 24px;
+  color: #f5f4f2;
 }
 
 .title {
   font-size: 32px;
   font-weight: 800;
-  color: #17171c;
+  color: #f5f4f2;
   margin: 0;
 }
 
 .subtitle {
   font-size: 15px;
-  color: #6b6b7b;
+  color: #b0b0b8;
   margin: 8px 0 28px;
 }
 
@@ -32,8 +34,8 @@
 .stat {
   flex: 1;
   min-width: 120px;
-  background: #ffffff;
-  border: 1px solid #e6e6ef;
+  background: #191919;
+  border: 1px solid #303030;
   border-radius: 14px;
   padding: 18px 20px;
 }
@@ -48,7 +50,7 @@
 .statLabel {
   font-size: 13px;
   font-weight: 600;
-  color: #6b6b7b;
+  color: #b0b0b8;
   margin: 0;
 }
 
@@ -80,13 +82,13 @@
 
 .rowMine {
   border-color: var(--primary);
-  background: #eef2ff;
+  background: #252036;
 }
 
 .rank {
   font-size: 14px;
   font-weight: 800;
-  color: #17171c;
+  color: #f5f4f2;
   margin: 0;
 }
 
@@ -102,7 +104,7 @@
 .nameLink {
   font-size: 15px;
   font-weight: 600;
-  color: #17171c;
+  color: #f5f4f2;
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -116,13 +118,13 @@
 
 .streak {
   font-size: 13px;
-  color: #6b6b7b;
+  color: #b0b0b8;
   margin: 0;
 }
 
 .badges {
   font-size: 13px;
-  color: #6b6b7b;
+  color: #b0b0b8;
   margin: 0;
 }
 
@@ -155,13 +157,13 @@
 .badgeName {
   font-size: 14px;
   font-weight: 700;
-  color: #17171c;
+  color: #f5f4f2;
   margin: 0 0 4px;
 }
 
 .badgeDesc {
   font-size: 13px;
-  color: #6b6b7b;
+  color: #b0b0b8;
   margin: 0;
 }
 
