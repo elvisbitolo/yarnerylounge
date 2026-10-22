@@ -9,6 +9,13 @@ import { getPrisma } from "@/lib/db/prisma";
 import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
 import { validateReplyText } from "@/lib/server/chat-core";
+import {
+  chatNotifyType,
+  chatRecipientIds,
+  chatSnippet,
+  shouldEmailChatRecipient,
+  shouldNotifyChatRecipient,
+} from "@/lib/server/chat-notify-core";
 import { containsMention, isConversationMuted } from "@/lib/chat-settings-core";
 
 const MAX_ATTACHMENT_LENGTH = 700_000;
@@ -223,71 +230,80 @@ export async function POST(req, { params }) {
   }
 
   const conv = await getConversation(conversationId, user.uid);
-  if (conv && conv.type === "dm") {
-    const otherId = (conv.participantIds || []).find((id) => id !== user.uid);
-    if (otherId) {
-      let other = null;
+  const notifyType = chatNotifyType(conv?.type);
+  if (conv && notifyType) {
+    // Every participant except the sender, for DMs and for group/region chats
+    // alike. A DM has one recipient; a group has everyone else in it.
+    const recipientIds = chatRecipientIds(conv.participantIds, user.uid);
+    if (recipientIds.length) {
+      let recipients = [];
       try {
         const prisma = getPrisma();
         if (prisma) {
-          const row = await prisma.user.findUnique({
-            where: { id: otherId },
+          const rows = await prisma.user.findMany({
+            where: { id: { in: recipientIds } },
             select: {
+              id: true,
               email: true,
               notifications: true,
               username: true,
               extra: true,
               notificationPreferences: true,
+              suspended: true,
             },
           });
-          if (row) {
-            other = {
-              email: row.email || "",
-              notifications: row.notifications || "",
-              username: row.username || "",
-              extra: row.extra,
-              notificationPreferences: row.notificationPreferences,
-            };
-          }
+          recipients = rows.filter((row) => !row.suspended);
         }
       } catch (err) {
-        logError("chat.prisma_dm_recipient_failed", { error: err.message });
+        logError("chat.prisma_recipients_failed", { conversationId, error: err.message });
       }
-      // A muted conversation stays quiet — except when the message @-mentions
-      // the recipient directly, so a specific ask still breaks through.
-      const convPrefs =
-        other && other.extra && other.extra.chatPrefs && other.extra.chatPrefs[conversationId]
-          ? other.extra.chatPrefs[conversationId]
-          : {};
-      const muted = isConversationMuted(convPrefs);
-      const mentioned = containsMention(text, other && other.username);
-      if (other && other.notifications !== "off" && (!muted || mentioned)) {
-        const snippet = text || (attachment?.kind === "image" ? "📷 Photo" : `📎 ${attachment?.name || "File"}`);
-        await createNotification({
-          userId: otherId,
-          type: "dm",
-          actorId: user.uid,
-          actorName: senderName,
-          href: `/chat/${conversationId}`,
-          text: snippet,
-        }).catch((err) => {
-          logError("notification.dm_failed", { conversationId, error: err.message });
-        });
-        // Email respects the same global opt-out as before, but also honor
-        // granular notificationPreferences.chat when present (fall back to true
-        // if unspecified so existing behavior isn't broken).
-        let emailOk = other.notifications !== "off";
-        const chatPref = other.notificationPreferences?.chat;
-        if (chatPref === false) emailOk = false;
-        if (emailOk && other.email) {
+
+      const snippet = chatSnippet({ text, attachment });
+      const href = `/chat/${conversationId}`;
+      const isDm = conv.type === "dm";
+      const roomLabel = conv.title || conv.name || "your group chat";
+
+      for (const other of recipients) {
+        // A muted conversation stays quiet - except when the message
+        // @-mentions the recipient directly, so a specific ask still breaks
+        // through.
+        const convPrefs =
+          other.extra && other.extra.chatPrefs && other.extra.chatPrefs[conversationId]
+            ? other.extra.chatPrefs[conversationId]
+            : {};
+        const muted = isConversationMuted(convPrefs);
+        const mentioned = containsMention(text, other.username);
+        const globalOff = other.notifications === "off";
+        const chatPrefOff = other.notificationPreferences?.chat === false;
+
+        if (!globalOff && shouldNotifyChatRecipient({ muted, mentioned })) {
+          // createNotification() applies the granular "chat" preference to the
+          // in-app row and the push; the global opt-out is applied here.
+          await createNotification({
+            userId: other.id,
+            type: notifyType,
+            actorId: user.uid,
+            actorName: senderName,
+            href,
+            text: snippet,
+          }).catch((err) => {
+            logError("notification.chat_failed", { conversationId, error: err.message });
+          });
+        }
+
+        if (shouldEmailChatRecipient({ globalOff, chatPrefOff, muted, mentioned }) && other.email) {
           await sendEmail({
             to: other.email,
-            subject: `New message from ${senderName}`,
-            text:
-              `${senderName} sent you a message:\n\n"${snippet}"\n\n` +
-              `Reply in the community chat: ${process.env.NEXT_PUBLIC_APP_URL || ""}/chat/${conversationId}`,
+            subject: isDm
+              ? `New message from ${senderName}`
+              : `New message in ${roomLabel}`,
+            text: isDm
+              ? `${senderName} sent you a message:\n\n"${snippet}"\n\n` +
+                `Reply in the community chat: ${process.env.NEXT_PUBLIC_APP_URL || ""}${href}`
+              : `${senderName} posted in ${roomLabel}:\n\n"${snippet}"\n\n` +
+                `Open the conversation: ${process.env.NEXT_PUBLIC_APP_URL || ""}${href}`,
           }).catch((err) => {
-            logError("email.dm_notify_failed", { conversationId, error: err.message });
+            logError("email.chat_notify_failed", { conversationId, error: err.message });
           });
         }
       }
