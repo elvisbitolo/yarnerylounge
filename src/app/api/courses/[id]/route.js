@@ -83,35 +83,44 @@ export async function PATCH(req, { params }) {
     // Notify members who have already enrolled or started progress when a
     // draft becomes available. Avoid notifying on title edits or re-publishing.
     if (!wasPublished && updated.status === "published") {
-      const [purchases, progress] = await Promise.all([
-        prisma.purchase.findMany({
-          where: { targetType: "course", targetId: id },
-          select: { uid: true },
-        }),
-        prisma.progress.findMany({
-          where: { courseId: id },
-          select: { userId: true },
-        }),
-      ]);
-      const recipientIds = new Set([
-        ...purchases.map((purchase) => purchase.uid),
-        ...progress.map((row) => row.userId),
-      ]);
-      recipientIds.delete(user.uid);
+      try {
+        const [purchases, progress] = await Promise.all([
+          prisma.purchase.findMany({
+            where: { targetType: "course", targetId: id },
+            select: { uid: true },
+          }),
+          prisma.progress.findMany({
+            where: { courseId: id },
+            select: { userId: true },
+          }),
+        ]);
+        const recipientIds = new Set([
+          ...purchases.map((purchase) => purchase.uid),
+          ...progress.map((row) => row.userId),
+        ]);
+        recipientIds.delete(user.uid);
 
-      await Promise.allSettled(
-        [...recipientIds].map((userId) =>
-          createNotification({
-            userId,
-            type: "course_published",
-            actorId: user.uid,
-            actorName: user.name || user.email || "Secret Yarnery",
-            targetId: id,
-            href: `/courses/${encodeURIComponent(id)}`,
-            text: `New class available: ${updated.title}`,
-          })
-        )
-      );
+        await Promise.allSettled(
+          [...recipientIds].map((userId) =>
+            createNotification({
+              userId,
+              type: "course_published",
+              actorId: user.uid,
+              actorName: user.name || user.email || "Secret Yarnery",
+              targetId: id,
+              href: "/courses/" + encodeURIComponent(id),
+              text: "New class available: " + updated.title,
+            })
+          )
+        );
+      } catch (notificationError) {
+        // Publishing succeeded; notification failures must not make the
+        // update look unsuccessful or encourage a duplicate retry.
+        logError("courses.publish_notifications_failed", {
+          courseId: id,
+          error: notificationError?.message,
+        });
+      }
     }
 
     return NextResponse.json({ ok: true });
