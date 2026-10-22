@@ -266,7 +266,17 @@ export async function POST(req, { params }) {
         }).catch((err) => {
           logError("notification.dm_failed", { conversationId, error: err.message });
         });
-        if (other.email) {
+        // Email respects the same global opt-out as before, but also honor
+        // granular notificationPreferences.chat when present (fall back to true
+        // if unspecified so existing behavior isn't broken).
+        let emailOk = other.notifications !== "off";
+        try {
+          const prefs = other.extra?.notificationPreferences;
+          if (prefs && typeof prefs === "object" && prefs.chat === false) {
+            emailOk = false;
+          }
+        } catch {}
+        if (emailOk && other.email) {
           await sendEmail({
             to: other.email,
             subject: `New message from ${senderName}`,

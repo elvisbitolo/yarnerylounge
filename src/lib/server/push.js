@@ -7,9 +7,6 @@ import { logError } from "@/lib/server/log";
 // action that triggered it must still succeed) when push is unconfigured, the
 // member has no subscription, or the push service is down. It therefore never
 // throws — callers can fire and forget.
-//
-// Subscriptions are one row per user id today (see /api/push/subscribe), but we
-// read with findMany so a future multi-device schema needs no change here.
 
 export function pushConfigured() {
   return Boolean(

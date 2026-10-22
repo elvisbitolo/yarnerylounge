@@ -316,11 +316,11 @@ model Invitation {
 }
 
 model PushSubscription {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
-  endpoint  String    @unique
+  endpoint  String   @unique
   keys      Json
-  updatedAt DateTime  @default(now()) @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

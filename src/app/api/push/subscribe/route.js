@@ -27,11 +27,11 @@ export async function POST(req) {
       create: {
         userId: user.uid,
         endpoint: subscription.endpoint,
-        keys: subscription.keys,
+        keys: subscription.keys || {},
       },
       update: {
         userId: user.uid,
-        keys: subscription.keys,
+        keys: subscription.keys || {},
       },
     });
   } catch (err) {
