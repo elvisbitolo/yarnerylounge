@@ -23,15 +23,14 @@ export async function POST(req) {
 
   try {
     await getPrisma().pushSubscription.upsert({
-      where: { id: user.uid },
+      where: { endpoint: subscription.endpoint },
       create: {
-        id: user.uid,
         userId: user.uid,
         endpoint: subscription.endpoint,
         keys: subscription.keys,
       },
       update: {
-        endpoint: subscription.endpoint,
+        userId: user.uid,
         keys: subscription.keys,
       },
     });
