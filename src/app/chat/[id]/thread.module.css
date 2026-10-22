@@ -809,3 +809,113 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+
+
+/* Message thread polish: improve scanability without changing message behavior. */
+.threadMessage {
+  min-width: 0;
+  scroll-margin-block: 20px;
+}
+
+.grouped {
+  margin-top: -3px;
+}
+
+.bubble {
+  max-width: min(72%, 620px);
+  padding: 8px 13px 6px;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.msgTheirs .bubble {
+  border-bottom-left-radius: 5px;
+}
+
+.msgMine .bubble {
+  border-bottom-right-radius: 5px;
+}
+
+.threadMessage:target .bubble {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-accent) 60%, transparent);
+}
+
+.bubbleMeta {
+  min-height: 15px;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dayDivider {
+  position: sticky;
+  top: 8px;
+  z-index: 3;
+  margin: 14px auto 10px;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d0d0da;
+  background: rgba(29, 29, 36, 0.94);
+  backdrop-filter: blur(10px);
+}
+
+.replyActions button:focus-visible,
+.reactionChip:focus-visible,
+.reactionActive:focus-visible,
+.reactionPick:focus-visible,
+.replyBtn:focus-visible,
+.replyCountBadge:focus-visible,
+.loadOlder:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: 2px;
+}
+
+.replyInput {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .bubble {
+    max-width: min(82%, 620px);
+  }
+
+  .pinnedBar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .bubble {
+    max-width: 88%;
+    padding: 8px 11px 6px;
+  }
+
+  .dayDivider {
+    margin-top: 10px;
+  }
+
+  .replyActions {
+    max-width: calc(100vw - 32px);
+    overflow-x: auto;
+  }
+
+  .replyInputWrap {
+    flex-wrap: wrap;
+  }
+
+  .replyInput {
+    flex-basis: 100%;
+  }
+
+  .replySend,
+  .replyCancel {
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    transition: none;
+  }
+}
