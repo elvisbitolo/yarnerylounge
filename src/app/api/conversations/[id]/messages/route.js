@@ -232,7 +232,13 @@ export async function POST(req, { params }) {
         if (prisma) {
           const row = await prisma.user.findUnique({
             where: { id: otherId },
-            select: { email: true, notifications: true, username: true, extra: true },
+            select: {
+              email: true,
+              notifications: true,
+              username: true,
+              extra: true,
+              notificationPreferences: true,
+            },
           });
           if (row) {
             other = {
@@ -240,6 +246,7 @@ export async function POST(req, { params }) {
               notifications: row.notifications || "",
               username: row.username || "",
               extra: row.extra,
+              notificationPreferences: row.notificationPreferences,
             };
           }
         }
@@ -270,12 +277,8 @@ export async function POST(req, { params }) {
         // granular notificationPreferences.chat when present (fall back to true
         // if unspecified so existing behavior isn't broken).
         let emailOk = other.notifications !== "off";
-        try {
-          const prefs = other.extra?.notificationPreferences;
-          if (prefs && typeof prefs === "object" && prefs.chat === false) {
-            emailOk = false;
-          }
-        } catch {}
+        const chatPref = other.notificationPreferences?.chat;
+        if (chatPref === false) emailOk = false;
         if (emailOk && other.email) {
           await sendEmail({
             to: other.email,
