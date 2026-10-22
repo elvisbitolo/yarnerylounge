@@ -461,3 +461,171 @@
     justify-content: center;
   }
 }
+
+
+/* Responsive and interaction polish for the lounge directory. */
+.container {
+  width: 100%;
+  min-width: 0;
+}
+
+.subtitle,
+.communitySub {
+  max-width: 68ch;
+  line-height: 1.65;
+}
+
+.grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: stretch;
+}
+
+.alwaysOnCard,
+.communityCard {
+  min-width: 0;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.cardImageWrap {
+  flex: 0 0 auto;
+}
+
+.cardImage,
+.cardImageBg {
+  transition: transform 220ms ease;
+}
+
+.cardBody {
+  flex: 1;
+  align-items: flex-start;
+  padding: 18px;
+  gap: 11px;
+}
+
+.cardTitle,
+.cardDesc,
+.cardMeta {
+  overflow-wrap: anywhere;
+}
+
+.cardTitle {
+  line-height: 1.3;
+}
+
+.cardDesc {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.cardMeta {
+  line-height: 1.55;
+}
+
+.cardEnter {
+  margin-top: 5px;
+  min-height: 24px;
+}
+
+.card:focus-visible,
+.liveCard:focus-visible,
+.adminLink:focus-visible {
+  outline: 3px solid var(--secondary-light, #c4b5fd);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .cardImage,
+  .card:hover .cardImageBg {
+    transform: scale(1.035);
+  }
+}
+
+@media (max-width: 700px) {
+  .container {
+    padding: 36px 20px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 16px;
+  }
+
+  .communitySection {
+    margin-top: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 28px 16px;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .title {
+    font-size: clamp(24px, 7vw, 28px);
+  }
+
+  .subtitle {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .cardBody {
+    padding: 16px;
+  }
+
+  .cardTitle {
+    font-size: 18px;
+  }
+
+  .liveCard {
+    padding: 18px;
+  }
+
+  .liveCardTitle {
+    overflow-wrap: anywhere;
+  }
+
+  .empty {
+    padding: 32px 18px;
+  }
+
+  .communityTitle {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .cardImage,
+  .cardImageBg,
+  .cardEnter svg,
+  .liveCard,
+  .adminLink,
+  .liveBannerPulse,
+  .alwaysOnBadgeDot,
+  .liveCardDot {
+    animation: none;
+    transition: none;
+  }
+
+  .card:hover,
+  .liveCard:hover {
+    transform: none;
+  }
+
+  .card:hover .cardImage,
+  .card:hover .cardImageBg,
+  .card:hover .cardEnter svg {
+    transform: none;
+  }
+}
