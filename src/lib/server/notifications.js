@@ -11,6 +11,8 @@ const NOTIFICATION_TYPE_TO_PREF = {
   like: "feed",
   mention: "mentions",
   chat: "chat",
+  // Direct-message handlers use "dm"; keep them under the same member preference.
+  dm: "chat",
   event_reminder: "events",
   event_rsvp: "events",
   lounge_live: "events",
