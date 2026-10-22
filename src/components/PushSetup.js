@@ -88,7 +88,7 @@ export default function PushSetup() {
     }
   }
 
-  if (!signedIn || !supported || permission === "granted") return null;
+  if (!signedIn || !supported) return null;
 
   return (
     <aside
@@ -132,7 +132,7 @@ export default function PushSetup() {
           cursor: busy || permission === "denied" ? "not-allowed" : "pointer",
         }}
       >
-        {busy ? "Enabling…" : permission === "denied" ? "Blocked in browser" : "Enable notifications"}
+        {busy ? "Enabling…" : permission === "denied" ? "Blocked in browser" : permission === "granted" ? "Finish notification setup" : "Enable notifications"}
       </button>
     </aside>
   );
