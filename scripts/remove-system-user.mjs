@@ -117,18 +117,25 @@ try {
     await client.query("COMMIT");
     console.log(`\n✓ Repointed ${posts.rowCount} post(s) and deleted ${deleted.rowCount} account row.`);
   } catch (err) {
-    await client.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => {});
     console.error("\n✗ Nothing was written:", err.message);
-    await client.end();
+    // release(true) destroys the connection: after a failed transaction it may
+    // be in an unknown state, and returning it to the pool would poison it.
+    client.release(true);
     process.exit(1);
   }
-  await client.end();
+  // release(), not end(): the client came from the pool, and ending it leaves
+  // the pool waiting on a connection it still believes is checked out, so the
+  // final pool.end() never settles.
+  client.release();
 
   const after = await pool.query('SELECT count(*)::int AS n FROM "User" WHERE id = $1', [SYSTEM_ID]);
   const orphanPosts = await pool.query('SELECT count(*)::int AS n FROM "Post" WHERE "authorId" = $1', [SYSTEM_ID]);
   console.log(`✓ Accounts left: ${after.rows[0].n}, posts still pointing at it: ${orphanPosts.rows[0].n}`);
 } catch (e) {
   console.error("Error:", e.message);
+  // A failed run must not exit 0, or a caller cannot tell it apart from success.
+  process.exitCode = 1;
 } finally {
   await pool.end();
 }
