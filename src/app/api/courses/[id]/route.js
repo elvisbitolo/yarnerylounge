@@ -105,7 +105,7 @@ export async function PATCH(req, { params }) {
             userId,
             type: "course_published",
             actorId: user.uid,
-            actorName: course.title ? "Secret Yarnery" : "Secret Yarnery",
+            actorName: user.name || user.email || "Secret Yarnery",
             targetId: id,
             href: `/courses/${encodeURIComponent(id)}`,
             text: `New class available: ${updated.title}`,
