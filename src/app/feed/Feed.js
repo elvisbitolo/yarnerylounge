@@ -2135,12 +2135,16 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
             icon: notifIds.has(post.id) ? <BellOff size={15} /> : <Bell size={15} />,
             onClick: () => handleNotifications(post),
           },
-          post.authorId !== uid && {
-            key: "mute",
-            label: mutedIds.has(post.authorId) ? t("unmuteAuthor") : t("muteAuthor"),
-            icon: <VolumeX size={15} />,
-            onClick: () => handleMute(post),
-          },
+          // Only members can be muted. A platform post has no author, and
+          // muting one would send an empty target that the safety route
+          // rejects.
+          post.authorId &&
+            post.authorId !== uid && {
+              key: "mute",
+              label: mutedIds.has(post.authorId) ? t("unmuteAuthor") : t("muteAuthor"),
+              icon: <VolumeX size={15} />,
+              onClick: () => handleMute(post),
+            },
           canModerate && {
             key: "hide",
             label: t("hidePost"),

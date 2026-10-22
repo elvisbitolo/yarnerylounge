@@ -159,7 +159,10 @@ export async function postScheduledQuestion(question, now = new Date()) {
     try {
       const created = await prisma.post.create({
         data: {
-          authorId: "system",
+          // Scheduled questions are posted by the platform, not by a member.
+          // Post.authorId is nullable, so it has no author at all rather than
+          // pointing at a service account that would show up as a member.
+          authorId: null,
           authorName: "Secret Yarnery",
           text: question.text,
           likes: {},

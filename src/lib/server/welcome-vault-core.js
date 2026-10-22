@@ -51,3 +51,56 @@ export function welcomeVaultPostData(now = new Date()) {
     createdAt: now,
   };
 }
+
+// A duplicate key means another request created the row first.
+function isUniqueViolation(err) {
+  return (err?.code || err?.meta?.code) === "P2002";
+}
+
+// Create the announcement if it is missing, and repair it if it has drifted:
+// unpin it, edit its text, or leave it pointing at the legacy "system" author.
+//
+// `prisma` is passed in so this stays a pure module that `node --test` can
+// load without the "@/" aliases the wrapper needs.
+//
+// This never writes a User row. The announcement belongs to the platform, not
+// to a member, so it is authored by nobody and Post.authorId is nullable.
+export async function ensureWelcomeVaultPostWith(prisma, now = new Date()) {
+  if (!prisma) return { ok: false, error: "No database" };
+  try {
+    const existing = await prisma.post.findUnique({
+      where: { id: WELCOME_VAULT_ID },
+      select: { id: true, pinned: true, pinnedAt: true, text: true, authorId: true },
+    });
+
+    if (!existing) {
+      try {
+        await prisma.post.create({ data: welcomeVaultPostData(now) });
+      } catch (err) {
+        // The feed page asks for this on every render, so two requests can
+        // both find nothing and both insert. The loser of that race has
+        // already done its job.
+        if (!isUniqueViolation(err)) throw err;
+      }
+      return { ok: true, id: WELCOME_VAULT_ID };
+    }
+
+    const patch = {};
+    if (!existing.pinned) {
+      patch.pinned = true;
+      patch.pinnedAt = existing.pinnedAt || now;
+    }
+    if (existing.text !== WELCOME_VAULT_TEXT) patch.text = WELCOME_VAULT_TEXT;
+    // The announcement is a fixed platform post, so it never has a member
+    // author. Anything still pointing at the legacy service account is
+    // repointed to no author, which is what isSystemPost() reads.
+    if (existing.authorId !== null) patch.authorId = null;
+
+    if (Object.keys(patch).length > 0) {
+      await prisma.post.update({ where: { id: WELCOME_VAULT_ID }, data: patch });
+    }
+    return { ok: true, id: WELCOME_VAULT_ID };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}

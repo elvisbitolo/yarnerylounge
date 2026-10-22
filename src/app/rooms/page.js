@@ -43,7 +43,10 @@ function canonicalDefaultRoomFallback(spec) {
     vibeMode: spec.vibeMode || "",
     rule: spec.rule || "",
     maxParticipants: 200,
-    createdBy: "system",
+    // Display-only fallback for a canonical room that is missing from the
+    // database. It is never written back, and there is no service account to
+    // point at, so the creator is left empty.
+    createdBy: "",
     createdAt: new Date(0),
   };
 }

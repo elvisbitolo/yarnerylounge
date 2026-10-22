@@ -3,48 +3,26 @@ import { logError } from "@/lib/server/log";
 import {
   WELCOME_VAULT_ID,
   WELCOME_VAULT_TEXT,
+  ensureWelcomeVaultPostWith,
 } from "@/lib/server/welcome-vault-core";
 
 // The "Welcome Vault": a pinned, read-only House Rules announcement that tops
 // the community feed. The Feed renders kind "announcement" posts in read-only
 // mode via isSystemPost().
+//
+// The announcement has no member author. Post.authorId is nullable, so the post
+// is created with authorId null instead of inventing a service account. A
+// synthetic "system" user was tried before and it put a fake member into the
+// public directory, the @mention list and the member counts.
 export { WELCOME_VAULT_ID, WELCOME_VAULT_TEXT };
 
-// Seeding is disabled. Post.authorId is NOT NULL with a foreign key to User, so
-// creating this post requires a real author row. Inventing a service account
-// ("system" / "The Speakeasy Team") put a synthetic user into the members table,
-// where it showed up in the public directory, in user autocomplete and in the
-// member counts, so it is not created here.
-//
-// The fix is to make Post.authorId nullable and key the read-only rendering off
-// a NULL author instead. That is a schema migration and has not been applied, so
-// until it is, the announcement is absent rather than faked.
-//
-// Existing rows are still repaired (pin + text), which is safe and idempotent.
-export async function ensureWelcomeVaultPost() {
-  const prisma = getPrisma();
+// `db` is injectable for tests; production callers pass nothing.
+export async function ensureWelcomeVaultPost(db) {
+  const prisma = db || getPrisma();
   if (!prisma) return { ok: false, error: "No database" };
-  try {
-    const existing = await prisma.post.findUnique({
-      where: { id: WELCOME_VAULT_ID },
-      select: { id: true, pinned: true, pinnedAt: true, text: true },
-    });
-    if (!existing) return { ok: false, error: "Not seeded: Post.authorId is still NOT NULL" };
-    if (!existing.pinned) {
-      await prisma.post.update({
-        where: { id: WELCOME_VAULT_ID },
-        data: { pinned: true, pinnedAt: existing.pinnedAt || new Date() },
-      });
-    }
-    if (existing.text !== WELCOME_VAULT_TEXT) {
-      await prisma.post.update({
-        where: { id: WELCOME_VAULT_ID },
-        data: { text: WELCOME_VAULT_TEXT },
-      });
-    }
-    return { ok: true, id: WELCOME_VAULT_ID };
-  } catch (err) {
-    logError("welcome-vault.seed_failed", { error: err.message });
-    return { ok: false, error: err.message };
+  const result = await ensureWelcomeVaultPostWith(prisma);
+  if (!result.ok) {
+    logError("welcome-vault.seed_failed", { error: result.error });
   }
+  return result;
 }

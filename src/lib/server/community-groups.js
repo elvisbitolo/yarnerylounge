@@ -81,6 +81,30 @@ export const COMMUNITY_GROUPS = [
   },
 ];
 
+// Group.createdBy is a NOT NULL foreign key to User, and there is no service
+// account to fall back on any more. Resolve a real member instead, so the
+// group is still created when the caller has no uid to offer.
+async function resolveCreatorId(prisma, ownerUid) {
+  if (ownerUid) return ownerUid;
+  try {
+    for (const role of ["owner", "moderator"]) {
+      const staff = await prisma.user.findFirst({
+        where: { role },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      if (staff?.id) return staff.id;
+    }
+    const anyUser = await prisma.user.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    return anyUser?.id || "";
+  } catch {
+    return "";
+  }
+}
+
 async function ensureGroup(spec, ownerUid) {
   const prisma = getPrisma();
   if (!prisma) {
@@ -126,7 +150,7 @@ async function ensureGroup(spec, ownerUid) {
         emoji: spec.emoji,
         imageUrl: spec.imageUrl || null,
         status: "active",
-        createdBy: ownerUid || "system",
+        createdBy: await resolveCreatorId(prisma, ownerUid),
         createdAt: new Date(),
       },
     });
@@ -162,7 +186,10 @@ export async function seedCommunityGroups(ownerUid) {
         try {
           const createdPost = await prisma.post.create({
             data: {
-              authorId: ownerUid || "system",
+              // The post belongs to the member who seeded the group. If there
+              // is none, it is authored by nobody rather than by a service
+              // account that would show up as a member.
+              authorId: ownerUid || null,
               authorName: "The Speakeasy Team",
               text: welcomeText,
               kind: "post",
