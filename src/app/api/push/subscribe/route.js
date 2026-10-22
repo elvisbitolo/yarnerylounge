@@ -9,8 +9,15 @@ export async function POST(req) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const { subscription } = await req.json();
-  if (!subscription?.endpoint) {
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const subscription = body?.subscription;
+  if (!subscription?.endpoint || !subscription?.keys) {
     return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
   }
 
@@ -21,11 +28,11 @@ export async function POST(req) {
         id: user.uid,
         userId: user.uid,
         endpoint: subscription.endpoint,
-        keys: subscription.keys || {},
+        keys: subscription.keys,
       },
       update: {
         endpoint: subscription.endpoint,
-        keys: subscription.keys || {},
+        keys: subscription.keys,
       },
     });
   } catch (err) {
@@ -34,4 +41,21 @@ export async function POST(req) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+export async function DELETE() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
+  try {
+    await getPrisma().pushSubscription.deleteMany({
+      where: { userId: user.uid },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    logError("push.unsubscribe_prisma_failed", { error: err.message, uid: user.uid });
+    return NextResponse.json({ error: "Could not disable push notifications" }, { status: 500 });
+  }
 }
