@@ -746,7 +746,10 @@ export default function Thread({
       setPendingId(null);
       pendingIdRef.current = null;
       if (tempId) setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setSendError(err.message || "Failed to send");
+      // A failed request must not discard what the member wrote or attached.
+      setText(trimmed);
+      if (att) setAttachment(att);
+      setSendError(err?.message || "Couldn't send message. Please try again.");
     } finally {
       setBusy(false);
     }
