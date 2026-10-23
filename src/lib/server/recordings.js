@@ -363,6 +363,24 @@ export async function attachTranscript({ jaasSessionId, sourceLink }) {
  */
 export async function listRecordings({ roomId = null, limit = 60, includeUnready = false } = {}) {
   const prisma = getPrisma();
+
+  // A background invocation can be terminated by the hosting runtime without
+  // reaching pullRecording's catch block. Recover abandoned jobs when the
+  // library is opened so they don't display an endless progress indicator.
+  // The streaming transfer has a 4-minute timeout; eight minutes gives it
+  // margin before treating the row as abandoned.
+  const abandonedBefore = new Date(Date.now() - 8 * 60 * 1000);
+  await prisma.recording.updateMany({
+    where: {
+      status: "processing",
+      updatedAt: { lt: abandonedBefore },
+      deletedAt: null,
+    },
+    data: {
+      status: "failed",
+      lastError: "processing_timeout_retry",
+    },
+  });
   const rows = await prisma.recording.findMany({
     where: includeUnready
       ? {
