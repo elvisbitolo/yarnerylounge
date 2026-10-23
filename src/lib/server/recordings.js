@@ -249,9 +249,17 @@ export async function pullRecording(recording) {
     return { ok: false, error: "bucket_unavailable" };
   }
 
-  // Claim the row so a concurrent sweep cannot double-download the same file.
+  // Recover interrupted pulls only after a generous lease has expired. A live
+  // processing row may belong to another invocation, so never steal it early.
+  const staleProcessingBefore = new Date(Date.now() - 15 * 60 * 1000);
   const claimed = await prisma.recording.updateMany({
-    where: { id: recording.id, status: { in: ["pending", "failed"] } },
+    where: {
+      id: recording.id,
+      OR: [
+        { status: { in: ["pending", "failed"] } },
+        { status: "processing", updatedAt: { lt: staleProcessingBefore } },
+      ],
+    },
     data: { status: "processing", attempts: { increment: 1 }, lastError: null },
   });
   if (claimed.count === 0) return { ok: false, skipped: "claimed_elsewhere" };
