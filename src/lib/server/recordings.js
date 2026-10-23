@@ -17,6 +17,34 @@ function getStorageUploadCredentials() {
   return { supabaseUrl, serviceRoleKey };
 }
 
+const MAX_IN_MEMORY_BYTES = 8 * 1024 * 1024;
+
+// Transcript sidecars are small; keep their buffering bounded. Video ingestion
+// streams directly to Storage instead of buffering the complete recording.
+async function readBodyBounded(upstream, capBytes) {
+  const reader = upstream.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value?.byteLength) continue;
+    total += value.byteLength;
+    if (total > capBytes) {
+      await reader.cancel().catch(() => {});
+      throw new Error("recording_too_large_for_memory");
+    }
+    chunks.push(value);
+  }
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
+}
+
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import {
@@ -167,17 +195,8 @@ export async function recordUploadedEvent(payload, { room, title, appId = "" } =
 }
 
 /**
- * Copy the file out of JaaS and into our bucket.
- *
- * The body is read into memory (bounded by MAX_IN_MEMORY_BYTES) rather than
- * piped straight through: a foreign ReadableStream forwarded into storage-js
- * intermittently makes Supabase reject the upload with
- * "Multipart: Boundary not found" on the Vercel runtime, while buffered bytes
- * always round-trip cleanly. The tradeoff is that a recording above the
- * in-memory ceiling is refused instead of spilling the function's memory.
- *
- * Returns { ok, skipped?, error? } — never throws, so one bad recording cannot
- * take down the ingest sweep.
+ * Stream the JaaS video response directly into Supabase Storage, avoiding
+ * a full-file allocation in server memory.
  */
 export async function pullRecording(recording) {
   if (!recording) return { ok: false, error: "no_recording" };
