@@ -16,6 +16,9 @@ const NOTIFICATION_TYPE_TO_PREF = {
   event_reminder: "events",
   course_published: "events",
   event_rsvp: "events",
+  // RSVP handlers use these legacy types; keep delivery under the Events preference.
+  rsvp: "events",
+  availability_rsvp: "events",
   lounge_live: "events",
   space_activity: "feed",
   follow: "feed",
