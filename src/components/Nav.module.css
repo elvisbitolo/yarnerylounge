@@ -438,20 +438,24 @@
 
 .bellBadge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
   box-sizing: border-box;
+  border: 2px solid var(--dash-bg, #0f0f0f);
   border-radius: 999px;
-  background: var(--error);
+  background: #f6077a;
   color: #ffffff;
   font-size: 10px;
-  font-weight: 700;
+  line-height: 1;
+  font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(246, 7, 122, 0.35);
 }
 
 .profileWrap {
