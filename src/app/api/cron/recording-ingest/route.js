@@ -32,11 +32,15 @@ export async function GET(req) {
   // Anything still holding a live source link is worth another attempt.
   // "processing" is included because a previous run may have been killed
   // mid-download, which would otherwise strand the row forever.
+  const staleProcessingBefore = new Date(now.getTime() - 15 * 60 * 1000);
   const candidates = await prisma.recording.findMany({
     where: {
       sourceLink: { not: null },
       sourceExpiresAt: { gt: now },
-      status: { in: ["pending", "failed", "processing"] },
+      OR: [
+        { status: { in: ["pending", "failed"] } },
+        { status: "processing", updatedAt: { lt: staleProcessingBefore } },
+      ],
     },
     orderBy: { sourceExpiresAt: "asc" },
     take: BATCH_SIZE,
