@@ -208,7 +208,12 @@ export async function POST(req, { params }) {
 
     getUserDoc(post.authorId)
       .then((author) => {
-        if (!author || !author.email || author.notifications === "off") return null;
+        if (
+          !author ||
+          !author.email ||
+          author.notifications === "off" ||
+          author.notificationPreferences?.feed === false
+        ) return null;
         return sendEmail({
           to: author.email,
           subject: `New comment on your post`,
