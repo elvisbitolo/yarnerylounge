@@ -761,6 +761,7 @@ export default function Thread({
     const trimmed = replyText.trim();
     if (!trimmed || replyBusy) return;
     setReplyBusy(true);
+    setSendError("");
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
@@ -774,9 +775,10 @@ export default function Thread({
       setReplyText("");
       setReplyingTo(null);
       setExpandedThreads((prev) => ({ ...prev, [parentId]: true }));
-      refresh();
-    } catch {
-      // transient — next poll picks it up
+      await refresh();
+    } catch (err) {
+      // Keep the reply draft available so a failed send can be retried.
+      setSendError(err?.message || "Couldn't send reply. Please try again.");
     } finally {
       setReplyBusy(false);
     }
