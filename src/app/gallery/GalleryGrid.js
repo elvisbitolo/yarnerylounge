@@ -65,7 +65,7 @@ export default function GalleryGrid({ photos, currentUserId, canModerate = false
               <Image
                 className={styles.img}
                 src={photo.imageUrl}
-                alt={photo.text || "Photo"}
+                alt={`Photo by ${photo.authorName}`}
                 width={140}
                 height={140}
                 sizes="(max-width: 520px) 90px, 140px"
@@ -85,7 +85,7 @@ export default function GalleryGrid({ photos, currentUserId, canModerate = false
             <div className={styles.modalImage}>
               <Image
                 src={modal.imageUrl}
-                alt={modal.text || "Photo"}
+                alt={`Photo by ${modal.authorName}`}
                 width={480}
                 height={400}
                 sizes="(max-width: 480px) 100vw, 480px"

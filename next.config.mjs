@@ -5,6 +5,20 @@ const withNextIntl = createNextIntlPlugin();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactCompiler: true,
+  // Post photos are uploaded to Vercel Blob. next/image refuses to optimise a
+  // remote src unless its host is allowed here, and a rejected optimisation
+  // renders as a broken image (the browser then paints the alt text) - that is
+  // what put a paragraph of caption text in the gallery. Allow the whole blob
+  // domain so a different store works without another deploy.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.public.blob.vercel-storage.com",
+        pathname: "/**",
+      },
+    ],
+  },
   async headers() {
     return [
       {

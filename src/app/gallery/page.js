@@ -47,6 +47,20 @@ const CROCHET_IMAGES = [
   { src: "/images/crochet/product_closeup_08.jpeg", alt: "Crochet work" },
 ];
 
+// Only real images belong in the gallery: an http(s) URL (Vercel Blob), an
+// inline data:image URI or an app-relative path. Anything else - an empty
+// string, a stray link, a document - would render as a broken cell that shows
+// its alt text.
+function galleryImageUrl(value) {
+  if (typeof value !== "string") return "";
+  const url = value.trim();
+  if (!url) return "";
+  if (url.startsWith("data:image/")) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return url;
+  return "";
+}
+
 export default async function GalleryPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -63,10 +77,11 @@ export default async function GalleryPage() {
 
   const photos = postRows
     .map((d) => {
-      if (!d.imageUrl) return null;
+      const imageUrl = galleryImageUrl(d.imageUrl);
+      if (!imageUrl) return null;
       return {
         id: d.id,
-        imageUrl: d.imageUrl,
+        imageUrl,
         text: d.text || "",
         authorId: d.authorId || "",
         authorName: d.authorName || "Member",
