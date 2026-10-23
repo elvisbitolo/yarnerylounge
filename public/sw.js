@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v25";
+const VERSION = "v26";
 
 // API requests are left to the network by default: a cached /api/me JSON that
 // carries a uid replays long after the session cookie is gone, which makes
@@ -243,15 +243,41 @@ self.addEventListener("push", (event) => {
       data.body = event.data.text();
     }
   }
+  // The unread count travels with the push so the home-screen icon can show
+  // "1"/"2" before the app is opened. Best-effort: not every browser exposes
+  // the Badging API to a service worker, and a missing badge must never stop
+  // the notification itself from being shown.
+  const badgeCount = Number(data.badge);
+  if (
+    Number.isFinite(badgeCount) &&
+    badgeCount > 0 &&
+    typeof self.navigator?.setAppBadge === "function"
+  ) {
+    self.navigator.setAppBadge(badgeCount).catch(() => {});
+  }
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      // Served the retired /icon.png, which is a different design from the
-      // icons in layout.js, so push notifications showed stale branding.
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      data: { url: data.url },
-    })
+    self.registration
+      .showNotification(data.title, {
+        body: data.body,
+        // Served the retired /icon.png, which is a different design from the
+        // icons in layout.js, so push notifications showed stale branding.
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        data: { url: data.url },
+      })
+      // An open tab has no idea a push landed (the in-app bell polls). Hand it
+      // the count so the badge appears immediately instead of up to 20s later.
+      .then(() =>
+        self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      )
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (new URL(client.url).origin === self.location.origin) {
+            client.postMessage({ type: "push-badge", badge: badgeCount });
+          }
+        }
+      })
+      .catch(() => {})
   );
 });
 

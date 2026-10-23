@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { pushMessageJson } from "@/lib/server/push-core";
 
 // Web-push delivery to every device a member has registered.
 //
@@ -42,7 +43,16 @@ export async function sendPushToUser(userId, { title, body, url = "/" } = {}) {
     process.env.VAPID_PRIVATE_KEY
   );
 
-  const payload = JSON.stringify({ title, body: body || "", url: url || "/" });
+  // The unread count rides along so the OS can put "1"/"2" on the app icon
+  // before the member opens the app. The row this push is mirroring has
+  // already been written, so the count includes it.
+  let unread = 0;
+  try {
+    unread = await prisma.notification.count({ where: { userId, read: false } });
+  } catch (err) {
+    logError("push.unread_count_failed", { userId, error: err.message });
+  }
+  const payload = pushMessageJson({ title, body, url, badge: unread });
   let sent = 0;
 
   await Promise.all(

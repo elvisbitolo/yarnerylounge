@@ -14,3 +14,20 @@ export function buildPushPayload({ actorName, text, href } = {}) {
   const url = typeof href === "string" && href.startsWith("/") ? href : "/";
   return { title: name || DEFAULT_PUSH_TITLE, body, url };
 }
+
+// Serialise the push body the service worker reads. `badge` is the member's
+// unread count at delivery time: sw.js forwards it to the app-icon badge, so a
+// push shows "1"/"2" on the home-screen icon even while the app is closed.
+// Anything non-numeric, negative or absurd collapses to 0 (no badge) rather
+// than sending a broken count to the OS.
+export function pushMessageJson({ title, body = "", url = "/", badge = 0 } = {}) {
+  const parsed = Number(badge);
+  const count =
+    Number.isFinite(parsed) && parsed > 0 ? Math.min(Math.trunc(parsed), 9999) : 0;
+  return JSON.stringify({
+    title: title || DEFAULT_PUSH_TITLE,
+    body: body || "",
+    url: url || "/",
+    badge: count,
+  });
+}

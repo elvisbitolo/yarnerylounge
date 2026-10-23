@@ -22,8 +22,17 @@ export default function NotificationsList({ notifications }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
+  // The nav bell lives in the persistent layout, so it will not re-render from
+  // router.refresh(). Tell it (and the app-icon badge) to re-read the count.
+  function announceChange() {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("notifications:changed"));
+    }
+  }
+
   async function markRead(id) {
     await fetch(`/api/notifications/${id}`, { method: "POST" });
+    announceChange();
     router.refresh();
   }
 
@@ -31,6 +40,7 @@ export default function NotificationsList({ notifications }) {
     setBusy(true);
     try {
       await Promise.all(notifications.filter((n) => !n.read).map((n) => fetch(`/api/notifications/${n.id}`, { method: "POST" })));
+      announceChange();
       router.refresh();
     } finally {
       setBusy(false);
