@@ -29,6 +29,21 @@ export async function GET(req) {
   const prisma = getPrisma();
   const now = new Date();
 
+  // Recover abandoned processing rows in the scheduled worker, not on every
+  // library poll. This includes rows whose source link is already missing.
+  const abandonedBefore = new Date(now.getTime() - 8 * 60 * 1000);
+  await prisma.recording.updateMany({
+    where: {
+      status: "processing",
+      updatedAt: { lt: abandonedBefore },
+      deletedAt: null,
+    },
+    data: {
+      status: "failed",
+      lastError: "processing_timeout_retry",
+    },
+  });
+
   // Anything still holding a live source link is worth another attempt.
   // "processing" is included because a previous run may have been killed
   // mid-download, which would otherwise strand the row forever.
