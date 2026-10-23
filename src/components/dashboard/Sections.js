@@ -59,6 +59,35 @@ export function CommunityNextSteps() {
   );
 }
 
+export function ReturnVisitCard({ streak = 0, points = 0 }) {
+  const hasStreak = Number(streak) > 0;
+
+  return (
+    <Card title="Your community streak" theme="amber" linkLabel="Leaderboard" linkHref="/leaderboard">
+      <div className={styles.itemSplit}>
+        <div>
+          <p className={styles.chartValue}>{Number(streak) || 0} day{Number(streak) === 1 ? "" : "s"}</p>
+          <p className={styles.itemBody}>
+            {hasStreak
+              ? "Keep showing up to build your streak."
+              : "Visit the community each day to start building your streak."}
+          </p>
+        </div>
+        <div>
+          <p className={styles.chartValue}>{Number(points) || 0}</p>
+          <p className={styles.itemBody}>community points</p>
+        </div>
+      </div>
+      <p className={styles.itemMeta} style={{ marginTop: 12 }}>
+        Join a discussion, connect with a member, or check upcoming events today.
+      </p>
+      <Link className={styles.spotCta} href="/feed" style={{ marginTop: 12 }}>
+        Visit the feed
+      </Link>
+    </Card>
+  );
+}
+
 export function WelcomeBanner({ name }) {
   const t = useTranslations("dashboard");
   const today = new Date().toLocaleDateString(undefined, {
