@@ -30,7 +30,6 @@ function formatTime(ms) {
 }
 
 export function CommunityNextSteps() {
-  const t = useTranslations("dashboard");
   const actions = [
     { href: "/messages", title: "Check your messages", detail: "Continue a conversation with another member." },
     { href: "/feed", title: "Join a discussion", detail: "Share an update or reply to a community post." },
