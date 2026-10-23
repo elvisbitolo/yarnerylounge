@@ -122,7 +122,11 @@ export async function POST(req) {
     const creatorDoc = await getUserDoc(event.createdBy);
     if (creatorDoc) {
       const creator = creatorDoc;
-      if (creator.email && creator.notifications !== "off") {
+      if (
+        creator.email &&
+        creator.notifications !== "off" &&
+        creator.notificationPreferences?.events !== false
+      ) {
         await sendEmail({
           to: creator.email,
           subject: `New RSVP for "${event.title}"`,
