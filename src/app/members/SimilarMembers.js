@@ -28,7 +28,7 @@ export default function SimilarMembers() {
   useEffect(() => {
     let active = true;
     fetch("/api/members/similar")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => { if (!r.ok) throw new Error("Could not load similar members"); return r.json(); })
       .then((data) => {
         if (active && data) setMembers(data.members || []);
       })
