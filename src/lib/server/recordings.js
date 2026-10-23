@@ -9,6 +9,14 @@
 // behind the preAuthenticatedLink. Everything after that is ours.
 
 import { supabaseAdmin } from "@/lib/supabase/service";
+
+function getStorageUploadCredentials() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) throw new Error("storage_credentials_missing");
+  return { supabaseUrl, serviceRoleKey };
+}
+
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import {
@@ -43,39 +51,7 @@ const RECORDINGS_ALLOWED_MIME_TYPES = [
 // a leaked link stops working quickly, but long enough to survive a page load.
 const PLAYBACK_URL_TTL_SEC = 60 * 60;
 
-// A single recording can be several hundred MB. Cap the pull so a pathological
-// or spoofed payload cannot exhaust the function's memory/disk.
-//
-// The effective ceiling is the project's GLOBAL "Storage > Settings > Global
-// file size limit": a bucket-level file_size_limit can never exceed it, and the
-// createBucket API additionally rejects any value above 50MiB. Free caps the
-// global limit at 50MB; Pro/Team allow up to 500GB. A recording just over 50MB
-// therefore fails with "The object exceeded the maximum allowed size" even when
-// storage.buckets.file_size_limit already looks generous. 2GiB is a deliberate
-// app-level ceiling well under the Pro global: a JaaS session can run 6h, and an
-// unbounded pull would be a denial-of-service vector. Raise with
-// RECORDINGS_MAX_UPLOAD_BYTES if you need more.
-const DEFAULT_MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
-const SIZE_LIMIT_NOTE =
-  "Raise the project Global file size limit first (Storage > Settings; Free caps at " +
-  "50MB, Pro/Team allow up to 500GB), then lift the bucket with SQL: UPDATE " +
-  "storage.buckets SET file_size_limit = 53687091200 WHERE id = 'recordings'; " +
-  "(the storage API's createBucket rejects any value above 50MiB).";
-const configuredMax = Number(process.env.RECORDINGS_MAX_UPLOAD_BYTES);
-export const MAX_UPLOAD_BYTES =
-  Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : DEFAULT_MAX_UPLOAD_BYTES;
-
-// The pull buffers the whole file in memory before uploading (see pullRecording:
-// forwarding a live CDN stream into storage-js trips Supabase's parser on the
-// Vercel runtime). MAX_UPLOAD_BYTES is the absolute guard; this tighter ceiling
-// keeps a single ArrayBuffer comfortably inside the function's memory budget.
-// Raise with RECORDINGS_MAX_IN_MEMORY_BYTES when a lounge records longer.
-const DEFAULT_MAX_IN_MEMORY_BYTES = 384 * 1024 * 1024;
-const configuredMemory = Number(process.env.RECORDINGS_MAX_IN_MEMORY_BYTES);
-export const MAX_IN_MEMORY_BYTES =
-  Number.isFinite(configuredMemory) && configuredMemory > 0
-    ? configuredMemory
-    : DEFAULT_MAX_IN_MEMORY_BYTES;
+// Stream recording bodies to avoid buffering full videos in server memory.
 
 let bucketChecked = false;
 
@@ -191,36 +167,6 @@ export async function recordUploadedEvent(payload, { room, title, appId = "" } =
 }
 
 /**
- * Read a fetch response body into memory, refusing anything over capBytes.
- * Works whether or not the server sent a content-length, and it bounds the
- * memory cost even when the declared length was absent or lied.
- */
-async function readBodyBounded(upstream, capBytes) {
-  const reader = upstream.body.getReader();
-  const chunks = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value?.byteLength) {
-      total += value.byteLength;
-      if (total > capBytes) {
-        await reader.cancel().catch(() => {});
-        throw new Error("recording_too_large_for_memory");
-      }
-      chunks.push(value);
-    }
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return out;
-}
-
-/**
  * Copy the file out of JaaS and into our bucket.
  *
  * The body is read into memory (bounded by MAX_IN_MEMORY_BYTES) rather than
@@ -274,22 +220,40 @@ export async function pullRecording(recording) {
       throw new Error("recording_too_large");
     }
 
-    const bodyBytes = await readBodyBounded(upstream, MAX_IN_MEMORY_BYTES);
-
     const path = buildStoragePath({
       recordingId: recording.id,
       startedAt: recording.startedAt,
     });
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(RECORDINGS_BUCKET)
-      .upload(path, bodyBytes, {
-        // JaaS recordings are MP4s. Force it rather than trusting a CDN
-        // content-type that may have been mangled in transit.
-        contentType: "video/mp4",
-        // "upsert" makes a retried pull overwrite a half-written object.
-        upsert: true,
-      });
-    if (uploadError) throw new Error(`storage_upload_failed: ${uploadError.message}`);
+
+    // Stream the CDN response directly to Supabase Storage. Buffering the
+    // complete recording in a Uint8Array made long recordings fail at the
+    // server's memory ceiling even when the Supabase project had room.
+    const { supabaseUrl, serviceRoleKey } = getStorageUploadCredentials();
+    const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+    const headers = {
+      apikey: serviceRoleKey,
+      authorization: `Bearer ${serviceRoleKey}`,
+      "content-type": "video/mp4",
+      "x-upsert": "true",
+    };
+    if (Number.isFinite(declared) && declared > 0) {
+      headers["content-length"] = String(declared);
+    }
+    const uploadResponse = await fetch(
+      `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/${RECORDINGS_BUCKET}/${encodedPath}`,
+      {
+        method: "POST",
+        headers,
+        body: upstream.body,
+        // Node's fetch requires duplex for a streaming request body.
+        duplex: "half",
+        signal: AbortSignal.timeout(240_000),
+      }
+    );
+    if (!uploadResponse.ok) {
+      const detail = (await uploadResponse.text()).slice(0, 300);
+      throw new Error(`storage_upload_failed: ${uploadResponse.status}${detail ? `: ${detail}` : ""}`);
+    }
 
     const { sizeBytes, sizeUnknown } = clampSize(declared);
     await prisma.recording.update({
