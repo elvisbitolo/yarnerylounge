@@ -357,7 +357,7 @@ export function serializeRecording(row) {
     roomName: row.roomName,
     status: row.status,
     // Expose only a normalized diagnostic code; never leak storage provider details or source links.
-    errorCode: row.lastError ? String(row.lastError).split(/[:\\s]/, 1)[0].slice(0, 80) : null,
+    errorCode: row.lastError ? String(row.lastError).split(/[: ]/, 1)[0].slice(0, 80) : null,
     durationSec: row.durationSec,
     sizeBytes: row.sizeBytes,
     sizeUnknown: row.sizeUnknown,
