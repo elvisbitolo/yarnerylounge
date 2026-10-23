@@ -3,6 +3,7 @@ import { sendEmail } from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notifications";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
+import { getUserDoc } from "@/lib/server/auth";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,16 @@ export async function GET(req) {
         },
       });
       if (alreadyReminded) continue;
+
+      // Email reminders must obey the same global and Events opt-outs as the
+      // in-app/push notification. Otherwise opted-out members still get email.
+      const memberDoc = await getUserDoc(rsvp.userId);
+      if (
+        memberDoc?.notifications === "off" ||
+        memberDoc?.notificationPreferences?.events === false
+      ) {
+        continue;
+      }
 
       const userRow = await prisma.user.findUnique({
         where: { id: rsvp.userId },
