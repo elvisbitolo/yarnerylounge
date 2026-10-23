@@ -8,6 +8,7 @@ import StatCard from "./StatCard";
 import AudienceChart from "./AudienceChart";
 import {
   WelcomeBanner,
+  CommunityNextSteps,
   QuickActions,
   CommunityHub,
   RecentActivity,
@@ -220,6 +221,11 @@ export default function DashboardShell() {
 
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} />
+        </div>
+        <div className={styles.grid}>
+          <div className={styles.col}>
+            <CommunityNextSteps />
+          </div>
         </div>
         {/* Option A: the full-width What's On band sits directly under the
             welcome banner so events are impossible to miss, and above the
