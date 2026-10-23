@@ -95,7 +95,10 @@ export default async function GalleryPage() {
     ...CROCHET_IMAGES.map((img, i) => ({
       id: `crochet-${i}`,
       imageUrl: img.src,
-      text: img.alt,
+      // These are stock photos with no caption. `alt` still labels them for
+      // screen readers, but repeating "Crochet work" in the lightbox under
+      // every photo read like a placeholder rather than a description.
+      text: "",
       authorId: "",
       authorName: "Mamameer",
       createdAt: 0,
