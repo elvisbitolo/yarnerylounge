@@ -102,6 +102,7 @@ export async function GET(req) {
   const similaritySelect = {
     role: true,
     country: true,
+    timezone: true,
     goToYarn: true,
     favoriteHookSize: true,
     favoriteColors: true,
@@ -130,7 +131,7 @@ export async function GET(req) {
     myData = row;
   } catch (err) {
     logError("similar.prisma_me_read_failed", { error: err.message });
-    return NextResponse.json({ members: [] });
+    return NextResponse.json({ error: "Could not load member recommendations" }, { status: 500 });
   }
 
   const userSelect = {
@@ -177,7 +178,7 @@ export async function GET(req) {
       .map((r) => ({ id: r.id, ...r }));
   } catch (err) {
     logError("similar.prisma_read_failed", { error: err.message });
-    candidates = [];
+    return NextResponse.json({ error: "Could not load member recommendations" }, { status: 500 });
   }
 
   const scored = candidates
