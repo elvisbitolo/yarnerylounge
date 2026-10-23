@@ -2691,3 +2691,291 @@
     transition: none;
   }
 }
+
+
+/* Premium responsive pass: refine hierarchy and surfaces without changing chat behavior. */
+.twoPane {
+  background:
+    radial-gradient(ellipse at 70% -15%, rgba(246, 7, 122, 0.075), transparent 42%),
+    #101014;
+}
+.rail {
+  width: 344px;
+  min-width: 300px;
+  background: rgba(18, 18, 23, 0.98);
+  border-right-color: #29242d;
+}
+.railHead {
+  padding: 20px 18px 14px;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.018), transparent);
+}
+.railTitle {
+  letter-spacing: -0.035em;
+  font-size: 20px;
+}
+.railSearch {
+  min-height: 42px;
+  border-radius: 12px;
+  background: #1d1b22;
+  border-color: #302a35;
+}
+.railTabs {
+  gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.railTabs::-webkit-scrollbar { display: none; }
+.railTab {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  background: #201d25;
+}
+.railTabActive {
+  background: color-mix(in srgb, var(--chat-accent) 18%, #201d25);
+  border-color: color-mix(in srgb, var(--chat-accent) 55%, #302a35);
+}
+.liveStrip {
+  padding: 13px 18px;
+  background: rgba(53, 208, 180, 0.035);
+}
+.railList {
+  padding: 10px;
+  gap: 5px;
+}
+.railItem {
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 13px;
+}
+.railItemActive {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--chat-accent) 16%, #19171e), #19171e);
+}
+.railAvatar {
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.07);
+}
+.railName {
+  font-size: 13.5px;
+  letter-spacing: -.01em;
+}
+.railPreview {
+  margin-top: 2px;
+}
+.threadPane {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(246, 7, 122, 0.035), transparent 55%),
+    #111115;
+}
+.threadPane .thread {
+  background: transparent;
+}
+.threadHeaderWrap,
+.threadHeader {
+  background: rgba(17, 17, 21, 0.94);
+  border-color: #29242d;
+}
+.threadHeader {
+  padding: 16px 24px;
+}
+.headerAvatar {
+  box-shadow: 0 0 0 2px #111115, 0 0 0 3px rgba(246, 7, 122, .3);
+}
+.threadTitle {
+  letter-spacing: -.025em;
+}
+.messages {
+  padding: 24px clamp(16px, 3vw, 36px);
+  gap: 12px;
+  scroll-behavior: smooth;
+}
+.bubble {
+  max-width: min(72%, 600px);
+  padding: 9px 14px;
+  border: 1px solid rgba(255,255,255,.035);
+  border-radius: 18px 18px 18px 6px;
+  background: #222129;
+  box-shadow: 0 5px 16px rgba(0,0,0,.12);
+}
+.mine {
+  background: linear-gradient(135deg, var(--chat-accent), color-mix(in srgb, var(--chat-accent) 78%, #7e064b));
+  border-color: color-mix(in srgb, var(--chat-accent) 70%, transparent);
+  border-radius: 18px 18px 6px 18px;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--chat-accent) 12%, transparent);
+}
+.bubbleText {
+  font-size: 14px;
+  line-height: 1.58;
+}
+.bubbleTime {
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.composer {
+  padding: 14px clamp(12px, 2vw, 24px) max(14px, env(safe-area-inset-bottom));
+  gap: 9px;
+  background: rgba(17, 17, 21, .98);
+  border-top-color: #29242d;
+}
+.input {
+  background: #1d1b22;
+  border-color: #37303c;
+  border-radius: 15px;
+}
+.input:focus-visible {
+  background: #211d25;
+}
+.iconBtn {
+  border-color: #37303c;
+  background: #201d25;
+  border-radius: 13px;
+}
+.send {
+  border-radius: 13px;
+  font-weight: 750;
+}
+.emptyThread {
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(246, 7, 122, .075), transparent 45%),
+    #111115;
+}
+.emptyThreadIcon {
+  box-shadow: 0 12px 36px rgba(0,0,0,.2);
+}
+.settingsDrawer,
+.chatModal {
+  background: #17151b;
+  border-color: #342b37;
+}
+.drawerHead {
+  background: #17151b;
+}
+.settingsSection + .settingsSection {
+  padding-top: 12px;
+  border-top: 1px solid #2a252f;
+}
+.settingsActionRow,
+.forwardItem,
+.starredItem {
+  border-radius: 11px;
+}
+@media (min-width: 1400px) {
+  .rail {
+    width: 370px;
+    min-width: 340px;
+  }
+  .messages {
+    padding-left: clamp(32px, 4vw, 64px);
+    padding-right: clamp(32px, 4vw, 64px);
+  }
+}
+@media (max-width: 1100px) {
+  .rail {
+    width: 300px;
+    min-width: 270px;
+  }
+  .threadHeader {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .messages {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+@media (max-width: 900px) {
+  .twoPane {
+    background: #111115;
+  }
+  .rail {
+    width: 100%;
+    min-width: 0;
+    border-right: 0;
+  }
+  .railHead {
+    padding: 16px 16px 12px;
+  }
+  .railTitle {
+    font-size: 19px;
+  }
+  .railList {
+    padding: 8px 10px;
+  }
+  .threadPaneSlide {
+    background: #111115;
+  }
+  .threadHeader {
+    padding: 12px 14px;
+  }
+  .messages {
+    padding: 18px 14px;
+  }
+  .bubble {
+    max-width: min(84%, 560px);
+  }
+}
+@media (max-width: 560px) {
+  .railHead {
+    padding: 12px 12px 10px;
+    gap: 10px;
+  }
+  .railTabs {
+    margin-top: 2px;
+  }
+  .railTab {
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+  .liveStrip {
+    padding: 10px 12px;
+  }
+  .railItem {
+    min-height: 66px;
+    border-radius: 12px;
+  }
+  .threadHeader {
+    padding: 10px 12px;
+  }
+  .messages {
+    gap: 9px;
+    padding: 14px 10px;
+  }
+  .bubble {
+    max-width: 88%;
+    padding: 8px 11px;
+    border-radius: 16px 16px 16px 5px;
+  }
+  .mine {
+    border-radius: 16px 16px 5px 16px;
+  }
+  .bubbleText {
+    font-size: 13.5px;
+  }
+  .composer {
+    gap: 6px;
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+  }
+  .input {
+    flex-basis: 100%;
+    min-height: 42px;
+    border-radius: 12px;
+  }
+  .iconBtn,
+  .send {
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 12px;
+  }
+  .send {
+    min-width: 64px;
+  }
+  .emptyThread {
+    padding: 24px 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .messages {
+    scroll-behavior: auto;
+  }
+}
