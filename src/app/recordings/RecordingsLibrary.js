@@ -581,6 +581,11 @@ export default function RecordingsLibrary({
             )}
           </div>
 
+          <p className={styles.resultCount} role="status" aria-live="polite">
+            {ordered.length} {ordered.length === 1 ? "recording" : "recordings"}
+            {filtersActive ? " match your filters" : " in your library"}
+          </p>
+
           {ordered.length === 0 ? (
             <p className={styles.noResults}>{t("noResults")}</p>
           ) : (
