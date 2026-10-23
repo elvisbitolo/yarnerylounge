@@ -1323,3 +1323,67 @@
     max-width: calc(100vw - 16px);
   }
 }
+
+
+/* Clear visual identity and a persistent empty/loading state for recommendations. */
+.similarTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.similarTitleIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 1px solid rgba(199, 182, 240, 0.32);
+  border-radius: 12px;
+  background: rgba(167, 139, 250, 0.13);
+  color: #c9b6f0;
+}
+
+.similarSparkle {
+  color: #c9b6f0;
+  margin-left: auto;
+}
+
+.similarEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 24px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.08), rgba(255, 255, 255, 0.025));
+  color: #d5d5df;
+}
+
+.similarEmpty p {
+  max-width: 460px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.similarEmptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(167, 139, 250, 0.13);
+  color: #c9b6f0;
+}
+
+.similarHint {
+  color: #9b9bab;
+  font-size: 12px !important;
+}
