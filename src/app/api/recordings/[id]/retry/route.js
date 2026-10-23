@@ -26,7 +26,10 @@ export async function POST(req, { params }) {
   if (!queued.ok) {
     // 410 is accurate for an expired JaaS link: the file is gone for good.
     const status = queued.error === "source_expired" ? 410 : 409;
-    return NextResponse.json({ error: "This recording cannot be retried" }, { status });
+    return NextResponse.json(
+      { error: queued.error === "source_expired" ? "source_expired" : "not_retryable", code: queued.error },
+      { status }
+    );
   }
 
   after(async () => {
