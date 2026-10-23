@@ -605,6 +605,11 @@ export default function RecordingsLibrary({
                   <div className={styles.cardBody}>
                     <h2 className={styles.cardTitle}>{recording.title}</h2>
                     <p className={styles.cardMeta}>{failed ? t("failed") : t("processing")}</p>
+                    {failed && recording.errorCode && (
+                      <p className={styles.cardMeta} role="status">
+                        Error code: {recording.errorCode}
+                      </p>
+                    )}
                     {failed && canDelete && (
                       <div className={styles.actions}>
                         <button
