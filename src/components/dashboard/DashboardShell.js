@@ -9,6 +9,7 @@ import AudienceChart from "./AudienceChart";
 import {
   WelcomeBanner,
   CommunityNextSteps,
+  ReturnVisitCard,
   QuickActions,
   CommunityHub,
   RecentActivity,
@@ -225,6 +226,7 @@ export default function DashboardShell() {
         <div className={styles.grid}>
           <div className={styles.col}>
             <CommunityNextSteps />
+            <ReturnVisitCard streak={user.streak} points={user.points} />
           </div>
         </div>
         {/* Option A: the full-width What's On band sits directly under the
