@@ -114,6 +114,13 @@
   border-style: dashed;
 }
 
+.resultCount {
+  margin: -8px 0 14px;
+  color: #9b9bab;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .noResults {
   color: #9b9bab;
   font-size: 14px;
