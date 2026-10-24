@@ -60,6 +60,13 @@ import {
 
 export const RECORDINGS_BUCKET = "recordings";
 
+// Guard against unexpectedly large JaaS responses before streaming them to Storage.
+// Supabase's project-wide and bucket-level limits remain authoritative.
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GiB
+const SIZE_LIMIT_NOTE =
+  "Check Supabase Dashboard > Storage > Settings and the recordings bucket's file size limit.";
+
+
 // The bucket accepts the media we pull plus the browser-captured poster frame.
 // The storage API rejects any upload whose content type is outside this list, so
 // a bucket provisioned before thumbnails existed silently 503s every JPEG. Keep
@@ -210,8 +217,18 @@ export async function pullRecording(recording) {
   }
 
   const prisma = getPrisma();
-  if (!(await ensureRecordingsBucket())) {
-    return { ok: false, error: "bucket_unavailable" };
+  try {
+    if (!(await ensureRecordingsBucket())) {
+      await failRecording(recording.id, "bucket_unavailable");
+      return { ok: false, error: "bucket_unavailable" };
+    }
+  } catch (error) {
+    // Bucket readiness runs before the ingestion claim; persist failures here
+    // too so the library does not leave the recording indefinitely pending.
+    const message = error?.message || "bucket_check_failed";
+    await failRecording(recording.id, message);
+    logError("recordings:bucket-check-failed", { id: recording.id, message });
+    return { ok: false, error: message };
   }
 
   // Recover interrupted pulls only after a generous lease has expired. A live
