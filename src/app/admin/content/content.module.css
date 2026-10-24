@@ -98,7 +98,7 @@
   vertical-align: top;
 }
 
-.tr:lastChild .td {
+.tr:last-child .td {
   border-bottom: none;
 }
 
@@ -117,7 +117,7 @@
   border: 1px solid #e6e6ef;
   background: #f7f7fc;
   color: #4a4a5e;
-  whiteSpace: nowrap;
+  white-space: nowrap;
 }
 
 .kindMember { background: rgba(244, 46, 121, 0.1); border-color: rgba(244, 46, 121, 0.3); color: #b3115a; }
@@ -128,7 +128,7 @@
 .rowTitle {
   font-weight: 600;
   color: #17171c;
-  textDecoration: none;
+  text-decoration: none;
   display: block;
 }
 
@@ -144,10 +144,10 @@
 }
 
 .status {
-  fontSize: 11px;
-  fontWeight: 700;
+  font-size: 11px;
+  font-weight: 700;
   color: #71718a;
-  whiteSpace: nowrap;
+  white-space: nowrap;
 }
 
 .empty {
@@ -218,7 +218,7 @@
   font-size: 13px;
   font-weight: 600;
   color: #f42e79;
-  textDecoration: none;
+  text-decoration: none;
   white-space: nowrap;
 }
 
