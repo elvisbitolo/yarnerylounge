@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { AlertTriangle, Film, LayoutGrid, List, Play, Search } from "lucide-react";
+import { AlertTriangle, Edit2, Film, LayoutGrid, List, Play, Search, User } from "lucide-react";
 import {
   formatBytes,
   formatDuration,
@@ -133,6 +133,27 @@ export default function RecordingsLibrary({
       setNotice({ type: "error", text: error?.message || t("deleteFailed") });
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function renameRecording(recording) {
+    const current = recording.title || "";
+    const next = window.prompt("Rename recording", current);
+    if (next === null) return;
+    const title = next.trim();
+    if (!title || title === current) return;
+    try {
+      const res = await fetch(`/api/recordings/${recording.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Rename failed");
+      setItems((prev) => prev.map((r) => (r.id === recording.id ? { ...r, title } : r)));
+      setNotice({ type: "ok", text: "Renamed" });
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || "Rename failed" });
     }
   }
 
@@ -351,6 +372,7 @@ export default function RecordingsLibrary({
     const matched = items.filter((r) => {
       if (lounge !== "all" && r.roomName !== lounge) return false;
       const started = Date.parse(r.startedAt) || 0;
+      if (chip === "mine" && currentUserId && r.initiatorId !== currentUserId) return false;
       if (chip === "week" && started < weekCut) return false;
       if (chip === "month" && started < monthCut) return false;
       if (chip === "vertical" && recordingOrientation(r.width, r.height) !== "vertical") return false;
@@ -551,6 +573,7 @@ export default function RecordingsLibrary({
           <div className={styles.chips} role="group" aria-label={t("filtersLabel")}>
             {[
               ["all", t("chipAll")],
+              ["mine", "Mine"],
               ["week", t("chipWeek")],
               ["month", t("chipMonth")],
               ["vertical", t("chipVertical")],
@@ -608,14 +631,21 @@ export default function RecordingsLibrary({
                     )}
                   </div>
                   <div className={styles.cardBody}>
-                    <h2 className={styles.cardTitle}>{recording.title}</h2>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <h2 className={styles.cardTitle} style={{ margin: 0 }}>{recording.title}</h2>
+                      {currentUserId && recording.initiatorId === currentUserId && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "2px 6px", borderRadius: "999px", background: "rgba(139, 92, 246, 0.15)", color: "#a78bfa", fontSize: "11px", fontWeight: "600" }}>
+                          <User size={10} /> You hosted
+                        </span>
+                      )}
+                    </div>
                     <p className={styles.cardMeta}>{failed ? t("failed") : t("processing")}</p>
                     {failed && recording.errorCode && (
                       <p className={styles.cardMeta} role="status">
                         Error code: {recording.errorCode}
                       </p>
                     )}
-                    {failed && canDelete && (
+                    {failed && (canDelete || (currentUserId && recording.initiatorId === currentUserId)) && (
                       <div className={styles.actions}>
                         <button
                           type="button"
@@ -677,7 +707,14 @@ export default function RecordingsLibrary({
                 </button>
 
                 <div className={styles.cardBody}>
-                  <h2 className={styles.cardTitle}>{recording.title}</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    <h2 className={styles.cardTitle} style={{ margin: 0 }}>{recording.title}</h2>
+                    {currentUserId && recording.initiatorId === currentUserId && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "2px 6px", borderRadius: "999px", background: "rgba(139, 92, 246, 0.15)", color: "#a78bfa", fontSize: "11px", fontWeight: "600" }}>
+                        <User size={10} /> You hosted
+                      </span>
+                    )}
+                  </div>
                   <p className={styles.cardMeta}>{meta}</p>
                   <ParticipantStack participants={recording.participants} />
                   <div className={styles.actions}>
@@ -697,15 +734,25 @@ export default function RecordingsLibrary({
                     >
                       {t("share")}
                     </button>
-                    {canDelete && (
-                      <button
-                        type="button"
-                        className={styles.deleteButton}
-                        onClick={() => remove(recording)}
-                        disabled={busyId === recording.id}
-                      >
-                        {busyId === recording.id ? t("deleting") : t("delete")}
-                      </button>
+                    {(canDelete || (currentUserId && recording.initiatorId === currentUserId)) && (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.shareButton}
+                          onClick={() => renameRecording(recording)}
+                          title="Rename"
+                        >
+                          <Edit2 size={12} style={{ marginRight: 4 }} /> Rename
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.deleteButton}
+                          onClick={() => remove(recording)}
+                          disabled={busyId === recording.id}
+                        >
+                          {busyId === recording.id ? t("deleting") : t("delete")}
+                        </button>
+                      </>
                     )}
                   </div>
                   {shareId === recording.id && (

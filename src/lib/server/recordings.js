@@ -47,6 +47,7 @@ async function readBodyBounded(upstream, capBytes) {
 
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { createNotification } from "@/lib/server/notifications";
 import {
   buildStoragePath,
   buildThumbnailPath,
@@ -308,6 +309,21 @@ export async function pullRecording(recording) {
         title: recording.title || undefined,
       },
     });
+    try {
+      if (recording.initiatorId) {
+        await createNotification({
+          userId: recording.initiatorId,
+          type: "recording_ready",
+          actorId: null,
+          actorName: "",
+          targetId: recording.id,
+          href: `/recordings?rec=${recording.id}`,
+          text: recording.title ? `Your recording "${recording.title}" is ready` : "Your recording is ready",
+        });
+      }
+    } catch (e) {
+      logError("recordings.notify_ready_failed", { id: recording.id, error: e?.message });
+    }
     return { ok: true, path };
   } catch (error) {
     await failRecording(recording.id, error?.message || "pull_failed");

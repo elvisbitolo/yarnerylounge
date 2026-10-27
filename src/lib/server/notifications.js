@@ -35,6 +35,7 @@ const NOTIFICATION_TYPE_TO_PREF = {
   // or chat.
   watch_online: "watch",
   watch_room: "watch",
+  recording_ready: "events",
 };
 
 function toMillisValue(v) {
