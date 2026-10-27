@@ -267,6 +267,9 @@ export default function ProfileEditor({ initial, memberId }) {
     const handled = toHandledLinks(initial.socialLinks);
     return handled.length > 0 ? handled : [{ platform: "website", handle: "" }];
   });
+  const [socialLinksVisibility, setSocialLinksVisibility] = useState(
+    initial.socialLinksVisibility === "private" ? "private" : "public"
+  );
   const [photoURL, setPhotoURL] = useState(initial.photoURL || "");
   const [coverPhotoURL, setCoverPhotoURL] = useState(initial.coverPhotoURL || "");
   const [quizPage, setQuizPage] = useState(0);
@@ -332,6 +335,7 @@ export default function ProfileEditor({ initial, memberId }) {
       proudestProject: normalize(init.proudestProject || ""),
       bestGiftProject: normalize(init.bestGiftProject || ""),
       socialLinks: toHandledLinks(init.socialLinks),
+      socialLinksVisibility: init.socialLinksVisibility === "private" ? "private" : "public",
       photoURL: init.photoURL || "",
       coverPhotoURL: init.coverPhotoURL || "",
     };
@@ -364,6 +368,7 @@ export default function ProfileEditor({ initial, memberId }) {
       proudestProject: normalize(proudestProject),
       bestGiftProject: normalize(bestGiftProject),
       socialLinks: toHandledLinks(socialLinks),
+      socialLinksVisibility,
       photoURL,
       coverPhotoURL,
     };
@@ -1063,6 +1068,9 @@ export default function ProfileEditor({ initial, memberId }) {
     if (JSON.stringify(cleanSocial) !== JSON.stringify(toHandledLinks(savedSnapshot.socialLinks))) {
       patch.socialLinks = cleanSocial;
     }
+    if (socialLinksVisibility !== (savedSnapshot.socialLinksVisibility || "public")) {
+      patch.socialLinksVisibility = socialLinksVisibility;
+    }
 
     if (Object.keys(patch).length === 0) {
       setNotice("No changes to save.");
@@ -1431,6 +1439,21 @@ export default function ProfileEditor({ initial, memberId }) {
       <p className={styles.fieldHint} style={{ marginTop: -8, marginBottom: 12 }}>
         Add your other social profiles so members can connect with you — just your username is enough.
       </p>
+      <div className={styles.field} style={{ marginBottom: 16 }}>
+        <label className={styles.fieldLabel} htmlFor="social-links-visibility">Who can see these links?</label>
+        <select
+          id="social-links-visibility"
+          className={styles.socialSelect}
+          value={socialLinksVisibility}
+          onChange={(e) => setSocialLinksVisibility(e.target.value)}
+        >
+          <option value="public">Signed-in members</option>
+          <option value="private">Only me and community moderators</option>
+        </select>
+        <p className={styles.fieldHint}>
+          This setting controls your social links only, not the visibility of your whole profile.
+        </p>
+      </div>
       {socialLinks.map((link, i) => {
         const info = platformInfo(link.platform);
         const preview = normalize(link.handle)
