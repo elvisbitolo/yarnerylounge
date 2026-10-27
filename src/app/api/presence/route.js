@@ -6,6 +6,7 @@ import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { isOnline, isOnlineRow, lastActiveFrom, onlineMembers } from "@/lib/server/presence-core";
 import { activeRoomsForUsers } from "@/lib/server/room-presence";
 import { notifyWatchersOnline } from "@/lib/server/member-watch";
+import { announceSecretYarneryAvailable } from "@/lib/server/secret-yarnery-availability";
 import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 
 function parseIds(value) {
@@ -27,15 +28,20 @@ export async function POST() {
     // A heartbeat that lands after the online window has expired is a genuine
     // "came back" event — the moment watchers signed up for. Read the old
     // stamp before writing so a second tab's heartbeat in the same window sees
-    // online and stays quiet. Runs post-response: watch fan-out must never
-    // delay the heartbeat itself.
+    // online and stays quiet. Runs post-response: fan-out must never delay the
+    // heartbeat itself.
     const wasOnline = isOnline(lastActiveFrom(extra));
     await prisma.user.update({
       where: { id: user.uid },
       data: { extra: { ...extra, lastActiveAt: new Date().toISOString() }, updatedAt: new Date() },
     });
     if (!wasOnline) {
-      after(() => notifyWatchersOnline(user.uid));
+      after(async () => {
+        await Promise.allSettled([
+          notifyWatchersOnline(user.uid),
+          announceSecretYarneryAvailable(user.uid),
+        ]);
+      });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
