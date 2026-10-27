@@ -11,7 +11,7 @@ import {
 } from "@/lib/server/room-presence";
 import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 import { getScopedHostRights } from "@/lib/server/hosts";
-import { notifyWatchersRoom } from "@/lib/server/member-watch";
+import { notifyRoomEntryMembers } from "@/lib/server/room-entry-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -96,9 +96,9 @@ export async function POST(req, { params }) {
   const result = status === "leave" ? await leaveRoomPresence(input) : await touchRoomPresence(input);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 409 });
   if (status === "join" && !alreadyPresent) {
-    // Tell the target's watchers they walked in, post-response. The fan-out
-    // re-checks each watcher's room access, so a private lounge never leaks.
-    after(() => notifyWatchersRoom(auth.user.uid, room));
+    // Notify eligible members after the response. The fan-out checks room access,
+    // blocks, global room-activity preferences, and individual profile watches.
+    after(() => notifyRoomEntryMembers(auth.user.uid, room));
   }
   return NextResponse.json({ ok: true });
 }
