@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { AlertTriangle, Edit2, Film, LayoutGrid, List, Play, Search, User } from "lucide-react";
+import { AlertTriangle, Copy, Edit2, Film, Info, LayoutGrid, List, Play, Search, Trash2, User, X } from "lucide-react";
 import {
   formatBytes,
   formatDuration,
@@ -66,6 +66,7 @@ export default function RecordingsLibrary({
       recordings.filter((r) => r.thumbnailUrl).map((r) => [r.id, r.thumbnailUrl])
     )
   );
+  const [debugId, setDebugId] = useState(null);
 
   const gridRef = useRef(null);
   const inFlightRef = useRef(new Set());
@@ -154,6 +155,34 @@ export default function RecordingsLibrary({
       setNotice({ type: "ok", text: "Renamed" });
     } catch (error) {
       setNotice({ type: "error", text: error?.message || "Rename failed" });
+    }
+  }
+
+  async function purgeRecording(recording) {
+    if (!window.confirm(`Permanently purge "${recording.title}"? This cannot be undone and will delete from storage.`)) return;
+    setBusyId(recording.id);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/recordings/${recording.id}/purge`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Purge failed");
+      setDeletedItems((prev) => prev.filter((r) => r.id !== recording.id));
+      setItems((prev) => prev.filter((r) => r.id !== recording.id));
+      setNotice({ type: "ok", text: "Permanently purged" });
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || "Purge failed" });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function copyText(text) {
+    try {
+      navigator.clipboard.writeText(text);
+      setNotice({ type: "ok", text: "Copied" });
+      setTimeout(() => setNotice(null), 1200);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -373,6 +402,7 @@ export default function RecordingsLibrary({
       if (lounge !== "all" && r.roomName !== lounge) return false;
       const started = Date.parse(r.startedAt) || 0;
       if (chip === "mine" && currentUserId && r.initiatorId !== currentUserId) return false;
+      if (chip === "attention" && r.status === "ready") return false;
       if (chip === "week" && started < weekCut) return false;
       if (chip === "month" && started < monthCut) return false;
       if (chip === "vertical" && recordingOrientation(r.width, r.height) !== "vertical") return false;
@@ -485,16 +515,26 @@ export default function RecordingsLibrary({
                   <span className={styles.trashMeta}>
                     {formatRecordingDate(recording.startedAt)}
                   </span>
-                  <button
-                    type="button"
-                    className={styles.playButton}
-                    onClick={() => restoreTrashed(recording)}
-                  >
-                    {t("restore")}
-                  </button>
-                </li>
-              ))}
-            </ul>
+              <button
+                type="button"
+                className={styles.restoreButton}
+                onClick={() => restoreTrashed(recording)}
+              >
+                {t("restore")}
+              </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  className={styles.deleteButton}
+                  onClick={() => purgeRecording(recording)}
+                  disabled={busyId === recording.id}
+                >
+                  {busyId === recording.id ? "Purging..." : "Purge permanently"}
+                </button>
+              )}
+            </div>
+          ))}
+        </ul>
           )}
         </div>
       ) : items.length === 0 ? (
@@ -574,6 +614,7 @@ export default function RecordingsLibrary({
             {[
               ["all", t("chipAll")],
               ["mine", "Mine"],
+              ["attention", "Needs attention"],
               ["week", t("chipWeek")],
               ["month", t("chipMonth")],
               ["vertical", t("chipVertical")],
@@ -754,7 +795,55 @@ export default function RecordingsLibrary({
                         </button>
                       </>
                     )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className={styles.shareButton}
+                        onClick={() => setDebugId(debugId === recording.id ? null : recording.id)}
+                        title="Owner details"
+                      >
+                        <Info size={12} style={{ marginRight: 4 }} /> Debug
+                      </button>
+                    )}
                   </div>
+                  {canDelete && debugId === recording.id && (
+                    <div style={{ marginTop: 10, padding: 10, background: "rgba(255,255,255,0.02)", borderRadius: 8, fontSize: 11, lineHeight: 1.6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <strong>Owner details</strong>
+                        <button type="button" onClick={() => setDebugId(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}><X size={12} /></button>
+                      </div>
+                      {[
+                        ["id", recording.id],
+                        ["initiatorId", recording.initiatorId],
+                        ["roomId", recording.roomId],
+                        ["roomName", recording.roomName],
+                        ["jaasSessionId", recording.jaasSessionId],
+                        ["jaasRecordingId", recording.jaasRecordingId],
+                        ["status", recording.status],
+                        ["share", recording.share],
+                        ["storagePath", recording.storagePath],
+                        ["thumbnailPath", recording.thumbnailPath],
+                        ["sizeBytes", recording.sizeBytes],
+                        ["durationSec", recording.durationSec],
+                        ["attempts", recording.attempts],
+                        ["sourceExpiresAt", recording.sourceExpiresAt],
+                        ["pulledAt", recording.pulledAt],
+                        ["createdAt", recording.createdAt],
+                        ["lastError", recording.lastError],
+                        ["errorCode", recording.errorCode],
+                      ].map(([k, v]) => (
+                        v != null && v !== "" ? (
+                          <div key={k} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <span style={{ opacity: 0.6, minWidth: 110 }}>{k}:</span>
+                            <span style={{ wordBreak: "break-all", flex: 1 }}>{String(v)}</span>
+                            {typeof v === "string" && v.length > 8 && (
+                              <button type="button" onClick={() => copyText(v)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }} title="Copy"><Copy size={10} /></button>
+                            )}
+                          </div>
+                        ) : null
+                      ))}
+                    </div>
+                  )}
                   {shareId === recording.id && (
                     <div className={styles.shareMenu}>
                       <button
