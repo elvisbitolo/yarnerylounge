@@ -35,6 +35,8 @@ const NOTIFICATION_TYPE_TO_PREF = {
   // or chat.
   watch_online: "watch",
   watch_room: "watch",
+  // Default room-entry announcements are separate from explicit per-member watches.
+  room_entry: "roomActivity",
   recording_ready: "events",
 };
 

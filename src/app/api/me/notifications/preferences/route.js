@@ -20,6 +20,8 @@ export async function GET() {
     // merged rather than replaced — a saved row without `watch` must show an
     // On toggle instead of an undefined that reads as Off.
     watch: true,
+    // General room-entry alerts are on by default for all members.
+    roomActivity: true,
   };
   // No new key for `lounge_live` on purpose: it maps onto the existing
   // "events" preference (see NOTIFICATION_TYPE_TO_PREF in notifications.js), so
@@ -53,7 +55,8 @@ export async function PUT(req) {
     events: !!body.events,
     mentions: !!body.mentions,
     automations: !!body.automations,
-    watch: !!body.watch,
+    watch: body.watch !== false,
+    roomActivity: body.roomActivity !== false,
   };
 
   try {
