@@ -58,6 +58,14 @@ test("normalizeProfile: empty body yields no patch and no errors", () => {
   assert.deepEqual(errors, {});
 });
 
+test("normalizeProfile: social link visibility accepts public/private only", () => {
+  assert.equal(normalizeProfile({ socialLinksVisibility: "public" }).patch.socialLinksVisibility, "public");
+  assert.equal(normalizeProfile({ socialLinksVisibility: "private" }).patch.socialLinksVisibility, "private");
+  const { patch, errors } = normalizeProfile({ socialLinksVisibility: "everyone" });
+  assert.equal(patch.socialLinksVisibility, undefined);
+  assert.equal(errors.socialLinksVisibility, 'Social link visibility must be "public" or "private"');
+});
+
 test("normalizeProfile: notifications coerces to on/off only", () => {
   assert.equal(normalizeProfile({ notifications: "on" }).patch.notifications, "on");
   assert.equal(normalizeProfile({ notifications: "off" }).patch.notifications, "off");
