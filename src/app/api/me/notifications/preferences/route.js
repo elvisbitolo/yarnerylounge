@@ -3,6 +3,20 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 
+const DEFAULTS = {
+  chat: true,
+  feed: true,
+  events: true,
+  mentions: true,
+  automations: true,
+  watch: true,
+  emailMessages: true,
+  emailEvents: true,
+  emailMatches: true,
+  emailCommunity: false,
+  emailDigest: true,
+};
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) {
@@ -10,27 +24,13 @@ export async function GET() {
   }
 
   const prisma = getPrisma();
-  let prefs = {
-    chat: true,
-    feed: true,
-    events: true,
-    mentions: true,
-    automations: true,
-    // Watch alerts default on. Stored rows predate this key, so defaults are
-    // merged rather than replaced — a saved row without `watch` must show an
-    // On toggle instead of an undefined that reads as Off.
-    watch: true,
-  };
-  // No new key for `lounge_live` on purpose: it maps onto the existing
-  // "events" preference (see NOTIFICATION_TYPE_TO_PREF in notifications.js), so
-  // members inherit the toggle they already understand. `watch` is different:
-  // a per-member subscription has no existing bucket to ride.
+  let prefs = { ...DEFAULTS };
   try {
     const row = await prisma.user.findUnique({
       where: { id: user.uid },
       select: { notificationPreferences: true },
     });
-    if (row && row.notificationPreferences) {
+    if (row?.notificationPreferences && typeof row.notificationPreferences === "object") {
       prefs = { ...prefs, ...row.notificationPreferences };
     }
   } catch (err) {
@@ -46,18 +46,30 @@ export async function PUT(req) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const body = await req.json();
-  const prefs = {
-    chat: !!body.chat,
-    feed: !!body.feed,
-    events: !!body.events,
-    mentions: !!body.mentions,
-    automations: !!body.automations,
-    watch: !!body.watch,
-  };
+  const body = await req.json().catch(() => ({}));
+  const prisma = getPrisma();
+  let existing = {};
+  try {
+    const row = await prisma.user.findUnique({
+      where: { id: user.uid },
+      select: { notificationPreferences: true },
+    });
+    if (row?.notificationPreferences && typeof row.notificationPreferences === "object") {
+      existing = row.notificationPreferences;
+    }
+  } catch (err) {
+    logError("notifications.prisma_prefs_read_failed", { error: err.message });
+    return NextResponse.json({ error: "Could not load preferences" }, { status: 503 });
+  }
+
+  // Preserve preferences owned by other features instead of wiping unknown keys.
+  const prefs = { ...DEFAULTS, ...existing };
+  for (const key of Object.keys(DEFAULTS)) {
+    if (typeof body[key] === "boolean") prefs[key] = body[key];
+  }
 
   try {
-    await getPrisma().user.upsert({
+    await prisma.user.upsert({
       where: { id: user.uid },
       create: {
         id: user.uid,
