@@ -25,7 +25,28 @@ export default function WhatsAppLink() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/settings/social/whatsapp", { cache: "no-store" })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || "Unable to load WhatsApp settings");
+        if (cancelled) return;
+        setLink(json?.link || null);
+        if (json?.link?.phoneE164) setPhone(json.link.phoneE164);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setMsg({ type: "err", text: error?.message || "Unable to load WhatsApp settings" });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
 
   async function save() {
     setSaving(true);
