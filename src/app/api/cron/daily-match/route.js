@@ -7,6 +7,8 @@ import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
 import { ACTIVE_STATUSES } from "@/lib/server/billing";
 import { getMovingInPriorityIds } from "@/lib/server/match-priority";
 import { logError } from "@/lib/server/log";
+import { sendEmail } from "@/lib/server/email";
+import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 
 // "Automatic 24-Hour Matching" is sold on the shop page, but nothing ran it.
 // The Daily Match was computed lazily inside pickDailyBlindDate() when a member
@@ -149,14 +151,38 @@ export async function GET(req) {
         select: { id: true },
       });
       if (existing) continue;
-      await createNotification({
+      const created = await createNotification({
         userId: uid,
         type: "daily_match",
         targetId: `${uid}:${pick.date}`,
         href: "/match",
         text: "Your new fiber match is ready. Explore their profile and say hello within 24 hours.",
       });
-      notified += 1;
+      if (created) {
+        notified += 1;
+        // Email is an optional channel, independent of the global in-app/push
+        // preference. The notification row remains the idempotency marker.
+        try {
+          const member = await prisma.user.findUnique({
+            where: { id: uid },
+            select: { email: true, name: true, notifications: true, notificationPreferences: true },
+          });
+          if (
+            member?.email &&
+            member.notifications !== "off" &&
+            member.notificationPreferences?.emailMatches !== false
+          ) {
+            const site = process.env.NEXT_PUBLIC_APP_URL || CANONICAL_ORIGIN;
+            await sendEmail({
+              to: member.email,
+              subject: "Your Daily Match is ready",
+              text: `Hi ${member.name || "there"}, your Daily Match is ready. Explore their profile and say hello within 24 hours.\\n\\nView your match: ${site}/match\\n\\nYou can manage optional email notifications in your account settings.`,
+            });
+          }
+        } catch (emailError) {
+          logError("cron.daily_match.email_failed", { uid, error: emailError?.message });
+        }
+      }
     } catch (err) {
       failed += 1;
       logError("cron.daily_match.user_failed", { error: err.message, uid });
