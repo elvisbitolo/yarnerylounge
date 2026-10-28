@@ -4,12 +4,12 @@
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// A member is nudged after two weeks away, but only once their account is a few
-// days old (so a brand-new member who simply hasn't returned yet isn't greeted
-// with "we miss you"), and never more than once every three weeks.
-export const REENGAGEMENT_MIN_INACTIVE_DAYS = 14;
-export const REENGAGEMENT_MIN_ACCOUNT_AGE_DAYS = 3;
-export const REENGAGEMENT_REPEAT_DAYS = 21;
+// Nudge members after two days without a visit, including members who created
+// an account but never made it into the community. Repeat at most weekly so
+// reminders stay useful rather than becoming daily spam.
+export const REENGAGEMENT_MIN_INACTIVE_DAYS = 2;
+export const REENGAGEMENT_MIN_ACCOUNT_AGE_DAYS = 0;
+export const REENGAGEMENT_REPEAT_DAYS = 7;
 
 // Cap per run so the sequential Resend calls stay inside the cron's 60s budget.
 export const REENGAGEMENT_DAILY_LIMIT = 100;
@@ -50,7 +50,7 @@ export function selectReengagementCandidates(rows, options = {}) {
 
   const out = [];
   for (const row of Array.isArray(rows) ? rows : []) {
-    if (!row || !row.email) continue;
+    if (!row) continue;
     if (row.suspended) continue;
     if (isAutomationEmailOptOut(row)) continue;
 
