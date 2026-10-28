@@ -74,7 +74,9 @@ export default function NotificationBell() {
       window.addEventListener("notifications:changed", onChanged);
       navigator.serviceWorker?.addEventListener?.("message", onServiceWorkerMessage);
       load();
-      timer = setInterval(load, 20000);
+      // Keep the visible unread count fresh for notifications created by another member/device.
+      // Push remains immediate when available; polling is the fallback when it is not.
+      timer = setInterval(load, 5000);
 
       cleanup = () => {
         active = false;
