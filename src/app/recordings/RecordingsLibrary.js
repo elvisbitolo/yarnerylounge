@@ -532,7 +532,7 @@ export default function RecordingsLibrary({
                   {busyId === recording.id ? "Purging..." : "Purge permanently"}
                 </button>
               )}
-            </div>
+            </li>
           ))}
         </ul>
           )}
