@@ -61,7 +61,7 @@ export default async function AccountPage() {
         <StreakCard gamification={gamification} />
 
         <WelcomeChecklist
-          initialProfile={{ name: userDoc?.name || user.name || "", headline: userDoc?.headline || "", location: userDoc?.location || "" }}
+          initialProfile={{ name: userDoc?.name || user.name || "", headline: userDoc?.headline || "", location: userDoc?.location || "", bio: userDoc?.bio || "", skillLevel: userDoc?.skillLevel || "", craftInterests: userDoc?.craftInterests || [], yarnPreference: userDoc?.yarnPreference || "", hookSize: userDoc?.hookSize || "" }}
           steps={settings?.welcomeChecklist}
         />
 
