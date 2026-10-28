@@ -26,6 +26,7 @@ const NOTIFICATION_TYPE_TO_PREF = {
   follow: "feed",
   automation: "automations",
   digest: "automations",
+  reengagement: "automations",
   // The Daily Match arrives once a day. There is no dedicated "matches"
   // preference yet, so it rides the "feed" opt-out rather than being
   // unmuteable - a daily notification members cannot silence is worse than
@@ -157,7 +158,7 @@ export async function createNotification({
 
   // WhatsApp DM (additive). Only for mentions and DMs.
   try {
-    if (isWhatsAppConfigured() && (type === "mention" || type === "dm" || type === "priority_online")) {
+    if (isWhatsAppConfigured() && (type === "mention" || type === "dm")) {
       const run = async () => {
         try {
           const p = getPrisma();
