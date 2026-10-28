@@ -5,7 +5,7 @@ import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { isOnline, isOnlineRow, lastActiveFrom, onlineMembers } from "@/lib/server/presence-core";
 import { activeRoomsForUsers } from "@/lib/server/room-presence";
-import { notifyWatchersOnline } from "@/lib/server/member-watch";
+import { notifyWatchersOnline, notifySecretYarneryOnline } from "@/lib/server/member-watch";
 import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 
 function parseIds(value) {
@@ -36,6 +36,7 @@ export async function POST() {
     });
     if (!wasOnline) {
       after(() => notifyWatchersOnline(user.uid));
+      after(() => notifySecretYarneryOnline(user.uid));
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
