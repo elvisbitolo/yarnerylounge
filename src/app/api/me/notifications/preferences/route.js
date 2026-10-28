@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 
+const DEFAULTS_VERSION = 2;
+
 const DEFAULTS = {
   chat: true,
   feed: true,
@@ -23,14 +25,40 @@ export async function GET() {
   }
 
   const prisma = getPrisma();
-  let prefs = { ...DEFAULTS };
+  let prefs = { ...DEFAULTS, _notificationDefaultsVersion: DEFAULTS_VERSION };
   try {
     const row = await prisma.user.findUnique({
       where: { id: user.uid },
       select: { notificationPreferences: true },
     });
-    if (row?.notificationPreferences && typeof row.notificationPreferences === "object") {
-      prefs = { ...prefs, ...row.notificationPreferences };
+    const stored =
+      row?.notificationPreferences && typeof row.notificationPreferences === "object"
+        ? row.notificationPreferences
+        : {};
+
+    if (Number(stored._notificationDefaultsVersion || 0) < DEFAULTS_VERSION) {
+      // One-time rollout: enable every supported notification category for
+      // existing members. Once marked, subsequent GETs preserve their choices.
+      prefs = {
+        ...stored,
+        ...DEFAULTS,
+        _notificationDefaultsVersion: DEFAULTS_VERSION,
+      };
+      await prisma.user.upsert({
+        where: { id: user.uid },
+        create: {
+          id: user.uid,
+          name: user.displayName || "",
+          notificationPreferences: prefs,
+          updatedAt: new Date(),
+        },
+        update: {
+          notificationPreferences: prefs,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      prefs = { ...DEFAULTS, ...stored };
     }
   } catch (err) {
     logError("notifications.prisma_prefs_read_failed", { error: err.message });

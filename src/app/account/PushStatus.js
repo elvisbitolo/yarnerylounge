@@ -25,14 +25,7 @@ export default function PushStatus() {
 
   const on = permission === "granted";
 
-  async function ask() {
-    try {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-    } catch {
-      // ignore
-    }
-  }
+
 
   return (
     <div className={styles.row} style={{ marginTop: 10 }}>
@@ -40,26 +33,19 @@ export default function PushStatus() {
         <span className={styles.label}>Push notifications</span>
         <p className={styles.hint}>
           {on
-            ? "Browser notifications are on — get notified about new messages and mentions."
+            ? "Browser permission is granted. Confirm this device is subscribed using the setup prompt."
             : permission === "denied"
-              ? "Browser notifications are blocked in your browser settings. Allow notifications for this site to turn them on."
-              : "Get browser notifications for new messages and mentions. You'll be asked for permission once."}
+              ? "Browser notifications are blocked. Allow notifications for this site in your browser settings first."
+              : "Enable browser alerts for messages and mentions. Your browser must ask for permission."}
         </p>
       </div>
-      {permission === "default" ? (
-        <button type="button" className={styles.toggle} onClick={ask}>
-          Enable
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={on ? `${styles.toggle} ${styles.toggleOn}` : styles.toggle}
-          aria-pressed={on}
-          aria-label={on ? "Push notifications on" : "Push notifications off"}
-        >
-          {on ? "On" : "Off"}
-        </button>
-      )}
+      <button
+        type="button"
+        className={styles.toggle}
+        onClick={() => window.dispatchEvent(new Event("syw:enable-push"))}
+      >
+        {on ? "Finish setup" : permission === "denied" ? "Browser blocked" : "Enable"}
+      </button>
     </div>
   );
 }
