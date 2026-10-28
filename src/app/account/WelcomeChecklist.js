@@ -5,6 +5,7 @@ import styles from "./account.module.css";
 
 const DEFAULT_STEPS = [
   { key: "profile", label: "Complete your profile", href: "/account/profile", cta: "Edit profile" },
+  { key: "preferences", label: "Choose your craft interests", href: "/onboarding", cta: "Set interests" },
   { key: "room", label: "Join your first live room", href: "/rooms", cta: "Browse rooms" },
   { key: "post", label: "Make your first post", href: "/feed", cta: "Open the feed" },
   { key: "rsvp", label: "RSVP to an event", href: "/events", cta: "See events" },
@@ -42,7 +43,8 @@ export default function WelcomeChecklist({ initialProfile, steps }) {
   }, []);
 
   const profileDone = !!(profile.bio || profile.headline || profile.location);
-  const doneMap = { profile: profileDone, room: hasRoomEvent, post: hasPost, rsvp: hasRsvp };
+  const preferencesDone = !!(profile.skillLevel && profile.yarnPreference && profile.hookSize && Array.isArray(profile.craftInterests) && profile.craftInterests.length > 0);
+  const doneMap = { profile: profileDone, preferences: preferencesDone, room: hasRoomEvent, post: hasPost, rsvp: hasRsvp };
   const doneCount = STEPS.filter((step) => doneMap[step.key]).length;
   const allDone = doneCount === STEPS.length;
 
