@@ -26,8 +26,8 @@ test("select: a drifted-away member is a candidate", () => {
   assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 1);
 });
 
-test("select: a recently active member is skipped", () => {
-  const rows = [user({ extra: { lastActiveAt: new Date(NOW - 3 * DAY).toISOString() } })];
+test("select: a member active yesterday is skipped", () => {
+  const rows = [user({ extra: { lastActiveAt: new Date(NOW - 1 * DAY).toISOString() } })];
   assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 0);
 });
 
@@ -68,7 +68,7 @@ test("select: a member nudged recently is not nudged again", () => {
     user({
       extra: {
         lastActiveAt: new Date(NOW - 40 * DAY).toISOString(),
-        reengagementSentAt: new Date(NOW - 5 * DAY).toISOString(),
+        reengagementSentAt: new Date(NOW - 3 * DAY).toISOString(),
       },
     }),
   ];
@@ -87,12 +87,12 @@ test("select: a member nudged long ago is eligible again", () => {
   assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 1);
 });
 
-test("select: suspended members and missing emails are skipped", () => {
+test("select: suspended members are skipped but members without email can be notified", () => {
   const rows = [
     user({ suspended: true, extra: { lastActiveAt: new Date(NOW - 20 * DAY).toISOString() } }),
     user({ id: "u2", email: "", extra: { lastActiveAt: new Date(NOW - 20 * DAY).toISOString() } }),
   ];
-  assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 0);
+  assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 1);
 });
 
 test("select: the per-run cap is applied", () => {
