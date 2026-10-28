@@ -21,6 +21,7 @@ function timeAgo(iso) {
 export default function NotificationsList({ notifications }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   // The nav bell lives in the persistent layout, so it will not re-render from
   // router.refresh(). Tell it (and the app-icon badge) to re-read the count.
@@ -31,17 +32,29 @@ export default function NotificationsList({ notifications }) {
   }
 
   async function markRead(id) {
-    await fetch(`/api/notifications/${id}`, { method: "POST" });
-    announceChange();
-    router.refresh();
+    try {
+      const response = await fetch(`/api/notifications/${id}`, { method: "POST" });
+      if (!response.ok) throw new Error("Could not mark this notification as read.");
+      setError("");
+      announceChange();
+      router.refresh();
+    } catch {
+      setError("Could not update this notification. Please try again.");
+    }
   }
 
   async function markAllRead() {
+    if (busy) return;
     setBusy(true);
+    setError("");
     try {
-      await Promise.all(notifications.filter((n) => !n.read).map((n) => fetch(`/api/notifications/${n.id}`, { method: "POST" })));
+      // Update all unread rows in the database, not only the 50 shown here.
+      const response = await fetch("/api/notifications/read-all", { method: "POST" });
+      if (!response.ok) throw new Error("Could not mark notifications as read.");
       announceChange();
       router.refresh();
+    } catch {
+      setError("Could not mark all notifications as read. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -51,9 +64,10 @@ export default function NotificationsList({ notifications }) {
 
   return (
     <div>
+      {error && <p role="alert" className={styles.empty}>{error}</p>}
       {unread > 0 && (
         <button className={styles.markAll} onClick={markAllRead} disabled={busy}>
-          {busy ? "Marking…" : `Mark all as read (${unread})`}
+          {busy ? "Marking…" : "Mark all as read"}
         </button>
       )}
 
