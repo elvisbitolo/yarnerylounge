@@ -78,8 +78,14 @@ export async function POST(req) {
       ok: true,
       link: { phoneE164: link.phoneE164, enabled: link.enabled, verifiedAt: link.verifiedAt },
     });
-  } catch {
-    return NextResponse.json({ error: "Unable to save WhatsApp link" }, { status: 500 });
+  } catch (error) {
+    // Keep database details in server logs, never expose them to the browser.
+    console.error("[whatsapp-link] Failed to save SocialLink", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      code: error && typeof error === "object" && "code" in error ? error.code : undefined,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ error: "Unable to save WhatsApp link. Please try again later." }, { status: 500 });
   }
 }
 
