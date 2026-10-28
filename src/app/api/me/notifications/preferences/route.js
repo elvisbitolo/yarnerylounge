@@ -13,7 +13,6 @@ const DEFAULTS = {
   emailMessages: true,
   emailEvents: true,
   emailMatches: true,
-  emailCommunity: false,
   emailDigest: true,
 };
 
