@@ -206,3 +206,69 @@ export async function notifyWatchersRoom(targetId, room, now = Date.now()) {
     return { notified: 0 };
   }
 }
+
+
+/**
+ * Broadcast Secret Yarnery's offline-to-online transition to all eligible members.
+ * Uses the existing notification pipeline so in-app and Web Push delivery stay
+ * consistent with the rest of the community. Work is chunked by member ID.
+ */
+export async function notifySecretYarneryOnline(targetId) {
+  try {
+    const prisma = getPrisma();
+    if (!prisma || !targetId) return { notified: 0 };
+    const target = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { id: true, name: true, email: true, suspended: true, extra: true },
+    });
+    if (
+      !target ||
+      target.suspended ||
+      String(target.email || "").trim().toLowerCase() !== "secretyarnery@gmail.com" ||
+      target.extra?.chatSettings?.onlineVisibility === "nobody"
+    ) return { notified: 0, skipped: true };
+
+    let notified = 0;
+    let failed = 0;
+    let cursor = "";
+    while (true) {
+      const members = await prisma.user.findMany({
+        where: {
+          id: { not: targetId, ...(cursor ? { gt: cursor } : {}) },
+          OR: [{ suspended: false }, { suspended: null }],
+        },
+        orderBy: { id: "asc" },
+        take: 100,
+        select: { id: true },
+      });
+      if (!members.length) break;
+      for (const member of members) {
+        try {
+          const ok = await createNotification({
+            userId: member.id,
+            type: "priority_online",
+            actorId: target.id,
+            actorName: target.name || "Secret Yarnery",
+            targetId: target.id,
+            href: `/members/${target.id}`,
+            text: `${target.name || "Secret Yarnery"} is now online.`,
+          });
+          if (ok) notified += 1;
+        } catch (err) {
+          failed += 1;
+          logError("member-watch.priority_broadcast_recipient_failed", {
+            targetId,
+            recipientId: member.id,
+            error: err?.message,
+          });
+        }
+      }
+      cursor = members[members.length - 1].id;
+      if (members.length < 100) break;
+    }
+    return { notified, failed };
+  } catch (err) {
+    logError("member-watch.priority_broadcast_failed", { targetId, error: err?.message });
+    return { notified: 0, failed: 1 };
+  }
+}
