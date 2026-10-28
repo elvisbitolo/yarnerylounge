@@ -26,6 +26,13 @@ export default function PushSetup() {
     return unsubscribe;
   }, []);
 
+  // Load preferences on sign-in so existing members receive the one-time
+  // defaults rollout without having to visit the notifications settings page.
+  useEffect(() => {
+    if (!signedIn) return;
+    fetch("/api/me/notifications/preferences", { cache: "no-store" }).catch(() => {});
+  }, [signedIn]);
+
   useEffect(() => {
     const canPush =
       typeof window !== "undefined" &&
