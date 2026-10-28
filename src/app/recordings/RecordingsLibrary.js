@@ -50,6 +50,8 @@ export default function RecordingsLibrary({
   const [notice, setNotice] = useState(null);
   const [query, setQuery] = useState("");
   const [lounge, setLounge] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [undo, setUndo] = useState(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [deletedItems, setDeletedItems] = useState([]);
@@ -401,6 +403,8 @@ export default function RecordingsLibrary({
     const matched = items.filter((r) => {
       if (lounge !== "all" && r.roomName !== lounge) return false;
       const started = Date.parse(r.startedAt) || 0;
+      if (fromDate && (!started || started < new Date(`${fromDate}T00:00:00`).getTime())) return false;
+      if (toDate && (!started || started >= new Date(`${toDate}T00:00:00`).getTime() + DAY_MS)) return false;
       if (chip === "mine" && currentUserId && r.initiatorId !== currentUserId) return false;
       if (chip === "attention" && r.status === "ready") return false;
       if (chip === "week" && started < weekCut) return false;
@@ -439,9 +443,9 @@ export default function RecordingsLibrary({
           return (Date.parse(b.startedAt) || 0) - (Date.parse(a.startedAt) || 0);
       }
     });
-  }, [items, lounge, chip, query, sort, now, currentUserId]);
+  }, [items, lounge, chip, query, sort, now, currentUserId, fromDate, toDate]);
 
-  const filtersActive = Boolean(query.trim()) || lounge !== "all" || chip !== "all";
+  const filtersActive = Boolean(query.trim()) || lounge !== "all" || chip !== "all" || Boolean(fromDate) || Boolean(toDate);
 
   if (loadError) {
     return (
@@ -572,6 +576,14 @@ export default function RecordingsLibrary({
                 </option>
               ))}
             </select>
+            <label className={styles.dateFilter}>
+              <span>From</span>
+              <input className={styles.dateInput} type="date" value={fromDate} max={toDate || undefined} onChange={(event) => setFromDate(event.target.value)} aria-label="Recordings from date" />
+            </label>
+            <label className={styles.dateFilter}>
+              <span>To</span>
+              <input className={styles.dateInput} type="date" value={toDate} min={fromDate || undefined} onChange={(event) => setToDate(event.target.value)} aria-label="Recordings to date" />
+            </label>
             <select
               className={styles.select}
               value={sort}
@@ -637,6 +649,8 @@ export default function RecordingsLibrary({
                 onClick={() => {
                   setQuery("");
                   setLounge("all");
+                  setFromDate("");
+                  setToDate("");
                   updateRecordingView({ chip: "all" });
                 }}
               >
