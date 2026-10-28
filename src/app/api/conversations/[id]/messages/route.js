@@ -291,7 +291,7 @@ export async function POST(req, { params }) {
           });
         }
 
-        if (shouldEmailChatRecipient({ globalOff, chatPrefOff, muted, mentioned }) && other.email) {
+        if (other.notificationPreferences?.emailMessages !== false && shouldEmailChatRecipient({ globalOff, chatPrefOff, muted, mentioned }) && other.email) {
           await sendEmail({
             to: other.email,
             subject: isDm
