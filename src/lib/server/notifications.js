@@ -158,7 +158,7 @@ export async function createNotification({
 
   // WhatsApp DM (additive). Only for mentions and DMs.
   try {
-    if (isWhatsAppConfigured() && (type === "mention" || type === "dm" || type === "priority_online" || type === "reengagement")) {
+    if (isWhatsAppConfigured() && (type === "mention" || type === "dm")) {
       const run = async () => {
         try {
           const p = getPrisma();
