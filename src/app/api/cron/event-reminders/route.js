@@ -61,7 +61,7 @@ export async function GET(req) {
       });
       const email = userRow?.email || "";
       try {
-        if (email) {
+        if (email && memberDoc?.notificationPreferences?.emailEvents !== false) {
           await sendEmail({
             to: email,
             subject: `Reminder: "${event.title}" starts soon`,
