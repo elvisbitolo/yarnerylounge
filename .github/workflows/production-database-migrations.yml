@@ -1,0 +1,36 @@
+name: Production database migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type APPLY to run pending Prisma migrations against production"
+        required: true
+        type: string
+
+jobs:
+  migrate:
+    if: inputs.confirm == 'APPLY'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Require a direct production database connection
+        env:
+          PRISMA_DIRECT_URL: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+        run: |
+          if [ -z "$PRISMA_DIRECT_URL" ]; then
+            echo "::error::Configure the GitHub Actions secret POSTGRES_URL_NON_POOLING with the production database's direct/session connection string."
+            exit 1
+          fi
+      - name: Apply pending Prisma migrations
+        env:
+          PRISMA_DIRECT_URL: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+        run: npx prisma migrate deploy --config prisma7.config.ts

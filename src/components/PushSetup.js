@@ -5,8 +5,11 @@ import { auth, onAuthStateChanged } from "@/lib/auth-client";
 
 export default function PushSetup() {
   const [signedIn, setSignedIn] = useState(false);
-  const [supported, setSupported] = useState(false);
-  const [permission, setPermission] = useState("default");
+  const [permission, setPermission] = useState(() =>
+    typeof window !== "undefined" && "Notification" in window
+      ? Notification.permission
+      : "default"
+  );
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -31,9 +34,7 @@ export default function PushSetup() {
       "Notification" in window &&
       Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
-    setSupported(canPush);
     if (!canPush) return;
-    setPermission(Notification.permission);
 
     let cancelled = false;
     navigator.serviceWorker.ready
@@ -124,6 +125,13 @@ export default function PushSetup() {
       setBusy(false);
     }
   }
+
+  const supported =
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window &&
+    Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
   if (!signedIn || !supported) return null;
 
