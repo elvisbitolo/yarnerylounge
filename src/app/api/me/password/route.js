@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
 import { validatePasswordChange } from "@/lib/password-policy";
+import { sendEmail } from "@/lib/server/email";
 
 export async function POST(req) {
   const user = await getCurrentUser();
@@ -50,6 +51,17 @@ export async function POST(req) {
     if (error) {
       logError("password.update_failed", { uid: user.uid, error: error.message });
       return NextResponse.json({ error: "Could not update the password. Try again." }, { status: 500 });
+    }
+    // Security notifications are always sent, regardless of optional email
+    // notification preferences. A delivery failure must not undo a password change.
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Your Secret Yarnery password was changed",
+        text: `The password for your Secret Yarnery account was changed successfully. If you made this change, no further action is needed. If you did not change your password, contact support immediately and secure your email account.`,
+      });
+    } catch (emailErr) {
+      logError("password.security_email_failed", { uid: user.uid, error: emailErr?.message });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
