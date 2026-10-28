@@ -175,10 +175,10 @@ test("computeScore gives timezone credit across different countries", () => {
   const me = { country: "Kenya", extra: { timezone: "Africa/Nairobi" } };
   const near = { country: "Germany", extra: { timezone: "Europe/Berlin" } }; // +3 vs +2
   const far = { country: "United States", extra: { timezone: "America/Los_Angeles" } };
-  assert.ok(computeScore(me, near) > computeScore(me, far));
-  assert.ok(computeScore(me, near) > 0);
+  assert.ok(computeScore(me, near, WHEN) > computeScore(me, far, WHEN));
+  assert.ok(computeScore(me, near, WHEN) > 0);
   // Berlin is CEST (+2) in June, Nairobi +3: 1h apart -> 0.75 * 3 = 2.25
-  assert.equal(computeScore(me, near), 2.25);
+  assert.equal(computeScore(me, near, WHEN), 2.25);
 });
 
 test("computeScore adds no timezone credit when neither side has one", () => {
