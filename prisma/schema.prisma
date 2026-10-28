@@ -281,6 +281,7 @@ model Notification {
   actor User? @relation("ActorNotifications", fields: [actorId], references: [id])
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, read])
 }
 
 // "Refer-a-member" invites. A member hands their personal link to someone
