@@ -817,3 +817,37 @@
     animation: none;
   }
 }
+
+
+.dateFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #9b9bab;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dateInput {
+  min-width: 0;
+  max-width: 145px;
+  padding: 8px 9px;
+  border: 1px solid #2c2c3a;
+  border-radius: 10px;
+  background: #0e0e14;
+  color: #d8d8e2;
+  color-scheme: dark;
+  font: inherit;
+  font-size: 13px;
+}
+
+@media (max-width: 620px) {
+  .dateFilter {
+    flex: 1 1 130px;
+  }
+
+  .dateInput {
+    width: 100%;
+    max-width: none;
+  }
+}
