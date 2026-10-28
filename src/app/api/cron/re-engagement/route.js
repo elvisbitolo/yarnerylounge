@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/server/email";
+import { createNotification } from "@/lib/server/notifications";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
@@ -24,26 +25,40 @@ export async function GET(req) {
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ ok: true, sent: 0 });
 
-  let rows = [];
+  const now = Date.now();
+  const candidates = [];
+  let cursor = "";
   try {
-    rows = await prisma.user.findMany({
-      take: 2000,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        suspended: true,
-        notificationPreferences: true,
-        extra: true,
-        createdAt: true,
-      },
-    });
+    // Walk the full member table in stable ID batches. The daily cap applies to
+    // eligible recipients, not to the first 2,000 accounts in the database.
+    while (candidates.length < 100) {
+      const rows = await prisma.user.findMany({
+        ...(cursor ? { where: { id: { gt: cursor } } } : {}),
+        take: 500,
+        orderBy: { id: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          notifications: true,
+          suspended: true,
+          notificationPreferences: true,
+          extra: true,
+          createdAt: true,
+        },
+      });
+      if (!rows.length) break;
+      const remaining = 100 - candidates.length;
+      if (remaining > 0) {
+        candidates.push(...selectReengagementCandidates(rows, { now, limit: remaining }));
+      }
+      cursor = rows[rows.length - 1].id;
+      if (rows.length < 500) break;
+    }
   } catch (err) {
     logError("reengagement.prisma_read_failed", { error: err.message });
     return NextResponse.json({ error: "Read failed" }, { status: 503 });
   }
-
-  const candidates = selectReengagementCandidates(rows, { now: Date.now() });
 
   let nextEvent = null;
   try {
@@ -67,14 +82,52 @@ export async function GET(req) {
 
   let sent = 0;
   let skipped = 0;
+  let emailSent = 0;
+  let inAppSent = 0;
   for (const member of candidates) {
-    const { subject, text, html } = buildReengagementEmail({
-      name: member.name,
-      appUrl: SITE_BASE,
-      nextEvent,
-    });
+    let delivered = false;
     try {
-      await sendEmail({ to: member.email, subject, text, html });
+      // createNotification writes the in-app item and dispatches registered
+      // browser push subscriptions. The notification preference gate is shared
+      // with the rest of the community and is respected for every recipient.
+      const created = await createNotification({
+        userId: member.id,
+        type: "reengagement",
+        actorName: "The Secret Yarnery Team",
+        href: "/feed",
+        text: "We miss you at the Lounge. Come catch up with the community and see what's new.",
+      });
+      if (created) {
+        delivered = true;
+        inAppSent++;
+      }
+    } catch (err) {
+      logError("reengagement.notification_failed", { uid: member.id, error: err.message });
+    }
+
+    // Email is an additional channel. Respect the account-wide email switch;
+    // members without an email can still receive in-app and browser push alerts.
+    if (member.email && member.notifications !== "off") {
+      const { subject, text, html } = buildReengagementEmail({
+        name: member.name,
+        appUrl: SITE_BASE,
+        nextEvent,
+      });
+      try {
+        await sendEmail({ to: member.email, subject, text, html });
+        delivered = true;
+        emailSent++;
+      } catch (err) {
+        logError("reengagement.email_failed", { uid: member.id, error: err.message });
+      }
+    }
+
+    if (!delivered) {
+      skipped++;
+      continue;
+    }
+
+    try {
       const extra = member.extra && typeof member.extra === "object" ? member.extra : {};
       await prisma.user.update({
         where: { id: member.id },
@@ -83,7 +136,7 @@ export async function GET(req) {
       sent++;
     } catch (err) {
       skipped++;
-      logError("reengagement.send_failed", { uid: member.id, error: err.message });
+      logError("reengagement.stamp_failed", { uid: member.id, error: err.message });
     }
   }
 
@@ -91,6 +144,8 @@ export async function GET(req) {
     ok: true,
     candidates: candidates.length,
     sent,
+    inAppSent,
+    emailSent,
     skipped,
     timestamp: new Date().toISOString(),
   });
