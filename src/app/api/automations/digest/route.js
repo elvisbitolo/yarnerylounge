@@ -142,7 +142,7 @@ async function runDigest(req) {
 
   for (const u of usersForDigest) {
     if (!u.email) { skipped++; continue; }
-    if (isAutomationEmailOptOut(u)) { skipped++; continue; }
+    if (isAutomationEmailOptOut(u) || u.notificationPreferences?.emailDigest === false) { skipped++; continue; }
 
     try {
       await sendEmail({
