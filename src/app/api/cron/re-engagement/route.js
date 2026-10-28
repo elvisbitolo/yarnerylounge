@@ -7,6 +7,7 @@ import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import {
   selectReengagementCandidates,
   buildReengagementEmail,
+  REENGAGEMENT_DAILY_LIMIT,
 } from "@/lib/server/re-engagement-core";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export async function GET(req) {
   try {
     // Walk the full member table in stable ID batches. The daily cap applies to
     // eligible recipients, not to the first 2,000 accounts in the database.
-    while (candidates.length < 100) {
+    while (candidates.length < REENGAGEMENT_DAILY_LIMIT) {
       const rows = await prisma.user.findMany({
         ...(cursor ? { where: { id: { gt: cursor } } } : {}),
         take: 500,
@@ -48,7 +49,7 @@ export async function GET(req) {
         },
       });
       if (!rows.length) break;
-      const remaining = 100 - candidates.length;
+      const remaining = REENGAGEMENT_DAILY_LIMIT - candidates.length;
       if (remaining > 0) {
         candidates.push(...selectReengagementCandidates(rows, { now, limit: remaining }));
       }
