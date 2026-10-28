@@ -176,7 +176,7 @@ export async function GET(req) {
             await sendEmail({
               to: member.email,
               subject: "Your Daily Match is ready",
-              text: `Hi ${member.name || "there"}, your Daily Match is ready. Explore their profile and say hello within 24 hours.\\n\\nView your match: ${site}/match\\n\\nYou can manage optional email notifications in your account settings.`,
+              text: `Hi ${member.name || "there"}, your Daily Match is ready. Explore their profile and say hello within 24 hours.\n\nView your match: ${site}/match\n\nYou can manage optional email notifications in your account settings.`,
             });
           }
         } catch (emailError) {
