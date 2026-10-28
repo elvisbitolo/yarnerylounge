@@ -36,6 +36,7 @@ const NOTIFICATION_TYPE_TO_PREF = {
   // or chat.
   watch_online: "watch",
   watch_room: "watch",
+  priority_online: "watch",
   recording_ready: "events",
 };
 
@@ -134,7 +135,7 @@ export async function createNotification({
 
   // WhatsApp DM (additive). Only for mentions and DMs.
   try {
-    if (isWhatsAppConfigured() && (type === "mention" || type === "dm")) {
+    if (isWhatsAppConfigured() && (type === "mention" || type === "dm" || type === "priority_online")) {
       const run = async () => {
         try {
           const p = getPrisma();
