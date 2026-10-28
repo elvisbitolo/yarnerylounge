@@ -12,7 +12,6 @@ export default function WhatsAppLink() {
   const [msg, setMsg] = useState(null);
 
   async function load() {
-    setLoading(true);
     try {
       const res = await fetch("/api/settings/social/whatsapp", { cache: "no-store" });
       const json = await res.json();
