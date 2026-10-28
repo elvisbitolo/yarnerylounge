@@ -31,7 +31,7 @@ export async function POST() {
     const result = await sendEmail({
       to: user.email,
       subject: "Secret Yarnery email delivery test",
-      text: `This is a test email for your Secret Yarnery account. If you received it, outbound email delivery is working.\\n\\nOpen your account: ${site}/account`,
+      text: `This is a test email for your Secret Yarnery account. If you received it, outbound email delivery is working.\n\nOpen your account: ${site}/account`,
     });
     if (result?.skipped) {
       return NextResponse.json({ error: "Email delivery was skipped by server configuration" }, { status: 503 });
