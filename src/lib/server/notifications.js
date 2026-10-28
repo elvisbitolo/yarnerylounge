@@ -5,6 +5,7 @@ import { getUserDoc } from "@/lib/server/auth";
 import { sendPushToUser } from "@/lib/server/push";
 import { buildPushPayload } from "@/lib/server/push-core";
 import { notificationRow } from "@/lib/server/notifications-core";
+import { isWhatsAppConfigured, sendWhatsAppText } from "@/lib/server/social/whatsapp";
 
 const NOTIFICATION_TYPE_TO_PREF = {
   comment: "feed",
@@ -130,6 +131,34 @@ export async function createNotification({
   // Mirror the in-app row to the member's devices so members who are not on the
   // site are recalled too. Respects the same type→preference gate above.
   dispatchPush(userId, buildPushPayload({ actorName, text, href }));
+
+  // WhatsApp DM (additive). Only for mentions and DMs.
+  try {
+    if (isWhatsAppConfigured() && (type === "mention" || type === "dm")) {
+      const run = async () => {
+        try {
+          const p = getPrisma();
+          if (!p) return;
+          const link = await p.socialLink.findFirst({ where: { userId, provider: "whatsapp", enabled: true } });
+          if (!link) return;
+          const recent = link?.lastMessageAt && (Date.now() - new Date(link.lastMessageAt).getTime()) < 24 * 60 * 60 * 1000;
+          if (!link.verifiedAt && !recent) return;
+          const to = link.waId || String(link.phoneE164 || "").replace(/^\+/, "");
+          if (!to) return;
+          const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
+          const fullHref = href?.startsWith("http") ? href : `${site}${href || ""}`;
+          const msg = `${text || "You have a new notification"}${fullHref ? `\n${fullHref}` : ""}\n— The Yarnery`;
+          await sendWhatsAppText({ to, body: msg });
+        } catch (e) {
+          logError("notifications.whatsapp_failed", { userId, type, error: e?.message });
+        }
+      };
+      try { after(run); } catch { run(); }
+    }
+  } catch (e) {
+    logError("notifications.whatsapp_dispatch_failed", { userId, type, error: e?.message });
+  }
+
   return true;
 }
 

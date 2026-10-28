@@ -70,6 +70,7 @@ model User {
   foundingMember         Boolean?
   suspended              Boolean?
   recognitionCount       Int?
+  socialLinksAccounts    SocialLink[]
   // Terms of Service consent. Null means "never accepted" — but only for
   // accounts created after the consent regime went live; the migration that
   // added these columns back-filled every pre-existing row, and needsTosConsent()
@@ -1522,4 +1523,26 @@ model StripeEvent {
   processedAt DateTime?
 
   @@index([type])
+}
+
+model SocialLink {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String    // "whatsapp"
+  phoneE164       String
+  waId            String?
+  enabled         Boolean   @default(true)
+  consentAt       DateTime  @default(now())
+  verifiedAt      DateTime?
+  accessToken     String?   @db.Text
+  refreshToken    String?   @db.Text
+  tokenExpiresAt  DateTime?
+  lastMessageAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, provider])
+  @@unique([provider, waId])
+  @@index([phoneE164])
 }
