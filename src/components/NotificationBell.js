@@ -74,6 +74,7 @@ export default function NotificationBell() {
       window.addEventListener("notifications:changed", onChanged);
       navigator.serviceWorker?.addEventListener?.("message", onServiceWorkerMessage);
       load();
+      // Poll conservatively; push and focus/visibility events provide faster updates.
       timer = setInterval(load, 20000);
 
       cleanup = () => {
