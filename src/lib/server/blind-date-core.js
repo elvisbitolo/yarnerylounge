@@ -125,7 +125,7 @@ export function timezoneProximity(a, b, when = Date.now()) {
   return 0.1;
 }
 
-export function computeScore(me, member) {
+export function computeScore(me, member, when = Date.now()) {
   const mine = profilePieces(me);
   const theirs = profilePieces(member);
   const myWords = new Set(mine.split(/\s+/).filter((w) => w.length > 3));
@@ -150,7 +150,7 @@ export function computeScore(me, member) {
   // 3 rather than 4 so an explicit country match stays the strongest single
   // location signal, while two members in different countries who share a
   // timezone still earn meaningful credit.
-  const tz = timezoneProximity(me, member);
+  const tz = timezoneProximity(me, member, when);
   const raw =
     shared +
     hobbyOverlap * 3 +
