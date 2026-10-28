@@ -24,8 +24,6 @@ export default function NotificationPreferences() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [testingEmail, setTestingEmail] = useState(false);
-  const [emailTestMessage, setEmailTestMessage] = useState("");
 
   useEffect(() => {
     fetch("/api/me/notifications/preferences")
@@ -66,24 +64,6 @@ export default function NotificationPreferences() {
     }
   }
 
-  async function sendTestEmail() {
-    setTestingEmail(true);
-    setEmailTestMessage("");
-    setError("");
-    try {
-      const res = await fetch("/api/email/test", { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || "Could not send test email.");
-        return;
-      }
-      setEmailTestMessage(data.message || "Test email accepted. Check your inbox and spam folder.");
-    } catch {
-      setError("Network error while sending the test email.");
-    } finally {
-      setTestingEmail(false);
-    }
-  }
 
   if (!prefs) {
     return <p style={{ fontSize: 13, color: "#9b9bab" }}>Loading preferences...</p>;
@@ -115,10 +95,6 @@ export default function NotificationPreferences() {
       <h3 style={{ marginTop: 28 }}>Email notifications</h3>
       <p className={styles.hint}>Choose which optional emails you receive. Essential account-security emails may still be sent.</p>
       {renderRows(EMAIL_KEYS)}
-      <button type="button" className={styles.manage} onClick={sendTestEmail} disabled={testingEmail} style={{ marginTop: 12 }}>
-        {testingEmail ? "Sending test email..." : "Send test email to me"}
-      </button>
-      {emailTestMessage && <p className={styles.formSaved}>{emailTestMessage}</p>}
       {error && <p className={styles.error}>{error}</p>}
       {saved && <p className={styles.formSaved}>Preferences saved.</p>}
       <button
