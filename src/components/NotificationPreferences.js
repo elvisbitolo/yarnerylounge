@@ -16,7 +16,6 @@ const EMAIL_KEYS = [
   { key: "emailMessages", label: "Messages and mentions", hint: "Email when you receive direct messages or are mentioned in chat" },
   { key: "emailEvents", label: "Events and recordings", hint: "Event reminders and recording-ready emails" },
   { key: "emailMatches", label: "Daily Match", hint: "Email when your new Daily Match is available" },
-  { key: "emailCommunity", label: "Community activity", hint: "Optional email about follows and other community activity" },
   { key: "emailDigest", label: "Weekly community digest", hint: "A weekly roundup of posts and upcoming events" },
 ];
 
