@@ -1,6 +1,5 @@
-// Pure selection + copy for the "we miss you" re-engagement email. Kept free of
-// Prisma/fetch so the timing rules and the message can be unit tested, and so
-// the cron route stays a thin transport wrapper.
+// Pure selection + copy for the "we miss you" re-engagement reminder. Kept
+// free of Prisma/fetch so the timing rules and message can be unit tested.
 
 const DAY = 24 * 60 * 60 * 1000;
 
