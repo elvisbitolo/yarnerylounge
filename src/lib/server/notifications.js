@@ -3,6 +3,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { getUserDoc } from "@/lib/server/auth";
 import { sendPushToUser } from "@/lib/server/push";
+import { sendEmail } from "@/lib/server/email";
 import { buildPushPayload } from "@/lib/server/push-core";
 import { notificationRow } from "@/lib/server/notifications-core";
 import { isWhatsAppConfigured, sendWhatsAppText } from "@/lib/server/social/whatsapp";
@@ -132,6 +133,27 @@ export async function createNotification({
   // Mirror the in-app row to the member's devices so members who are not on the
   // site are recalled too. Respects the same type→preference gate above.
   dispatchPush(userId, buildPushPayload({ actorName, text, href }));
+
+  if (type === "priority_online") {
+    try {
+      const recipient = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, notifications: true },
+      });
+      if (recipient?.email && recipient.notifications !== "off") {
+        const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
+        const url = href?.startsWith("http") ? href : `${site}${href || "/members"}`;
+        await sendEmail({
+          to: recipient.email,
+          subject: `${actorName || "Secret Yarnery"} is now online`,
+          text: `${actorName || "Secret Yarnery"} is now online on Christa's Speakeasy. View profile: ${url}`,
+          html: `<p><strong>${actorName || "Secret Yarnery"}</strong> is now online on Christa's Speakeasy.</p><p><a href="${url}">View profile</a></p><p>You can manage notification preferences in your account.</p>`,
+        });
+      }
+    } catch (err) {
+      logError("notifications.priority_online_email_failed", { userId, error: err?.message });
+    }
+  }
 
   // WhatsApp DM (additive). Only for mentions and DMs.
   try {
