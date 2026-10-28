@@ -34,19 +34,31 @@ export default function PushSetup() {
       "Notification" in window &&
       Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
-    if (!canPush) return;
+    if (!signedIn || !canPush) return;
 
     let cancelled = false;
     navigator.serviceWorker.ready
-      .then((registration) => registration.pushManager.getSubscription())
-      .then((subscription) => {
-        if (!cancelled) setSubscribed(Boolean(subscription));
+      .then(async (registration) => {
+        const subscription = await registration.pushManager.getSubscription();
+        if (cancelled) return;
+        setSubscribed(Boolean(subscription));
+
+        // Existing members may already have a local subscription that is
+        // missing from the server database. Reconcile it automatically.
+        if (subscription && Notification.permission === "granted") {
+          const response = await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subscription: subscription.toJSON() }),
+          });
+          if (!response.ok) throw new Error("Could not sync push subscription.");
+        }
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [signedIn]);
 
   async function enableNotifications() {
     if (busy) return;
@@ -126,6 +138,14 @@ export default function PushSetup() {
     }
   }
 
+  useEffect(() => {
+    const handleEnableRequest = () => {
+      enableNotifications();
+    };
+    window.addEventListener("syw:enable-push", handleEnableRequest);
+    return () => window.removeEventListener("syw:enable-push", handleEnableRequest);
+  });
+
   const supported =
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
@@ -154,7 +174,7 @@ export default function PushSetup() {
     >
       <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Stay in the loop</p>
       <p style={{ margin: "0 0 12px", fontSize: "14px", lineHeight: 1.5, color: "#c9c0c7" }}>
-        Get alerts for messages, replies, live lounges, and community activity.
+        Turn on browser alerts for messages, replies, live lounges, and community activity. Existing members can enable this here too.
       </p>
       {message ? (
         <p role="status" style={{ margin: "0 0 10px", fontSize: "13px", lineHeight: 1.4 }}>
