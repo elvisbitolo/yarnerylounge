@@ -4,54 +4,37 @@ export const PENDING_SECTIONS = [
 ];
 
 export const ADMIN_SECTIONS = [
-  {
-    label: "Overview",
-    items: [
-      { href: "/admin", label: "Dashboard", guard: "owner", basis: "/api/admin/overview -> requireOwner()" },
-      { href: "/admin/content", label: "All content", guard: "moderator", isNew: true, basis: "new unified index" },
-      { href: "/admin/audit", label: "Audit log", guard: "owner", isNew: true, basis: "AuditLog exposes actor ids" },
-    ],
-  },
-  {
-    label: "Community",
-    items: [
-      { href: "/admin/members", label: "Members", guard: "moderator", basis: "/api/admin/members -> requireModerator()" },
-      { href: "/admin/moderation", label: "Moderation", guard: "moderator", basis: "/api/admin/reports -> canModerate()" },
-      { href: "/admin/groups", label: "Groups", guard: "moderator", basis: "UNVERIFIED - see audit note" },
-      { href: "/admin/spaces", label: "Spaces", guard: "moderator", basis: "UNVERIFIED - space CRUD is requireOwner()" },
-    ],
-  },
-  {
-    label: "Editorial",
-    items: [
-      { href: "/admin/announcements", label: "Announcements", guard: "moderator", basis: "/api/admin/announcements -> requireModerator()" },
-      { href: "/admin/articles", label: "Articles", guard: "moderator", isNew: true, basis: "/api/admin/content/article -> moderator policy" },
-      { href: "/admin/collections", label: "Collections", guard: "owner", basis: "/api/admin/collections -> requireOwner()" },
-    ],
-  },
-  {
-    label: "Live",
-    items: [
-      { href: "/admin/rooms", label: "Lounges", guard: "moderator", basis: "UNVERIFIED - /api/rooms POST is requireUser()" },
-      { href: "/admin/events", label: "Events", guard: "moderator", basis: "UNVERIFIED - /api/events POST is requireUser()" },
-    ],
-  },
-  {
-    label: "Learning",
-    items: [
-      { href: "/admin/courses", label: "Courses", guard: "moderator", basis: "UNVERIFIED - /api/courses POST is requireUser()" },
-      { href: "/admin/questions", label: "Questions", guard: "owner", basis: "/api/admin/questions -> requireOwner()" },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { href: "/admin/hosts", label: "Hosts", guard: "moderator", basis: "/api/admin/host-assignments -> requireModerator()" },
-      { href: "/admin/automations", label: "Automations", guard: "owner", basis: "/api/admin/automations -> requireOwner()" },
-      { href: "/admin/analytics", label: "Analytics", guard: "owner", basis: "/api/admin/analytics -> requireOwner()" },
-      { href: "/admin/settings", label: "Settings", guard: "owner", basis: "/api/admin/settings -> requireOwner()" },
-    ],
-  },
+  { label: "Overview", items: [
+    { href: "/admin", label: "Dashboard", guard: "owner", basis: "/api/admin/overview -> requireOwner()" },
+    { href: "/admin/content", label: "All content", guard: "moderator", isNew: true, basis: "new unified index" },
+    { href: "/admin/audit", label: "Audit log", guard: "owner", isNew: true, basis: "AuditLog exposes actor ids" },
+  ] },
+  { label: "Community", items: [
+    { href: "/admin/members", label: "Members", guard: "moderator", basis: "/api/admin/members -> requireModerator()" },
+    { href: "/admin/moderation", label: "Moderation", guard: "moderator", basis: "/api/admin/reports -> canModerate()" },
+    { href: "/admin/groups", label: "Groups", guard: "moderator", basis: "UNVERIFIED - see audit note" },
+    { href: "/admin/spaces", label: "Spaces", guard: "moderator", basis: "UNVERIFIED - space CRUD is requireOwner()" },
+  ] },
+  { label: "Editorial", items: [
+    { href: "/admin/announcements", label: "Announcements", guard: "moderator", basis: "/api/admin/announcements -> requireModerator()" },
+    { href: "/admin/articles", label: "Articles", guard: "moderator", isNew: true, basis: "/api/admin/content/article -> moderator policy" },
+    { href: "/admin/collections", label: "Collections", guard: "owner", basis: "/api/admin/collections -> requireOwner()" },
+  ] },
+  { label: "Live", items: [
+    { href: "/admin/rooms", label: "Lounges", guard: "moderator", basis: "UNVERIFIED - /api/rooms POST is requireUser()" },
+    { href: "/admin/events", label: "Events", guard: "moderator", basis: "UNVERIFIED - /api/events POST is requireUser()" },
+  ] },
+  { label: "Learning", items: [
+    { href: "/admin/courses", label: "Courses", guard: "moderator", basis: "UNVERIFIED - /api/courses POST is requireUser()" },
+    { href: "/admin/questions", label: "Questions", guard: "owner", basis: "/api/admin/questions -> requireOwner()" },
+  ] },
+  { label: "System", items: [
+    { href: "/admin/hosts", label: "Hosts", guard: "moderator", basis: "/api/admin/host-assignments -> requireModerator()" },
+    { href: "/admin/automations", label: "Automations", guard: "owner", basis: "/api/admin/automations -> requireOwner()" },
+    { href: "/admin/re-engagement", label: "Member reactivation", guard: "moderator", isNew: true, basis: "/api/admin/re-engagement/analytics -> canModerate()" },
+    { href: "/admin/analytics", label: "Analytics", guard: "owner", basis: "/api/admin/analytics -> requireOwner()" },
+    { href: "/admin/settings", label: "Settings", guard: "owner", basis: "/api/admin/settings -> requireOwner()" },
+  ] },
 ];
 
 const RANK = { member: 0, moderator: 1, owner: 2 };
