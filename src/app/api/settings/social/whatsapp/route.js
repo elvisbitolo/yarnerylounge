@@ -84,28 +84,23 @@ export async function POST(req) {
       link: { phoneE164: link.phoneE164, enabled: link.enabled, verifiedAt: link.verifiedAt },
     });
   } catch (error) {
-<<<<<<< HEAD
     // Keep database details in server logs, never expose them to the browser.
     console.error("[whatsapp-link] Failed to save SocialLink", {
       name: error instanceof Error ? error.name : "UnknownError",
       code: error && typeof error === "object" && "code" in error ? error.code : undefined,
       message: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json({ error: "Unable to save WhatsApp link. Please try again later." }, { status: 500 });
-=======
-    // try create if upsert fails due to schema
     try {
       const existing = await prisma.socialLink.findFirst({ where: { userId: auth.user.uid, provider: "whatsapp" } });
       if (existing) {
-        const link = await prisma.socialLink.update({ where: { id: existing.id }, data: { phoneE164, enabled: true, lastMessageAt: new Date(), verifiedAt: existing.verifiedAt || new Date() } });
-        return NextResponse.json({ ok: true, link: { phoneE164: link.phoneE164, enabled: link.enabled } });
+        const link = await prisma.socialLink.update({ where: { id: existing.id }, data: { phoneE164, enabled: true, consentAt: new Date(), lastMessageAt: new Date(), verifiedAt: existing.verifiedAt || new Date(), waId: null } });
+        return NextResponse.json({ ok: true, link: { phoneE164: link.phoneE164, enabled: link.enabled, verifiedAt: link.verifiedAt } });
       }
       const link = await prisma.socialLink.create({ data: { userId: auth.user.uid, provider: "whatsapp", phoneE164, enabled: true, consentAt: new Date(), lastMessageAt: new Date(), verifiedAt: new Date() } });
-      return NextResponse.json({ ok: true, link: { phoneE164: link.phoneE164, enabled: link.enabled } });
+      return NextResponse.json({ ok: true, link: { phoneE164: link.phoneE164, enabled: link.enabled, verifiedAt: link.verifiedAt } });
     } catch (e2) {
-      return NextResponse.json({ error: e2?.message || "Failed" }, { status: 500 });
+      return NextResponse.json({ error: "Unable to save WhatsApp link. Please try again later." }, { status: 500 });
     }
->>>>>>> 8f8bf9b (feat: allow immediate whatsapp dm on link (bypass 24h gate for linked enabled))
   }
 }
 
