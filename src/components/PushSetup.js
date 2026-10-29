@@ -47,10 +47,7 @@ export default function PushSetup() {
       "Notification" in window &&
       Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
-    if (!signedIn || !userId || !canPush) {
-      setPromptVisible(false);
-      return;
-    }
+    if (!signedIn || !userId || !canPush) return;
 
     let cancelled = false;
     navigator.serviceWorker.ready
