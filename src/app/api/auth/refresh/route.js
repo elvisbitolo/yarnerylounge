@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { AUTH_COOKIE } from "@/lib/server/auth";
+import { AUTH_COOKIE, getCurrentUserStatus } from "@/lib/server/auth";
 import {
   parseSessionCookie,
   serializeSessionCookie,
@@ -12,6 +12,7 @@ import {
   SESSION_GONE,
   SESSION_OK,
   SESSION_UNAVAILABLE,
+  SESSION_NEEDS_CONSENT,
 } from "@/lib/server/session-store";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
@@ -59,7 +60,30 @@ export async function POST(req) {
   }
 
   if (resolved.status === SESSION_OK) {
-    const res = NextResponse.json({ ok: true, uid: resolved.identity.uid });
+    // A valid Session row alone is not sufficient: getCurrentUserStatus also
+    // enforces account suspension and Terms of Service. Re-issuing the cookie
+    // without these checks can race with /api/me clearing it for a suspended
+    // account, causing /login -> /signing-in -> /dashboard -> /login loops.
+    const current = await getCurrentUserStatus();
+
+    if (current.status === SESSION_UNAVAILABLE) {
+      return NextResponse.json(
+        { error: "session_unavailable" },
+        { status: 503, headers: { "Retry-After": "5" } }
+      );
+    }
+
+    if (current.status === SESSION_NEEDS_CONSENT) {
+      return NextResponse.json({ error: "terms_consent_required" }, { status: 403 });
+    }
+
+    if (current.status !== SESSION_OK || !current.identity) {
+      const res = NextResponse.json({ error: "session_expired" }, { status: 401 });
+      res.cookies.set(AUTH_COOKIE, "", { ...SESSION_COOKIE, maxAge: 0 });
+      return res;
+    }
+
+    const res = NextResponse.json({ ok: true, uid: current.identity.uid });
     res.cookies.set(AUTH_COOKIE, serializeSessionCookie(sid), SESSION_COOKIE);
     return res;
   }
