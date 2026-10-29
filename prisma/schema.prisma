@@ -71,6 +71,7 @@ model User {
   suspended              Boolean?
   recognitionCount       Int?
   socialLinksAccounts    SocialLink[]
+  whatsappMessages       WhatsAppMessage[]
   // Terms of Service consent. Null means "never accepted" — but only for
   // accounts created after the consent regime went live; the migration that
   // added these columns back-filled every pre-existing row, and needsTosConsent()
@@ -1545,4 +1546,28 @@ model SocialLink {
   @@unique([userId, provider])
   @@unique([provider, waId])
   @@index([phoneE164])
+}
+
+
+model WhatsAppMessage {
+  id                String   @id @default(cuid())
+  providerMessageId String?  @unique
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  direction         String   // inbound | outbound
+  fromPhone         String
+  toPhone           String?
+  contactName       String?
+  text              String   @db.Text
+  messageType       String   @default("text")
+  status            String   @default("received")
+  conversationId    String?
+  replyToMessageId  String?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([direction, createdAt])
+  @@index([conversationId])
 }

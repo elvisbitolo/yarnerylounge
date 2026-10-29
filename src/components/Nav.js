@@ -61,6 +61,7 @@ function SearchForm({ className, inputRef }) {
 function getAdministrationLinks(role) {
   if (role === "owner") {
     return [
+      { href: "/admin/whatsapp-inbox", label: "WhatsApp inbox" },
       { href: "/admin/analytics", key: "analytics" },
       { href: "/admin/rooms", key: "manageRooms" },
       { href: "/admin/courses", key: "manageCourses" },
@@ -76,6 +77,7 @@ function getAdministrationLinks(role) {
     return [
       { href: "/admin/hosts", key: "scopedHosts" },
       { href: "/admin/moderation", key: "moderation" },
+      { href: "/admin/whatsapp-inbox", label: "WhatsApp inbox" },
     ];
   }
   return [];
@@ -124,7 +126,7 @@ function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) 
       <div className={isOpen ? `${styles.groupBody} ${styles.groupBodyOpen}` : styles.groupBody}>
         {items && items.map((item) => (
           <Link key={item.href} className={styles.sidebarLink} href={item.href} onClick={close}>
-            {t(item.key)}
+            {item.label || t(item.key)}
           </Link>
         ))}
         {children}
