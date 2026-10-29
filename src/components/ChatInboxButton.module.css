@@ -142,11 +142,20 @@
   width: 38px;
   height: 38px;
   flex: 0 0 auto;
-  border-radius: 12px;
+  overflow: hidden;
+  border-radius: 50%;
   background: linear-gradient(135deg, #e91e63, #7c3aed);
   color: #fff;
   font-size: 15px;
   font-weight: 800;
+}
+
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .itemBody {
