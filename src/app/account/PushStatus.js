@@ -138,6 +138,25 @@ export default function PushStatus() {
     }
   }
 
+  async function sendTestNotification() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/push/test", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        setMessage(data.error || "The test notification could not be delivered.");
+        return;
+      }
+      setMessage("Test push sent. Check your device notification tray.");
+    } catch {
+      setMessage("Could not contact the push test endpoint. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function disableNotifications() {
     if (busy) return;
     setBusy(true);
@@ -203,6 +222,18 @@ export default function PushStatus() {
           </button>
         ) : null}
       </div>
+      {subscribed && !installRequired && !unsupported && (
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className={styles.toggle}
+            onClick={sendTestNotification}
+            disabled={busy}
+          >
+            {busy ? "Please wait…" : "Send test notification"}
+          </button>
+        </div>
+      )}
       {message && (
         <p role="status" aria-live="polite" className={styles.hint} style={{ marginTop: 8 }}>
           {message}
