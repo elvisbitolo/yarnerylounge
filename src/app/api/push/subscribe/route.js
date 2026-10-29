@@ -17,21 +17,33 @@ export async function POST(req) {
   }
 
   const subscription = body?.subscription;
-  if (!subscription?.endpoint || !subscription?.keys) {
-    return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
+  if (
+    !subscription ||
+    typeof subscription.endpoint !== "string" ||
+    !subscription.endpoint.startsWith("https://") ||
+    !subscription.keys ||
+    typeof subscription.keys.p256dh !== "string" ||
+    typeof subscription.keys.auth !== "string"
+  ) {
+    return NextResponse.json({ error: "Invalid push subscription" }, { status: 400 });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ error: "Notifications database unavailable" }, { status: 503 });
   }
 
   try {
-    await getPrisma().pushSubscription.upsert({
+    await prisma.pushSubscription.upsert({
       where: { endpoint: subscription.endpoint },
       create: {
         userId: user.uid,
         endpoint: subscription.endpoint,
-        keys: subscription.keys || {},
+        keys: subscription.keys,
       },
       update: {
         userId: user.uid,
-        keys: subscription.keys || {},
+        keys: subscription.keys,
       },
     });
   } catch (err) {
@@ -42,15 +54,34 @@ export async function POST(req) {
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE() {
+export async function DELETE(req) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
+  let body;
   try {
-    await getPrisma().pushSubscription.deleteMany({
-      where: { userId: user.uid },
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const endpoint = body?.endpoint;
+  if (typeof endpoint !== "string" || !endpoint.startsWith("https://")) {
+    return NextResponse.json({ error: "A valid subscription endpoint is required" }, { status: 400 });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ error: "Notifications database unavailable" }, { status: 503 });
+  }
+
+  try {
+    // Disable only the current device. Other phones/browsers registered to this
+    // member must remain subscribed.
+    await prisma.pushSubscription.deleteMany({
+      where: { userId: user.uid, endpoint },
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
