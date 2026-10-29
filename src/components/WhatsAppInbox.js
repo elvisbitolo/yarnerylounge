@@ -38,9 +38,12 @@ export default function WhatsAppInbox() {
   }, []);
 
   useEffect(() => {
-    load();
-    const refreshTimer = setInterval(load, 15000);
-    return () => clearInterval(refreshTimer);
+    const initialTimer = setTimeout(() => { void load(); }, 0);
+    const refreshTimer = setInterval(() => { void load(); }, 15000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(refreshTimer);
+    };
   }, [load]);
 
   const selected = useMemo(
