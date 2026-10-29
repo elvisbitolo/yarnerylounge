@@ -31,7 +31,23 @@ export default function ClientPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    async function initialLoad() {
+      try {
+        const response = await fetch("/api/admin/re-engagement/analytics", { cache: "no-store" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "Could not load member reactivation analytics.");
+        if (!cancelled) setData(body);
+      } catch (err) {
+        if (!cancelled) setError(err.message || "Could not load member reactivation analytics.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    initialLoad();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <section className={styles.wrap}>
