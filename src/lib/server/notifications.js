@@ -175,8 +175,8 @@ export async function createNotification({
           try { console.log(JSON.stringify({event:"whatsapp_attempt", userId, type, to, enabled: link.enabled, recent: !!recent})); } catch {}
           try { console.log(JSON.stringify({event:"whatsapp_env", hasToken: !!process.env.WHATSAPP_TOKEN, hasPhone: !!process.env.WHATSAPP_PHONE_NUMBER_ID})); } catch {}
           const res = await sendWhatsAppText({ to, body: msg });
-          try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
-          try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
+          const messageId = Array.isArray(res?.messages) ? res.messages[0]?.id || null : null;
+          try { console.log(JSON.stringify({event:"whatsapp_api_accepted", userId, type, messageId})); } catch {}
         } catch (e) {
           try { console.log(JSON.stringify({event:"whatsapp_failed", userId, type, error: e?.message})); } catch {}
           logError("notifications.whatsapp_failed", { userId, type, error: e?.message });
