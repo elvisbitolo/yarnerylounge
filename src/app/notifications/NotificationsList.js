@@ -84,7 +84,16 @@ export default function NotificationsList({ notifications }) {
               onClick={() => !n.read && markRead(n.id)}
             >
               <div className={styles.avatar}>
-                {(n.actorName || "?").slice(0, 1).toUpperCase()}
+                {n.actorPhotoURL ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={n.actorPhotoURL}
+                    alt={`${n.actorName || "Member"} profile`}
+                    loading="lazy"
+                  />
+                ) : (
+                  (n.actorName || "?").slice(0, 1).toUpperCase()
+                )}
               </div>
               <div className={styles.body}>
                 <p className={styles.text}>
