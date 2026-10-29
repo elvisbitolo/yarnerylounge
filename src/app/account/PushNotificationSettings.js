@@ -16,13 +16,9 @@ function getDeviceContext() {
 
 export default function PushNotificationSettings() {
   const [status, setStatus] = useState("checking");
-  const [message, setMessage] = useState("");
-  const [device, setDevice] = useState({ isIOS: false, isStandalone: false });
 
   useEffect(() => {
     const context = getDeviceContext();
-    setDevice(context);
-
     async function checkStatus() {
       if (context.isIOS && !context.isStandalone) {
         setStatus("install-required");
@@ -53,7 +49,6 @@ export default function PushNotificationSettings() {
   }, []);
 
   function openSetup() {
-    setMessage("");
     window.dispatchEvent(new Event("syw:show-push-prompt"));
   }
 
@@ -130,7 +125,7 @@ export default function PushNotificationSettings() {
         </p>
       ) : null}
 
-      {status !== "enabled" && status !== "unsupported" && status !== "install-required" ? (
+      {status !== "enabled" && status !== "unsupported" && status !== "install-required" && status !== "blocked" ? (
         <button
           type="button"
           onClick={openSetup}
@@ -148,11 +143,10 @@ export default function PushNotificationSettings() {
             touchAction: "manipulation",
           }}
         >
-          {status === "blocked" ? "View notification setup" : "Enable browser notifications"}
+          "Enable browser notifications"
         </button>
       ) : null}
 
-      {message ? <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{message}</p> : null}
     </section>
   );
 }
