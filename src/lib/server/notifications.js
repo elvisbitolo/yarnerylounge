@@ -167,6 +167,7 @@ export async function createNotification({
           if (!link) return;
           const to = link.waId || String(link.phoneE164 || "").replace(/^\+/, "").replace(/\D/g, "");
           if (!to) return;
+          try { console.log(JSON.stringify({event:"whatsapp_attempt", userId, type, to, enabled: link.enabled})); } catch {}
           const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
           const fullHref = href?.startsWith("http") ? href : `${site}${href || ""}`;
           const msg = `${text || "You have a new notification"}${fullHref ? `\n${fullHref}` : ""}\n— The Yarnery`;
