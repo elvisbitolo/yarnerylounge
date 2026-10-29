@@ -154,7 +154,7 @@ export default function WhatsAppLink() {
             <span>I agree to receive optional WhatsApp notifications from The Yarnery for mentions and direct messages. I can disable or unlink this at any time.</span>
           </label>
           <div id="whatsapp-help" style={{ fontSize: 12, opacity: 0.65, marginTop: 8 }}>
-            Saving your number does not verify ownership or start messaging. You must message the Yarnery business number first; free-form notifications are sent only during the 24-hour customer-service window.
+            Use E.164 format. You'll get DMs for mentions and direct messages once linked.
           </div>
           <button type="button" onClick={save} disabled={saving || !consent || !phone.trim()} style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#22c55e", color: "#000", border: "none", fontWeight: 600, opacity: saving || !consent || !phone.trim() ? 0.6 : 1 }}>
             {saving ? "Saving…" : "Save WhatsApp number"}

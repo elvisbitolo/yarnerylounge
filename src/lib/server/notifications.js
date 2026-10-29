@@ -166,7 +166,7 @@ export async function createNotification({
           const link = await p.socialLink.findFirst({ where: { userId, provider: "whatsapp", enabled: true } });
           if (!link) return;
           const recent = link?.lastMessageAt && (Date.now() - new Date(link.lastMessageAt).getTime()) < 24 * 60 * 60 * 1000;
-          if (!link.verifiedAt && !recent) return;
+          if (!link.enabled) return;
           const to = link.waId || String(link.phoneE164 || "").replace(/^\+/, "");
           if (!to) return;
           const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
