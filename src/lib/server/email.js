@@ -1,7 +1,7 @@
 import { logError } from "@/lib/server/log";
 
 const BRAND = "Christa's Speakeasy";
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com").replace(/\/$/, "");
+const COMMUNITY_URL = "https://www.christasspeakeasy.com/chat";
 const ACCENT = "#f6077a";
 const INK = "#171717";
 const MUTED = "#777777";
@@ -17,21 +17,35 @@ function escapeHtml(value = "") {
 }
 
 function renderPlainText(text = "") {
-  const escaped = escapeHtml(text);
-  return escaped
+  return escapeHtml(text)
     .split(/\n{2,}/)
     .map((paragraph) => `<p style="margin:0 0 16px;line-height:1.7;color:#333333;font-size:15px;">${paragraph.replace(/\n/g, "<br>")}</p>`)
     .join("");
 }
 
+function normalizeEmailBody(html = "") {
+  const source = String(html).trim();
+  if (!source) return "";
+  // Existing callers may pass a complete HTML document. Extract its body so
+  // we never nest one document inside another email document.
+  const bodyMatch = source.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+  if (bodyMatch) return bodyMatch[1];
+  return source
+    .replace(/<!doctype[^>]*>/ig, "")
+    .replace(/<html\b[^>]*>|<\/html>/ig, "")
+    .replace(/<head\b[^>]*>[\s\S]*?<\/head>/ig, "")
+    .replace(/<meta\b[^>]*>/ig, "")
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/ig, "");
+}
+
 /**
- * Wrap every outgoing message in one consistent, responsive, email-client-safe
- * layout. Inline styles are intentional: Gmail and Outlook strip many CSS rules.
+ * Wrap every outgoing email in a responsive, email-client-safe branded layout.
+ * Inline styles are intentional for compatibility with Gmail and Outlook.
  */
 export function renderBrandedEmail({ subject, text = "", html = "" }) {
   const safeSubject = escapeHtml(subject || BRAND);
   const preheader = escapeHtml(String(text || "").replace(/\s+/g, " ").trim().slice(0, 180));
-  const body = html.trim() || renderPlainText(text);
+  const body = normalizeEmailBody(html) || renderPlainText(text);
   const year = new Date().getFullYear();
 
   return `<!doctype html>
@@ -59,7 +73,7 @@ export function renderBrandedEmail({ subject, text = "", html = "" }) {
         </td></tr>
         <tr><td style="padding:8px 30px 30px;">
           <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-radius:8px;background:${ACCENT};">
-            <a href="${SITE_URL}" style="display:inline-block;padding:13px 20px;border-radius:8px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;">Open the community</a>
+            <a href="${COMMUNITY_URL}" style="display:inline-block;padding:13px 20px;border-radius:8px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;">Open the community chat</a>
           </td></tr></table>
         </td></tr>
         <tr><td style="padding:22px 30px;background:#f8f6f7;border-top:1px solid #eee8eb;">
@@ -68,7 +82,7 @@ export function renderBrandedEmail({ subject, text = "", html = "" }) {
           <p style="margin:14px 0 0;color:#999999;font-size:11px;">© ${year} ${BRAND}</p>
         </td></tr>
       </table>
-      <p style="margin:16px 0 0;color:#999999;font-size:11px;line-height:1.5;text-align:center;">Please don't reply to this automated email.</p>
+      <p style="margin:16px 0 0;color:#999999;font-size:11px;line-height:1.5;text-align:center;">This is an automated notification from ${BRAND}.</p>
     </td></tr>
   </table>
 </body>
