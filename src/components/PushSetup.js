@@ -5,6 +5,17 @@ import { auth, onAuthStateChanged } from "@/lib/auth-client";
 
 const PROMPT_SEEN_PREFIX = "syw-push-opt-in-prompt-seen:";
 
+function requiresHomeScreenInstall() {
+  if (typeof window === "undefined") return false;
+  const isIOS =
+    /iPad|iPhone|iPod/.test(window.navigator.userAgent) ||
+    (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.navigator.standalone === true ||
+    window.matchMedia("(display-mode: standalone)").matches;
+  return isIOS && !isStandalone;
+}
+
 export default function PushSetup() {
   const [signedIn, setSignedIn] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -45,7 +56,8 @@ export default function PushSetup() {
       "serviceWorker" in navigator &&
       "PushManager" in window &&
       "Notification" in window &&
-      Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+      Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) &&
+      !requiresHomeScreenInstall();
 
     if (!signedIn || !userId || !canPush) return;
 
@@ -162,7 +174,8 @@ export default function PushSetup() {
     "serviceWorker" in navigator &&
     "PushManager" in window &&
     "Notification" in window &&
-    Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+    Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) &&
+    !requiresHomeScreenInstall();
 
   if (!signedIn || !supported || !promptVisible || subscribed) return null;
 
