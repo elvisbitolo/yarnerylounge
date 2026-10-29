@@ -32,6 +32,7 @@ export const ADMIN_SECTIONS = [
     { href: "/admin/hosts", label: "Hosts", guard: "moderator", basis: "/api/admin/host-assignments -> requireModerator()" },
     { href: "/admin/automations", label: "Automations", guard: "owner", basis: "/api/admin/automations -> requireOwner()" },
     { href: "/admin/re-engagement", label: "Member reactivation", guard: "moderator", isNew: true, basis: "/api/admin/re-engagement/analytics -> canModerate()" },
+    { href: "/admin/system-health", label: "System health", guard: "owner", isNew: true, basis: "/api/admin/system-health -> requireOwner()" },
     { href: "/admin/analytics", label: "Analytics", guard: "owner", basis: "/api/admin/analytics -> requireOwner()" },
     { href: "/admin/settings", label: "Settings", guard: "owner", basis: "/api/admin/settings -> requireOwner()" },
   ] },
