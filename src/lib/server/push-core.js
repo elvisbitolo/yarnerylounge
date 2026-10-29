@@ -3,23 +3,40 @@
 
 export const DEFAULT_PUSH_TITLE = "Secret Yarnery";
 
+function internalPath(value) {
+  if (
+    typeof value !== "string" ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(value)
+  ) {
+    return "/";
+  }
+
+  try {
+    const parsed = new URL(value, "https://push.invalid");
+    return parsed.origin === "https://push.invalid"
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : "/";
+  } catch {
+    return "/";
+  }
+}
+
 // Build the { title, body, url } the service worker (public/sw.js) expects.
 // The actor's name becomes the title so the notification reads as a person
 // ("Ada" / "sent you a message"); system notifications fall back to the brand.
-// The URL is restricted to same-origin paths so a push can never be used to
-// navigate a member off-site.
+// Notification destinations are normalised to same-origin paths only.
 export function buildPushPayload({ actorName, text, href } = {}) {
   const name = typeof actorName === "string" ? actorName.trim() : "";
   const body = typeof text === "string" ? text.trim() : "";
-  const url = typeof href === "string" && href.startsWith("/") ? href : "/";
-  return { title: name || DEFAULT_PUSH_TITLE, body, url };
+  return { title: name || DEFAULT_PUSH_TITLE, body, url: internalPath(href) };
 }
 
 // Serialise the push body the service worker reads. `badge` is the member's
-// unread count at delivery time: sw.js forwards it to the app-icon badge, so a
-// push shows "1"/"2" on the home-screen icon even while the app is closed.
-// Anything non-numeric, negative or absurd collapses to 0 (no badge) rather
-// than sending a broken count to the OS.
+// unread count at delivery time: sw.js forwards it to the app-icon badge.
+// Anything non-numeric, negative or absurd collapses to 0.
 export function pushMessageJson({ title, body = "", url = "/", badge = 0 } = {}) {
   const parsed = Number(badge);
   const count =
@@ -27,7 +44,7 @@ export function pushMessageJson({ title, body = "", url = "/", badge = 0 } = {})
   return JSON.stringify({
     title: title || DEFAULT_PUSH_TITLE,
     body: body || "",
-    url: url || "/",
+    url: internalPath(url),
     badge: count,
   });
 }
