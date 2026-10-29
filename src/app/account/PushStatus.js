@@ -3,36 +3,67 @@
 import { useEffect, useState } from "react";
 import styles from "./account.module.css";
 
+function supportsPush() {
+  return (
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window
+  );
+}
+
+function isAppleMobile() {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export default function PushStatus() {
-  const [permission, setPermission] = useState(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
-    return Notification.permission;
-  });
+  const [permission, setPermission] = useState(() =>
+    typeof window === "undefined" || !("Notification" in window)
+      ? "unsupported"
+      : Notification.permission
+  );
+  const [supported, setSupported] = useState(false);
+  const [appleMobile, setAppleMobile] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    const handler = () => setPermission(Notification.permission);
-    let status;
-    navigator.permissions?.query({ name: "notifications" })
-      .then((result) => {
-        status = result;
-        status.addEventListener("change", handler);
-        setPermission(Notification.permission);
-      })
-      .catch(() => {});
-    return () => status?.removeEventListener("change", handler);
+    setSupported(supportsPush());
+    setAppleMobile(isAppleMobile());
+    if ("Notification" in window) setPermission(Notification.permission);
+
+    let cancelled = false;
+    async function checkSubscription() {
+      try {
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        const ready = await navigator.serviceWorker.ready;
+        const current = await (ready || registration).pushManager.getSubscription();
+        if (cancelled) return;
+        setSubscribed(Boolean(current));
+      } catch {
+        if (!cancelled) setMessage("We couldn't check this device's notification status. Try enabling notifications again.");
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    }
+
+    checkSubscription();
+    return () => { cancelled = true; };
   }, []);
 
-  async function finishSetup() {
+  async function enablePush() {
     if (busy) return;
     setBusy(true);
     setMessage("");
 
     try {
-      if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-        setMessage("This browser does not support push notifications.");
+      if (!supportsPush()) {
+        setMessage("This browser does not support web push notifications.");
         return;
       }
 
@@ -55,8 +86,8 @@ export default function PushStatus() {
       }
       if (currentPermission !== "granted") {
         setMessage(currentPermission === "denied"
-          ? "Notifications are blocked in your browser settings. Allow them for this site, then try again."
-          : "Browser notification permission was not granted.");
+          ? "Notifications are blocked by your browser. Allow them in this site's browser settings, then try again."
+          : "Notification permission wasn't granted.");
         return;
       }
 
@@ -76,45 +107,87 @@ export default function PushStatus() {
         body: JSON.stringify({ subscription: subscription.toJSON() }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || "The server could not save this device's subscription.");
-      }
+      if (!response.ok) throw new Error(data.error || "The server couldn't save this device.");
 
+      setSubscribed(true);
       setMessage("Push notifications are enabled on this device.");
     } catch (error) {
-      setMessage(error?.message || "Could not finish push notification setup. Please try again.");
+      setMessage(error?.message || "Could not enable push notifications. Please try again.");
+    } finally {
+      setBusy(false);
+      setChecking(false);
+    }
+  }
+
+  async function disablePush() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const registration = await navigator.serviceWorker.getRegistration("/");
+      const subscription = await registration?.pushManager?.getSubscription();
+
+      if (subscription) {
+        const response = await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Could not remove this device from push notifications.");
+        await subscription.unsubscribe();
+      }
+
+      setSubscribed(false);
+      setMessage("Push notifications are turned off on this device. Other registered devices are unchanged.");
+    } catch (error) {
+      setMessage(error?.message || "Could not turn off push notifications. Please try again.");
     } finally {
       setBusy(false);
     }
   }
 
-  const on = permission === "granted";
   const blocked = permission === "denied";
 
   return (
     <div>
       <div className={styles.row} style={{ marginTop: 10 }}>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <span className={styles.label}>Push notifications</span>
           <p className={styles.hint}>
-            {permission === "unsupported"
-              ? "This browser does not support push notifications."
-              : on
-                ? "Browser permission is granted. Finish setup to sync this device with your account."
+            {permission === "unsupported" || !supported
+              ? appleMobile
+                ? "On iPhone or iPad, add this site to your Home Screen and open it there to enable web push."
+                : "This browser doesn't currently support web push notifications."
+              : subscribed
+                ? "This device is registered to receive alerts when you're away from the site."
                 : blocked
-                  ? "Browser notifications are blocked. Allow notifications for this site in your browser settings first."
-                  : "Enable browser alerts for messages and mentions. Your browser will ask for permission."}
+                  ? "Notifications are blocked in your browser settings. Allow them for this site before enabling push."
+                  : "Get browser alerts for messages, mentions, events and other notification types you've enabled."}
           </p>
         </div>
         <button
           type="button"
-          className={styles.toggle}
-          onClick={finishSetup}
-          disabled={busy || blocked || permission === "unsupported"}
+          className={subscribed ? styles.manage : styles.toggle}
+          onClick={subscribed ? disablePush : enablePush}
+          disabled={busy || checking || !supported || (blocked && !subscribed)}
+          aria-pressed={subscribed}
         >
-          {busy ? "Setting up..." : on ? "Finish setup" : blocked ? "Browser blocked" : "Enable"}
+          {busy || checking
+            ? "Please wait…"
+            : subscribed
+              ? "Turn off"
+              : blocked
+                ? "Browser blocked"
+                : "Enable"}
         </button>
       </div>
+      {appleMobile && (
+        <p className={styles.hint} style={{ marginTop: 8 }}>
+          iPhone/iPad: open the Share menu in Safari, choose “Add to Home Screen”, then launch the installed site and enable notifications here.
+        </p>
+      )}
       {message && (
         <p role="status" aria-live="polite" className={styles.hint} style={{ marginTop: 8 }}>
           {message}
