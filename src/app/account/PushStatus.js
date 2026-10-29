@@ -56,10 +56,18 @@ export default function PushStatus() {
   }
 
   useEffect(() => {
-    refreshStatus();
-    const refresh = () => refreshStatus();
+    // Defer the initial browser-state sync until after the effect has committed.
+    const frame = window.requestAnimationFrame(() => {
+      void refreshStatus();
+    });
+    const refresh = () => {
+      void refreshStatus();
+    };
     window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("focus", refresh);
+    };
   }, []);
 
   async function enableNotifications() {
