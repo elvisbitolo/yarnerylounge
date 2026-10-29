@@ -22,9 +22,17 @@ test("buildPushPayload: trims and blanks are safe", () => {
 
 test("buildPushPayload: only same-origin paths are used as the url", () => {
   assert.equal(buildPushPayload({ href: "/match" }).url, "/match");
-  assert.equal(buildPushPayload({ href: "https://evil.example" }).url, "/");
-  assert.equal(buildPushPayload({ href: "javascript:alert(1)" }).url, "/");
-  assert.equal(buildPushPayload({ href: "" }).url, "/");
+  assert.equal(buildPushPayload({ href: "/feed?q=stitch#latest" }).url, "/feed?q=stitch#latest");
+  for (const href of [
+    "https://evil.example",
+    "//evil.example/path",
+    "/\\\\evil.example/path",
+    "javascript:alert(1)",
+    "",
+    "/feed\nLocation: https://evil.example",
+  ]) {
+    assert.equal(buildPushPayload({ href }).url, "/", `expected unsafe href to be rejected: ${JSON.stringify(href)}`);
+  }
 });
 
 // The service worker puts this number on the app icon, so it has to survive the
@@ -37,6 +45,10 @@ test("pushMessageJson: carries the unread count as the icon badge", () => {
 test("pushMessageJson: no unread means no badge", () => {
   assert.equal(JSON.parse(pushMessageJson({ title: "Ada", badge: 0 })).badge, 0);
   assert.equal(JSON.parse(pushMessageJson({ title: "Ada" })).badge, 0);
+});
+
+test("pushMessageJson: unsafe destinations are normalised", () => {
+  assert.equal(JSON.parse(pushMessageJson({ title: "Ada", url: "//evil.example" })).url, "/");
 });
 
 test("pushMessageJson: nonsense counts collapse to zero", () => {

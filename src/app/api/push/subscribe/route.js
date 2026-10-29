@@ -42,16 +42,26 @@ export async function POST(req) {
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE() {
+export async function DELETE(req) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
+  const body = await req.json().catch(() => ({}));
+  const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
+
   try {
-    await getPrisma().pushSubscription.deleteMany({
-      where: { userId: user.uid },
-    });
+    const prisma = getPrisma();
+    if (endpoint) {
+      // Only remove this browser/device; other registered devices stay enabled.
+      await prisma.pushSubscription.deleteMany({
+        where: { userId: user.uid, endpoint },
+      });
+    } else {
+      // Backwards-compatible behaviour for older clients that request account-wide removal.
+      await prisma.pushSubscription.deleteMany({ where: { userId: user.uid } });
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     logError("push.unsubscribe_prisma_failed", { error: err.message, uid: user.uid });

@@ -224,7 +224,7 @@ export default async function MembershipPage() {
         <p className={styles.foot}>
           Membership purchases are completed securely on the Secret Yarnery storefront and
           applied to your account through the Shopify order integration. Lounge availability
-          can still depend on a room's schedule and participant limit. Moving In annual
+          can still depend on a room&apos;s schedule and participant limit. Moving In annual
           checkout opens the storefront membership page so you can select the annual option.
         </p>
       </div>
