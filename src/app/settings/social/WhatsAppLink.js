@@ -129,7 +129,7 @@ export default function WhatsAppLink() {
         <div>
           <div style={{ fontSize: 13, opacity: 0.85 }}>Saved number: {link.phoneE164}</div>
           <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
-            {link.verifiedAt ? "WhatsApp number verified." : "Number not independently verified. Message the Yarnery business number first to open the 24-hour reply window."}
+            DMs enabled for mentions and direct messages.
           </div>
           <button type="button" onClick={unlink} disabled={busy} style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "inherit" }}>
             Unlink WhatsApp
