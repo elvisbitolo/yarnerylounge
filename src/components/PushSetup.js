@@ -145,9 +145,17 @@ export default function PushSetup() {
     const handleEnableRequest = () => {
       enableNotifications();
     };
+    const handleShowPrompt = () => {
+      setMessage("");
+      setPromptVisible(true);
+    };
     window.addEventListener("syw:enable-push", handleEnableRequest);
-    return () => window.removeEventListener("syw:enable-push", handleEnableRequest);
-  });
+    window.addEventListener("syw:show-push-prompt", handleShowPrompt);
+    return () => {
+      window.removeEventListener("syw:enable-push", handleEnableRequest);
+      window.removeEventListener("syw:show-push-prompt", handleShowPrompt);
+    };
+  }, []);
 
   const supported =
     typeof window !== "undefined" &&
