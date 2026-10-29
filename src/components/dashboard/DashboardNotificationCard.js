@@ -5,7 +5,6 @@ import styles from "./dashboard.module.css";
 
 export default function DashboardNotificationCard() {
   const [status, setStatus] = useState("checking");
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -82,9 +81,9 @@ export default function DashboardNotificationCard() {
           type="button"
           className={styles.notificationButton}
           onClick={openSetup}
-          disabled={busy || status === "blocked"}
+          disabled={status === "blocked"}
         >
-          {busy ? "Opening setup…" : status === "blocked" ? "Blocked in browser" : "Enable notifications"}
+          {status === "blocked" ? "Blocked in browser" : "Enable notifications"}
         </button>
         <a className={styles.notificationLink} href="/account/profile">
           Notification settings
