@@ -158,16 +158,14 @@ export async function createNotification({
 
   // WhatsApp DM (additive). Only for mentions and DMs.
   try {
-    if (isWhatsAppConfigured() && (type === "mention" || type === "dm")) {
+    if ((isWhatsAppConfigured() || (process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)) && (type === "mention" || type === "dm")) {
       const run = async () => {
         try {
           const p = getPrisma();
           if (!p) return;
           const link = await p.socialLink.findFirst({ where: { userId, provider: "whatsapp", enabled: true } });
           if (!link) return;
-          const recent = link?.lastMessageAt && (Date.now() - new Date(link.lastMessageAt).getTime()) < 24 * 60 * 60 * 1000;
-          if (!link.enabled) return;
-          const to = link.waId || String(link.phoneE164 || "").replace(/^\+/, "");
+          const to = link.waId || String(link.phoneE164 || "").replace(/^\+/, "").replace(/\D/g, "");
           if (!to) return;
           const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
           const fullHref = href?.startsWith("http") ? href : `${site}${href || ""}`;
