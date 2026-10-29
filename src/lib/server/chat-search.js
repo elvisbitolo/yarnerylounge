@@ -34,7 +34,7 @@ export async function searchChatHistory(uid, query) {
     const ids = conversations.map((c) => c.id);
     if (!ids.length) return [];
 
-    const rows = await prisma.message.findMany({
+    const rows = await prisma.conversationMessage.findMany({
       where: { conversationId: { in: ids } },
       select: { id: true, conversationId: true, senderId: true, text: true, createdAt: true },
       orderBy: { createdAt: "desc" },
