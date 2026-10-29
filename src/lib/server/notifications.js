@@ -171,6 +171,7 @@ export async function createNotification({
           const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
           const fullHref = href?.startsWith("http") ? href : `${site}${href || ""}`;
           const msg = `${text || "You have a new notification"}${fullHref ? `\n${fullHref}` : ""}\n— The Yarnery`;
+          try { console.log(JSON.stringify({event:"whatsapp_env", hasToken: !!process.env.WHATSAPP_TOKEN, hasPhone: !!process.env.WHATSAPP_PHONE_NUMBER_ID})); } catch {}
           const res = await sendWhatsAppText({ to, body: msg });
           try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
         } catch (e) {
