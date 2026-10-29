@@ -68,7 +68,7 @@ export default function WhatsAppInbox() {
 
   async function startConversation(event) {
     event.preventDefault();
-    const value = phoneDraft.trim().replace(/[\\s().-]/g, "");
+    const value = phoneDraft.trim().replace(/[\s().-]/g, "");
     if (!value) return;
     setError("");
     setNotice("");
