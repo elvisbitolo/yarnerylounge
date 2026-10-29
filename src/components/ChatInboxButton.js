@@ -141,7 +141,14 @@ export default function ChatInboxButton() {
                 const title = conversation?.title || conversation?.name || "Member";
                 return (
                 <Link key={conversation.id} href={`/chat/${conversation.id}`} className={styles.item} onClick={() => setOpen(false)}>
-                  <span className={styles.avatar}>{title.slice(0, 1).toUpperCase()}</span>
+                  <span className={styles.avatar}>
+                    {conversation.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={conversation.photoURL} alt="" loading="lazy" />
+                    ) : (
+                      title.slice(0, 1).toUpperCase()
+                    )}
+                  </span>
                   <span className={styles.itemBody}>
                     <span className={styles.itemTop}>
                       <strong>{title}</strong>
