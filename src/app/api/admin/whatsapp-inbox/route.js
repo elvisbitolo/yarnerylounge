@@ -16,9 +16,9 @@ async function requireWhatsAppAdmin() {
 }
 
 function cleanPhone(value) {
-  let phone = String(value || "").trim().replace(/[\\s().-]/g, "");
-  if (!phone.startsWith("+") && /^\\d{8,15}$/.test(phone)) phone = `+${phone}`;
-  return /^\\+[1-9]\\d{7,14}$/.test(phone) ? phone : "";
+  let phone = String(value || "").trim().replace(/[\s().-]/g, "");
+  if (!phone.startsWith("+") && /^\d{8,15}$/.test(phone)) phone = `+${phone}`;
+  return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : "";
 }
 
 export async function GET() {
@@ -89,11 +89,11 @@ export async function POST(req) {
   if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   try {
     const link = await prisma.socialLink.findFirst({
-      where: { provider: "whatsapp", OR: [{ phoneE164 }, { waId: phoneE164.replace(/^\\+/, "") }] },
+      where: { provider: "whatsapp", OR: [{ phoneE164 }, { waId: phoneE164.replace(/^\+/, "") }] },
       select: { userId: true, phoneE164: true },
     });
     const result = await sendWhatsAppText({
-      to: phoneE164.replace(/^\\+/, ""),
+      to: phoneE164.replace(/^\+/, ""),
       body: text,
     });
     const providerMessageId = result?.messages?.[0]?.id || null;
