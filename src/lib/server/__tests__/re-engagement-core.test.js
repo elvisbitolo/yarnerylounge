@@ -56,7 +56,7 @@ test("select: the automations toggle opts a member out", () => {
 });
 
 test("select: the legacy weeklyDigest flag opts a member out", () => {
-  const rows = [user({ extra: { lastActiveAt: new Date(NOW - 20 * DAY).toISOString(), emailPreferences: { weeklyDigest: false } })];
+  const rows = [user({ extra: { lastActiveAt: new Date(NOW - 20 * DAY).toISOString(), emailPreferences: { weeklyDigest: false } } })];
   assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 0);
 });
 
