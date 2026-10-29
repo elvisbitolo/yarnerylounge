@@ -78,10 +78,10 @@ export function ReturnVisitCard({ streak = 0, points = 0 }) {
           <p className={styles.itemBody}>community points</p>
         </div>
       </div>
-      <p className={styles.itemMeta} style={{ marginTop: 12 }}>
+      <p className={styles.streakPrompt}>
         Join a discussion, connect with a member, or check upcoming events today.
       </p>
-      <Link className={styles.spotCta} href="/feed" style={{ marginTop: 12 }}>
+      <Link className={styles.streakCta} href="/feed">
         Visit the feed
       </Link>
     </Card>
