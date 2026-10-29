@@ -60,6 +60,7 @@ export async function GET() {
           direction: row.direction,
           text: row.text,
           status: row.status,
+          metadata: row.metadata,
           messageType: row.messageType,
           createdAt: row.createdAt,
           conversationId: row.conversationId,
