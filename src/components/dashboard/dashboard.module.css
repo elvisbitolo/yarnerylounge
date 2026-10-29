@@ -1262,3 +1262,34 @@
     min-height: 48px;
   }
 }
+
+
+/* Keep the community-streak prompt and CTA readable on narrow screens. */
+.streakPrompt {
+  margin: 12px 0 0;
+  color: var(--card-muted, var(--dash-muted, #8a7c6f));
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  min-width: 0;
+}
+
+.streakCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .streakCta {
+    display: flex;
+    width: 100%;
+  }
+}
