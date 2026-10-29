@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AccountTabs from "../AccountTabs";
 import ProfileEditor from "../ProfileEditor";
+import PushNotificationSettings from "../PushNotificationSettings";
 import styles from "../account.module.css";
 import { loadAccount } from "../account-data";
 import { QUIZ_QUESTIONS } from "@/lib/profile/questions";
@@ -50,6 +51,7 @@ export default async function AccountProfilePage() {
         </header>
         <AccountTabs />
         <ProfileEditor initial={initialProfile} memberId={user.uid} />
+        <PushNotificationSettings />
       </div>
   );
 }
