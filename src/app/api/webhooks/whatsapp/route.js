@@ -18,8 +18,8 @@ function isValidSignature(rawBody, signature) {
 }
 
 function normalizePhone(value) {
-  const digits = String(value || "").replace(/\\D/g, "");
-  return /^\\d{8,15}$/.test(digits) ? digits : "";
+  const digits = String(value || "").replace(/\D/g, "");
+  return /^\d{8,15}$/.test(digits) ? digits : "";
 }
 
 function messageText(message) {
