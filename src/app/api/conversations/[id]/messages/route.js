@@ -279,6 +279,7 @@ export async function POST(req, { params }) {
         if (!globalOff && shouldNotifyChatRecipient({ muted, mentioned })) {
           // createNotification() applies the granular "chat" preference to the
           // in-app row and the push; the global opt-out is applied here.
+          try { console.log(JSON.stringify({event:"chat_notify_create", to: other.id, type: notifyType})); } catch {}
           await createNotification({
             userId: other.id,
             type: notifyType,
