@@ -63,10 +63,17 @@ export default function PushNotificationSettings() {
     unsupported: "Not supported in this browser",
   };
 
+  const descriptionStyle = {
+    margin: "0 0 14px",
+    color: "#17171c",
+    fontSize: 13,
+    lineHeight: 1.6,
+  };
+
   return (
     <section className={styles.card} aria-labelledby="push-settings-title">
       <h2 className={styles.cardTitle} id="push-settings-title">Browser notifications</h2>
-      <p style={{ margin: "0 0 16px", color: "var(--muted, #6b6b7b)", fontSize: 14, lineHeight: 1.6 }}>
+      <p style={{ ...descriptionStyle, marginBottom: 16 }}>
         Get alerts for messages, replies, live lounges, and community activity. This setting applies to the current browser or device.
       </p>
 
@@ -83,7 +90,7 @@ export default function PushNotificationSettings() {
           marginBottom: 14,
         }}
       >
-        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground, #17171c)" }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#17171c" }}>
           Device status
         </span>
         <span
@@ -94,7 +101,7 @@ export default function PushNotificationSettings() {
             padding: "5px 10px",
             borderRadius: 999,
             background: status === "enabled" ? "#e8f8ee" : "#fce7f3",
-            color: status === "enabled" ? "#166534" : "#9d174d",
+            color: "#17171c",
             fontSize: 12,
             fontWeight: 700,
           }}
@@ -104,25 +111,25 @@ export default function PushNotificationSettings() {
       </div>
 
       {status === "blocked" ? (
-        <p style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.6 }}>
+        <p style={descriptionStyle}>
           Notifications were blocked previously. Open this site’s permissions in your browser settings, allow notifications, then return here.
         </p>
       ) : null}
 
       {status === "install-required" ? (
-        <p style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.6 }}>
+        <p style={descriptionStyle}>
           On iPhone or iPad, open this page in Safari, tap Share, choose Add to Home Screen, then open Secret Yarnery from its new Home Screen icon. Return here to enable notifications. Web push on Apple mobile devices requires iOS/iPadOS 16.4 or later.
         </p>
       ) : null}
 
       {status === "unsupported" ? (
-        <p style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.6 }}>
+        <p style={descriptionStyle}>
           This browser or device does not expose the features required for browser notifications. Try a supported, up-to-date browser.
         </p>
       ) : null}
 
       {status === "enabled" ? (
-        <p style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.6 }}>
+        <p style={descriptionStyle}>
           Browser notifications are enabled here. You can manage delivery permissions in your browser or device settings.
         </p>
       ) : null}
