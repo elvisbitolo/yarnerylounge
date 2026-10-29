@@ -167,10 +167,12 @@ export async function createNotification({
           if (!link) return;
           const to = link.waId || String(link.phoneE164 || "").replace(/^\+/, "").replace(/\D/g, "");
           if (!to) return;
-          try { console.log(JSON.stringify({event:"whatsapp_attempt", userId, type, to, enabled: link.enabled})); } catch {}
           const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
           const fullHref = href?.startsWith("http") ? href : `${site}${href || ""}`;
           const msg = `${text || "You have a new notification"}${fullHref ? `\n${fullHref}` : ""}\n— The Yarnery`;
+          const recent = link?.lastMessageAt && (Date.now() - new Date(link.lastMessageAt).getTime()) < 24 * 60 * 60 * 1000;
+          if (!recent && !link.verifiedAt) { try { console.log(JSON.stringify({event:"whatsapp_skipped_window", userId, type})); } catch {} return; }
+          try { console.log(JSON.stringify({event:"whatsapp_attempt", userId, type, to, enabled: link.enabled, recent: !!recent})); } catch {}
           try { console.log(JSON.stringify({event:"whatsapp_env", hasToken: !!process.env.WHATSAPP_TOKEN, hasPhone: !!process.env.WHATSAPP_PHONE_NUMBER_ID})); } catch {}
           const res = await sendWhatsAppText({ to, body: msg });
           try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
