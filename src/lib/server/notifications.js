@@ -171,10 +171,27 @@ export async function createNotification({
           const fullHref = href?.startsWith("http") ? href : `${site}${href || ""}`;
           const msg = `${text || "You have a new notification"}${fullHref ? `\n${fullHref}` : ""}\n— The Yarnery`;
           const recent = link?.lastMessageAt && (Date.now() - new Date(link.lastMessageAt).getTime()) < 24 * 60 * 60 * 1000;
-          if (!recent && !link.verifiedAt) { try { console.log(JSON.stringify({event:"whatsapp_skipped_window", userId, type})); } catch {} return; }
           try { console.log(JSON.stringify({event:"whatsapp_attempt", userId, type, to, enabled: link.enabled, recent: !!recent})); } catch {}
           try { console.log(JSON.stringify({event:"whatsapp_env", hasToken: !!process.env.WHATSAPP_TOKEN, hasPhone: !!process.env.WHATSAPP_PHONE_NUMBER_ID})); } catch {}
-          const res = await sendWhatsAppText({ to, body: msg });
+          try {
+            if (recent || link.verifiedAt) {
+              const res = await sendWhatsAppText({ to, body: msg });
+              try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
+            } else {
+              const { sendWhatsAppTemplate } = await import("@/lib/server/social/whatsapp");
+              try {
+                await sendWhatsAppTemplate({ to, name: "hello_world", languageCode: "en_US" });
+                try { console.log(JSON.stringify({event:"whatsapp_sent_template", userId, type, to})); } catch {}
+              } catch (te) {
+                try { console.log(JSON.stringify({event:"whatsapp_skipped_window", userId, type, err: te?.message})); } catch {}
+                return;
+              }
+            }
+          } catch (e) {
+            try { console.log(JSON.stringify({event:"whatsapp_failed", userId, type, error: e?.message})); } catch {}
+            logError("notifications.whatsapp_failed", { userId, type, error: e?.message });
+            return;
+          }
           try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
         } catch (e) {
           try { console.log(JSON.stringify({event:"whatsapp_failed", userId, type, error: e?.message})); } catch {}
