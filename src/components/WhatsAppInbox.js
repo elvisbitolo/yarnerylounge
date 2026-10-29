@@ -29,9 +29,7 @@ export default function WhatsAppInbox() {
       if (!response.ok) throw new Error(json?.error || "Could not load WhatsApp messages.");
       const items = Array.isArray(json.contacts) ? json.contacts : [];
       setContacts(items);
-      setSelectedPhone((current) => current && items.some((item) => item.phone === current)
-        ? current
-        : (items[0]?.phone || current));
+      setSelectedPhone((current) => current || items[0]?.phone || "");
     } catch (err) {
       setError(err?.message || "Could not load WhatsApp messages.");
     } finally {
