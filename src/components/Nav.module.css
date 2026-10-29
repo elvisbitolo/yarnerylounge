@@ -1018,3 +1018,39 @@
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 }
+
+
+/* ===== Notification bell dropdown ===== */
+.notificationWrap { position: relative; display: inline-flex; align-items: center; }
+.bell { border: 0; background: transparent; cursor: pointer; }
+.notificationPopover { position: absolute; top: calc(100% + 10px); right: -8px; z-index: 100; width: min(390px, calc(100vw - 24px)); overflow: hidden; border: 1px solid #332b31; border-radius: 18px; background: #111011; color: #f5f4f2; box-shadow: 0 18px 54px rgba(0,0,0,.58); }
+.notificationPopoverHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 17px 18px 14px; border-bottom: 1px solid #292329; }
+.notificationPopoverHeader h2 { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -.02em; }
+.notificationPopoverHeader p { margin: 4px 0 0; color: #a99fa6; font-size: 12px; }
+.notificationClose { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 1px solid #342b32; border-radius: 50%; background: #1b181b; color: #cfc5cc; cursor: pointer; }
+.notificationClose:hover { color: #fff; border-color: #f6077a; }
+.notificationPreviewList { max-height: min(440px, 62vh); overflow-y: auto; overscroll-behavior: contain; }
+.notificationPreviewItem, .notificationPreviewRead { display: flex; align-items: flex-start; gap: 11px; padding: 13px 16px; border-bottom: 1px solid #211d21; }
+.notificationPreviewItem { background: #1d171d; }
+.notificationPreviewItem:hover, .notificationPreviewRead:hover { background: #241b23; }
+.notificationPreviewRead { background: #111011; }
+.notificationPreviewIcon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; background: #321426; color: #fa81cd; }
+.notificationPreviewBody { flex: 1; min-width: 0; }
+.notificationPreviewBody p { margin: 0; color: #e9e1e7; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.notificationPreviewBody p strong { color: #fff; font-weight: 750; }
+.notificationPreviewBody > span { display: block; margin-top: 5px; color: #a59ba2; font-size: 11px; }
+.notificationPreviewBody a { display: inline-flex; align-items: center; gap: 2px; margin-top: 7px; color: #fa81cd; font-size: 11px; font-weight: 750; text-decoration: none; }
+.notificationPreviewBody a:hover { color: #fff; }
+.notificationPreviewDot { width: 7px; height: 7px; flex: 0 0 7px; margin-top: 6px; border-radius: 50%; background: #f6077a; }
+.notificationPopoverState { margin: 0; padding: 25px 18px; color: #b8afb5; font-size: 13px; line-height: 1.6; text-align: center; }
+.notificationPopoverEmpty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 22px; color: #a99fa6; text-align: center; }
+.notificationPopoverEmpty svg { color: #fa81cd; }
+.notificationPopoverEmpty strong { color: #f5f1f4; font-size: 13px; }
+.notificationPopoverEmpty span { max-width: 250px; font-size: 12px; line-height: 1.6; }
+.notificationPopoverFooter { display: flex; flex-direction: column; gap: 2px; padding: 9px; border-top: 1px solid #292329; background: #151315; }
+.notificationPopoverFooter a, .notificationPopoverFooter button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: #fa81cd; font: inherit; font-size: 12px; font-weight: 750; text-decoration: none; cursor: pointer; }
+.notificationPopoverFooter a:hover, .notificationPopoverFooter button:hover { background: #2b1b27; color: #fff; }
+.notificationClose:focus-visible, .notificationPopoverFooter a:focus-visible, .notificationPopoverFooter button:focus-visible { outline: 2px solid #fa81cd; outline-offset: 2px; }
+@media (max-width: 480px) {
+  .notificationPopover { position: fixed; top: calc(var(--topbar-h, 48px) + 6px); left: 8px; right: 8px; width: auto; max-height: calc(100dvh - var(--topbar-h, 48px) - 24px); }
+}

@@ -246,3 +246,27 @@
     transition: none;
   }
 }
+
+
+/* Notification center refinements */
+.notificationCenter { display: flex; flex-direction: column; gap: 16px; }
+.notificationToolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.filterTabs { display: flex; align-items: center; gap: 6px; padding: 4px; border: 1px solid #30282e; border-radius: 999px; background: #151315; }
+.filterTab, .filterTabActive { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px; border: 0; border-radius: 999px; background: transparent; color: #b9afb6; font: inherit; font-size: .8125rem; font-weight: 650; cursor: pointer; }
+.filterTab span, .filterTabActive span { font-size: .7rem; opacity: .78; }
+.filterTab:hover { color: #fff; background: #211a20; }
+.filterTabActive { background: #f6077a; color: #fff; box-shadow: 0 3px 12px rgb(246 7 122 / 18%); }
+.errorMessage { margin: 0; padding: 12px 14px; border: 1px solid #6d2e48; border-radius: 12px; color: #ffc3dd; background: #28131e; font-size: .875rem; }
+.empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 44px 24px; border: 1px dashed #3b3439; border-radius: 18px; background: #171617; color: #b0aaa9; font-size: .9rem; line-height: 1.65; text-align: center; }
+.empty strong { color: #f5f1f4; font-size: 1rem; }
+.emptyIcon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 2px; border-radius: 50%; background: #321426; color: #fa81cd; }
+.resetFilter { margin-top: 5px; padding: 8px 12px; border: 1px solid #553047; border-radius: 999px; background: #211820; color: #fa81cd; font: inherit; font-size: .8125rem; font-weight: 700; cursor: pointer; }
+.resetFilter:hover { border-color: #f6077a; color: #fff; }
+.filterTab:focus-visible, .filterTabActive:focus-visible, .resetFilter:focus-visible { outline: 2px solid #fa81cd; outline-offset: 3px; }
+.avatar svg { color: #fa81cd; }
+@media (max-width: 560px) {
+  .notificationToolbar { align-items: stretch; }
+  .filterTabs { width: 100%; justify-content: space-between; }
+  .filterTab, .filterTabActive { flex: 1; justify-content: center; padding: 0 8px; }
+  .markAll { align-self: flex-start; margin-bottom: 0; }
+}
