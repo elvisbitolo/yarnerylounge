@@ -18,6 +18,7 @@ import {
   NeedsAttention,
 } from "./Sections";
 import EventsSpotlight from "./EventsSpotlight";
+import DashboardNotificationCard from "./DashboardNotificationCard";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -223,6 +224,7 @@ export default function DashboardShell() {
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} />
         </div>
+        <DashboardNotificationCard />
         <div className={styles.grid}>
           <div className={styles.col}>
             <CommunityNextSteps />
