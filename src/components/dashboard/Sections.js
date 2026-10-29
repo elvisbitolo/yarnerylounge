@@ -81,7 +81,7 @@ export function ReturnVisitCard({ streak = 0, points = 0 }) {
       <p className={styles.streakPrompt}>
         Join a discussion, connect with a member, or check upcoming events today.
       </p>
-      <Link className={styles.streakCta} href="/feed">
+      <Link className={`${styles.spotCta} ${styles.streakCta}`} href="/feed">
         Visit the feed
       </Link>
     </Card>
