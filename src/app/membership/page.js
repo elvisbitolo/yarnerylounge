@@ -4,21 +4,36 @@ import { getCapabilities, CAPABILITIES } from "@/lib/server/capabilities";
 import { getSubscription } from "@/lib/server/subscription";
 import { subscriptionStatus } from "@/lib/server/billing";
 import { isOpenAccess } from "@/lib/server/access-policy";
-import { SHOPIFY_UPGRADE_URL } from "@/lib/server/shopify";
 import TierIcon from "@/components/TierIcon";
 import styles from "./membership.module.css";
 
-// This page used to be a bare redirect to the Shopify storefront, so it showed
-// the same thing to everybody regardless of what they were already paying for.
-// It now reads the member's own plan.
-//
-// The tier shown here comes from getCapabilities, the same call the Jitsi token
-// route uses to enforce the paywall. Reading the plan from anywhere else (the
-// user row, a query, a prop) is how a page ends up disagreeing with what the
-// app actually lets someone do.
 export const dynamic = "force-dynamic";
 
 const SHOP_TIERS = ["flirting", "hooking-up", "moving-in"];
+
+const TIER_PRODUCTS = {
+  flirting: {
+    monthly: "https://secretyarnery.com/products/flirting-free",
+    monthlyLabel: "Join free",
+    price: "Free",
+  },
+  "hooking-up": {
+    monthly: "https://secretyarnery.com/products/hooking-up",
+    annual: "https://secretyarnery.com/products/hooking-up-annual",
+    monthlyLabel: "Monthly — $7.95",
+    annualLabel: "Annual — $79.50",
+    price: "$7.95/month or $79.50/year",
+  },
+  "moving-in": {
+    monthly: "https://secretyarnery.com/products/moving-in-monthly",
+    // The annual product URL is intentionally not guessed. The storefront page
+    // offers the available product options and remains the safe fallback.
+    annual: "https://secretyarnery.com/pages/speakeasy",
+    monthlyLabel: "Monthly — $17.95",
+    annualLabel: "Annual — $179.50",
+    price: "$17.95/month or $179.50/year",
+  },
+};
 
 const STATUS_TEXT = {
   none: "Free tier",
@@ -37,29 +52,36 @@ function tierEntry(tierKey) {
   return { tierKey, caps: CAPABILITIES[capsKey] };
 }
 
-// Everything shown per tier is read off the capability matrix rather than
-// written out here, so this page cannot advertise something the paywall does
-// not actually grant.
-function featureRows(caps) {
-  return [
-    { label: "24/7 video lounges", on: caps.video.canJoin },
-    { label: "Go live with camera and mic", on: caps.video.canPublish },
-    { label: "Chat", on: caps.chat.read, note: caps.chat.write ? "read & write" : "read only" },
-    {
-      label: "Daily Match",
-      on: caps.matchmaker,
-      note: caps.key === "moving-in" ? "priority matches" : undefined,
-    },
-    { label: "Host a room", on: caps.hosting },
-    {
-      label: caps.neighborhoods.build
-        ? "Create and join groups"
-        : caps.neighborhoods.join
-          ? "Join groups"
-          : "Groups",
-      on: caps.neighborhoods.join,
-    },
+// Base community features are shared across all three tiers. Capability-backed
+// items use the same matrix as the server-side paywall, avoiding a sales page
+// that promises a video/chat/hosting entitlement the app does not grant.
+function featureRows(tierKey, caps) {
+  const base = [
+    { label: "Front Parlor community access", on: true },
+    { label: "Create your Hooking Up profile", on: true },
+    { label: "Calendar and community events", on: true },
+    { label: "Share pictures of your yarn creations", on: true },
   ];
+
+  const paid = [
+    {
+      label: "24/7 live video lounges",
+      on: caps.video.canJoin,
+      note: caps.video.canJoin ? "member access; room capacity and schedules still apply" : undefined,
+    },
+    { label: "Live video with camera and microphone", on: caps.video.canPublish },
+    { label: "Lounge text chat", on: caps.chat.read, note: caps.chat.write ? "read and send messages" : "read only" },
+    { label: "Daily Match", on: caps.matchmaker },
+    { label: "Join crochet circles and community groups", on: caps.neighborhoods.join },
+  ];
+
+  const host = [
+    { label: "Host your own public or private live rooms", on: caps.hosting },
+    { label: "Create and launch crochet circles / subgroups", on: caps.neighborhoods.build },
+    { label: "Exclusive Diamond profile badge", on: tierKey === "moving-in" },
+  ];
+
+  return [...base, ...paid, ...host];
 }
 
 function formatDate(value) {
@@ -69,25 +91,45 @@ function formatDate(value) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
+function ProductLinks({ tierKey, compact = false }) {
+  const product = TIER_PRODUCTS[tierKey];
+  const links = [
+    { key: "monthly", href: product.monthly, label: product.monthlyLabel },
+    ...(product.annual ? [{ key: "annual", href: product.annual, label: product.annualLabel }] : []),
+  ];
+
+  return (
+    <div className={compact ? styles.productLinksCompact : styles.productLinks}>
+      {links.map((link) => (
+        <a
+          key={link.key}
+          className={styles.cta}
+          href={link.href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {link.label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export default async function MembershipPage() {
   const user = await getCurrentUser();
   const openAccess = isOpenAccess();
-
-  // The enforced tier for this member, or null when signed out.
   const caps = user ? await getCapabilities(user.uid) : null;
   const sub = user ? await getSubscription(user.uid) : null;
   const currentTier = caps?.key || null;
   const currentIndex = currentTier ? SHOP_TIERS.indexOf(currentTier) : -1;
-  const onTopTier = currentIndex === SHOP_TIERS.length - 1;
 
   return (
     <main className={styles.wrap}>
       <div className={styles.inner}>
-        <h1 className={styles.title}>Membership</h1>
+        <h1 className={styles.title}>Find your place in the Speakeasy</h1>
         <p className={styles.subtitle}>
-          {user
-            ? "Your current plan, and what each tier includes."
-            : "Sign in to see your current plan, or pick a tier below."}
+          Three ways to belong: explore the Front Parlor for free, join the live lounge,
+          or become a host and build a community of your own.
         </p>
 
         {user && (
@@ -95,10 +137,7 @@ export default async function MembershipPage() {
             <div className={styles.currentTop}>
               <h2 className={styles.currentLabel}>{caps.label}</h2>
               {caps.profileBadge && (
-                <span
-                  className={styles.badge}
-                  style={{ color: caps.profileBadge.color }}
-                >
+                <span className={styles.badge} style={{ color: caps.profileBadge.color }}>
                   <TierIcon name={caps.profileBadge.icon} size={14} />{" "}
                   {STATUS_TEXT[subscriptionStatus(sub)] || "Active"}
                 </span>
@@ -109,7 +148,7 @@ export default async function MembershipPage() {
               {sub?.currentPeriodEnd ? (
                 <>
                   {" · "}
-                  {subscriptionStatus(sub) === "canceled" ? "ended" : "renews"}{" "}
+                  {subscriptionStatus(sub) === "canceled" ? "ends" : "renews"}{" "}
                   <strong>{formatDate(sub.currentPeriodEnd)}</strong>
                 </>
               ) : null}
@@ -124,12 +163,12 @@ export default async function MembershipPage() {
         )}
 
         <div className={styles.ladder}>
-          {SHOP_TIERS.map((tierKey, index) => {
+          {SHOP_TIERS.map((tierKey) => {
             const { caps: tierCaps } = tierEntry(tierKey);
             const isCurrent = tierKey === currentTier;
-            // Only ever offer a step up. Telling a Moving In member to upgrade
-            // to Moving In is how a page starts nagging people for money.
+            const index = SHOP_TIERS.indexOf(tierKey);
             const canUpgrade = !isCurrent && currentIndex >= 0 && index > currentIndex;
+            const product = TIER_PRODUCTS[tierKey];
 
             return (
               <article
@@ -138,23 +177,27 @@ export default async function MembershipPage() {
               >
                 <div className={styles.tierTop}>
                   <h3 className={styles.tierName}>
-                    {tierCaps.profileBadge && (
-                      <TierIcon name={tierCaps.profileBadge.icon} size={18} />
-                    )}{" "}
+                    {tierCaps.profileBadge && <TierIcon name={tierCaps.profileBadge.icon} size={18} />}{" "}
                     {tierCaps.label}
                   </h3>
                   {isCurrent && <span className={styles.youAre}>Your plan</span>}
                 </div>
+                <p className={styles.tierHandle}>
+                  {tierKey === "flirting"
+                    ? "The Front Parlor Pass"
+                    : tierKey === "hooking-up"
+                      ? "The Main Floor Ticket"
+                      : "The Resident Key"}
+                </p>
+                <p className={styles.price}>{product.price}</p>
 
                 <ul className={styles.features}>
-                  {featureRows(tierCaps).map((row) => (
+                  {featureRows(tierKey, tierCaps).map((row) => (
                     <li key={row.label} className={row.on ? undefined : styles.off}>
-                      <span className={styles.mark} aria-hidden="true">
-                        {row.on ? "✓" : "—"}
-                      </span>
+                      <span className={styles.mark} aria-hidden="true">{row.on ? "✓" : "—"}</span>
                       <span>
                         {row.label}
-                        {row.on && row.note ? ` (${row.note})` : ""}
+                        {row.on && row.note ? <small className={styles.featureNote}> {row.note}</small> : null}
                       </span>
                     </li>
                   ))}
@@ -162,28 +205,10 @@ export default async function MembershipPage() {
 
                 {isCurrent ? (
                   <span className={`${styles.cta} ${styles.ctaMuted}`}>Your current plan</span>
-                ) : canUpgrade ? (
-                  <a
-                    className={styles.cta}
-                    href={SHOPIFY_UPGRADE_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Upgrade to {tierCaps.label}
-                  </a>
-                ) : user ? (
-                  <span className={`${styles.cta} ${styles.ctaMuted}`}>
-                    {onTopTier ? "You are on the top tier" : "Included in a higher tier"}
-                  </span>
+                ) : user && !canUpgrade ? (
+                  <span className={`${styles.cta} ${styles.ctaMuted}`}>Included in your current or higher tier</span>
                 ) : (
-                  <a
-                    className={styles.cta}
-                    href={SHOPIFY_UPGRADE_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Choose {tierCaps.label}
-                  </a>
+                  <ProductLinks tierKey={tierKey} compact />
                 )}
               </article>
             );
@@ -192,15 +217,15 @@ export default async function MembershipPage() {
 
         {!user && (
           <p className={styles.signIn}>
-            Already a member?{" "}
-            <Link href="/login">Sign in</Link> to see the plan you are on.
+            Already a member? <Link href="/login">Sign in</Link> to see your current plan.
           </p>
         )}
 
         <p className={styles.foot}>
-          Purchases are taken on the Secret Yarnery storefront and applied to your
-          account automatically. Your access updates as soon as you return to the
-          app — no need to sign in again.
+          Membership purchases are completed securely on the Secret Yarnery storefront and
+          applied to your account through the Shopify order integration. Lounge availability
+          can still depend on a room's schedule and participant limit. Moving In annual
+          checkout opens the storefront membership page so you can select the annual option.
         </p>
       </div>
     </main>
