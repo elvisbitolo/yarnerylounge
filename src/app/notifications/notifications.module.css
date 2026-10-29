@@ -124,12 +124,21 @@
   width: 44px;
   height: 44px;
   flex: 0 0 44px;
+  overflow: hidden;
   border: 1px solid #5a3048;
   border-radius: 50%;
   background: #392132;
   color: #fa81cd;
   font-size: 0.9375rem;
   font-weight: 800;
+}
+
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .body {

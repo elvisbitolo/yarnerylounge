@@ -12,17 +12,30 @@ export default async function NotificationsPage() {
 
   const notifications = await listNotifications(user.uid, 50);
 
-  const serialized = notifications.map((n) => ({
-    id: n.id,
-    type: n.type,
-    actorName: n.actorName,
-    href: n.href,
-    text: n.text,
-    read: n.read,
-    createdAt:
-      n.createdAt instanceof Date
-        ? n.createdAt.toISOString()
-        : new Date(n.createdAt.toMillis ? n.createdAt.toMillis() : n.createdAt).toISOString(),
+  const serialized = await Promise.all(notifications.map(async (n) => {
+    let actorPhotoURL = "";
+    if (n.actorId) {
+      try {
+        const actor = await getUserDoc(n.actorId);
+        actorPhotoURL = actor?.photoURL || actor?.avatarURL || actor?.image || "";
+      } catch {
+        // A missing/deleted actor profile should not prevent notifications rendering.
+      }
+    }
+
+    return {
+      id: n.id,
+      type: n.type,
+      actorName: n.actorName,
+      actorPhotoURL,
+      href: n.href,
+      text: n.text,
+      read: n.read,
+      createdAt:
+        n.createdAt instanceof Date
+          ? n.createdAt.toISOString()
+          : new Date(n.createdAt.toMillis ? n.createdAt.toMillis() : n.createdAt).toISOString(),
+    };
   }));
 
   return (
