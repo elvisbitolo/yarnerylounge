@@ -21,6 +21,7 @@ export default function PushNotificationSettings() {
     const context = getDeviceContext();
 
     async function checkStatus() {
+      await Promise.resolve();
       if (context.isIOS && !context.isStandalone) {
         setStatus("install-required");
       } else if (
@@ -126,7 +127,7 @@ export default function PushNotificationSettings() {
         </p>
       ) : null}
 
-      {status !== "enabled" && status !== "unsupported" && status !== "install-required" && status !== "blocked" ? (
+      {status !== "checking" && status !== "enabled" && status !== "unsupported" && status !== "install-required" && status !== "blocked" ? (
         <button
           type="button"
           onClick={openSetup}
