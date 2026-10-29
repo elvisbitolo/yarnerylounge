@@ -175,8 +175,26 @@ export async function createNotification({
           try { console.log(JSON.stringify({event:"whatsapp_attempt", userId, type, to, enabled: link.enabled, recent: !!recent})); } catch {}
           try { console.log(JSON.stringify({event:"whatsapp_env", hasToken: !!process.env.WHATSAPP_TOKEN, hasPhone: !!process.env.WHATSAPP_PHONE_NUMBER_ID})); } catch {}
           const res = await sendWhatsAppText({ to, body: msg });
-          try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
-          try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to})); } catch {}
+          const providerMessageId = res?.messages?.[0]?.id || null;
+          if (providerMessageId) {
+            const conversationMatch = type === "dm" ? String(href || "").match(/^\\/chat\\/([A-Za-z0-9_-]+)/) : null;
+            await p.whatsAppMessage.create({
+              data: {
+                providerMessageId,
+                userId,
+                direction: "outbound",
+                fromPhone: process.env.WHATSAPP_PHONE_NUMBER_ID || "business",
+                toPhone: `+${to}`,
+                contactName: null,
+                text: msg.slice(0, 4096),
+                messageType: "text",
+                status: "sent",
+                conversationId: conversationMatch?.[1] || null,
+                metadata: { notificationType: type, href: href || null },
+              },
+            });
+          }
+          try { console.log(JSON.stringify({event:"whatsapp_sent", userId, type, to, messageId: providerMessageId})); } catch {}
         } catch (e) {
           try { console.log(JSON.stringify({event:"whatsapp_failed", userId, type, error: e?.message})); } catch {}
           logError("notifications.whatsapp_failed", { userId, type, error: e?.message });
