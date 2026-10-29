@@ -67,6 +67,22 @@ export async function POST(req) {
             data: { waId: from, lastMessageAt: new Date() },
           });
         }
+
+        // Delivery receipts are separate from inbound messages. Log their
+        // status so API acceptance is not mistaken for delivery or read.
+        const statuses = Array.isArray(change?.value?.statuses) ? change.value.statuses : [];
+        for (const status of statuses) {
+          const errors = Array.isArray(status?.errors)
+            ? status.errors.map((item) => ({ code: item?.code, title: item?.title })).filter((item) => item.code || item.title)
+            : [];
+          console.log(JSON.stringify({
+            event: "whatsapp_delivery_status",
+            messageId: status?.id || null,
+            status: status?.status || "unknown",
+            timestamp: status?.timestamp || null,
+            errors,
+          }));
+        }
       }
     }
     return NextResponse.json({ ok: true });
