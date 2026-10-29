@@ -12,6 +12,15 @@ function formatTime(value) {
   }
 }
 
+function deliveryError(metadata) {
+  const errors = Array.isArray(metadata?.errors) ? metadata.errors : [];
+  if (!errors.length) return "";
+  return errors.map((error) => {
+    const parts = [error?.title, error?.message, error?.code ? `Code ${error.code}` : ""].filter(Boolean);
+    return parts.join(" — ");
+  }).join(" · ");
+}
+
 export default function WhatsAppInbox() {
   const [contacts, setContacts] = useState([]);
   const [selectedPhone, setSelectedPhone] = useState("");
@@ -80,7 +89,7 @@ export default function WhatsAppInbox() {
       const json = await response.json();
       if (!response.ok) throw new Error(json?.error || "Message could not be sent.");
       setMessage("");
-      setNotice("Message accepted by WhatsApp. Delivery status will update when Meta sends a receipt.");
+      setNotice("WhatsApp accepted the request. Check the message status below for delivery confirmation.");
       await load();
       setSelectedPhone(selectedPhone);
     } catch (err) {
@@ -151,12 +160,20 @@ export default function WhatsAppInbox() {
               </header>
               <div className={styles.messageList}>
                 {messages.length === 0 ? <p className={styles.empty}>No messages loaded for this number yet. Send a message to start the conversation.</p> : null}
-                {messages.map((item) => (
-                  <article key={item.id} className={item.direction === "outbound" ? styles.outbound : styles.inbound}>
-                    <p>{item.text}</p>
-                    <footer>{formatTime(item.createdAt)}{item.direction === "outbound" ? ` · ${item.status}` : " · received"}</footer>
-                  </article>
-                ))}
+                {messages.map((item) => {
+                  const reason = deliveryError(item.metadata);
+                  return (
+                    <article key={item.id} className={item.direction === "outbound" ? styles.outbound : styles.inbound}>
+                      <p>{item.text}</p>
+                      <footer>{formatTime(item.createdAt)}{item.direction === "outbound" ? ` · ${item.status}` : " · received"}</footer>
+                      {item.direction === "outbound" && item.status === "failed" ? (
+                        <p role="status" style={{ margin: "8px 0 0", color: "#b42318", fontSize: "0.85rem", overflowWrap: "anywhere" }}>
+                          {reason || "Meta marked this message as failed but did not include a readable error reason. Send a new test after the latest inbound message and refresh."}
+                        </p>
+                      ) : null}
+                    </article>
+                  );
+                })}
               </div>
               <form className={styles.composer} onSubmit={send}>
                 <textarea
