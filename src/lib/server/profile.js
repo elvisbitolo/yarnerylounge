@@ -303,6 +303,13 @@ export function normalizeProfile(body) {
       errors.profileVisibility = "Profile visibility must be \"public\" or \"private\"";
     }
   }
+  if ("socialLinksVisibility" in body) {
+    if (body.socialLinksVisibility === "public" || body.socialLinksVisibility === "private") {
+      patch.socialLinksVisibility = body.socialLinksVisibility;
+    } else {
+      errors.socialLinksVisibility = "Social link visibility must be \"public\" or \"private\"";
+    }
+  }
   if ("socialLinks" in body) {
     const links = normalizeSocial(body.socialLinks);
     if (links.length > 0) {

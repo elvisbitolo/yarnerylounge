@@ -33,6 +33,8 @@ export default async function AccountProfilePage() {
     photoURL: userDoc?.photoURL || "",
     coverPhotoURL: userDoc?.coverPhotoURL || "",
     socialLinks: Array.isArray(userDoc?.socialLinks) ? userDoc.socialLinks : [],
+    socialLinksVisibility:
+      userDoc?.extra?.socialLinksVisibility === "private" ? "private" : "public",
   };
 
   const quizExtra =

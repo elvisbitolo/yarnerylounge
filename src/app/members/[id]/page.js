@@ -147,11 +147,15 @@ export default async function MemberProfilePage({ params }) {
       }
     : null;
   const memberProfile = { ...member, ...memberExtra };
-  const socialLinks = (Array.isArray(member.socialLinks) ? member.socialLinks : []).filter(
-    (link) => link && typeof link.url === "string" && /^https?:\/\//i.test(link.url)
-  );
   const viewerRole = viewerDoc?.role || "member";
   const isPrivileged = viewerRole === "owner" || viewerRole === "moderator";
+  const canViewSocialLinks =
+    isSelf || isPrivileged || memberExtra.socialLinksVisibility !== "private";
+  const socialLinks = canViewSocialLinks
+    ? (Array.isArray(member.socialLinks) ? member.socialLinks : []).filter(
+        (link) => link && typeof link.url === "string" && /^https?:\/\//i.test(link.url)
+      )
+    : [];
   const isPrivateProfile = memberExtra.profileVisibility === "private";
   const canViewProfile = isSelf || isPrivileged || !isPrivateProfile;
   const gami = gamiRow || {};
