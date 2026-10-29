@@ -22,7 +22,6 @@ export const SESSION_UNAVAILABLE = Symbol("session-unavailable");
 // Set by logout() so a deliberate sign-out is never overridden by a /api/me
 // re-check racing ahead of the cookie being cleared.
 let explicitLogout = false;
-let emitGen = 0;
 
 export function beginExplicitLogout() {
   explicitLogout = true;
@@ -82,6 +81,10 @@ async function serverSessionUser() {
 // function.
 export function onAuthStateChanged(_auth, callback) {
   let disposed = false;
+  // Each subscriber owns its own request generation. A module-global counter
+  // lets unrelated components invalidate one another's /api/me response, which
+  // can leave persistent UI (including the notification bell) stuck at zero.
+  let emitGen = 0;
 
   async function emit() {
     const gen = ++emitGen;
