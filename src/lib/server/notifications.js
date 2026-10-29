@@ -177,7 +177,7 @@ export async function createNotification({
           const res = await sendWhatsAppText({ to, body: msg });
           const providerMessageId = res?.messages?.[0]?.id || null;
           if (providerMessageId) {
-            const conversationMatch = type === "dm" ? String(href || "").match(/^\\/chat\\/([A-Za-z0-9_-]+)/) : null;
+            const conversationId = type === "dm" && String(href || "").startsWith("/chat/") ? String(href).split("/")[2] : null;
             await p.whatsAppMessage.create({
               data: {
                 providerMessageId,
@@ -189,7 +189,7 @@ export async function createNotification({
                 text: msg.slice(0, 4096),
                 messageType: "text",
                 status: "sent",
-                conversationId: conversationMatch?.[1] || null,
+                conversationId: conversationId || null,
                 metadata: { notificationType: type, href: href || null },
               },
             });
