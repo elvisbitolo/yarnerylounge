@@ -40,22 +40,10 @@ export default function WhatsAppInbox() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/admin/whatsapp-inbox", { cache: "no-store" })
-      .then(async (response) => {
-        const json = await response.json();
-        if (!response.ok) throw new Error(json?.error || "Could not load WhatsApp messages.");
-        if (!active) return;
-        const items = Array.isArray(json.contacts) ? json.contacts : [];
-        setContacts(items);
-        setSelectedPhone((current) => current && items.some((item) => item.phone === current)
-          ? current
-          : (items[0]?.phone || current));
-      })
-      .catch((err) => { if (active) setError(err?.message || "Could not load WhatsApp messages."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
+    load();
+    const refreshTimer = setInterval(load, 15000);
+    return () => clearInterval(refreshTimer);
+  }, [load]);
 
   const selected = useMemo(
     () => contacts.find((item) => item.phone === selectedPhone) || null,
