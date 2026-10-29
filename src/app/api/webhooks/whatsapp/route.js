@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/db/prisma";
 import { addMessage } from "@/lib/server/chat";
+import { createNotification } from "@/lib/server/notifications";
 import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
@@ -177,6 +178,19 @@ export async function POST(req) {
                       metadata: { ...(record.metadata || {}), contextId, chatSynced: true },
                     },
                   });
+                  const otherParticipantId = (conversation.participantIds || []).find((id) => id !== linked.userId);
+                  if (otherParticipantId) {
+                    await createNotification({
+                      userId: otherParticipantId,
+                      type: "dm",
+                      actorId: linked.userId,
+                      actorName: sender.name || contactName || "Member",
+                      href: `/chat/${conversationId}`,
+                      text: text.slice(0, 180),
+                    }).catch((notifyError) => {
+                      logError("whatsapp.dm_reply_notification_failed", { error: notifyError?.message });
+                    });
+                  }
                   console.log(JSON.stringify({ event: "whatsapp_dm_reply_synced", conversationId, messageId: providerMessageId }));
                 }
               }
