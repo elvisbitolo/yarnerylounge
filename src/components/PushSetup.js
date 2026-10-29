@@ -3,14 +3,18 @@
 import { useEffect, useState } from "react";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 
+const PROMPT_SEEN_PREFIX = "syw-push-opt-in-prompt-seen:";
+
 export default function PushSetup() {
   const [signedIn, setSignedIn] = useState(false);
+  const [userId, setUserId] = useState(null);
   const [permission, setPermission] = useState(() =>
     typeof window !== "undefined" && "Notification" in window
       ? Notification.permission
       : "default"
   );
   const [subscribed, setSubscribed] = useState(false);
+  const [promptVisible, setPromptVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -22,6 +26,8 @@ export default function PushSetup() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setSignedIn(Boolean(user));
+      setUserId(user?.uid || null);
+      if (!user) setPromptVisible(false);
     });
     return unsubscribe;
   }, []);
@@ -41,7 +47,10 @@ export default function PushSetup() {
       "Notification" in window &&
       Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
-    if (!signedIn || !canPush) return;
+    if (!signedIn || !userId || !canPush) {
+      setPromptVisible(false);
+      return;
+    }
 
     let cancelled = false;
     navigator.serviceWorker.ready
@@ -60,12 +69,26 @@ export default function PushSetup() {
           });
           if (!response.ok) throw new Error("Could not sync push subscription.");
         }
+
+        // The opt-in prompt is shown once per member on this browser. Closing
+        // it or leaving it alone will not make it reappear on every page visit.
+        if (!subscription && Notification.permission !== "denied") {
+          const seenKey = `${PROMPT_SEEN_PREFIX}${userId}`;
+          if (window.localStorage.getItem(seenKey) !== "1") {
+            window.localStorage.setItem(seenKey, "1");
+            setPromptVisible(true);
+          } else {
+            setPromptVisible(false);
+          }
+        } else {
+          setPromptVisible(false);
+        }
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [signedIn]);
+  }, [signedIn, userId]);
 
   async function enableNotifications() {
     if (busy) return;
@@ -87,8 +110,8 @@ export default function PushSetup() {
       if (result !== "granted") {
         setMessage(
           result === "denied"
-            ? "Notifications are blocked in your browser settings."
-            : "Notifications were not enabled."
+            ? "Notifications are blocked in your browser settings. You can manage this in your browser settings."
+            : "Notifications were not enabled. You can try again from notification settings."
         );
         return;
       }
@@ -112,34 +135,10 @@ export default function PushSetup() {
       if (!response.ok) throw new Error("Could not save this device's subscription.");
 
       setSubscribed(true);
-      setMessage("Push notifications are enabled on this device.");
+      setPromptVisible(false);
+      setMessage("Browser notifications are enabled on this device.");
     } catch {
-      setMessage("Could not enable push notifications. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function disableNotifications() {
-    if (busy) return;
-    setBusy(true);
-    setMessage("");
-
-    try {
-      const response = await fetch("/api/push/subscribe", { method: "DELETE" });
-      if (!response.ok) {
-        setMessage("Could not disable notifications on the server. Please try again.");
-        return;
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) await subscription.unsubscribe();
-
-      setSubscribed(false);
-      setMessage("Push notifications are disabled for your account.");
-    } catch {
-      setMessage("Could not disable notifications. Please try again.");
+      setMessage("Could not enable browser notifications. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -160,11 +159,11 @@ export default function PushSetup() {
     "Notification" in window &&
     Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
 
-  if (!signedIn || !supported) return null;
+  if (!signedIn || !supported || !promptVisible || subscribed) return null;
 
   return (
     <aside
-      aria-label="Push notification settings"
+      aria-label="Browser notification setup"
       style={{
         position: "fixed",
         zIndex: 1000,
@@ -179,9 +178,32 @@ export default function PushSetup() {
         boxShadow: "0 12px 36px rgba(0,0,0,.35)",
       }}
     >
-      <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Stay in the loop</p>
+      <button
+        type="button"
+        onClick={() => setPromptVisible(false)}
+        aria-label="Dismiss browser notification prompt"
+        title="Dismiss"
+        style={{
+          position: "absolute",
+          top: "8px",
+          right: "10px",
+          width: "28px",
+          height: "28px",
+          padding: 0,
+          border: 0,
+          borderRadius: "50%",
+          background: "transparent",
+          color: "#c9c0c7",
+          fontSize: "22px",
+          lineHeight: 1,
+          cursor: "pointer",
+        }}
+      >
+        ×
+      </button>
+      <p style={{ margin: "0 30px 6px 0", fontWeight: 700 }}>Stay in the loop</p>
       <p style={{ margin: "0 0 12px", fontSize: "14px", lineHeight: 1.5, color: "#c9c0c7" }}>
-        Turn on browser alerts for messages, replies, live lounges, and community activity. Existing members can enable this here too.
+        Get browser alerts for messages, replies, live lounges, and community activity.
       </p>
       {message ? (
         <p role="status" style={{ margin: "0 0 10px", fontSize: "13px", lineHeight: 1.4 }}>
@@ -190,29 +212,27 @@ export default function PushSetup() {
       ) : null}
       <button
         type="button"
-        onClick={subscribed ? disableNotifications : enableNotifications}
-        disabled={busy || (!subscribed && permission === "denied")}
+        onClick={enableNotifications}
+        disabled={busy || permission === "denied"}
         style={{
           minHeight: "40px",
           padding: "0 14px",
           border: 0,
           borderRadius: "999px",
-          background: busy || (!subscribed && permission === "denied") ? "#51464e" : "#f6077a",
+          background: busy || permission === "denied" ? "#51464e" : "#f6077a",
           color: "#fff",
           font: "inherit",
           fontWeight: 700,
-          cursor: busy || (!subscribed && permission === "denied") ? "not-allowed" : "pointer",
+          cursor: busy || permission === "denied" ? "not-allowed" : "pointer",
         }}
       >
         {busy
           ? "Please wait…"
-          : subscribed
-            ? "Disable notifications"
-            : permission === "denied"
-              ? "Blocked in browser"
-              : permission === "granted"
-                ? "Finish notification setup"
-                : "Enable notifications"}
+          : permission === "denied"
+            ? "Blocked in browser settings"
+            : permission === "granted"
+              ? "Finish notification setup"
+              : "Enable notifications"}
       </button>
     </aside>
   );
