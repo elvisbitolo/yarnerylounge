@@ -193,3 +193,56 @@
   line-height: 1.6;
   color: #6b5c76;
 }
+
+
+.tierHandle {
+  color: #b9a9c4;
+  font-size: 12px;
+  margin: -8px 0 4px;
+}
+
+.price {
+  color: #f7ecfa;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 14px;
+}
+
+.featureNote {
+  display: block;
+  color: #8d7c99;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.productLinks,
+.productLinksCompact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.productLinksCompact {
+  margin-top: auto;
+}
+
+.productLinksCompact .cta + .cta {
+  background: #2b2233;
+  border: 1px solid #4a3a55;
+}
+
+.productLinksCompact .cta + .cta:hover {
+  background: #3b2c47;
+}
+
+@media (max-width: 560px) {
+  .wrap {
+    padding: 28px 14px 52px;
+  }
+
+  .tier {
+    padding: 20px 16px;
+  }
+}
