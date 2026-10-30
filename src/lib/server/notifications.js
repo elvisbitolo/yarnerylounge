@@ -39,6 +39,7 @@ const NOTIFICATION_TYPE_TO_PREF = {
   watch_online: "watch",
   watch_room: "watch",
   priority_online: "watch",
+  priority_room: "watch",
   recording_ready: "events",
 };
 
@@ -134,6 +135,35 @@ export async function createNotification({
   // Mirror the in-app row to the member's devices so members who are not on the
   // site are recalled too. Respects the same type→preference gate above.
   dispatchPush(userId, buildPushPayload({ actorName, text, href }));
+
+  if (type === "priority_room") {
+    try {
+      const recipient = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, notifications: true },
+      });
+      if (recipient?.email && recipient.notifications !== "off") {
+        const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
+        const url = href?.startsWith("http") ? href : `${site}${href || "/rooms"}`;
+        const roomMatch = String(text || "").match(/entered (.+)\\.$/i);
+        const loungeName = roomMatch?.[1] || "the lounge";
+        const safeName = String(actorName || "Christa").replace(/[&<>"']/g, (character) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+        })[character]);
+        const safeRoom = loungeName.replace(/[&<>"']/g, (character) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+        })[character]);
+        await sendEmail({
+          to: recipient.email,
+          subject: `${actorName || "Christa"} is in ${loungeName}`,
+          text: `${actorName || "Christa"} has just entered ${loungeName}. Come join her: ${url}`,
+          html: `<p>Hey there!</p><p><strong>${safeName}</strong> has just entered <strong>${safeRoom}</strong>.</p><p>She's inside the lounge. Come join her!</p><p><a href="${url}">Join ${safeRoom}</a></p>`,
+        });
+      }
+    } catch (err) {
+      logError("notifications.priority_room_email_failed", { userId, error: err?.message });
+    }
+  }
 
   if (type === "priority_online") {
     try {
