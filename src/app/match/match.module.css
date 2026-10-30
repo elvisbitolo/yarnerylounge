@@ -605,3 +605,9 @@
 .matchTileInitials[hidden] {
   display: none;
 }
+
+
+/* Ensure the browser's hidden state wins over the image's display styling. */
+.matchTilePhoto[hidden] {
+  display: none;
+}
