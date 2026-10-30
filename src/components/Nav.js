@@ -216,7 +216,7 @@ const icons = {
   ),
 };
 
-export default function Nav({ role, children }) {
+export default function Nav({ role, children, initialUnreadCount = 0 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const isRoomPage = pathname?.startsWith("/rooms/");
@@ -367,7 +367,7 @@ export default function Nav({ role, children }) {
               <line x1="21" y1="21" x2="16.5" y2="16.5" />
             </svg>
           </button>
-          <NotificationBell />
+          <NotificationBell initialUnreadCount={initialUnreadCount} />
           <ChatInboxButton />
           <LanguageSwitcher />
           <ProfileMenu />
