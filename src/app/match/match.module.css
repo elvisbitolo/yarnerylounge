@@ -611,3 +611,129 @@
 .matchTilePhoto[hidden] {
   display: none;
 }
+
+
+/* Members Like You: full-width, compact discovery layout. */
+.matchCard {
+  display: block;
+  padding: 22px 24px 24px;
+}
+
+.matchCardHeader {
+  display: flex;
+  align-items: flex-start;
+  padding: 0;
+  margin-bottom: 18px;
+}
+
+.matchCardHeading {
+  min-width: 0;
+}
+
+.matchCardTitle {
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.matchCardDesc {
+  margin-top: 7px;
+  max-width: 680px;
+}
+
+.matchCardBody {
+  padding: 0;
+  gap: 14px;
+}
+
+.matchCount {
+  margin: 0;
+}
+
+.matchGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.matchTile {
+  min-width: 0;
+  min-height: 0;
+  padding: 14px;
+  gap: 11px;
+  justify-content: space-between;
+}
+
+.matchTileLink {
+  min-width: 0;
+  gap: 8px;
+}
+
+.matchTileName {
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.matchTilePhoto,
+.matchTileInitials {
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+}
+
+.tileAction {
+  min-height: 38px;
+}
+
+@media (max-width: 760px) {
+  .matchGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .matchCard {
+    padding: 18px 14px;
+  }
+
+  .matchCardHeader {
+    margin-bottom: 14px;
+  }
+
+  .matchCardTitle {
+    font-size: 19px;
+  }
+
+  .matchGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .matchTile {
+    padding: 11px 9px;
+  }
+
+  .matchTilePhoto,
+  .matchTileInitials {
+    width: 60px;
+    height: 60px;
+    flex-basis: 60px;
+  }
+
+  .matchTileName {
+    font-size: 12px;
+  }
+
+  .tileAction {
+    min-height: 36px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .matchGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,6 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
-import { Users, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import MemberBadge from "@/components/MemberBadge";
 import styles from "./match.module.css";
 import { initialsFor } from "./match-utils";
@@ -9,26 +8,15 @@ export default function SimilarMembersCard({ similarMembers, topMatches, similar
   return (
     <section className={styles.matchCard} aria-labelledby="similar-members-title">
       <div className={styles.matchCardHeader}>
-        <span className={styles.matchCardIcon}>
-          <Users size={20} />
-        </span>
-        <div>
+        <div className={styles.matchCardHeading}>
           <p className={styles.matchKicker}>Fiber interests · hook size · yarn taste</p>
           <h2 id="similar-members-title" className={styles.matchCardTitle}>Members Like You</h2>
+          <p className={styles.matchCardDesc}>
+            Browse crafters who share your favorite yarns, hook sizes, and creative interests.
+          </p>
         </div>
       </div>
-      <div className={styles.matchCardImage}>
-        <Image
-          src="/images/match/colorful-crochet-yarn-grid.jpg"
-          alt="Colorful yarn arranged for shared fiber interests"
-          fill
-          sizes="(max-width: 640px) 100vw, 920px"
-        />
-      </div>
       <div className={styles.matchCardBody}>
-        <p className={styles.matchCardDesc}>
-          Browse crafters who share your favorite yarns, hook sizes, and creative interests.
-        </p>
         {similarLoading ? (
           <p className={styles.statusLine}>Finding members like you…</p>
         ) : similarError ? (
