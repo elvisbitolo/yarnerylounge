@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
-import { SHOPIFY_UPGRADE_URL } from "@/lib/server/shopify";
 import { getUserByEmail } from "@/lib/server/auth";
 import { isOpenAccess, OPEN_ACCESS_PLAN } from "@/lib/server/access-policy";
 import { toMillis } from "@/lib/server/user-core";
@@ -34,49 +33,35 @@ export async function POST(req) {
       });
     }
 
+    // Registration is open to everyone at the free Flirting tier. A paid
+    // Shopify placeholder or active membership is still recognised here so
+    // the session exchange can preserve that higher entitlement, but a
+    // missing/expired paid record must never block account creation.
     const userDoc = await getUserByEmail(clean);
     if (!userDoc) {
-      return NextResponse.json(
-        {
-          error: "not_prepaid",
-          message: "This account needs a paid Speakeasy membership before joining.",
-          redirect: SHOPIFY_UPGRADE_URL,
-        },
-        { status: 403 }
-      );
+      return NextResponse.json({
+        allowed: true,
+        email: clean,
+        plan: "flirting",
+        role: "member",
+        openAccess: false,
+        isNew: true,
+      });
     }
 
     const role = userDoc.role || "member";
     const staff = STAFF_ROLES.includes(role);
-
-    if (userDoc.paymentStatus !== "paid" && !staff) {
-      return NextResponse.json(
-        {
-          error: "not_prepaid",
-          message: "Your Speakeasy membership is not active. Please renew to enter the lounge.",
-          redirect: SHOPIFY_UPGRADE_URL,
-        },
-        { status: 403 }
-      );
-    }
-
     const expiresAtMs = toMillis(userDoc.expiresAt);
-    if (!staff && expiresAtMs > 0 && expiresAtMs < Date.now()) {
-      return NextResponse.json(
-        {
-          error: "expired",
-          message: "Your Speakeasy membership has expired. Renew to come back inside.",
-          redirect: SHOPIFY_UPGRADE_URL,
-        },
-        { status: 403 }
-      );
-    }
+    const paidAndCurrent =
+      userDoc.paymentStatus === "paid" &&
+      (staff || expiresAtMs <= 0 || expiresAtMs >= Date.now());
 
     return NextResponse.json({
       allowed: true,
       email: clean,
-      plan: userDoc.plan || "flirting",
+      plan: paidAndCurrent ? userDoc.plan || "flirting" : "flirting",
       role,
+      openAccess: false,
       isNew: userDoc.id === clean,
     });
   } catch (err) {
