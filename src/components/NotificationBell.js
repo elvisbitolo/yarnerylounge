@@ -28,8 +28,8 @@ function syncAppBadge(count) {
   }
 }
 
-export default function NotificationBell() {
-  const [unread, setUnread] = useState(0);
+export default function NotificationBell({ initialUnreadCount = 0 }) {
+  const [unread, setUnread] = useState(() => Number.isFinite(initialUnreadCount) ? initialUnreadCount : 0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
