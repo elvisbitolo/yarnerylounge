@@ -11,7 +11,7 @@ import {
 } from "@/lib/server/room-presence";
 import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 import { getScopedHostRights } from "@/lib/server/hosts";
-import { notifyWatchersRoom } from "@/lib/server/member-watch";
+import { notifySecretYarneryRoom, notifyWatchersRoom } from "@/lib/server/member-watch";
 
 export const dynamic = "force-dynamic";
 
@@ -96,9 +96,13 @@ export async function POST(req, { params }) {
   const result = status === "leave" ? await leaveRoomPresence(input) : await touchRoomPresence(input);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 409 });
   if (status === "join" && !alreadyPresent) {
-    // Tell the target's watchers they walked in, post-response. The fan-out
-    // re-checks each watcher's room access, so a private lounge never leaks.
-    after(() => notifyWatchersRoom(auth.user.uid, room));
+    // Secret Yarnery's owner activity is announced to eligible members;
+    // ordinary members continue to notify only their explicit watchers.
+    // The owner check is performed against the persisted account email.
+    after(async () => {
+      const broadcast = await notifySecretYarneryRoom(auth.user.uid, room);
+      if (broadcast.skipped) await notifyWatchersRoom(auth.user.uid, room);
+    });
   }
   return NextResponse.json({ ok: true });
 }
