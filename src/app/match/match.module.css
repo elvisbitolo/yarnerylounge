@@ -599,3 +599,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Keep initials hidden until the corresponding profile photo fails. */
+.matchTileInitials[hidden] {
+  display: none;
+}
