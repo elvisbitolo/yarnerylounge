@@ -143,34 +143,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   }, []);
 
 
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      const value = email.trim();
-      if (cancelled) return;
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || openAccess) {
-        setEmailStatus("idle");
-        return;
-      }
-      try {
-        setEmailStatus("checking");
-        const checked = await checkPaidSignup(value);
-        if (cancelled) return;
-        setEmailStatus(checked?.ok ? "ok" : "notMember");
-      } catch (err) {
-        if (cancelled) return;
-        if (err.code === "not_prepaid" || err.code === "expired") {
-          setEmailStatus("notMember");
-        } else {
-          setEmailStatus("error");
-        }
-      }
-    }, 700);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [email, openAccess]);
+
 
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("session_refresh")) return;
