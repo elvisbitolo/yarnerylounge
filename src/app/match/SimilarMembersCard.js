@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import MemberBadge from "@/components/MemberBadge";
 import styles from "./match.module.css";
 import { initialsFor } from "./match-utils";
