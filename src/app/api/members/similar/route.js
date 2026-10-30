@@ -62,7 +62,7 @@ function similarityScore(a, b) {
   addSetSignal(2, "favoriteColors");
   const keywords = (value) => {
     if (!value) return new Set();
-    return new Set(value.toLowerCase().split(/[\\s,;.!?]+/).filter((word) => word.length > 3));
+    return new Set(value.toLowerCase().split(/[\s,;.!?]+/).filter((word) => word.length > 3));
   };
   const aKeywords = new Set([...keywords(a.headline), ...keywords(a.bio), ...keywords(a.goToYarn)]);
   const bKeywords = new Set([...keywords(b.headline), ...keywords(b.bio), ...keywords(b.goToYarn)]);
