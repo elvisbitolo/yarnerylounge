@@ -43,13 +43,23 @@ export default function SimilarMembersCard({ similarMembers, topMatches, similar
                 <li key={member.id} className={styles.matchTile}>
                   <Link href={`/members/${member.id}`} className={styles.matchTileLink}>
                     {member.photoURL ? (
+                      <>
                       <Image
                         src={member.photoURL}
                         alt={member.name || "Member"}
                         width={72}
                         height={72}
                         className={styles.matchTilePhoto}
+                        onError={(event) => {
+                          event.currentTarget.hidden = true;
+                          const fallback = event.currentTarget.nextElementSibling;
+                          if (fallback) fallback.hidden = false;
+                        }}
                       />
+                      <span className={styles.matchTileInitials} aria-hidden="true" hidden>
+                        {initialsFor(member.name)}
+                      </span>
+                    </>
                     ) : (
                       <span className={styles.matchTileInitials} aria-hidden="true">
                         {initialsFor(member.name)}
