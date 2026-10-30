@@ -125,8 +125,15 @@ export default function NotificationBell() {
     try {
       const res = await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: "POST" });
       if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
       setItems((current) => current.map((item) => item.id === id ? { ...item, read: true } : item));
-      setUnread((count) => Math.max(0, count - 1));
+      if (Number.isFinite(Number(data.unread))) {
+        const count = Number(data.unread);
+        setUnread(count);
+        syncAppBadge(count);
+      } else {
+        setUnread((count) => Math.max(0, count - 1));
+      }
       window.dispatchEvent(new Event("notifications:changed"));
     } catch {
       /* The full notifications page remains available if this update fails. */
