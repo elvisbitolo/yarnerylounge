@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { AUTH_COOKIE } from "@/lib/server/auth";
-import { isOpenAccess } from "@/lib/server/access-policy";
 import { publicMetadata } from "@/lib/seo";
 import SignupForm from "./SignupForm";
 
@@ -28,7 +27,6 @@ export default async function SignupPage({ searchParams }) {
     <SignupForm
       oauthPending={Boolean(params?.provider)}
       hasSession={Boolean(cookieStore.get(AUTH_COOKIE)?.value)}
-      openAccess={isOpenAccess()}
     />
   );
 }

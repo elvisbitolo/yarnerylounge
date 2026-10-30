@@ -71,7 +71,9 @@ export async function POST(req) {
             })
           : null;
 
-        if (!prepaid && !openAccess) return { blocked: true };
+        // Anyone may create a free Flirting account. A paid Shopify
+        // placeholder, when present, is claimed below and keeps its paid
+        // membership; otherwise the new account starts on Flirting.
 
         const createdMember = await tx.user.create({
           data: {
@@ -140,6 +142,41 @@ export async function POST(req) {
             },
           });
           await tx.subscription.delete({ where: { id: prepaid.id } });
+        } else if (prepaid) {
+          // Backfill a subscription row for older prepaid placeholders that
+          // predate the transactional Shopify subscription write. Without
+          // this row, the normal access resolver would fall back to Flirting
+          // even though the paid User record had been transferred.
+          const tier = prepaid.plan || "flirting";
+          await tx.subscription.upsert({
+            where: { id: identity.uid },
+            create: {
+              id: identity.uid,
+              userId: identity.uid,
+              provider: "shopify",
+              status: "active",
+              plan: "monthly",
+              planName: tier,
+              tier,
+              role: prepaid.role || "member",
+              shopifyCustomerId: prepaid.shopifyCustomerId || "",
+              shopifyOrderId: prepaid.shopifyOrderId || "",
+              ...(prepaid.expiresAt ? { currentPeriodEnd: prepaid.expiresAt } : {}),
+              updatedAt: new Date(),
+            },
+            update: {
+              userId: identity.uid,
+              provider: "shopify",
+              status: "active",
+              planName: tier,
+              tier,
+              role: prepaid.role || "member",
+              shopifyCustomerId: prepaid.shopifyCustomerId || "",
+              shopifyOrderId: prepaid.shopifyOrderId || "",
+              ...(prepaid.expiresAt ? { currentPeriodEnd: prepaid.expiresAt } : {}),
+              updatedAt: new Date(),
+            },
+          });
         }
 
         if (prepaid) {
@@ -184,13 +221,6 @@ export async function POST(req) {
         });
         if (!racedMember) throw err;
         provisioned = { member: racedMember, created: false };
-      }
-
-      if (provisioned.blocked) {
-        return NextResponse.json(
-          { error: "not_prepaid", message: "This email is not registered as a member." },
-          { status: 403 }
-        );
       }
 
       member = provisioned.member;
