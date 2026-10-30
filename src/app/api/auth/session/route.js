@@ -56,7 +56,9 @@ export async function POST(req) {
       // placeholder in one transaction. The placeholder is keyed by email;
       // the real account is keyed by Supabase UID. Moving the membership data
       // before deleting the placeholder prevents paid buyers losing access.
-      const provisioned = await prisma.$transaction(async (tx) => {
+      let provisioned;
+      try {
+        provisioned = await prisma.$transaction(async (tx) => {
         const racedMember = await tx.user.findUnique({
           where: { id: identity.uid },
         });
@@ -171,7 +173,18 @@ export async function POST(req) {
         }
 
         return { member: createdMember, created: true };
-      });
+        });
+      } catch (err) {
+        // Two auth callbacks can race on the first signup. If the other
+        // request won the unique UID insert, reuse its committed account
+        // instead of returning a signup error to the member.
+        if (err.code !== "P2002") throw err;
+        const racedMember = await prisma.user.findUnique({
+          where: { id: identity.uid },
+        });
+        if (!racedMember) throw err;
+        provisioned = { member: racedMember, created: false };
+      }
 
       if (provisioned.blocked) {
         return NextResponse.json(
