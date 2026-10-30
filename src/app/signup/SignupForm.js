@@ -421,21 +421,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false, o
           <h1 className={styles.title}>{t("createAccount")}</h1>
           <p className={styles.subtitle}>{t("startConnecting")}</p>
 
-          {!openAccess && (
-            <div className={styles.membershipBox}>
-              <p className={styles.membershipTitle}>{t("membersOnlyTitle")}</p>
-              <p className={styles.membershipText}>{t("membersOnlyText")}</p>
-              <a
-                className={styles.membershipCta}
-                href={LANDING_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {t("viewPlans")}
-              </a>
-            </div>
-          )}
-
           {error && <p className={styles.error}>{error}</p>}
 
           {membershipRequired && (
