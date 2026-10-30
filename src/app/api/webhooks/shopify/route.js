@@ -245,8 +245,8 @@ async function revokeAccess({ email, paymentStatus }) {
 
   if (existing.id === existing.email || existing.isPrePaid) {
     // Pre-paid placeholder record — no real account yet.
-    try {
-      await prisma.user.delete({ where: { id: uid } });
+    await prisma.user.delete({ where: { id: uid } });
+    await prisma.subscription.deleteMany({ where: { OR: [{ id: uid }, { userId: uid }] } });
     return;
   }
 
