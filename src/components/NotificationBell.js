@@ -127,7 +127,7 @@ export default function NotificationBell() {
       if (!res.ok) return;
       const data = await res.json().catch(() => ({}));
       setItems((current) => current.map((item) => item.id === id ? { ...item, read: true } : item));
-      if (Number.isFinite(Number(data.unread))) {
+      if (typeof data.unread === "number" && Number.isFinite(data.unread)) {
         const count = Number(data.unread);
         setUnread(count);
         syncAppBadge(count);
