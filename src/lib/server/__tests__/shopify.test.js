@@ -43,9 +43,18 @@ test("mapShopifyLineItems picks the most valuable plan", () => {
   assert.equal(mapShopifyLineItems([{ variant_id: "51798264447209" }]).annual, true);
 });
 
-test("mapShopifyLineItems falls back to flirting with no/unknown items", () => {
-  assert.equal(mapShopifyLineItems([]).plan, "flirting");
-  assert.equal(mapShopifyLineItems([{ variant_id: "wat" }]).plan, "flirting");
+test("mapShopifyLineItems refuses empty or unknown-only orders", () => {
+  assert.equal(mapShopifyLineItems([]), null);
+  assert.equal(mapShopifyLineItems([{ variant_id: "wat" }]), null);
+  assert.equal(mapShopifyLineItems([{ variant_id: "999999999" }]), null);
+});
+
+test("mapShopifyLineItems ignores unrelated variants when a membership item exists", () => {
+  const mapped = mapShopifyLineItems([
+    { variant_id: "unrelated-product" },
+    { variant_id: "51798261825769" },
+  ]);
+  assert.equal(mapped.plan, "hooking-up");
 });
 
 test("computeExpiresAt adds duration days", () => {

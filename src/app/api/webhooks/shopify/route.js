@@ -54,6 +54,10 @@ function shouldWriteRole(currentRole, variantRole) {
 async function grantAccess({ data, email, order }) {
   const prisma = getPrisma();
   const variant = mapShopifyLineItems(order.line_items || []);
+  if (!variant) {
+    logInfo("shopify.order_has_no_membership_variant", { orderId: order?.id?.toString?.() || "" });
+    return false;
+  }
   const expiresAt = computeExpiresAt(variant)?.toISOString() || "";
   const customerId = order.customer?.id?.toString() || "";
   const orderId = order.id?.toString() || "";
@@ -68,12 +72,9 @@ async function grantAccess({ data, email, order }) {
     // silently demoted, losing hosting and the Diamond badge while still
     // paying. Check the tier the member actually holds right now, and only
     // write the incoming one if it is at least as valuable.
-    const existingSub = await prisma.subscription
-      .findFirst({ where: { OR: [{ id: uid }, { userId: uid }] } })
-      .catch((err) => {
-        logError("shopify.existing_sub_read_failed", { error: err.message, uid });
-        return null;
-      });
+    const existingSub = await prisma.subscription.findFirst({
+      where: { OR: [{ id: uid }, { userId: uid }] },
+    });
     const downgrades = !mayWriteTier({
       currentTier: existingSub?.tier,
       currentIsActive: existingSub ? isActiveSub(existingSub) : false,
@@ -103,23 +104,17 @@ async function grantAccess({ data, email, order }) {
         expiresAt: keepExpires,
         updatedAt: new Date(),
       },
-    }).catch((err) => {
-      logError("shopify.grant_user_prisma_failed", { error: err.message, uid });
     });
 
     if (downgrades) {
       // Record the order for support, but leave the entitlements untouched.
-      await prisma.subscription
-        .update({
-          where: { id: uid },
-          data: {
-            shopifyCustomerId: customerId || existingSub?.shopifyCustomerId || "",
-            shopifyOrderId: orderId || existingSub?.shopifyOrderId || "",
-          },
-        })
-        .catch((err) => {
-          logError("shopify.downgrade_guard_sub_failed", { error: err.message, uid });
-        });
+      await prisma.subscription.update({
+        where: { id: uid },
+        data: {
+          shopifyCustomerId: customerId || existingSub?.shopifyCustomerId || "",
+          shopifyOrderId: orderId || existingSub?.shopifyOrderId || "",
+        },
+      });
       logInfo("shopify.tier_downgrade_ignored", {
         uid,
         currentTier: existingSub?.tier,
@@ -154,8 +149,6 @@ async function grantAccess({ data, email, order }) {
           shopifyOrderId: subData.shopifyOrderId,
           ...(subData.currentPeriodEnd ? { currentPeriodEnd: subData.currentPeriodEnd } : {}),
         },
-      }).catch((err) => {
-        logError("shopify.grant_sub_prisma_failed", { error: err.message, uid });
       });
     }
 
@@ -177,32 +170,55 @@ async function grantAccess({ data, email, order }) {
       await createWelcomeMessage({ uid, plan: variant.plan, role: variant.role });
     }
   } else {
-    await prisma.user.upsert({
-      where: { id: email },
-      create: {
-        id: email,
-        name: "",
-        email,
-        plan: variant.plan,
+    const periodEnd = expiresAt ? new Date(expiresAt) : null;
+    const periodStart = order.created_at ? new Date(order.created_at) : new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.user.upsert({
+        where: { id: email },
+        create: {
+          id: email,
+          name: "",
+          email,
+          plan: variant.plan,
+          role: variant.role,
+          paymentStatus: "paid",
+          isPrePaid: true,
+          shopifyCustomerId: customerId,
+          shopifyOrderId: orderId,
+          expiresAt: periodEnd,
+          createdAt: new Date(),
+        },
+        update: {
+          plan: variant.plan,
+          role: variant.role,
+          paymentStatus: "paid",
+          isPrePaid: true,
+          shopifyCustomerId: customerId,
+          shopifyOrderId: orderId,
+          expiresAt: periodEnd,
+        },
+      });
+      const subscription = {
+        userId: email,
+        provider: "shopify",
+        status: "active",
+        plan: variant.annual ? "annual" : "monthly",
+        planName: variant.plan,
+        tier: variant.tier,
         role: variant.role,
-        paymentStatus: "paid",
-        isPrePaid: true,
         shopifyCustomerId: customerId,
         shopifyOrderId: orderId,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        createdAt: new Date(),
-      },
-      update: {
-        plan: variant.plan,
-        role: variant.role,
-        paymentStatus: "paid",
-        isPrePaid: true,
-        shopifyCustomerId: customerId,
-        shopifyOrderId: orderId,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-      },
-    }).catch((err) => {
-      logError("shopify.prepaid_user_prisma_failed", { error: err.message, email });
+        currentPeriodStart: periodStart,
+        ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
+        canceledAt: null,
+        cancelAtPeriodEnd: false,
+        updatedAt: new Date(),
+      };
+      await tx.subscription.upsert({
+        where: { id: email },
+        create: { id: email, ...subscription },
+        update: subscription,
+      });
     });
 
     await sendEmail({
@@ -228,12 +244,10 @@ async function revokeAccess({ email, paymentStatus }) {
   const uid = existing.id;
 
   if (existing.id === existing.email || existing.isPrePaid) {
-    // Pre-paid placeholder record — no real account yet.
-    try {
-      await prisma.user.delete({ where: { id: uid } });
-    } catch (err) {
-      logError("shopify.revoke_prepaid_del_prisma_failed", { error: err.message, uid });
-    }
+    // Pre-paid placeholder record — no real account yet. Delete its dependent
+    // subscription first because Subscription.id is also the User foreign key.
+    await prisma.subscription.deleteMany({ where: { OR: [{ id: uid }, { userId: uid }] } });
+    await prisma.user.delete({ where: { id: uid } });
     return;
   }
 
@@ -252,8 +266,6 @@ async function revokeAccess({ email, paymentStatus }) {
       expiresAt: new Date(),
       updatedAt: new Date(),
     },
-  }).catch((err) => {
-    logError("shopify.revoke_user_prisma_failed", { error: err.message, uid });
   });
 
   const canceledSub = {
@@ -270,8 +282,6 @@ async function revokeAccess({ email, paymentStatus }) {
     where: { id: uid },
     create: { id: uid, userId: uid, ...canceledSub },
     update: canceledSub,
-  }).catch((err) => {
-    logError("shopify.revoke_sub_prisma_failed", { error: err.message, uid });
   });
 }
 
@@ -286,9 +296,7 @@ async function updateCustomerProfile({ email, data }) {
     patch.name = `${data.first_name || ""} ${data.last_name || ""}`.trim();
   }
   if (data.phone) patch.phone = data.phone;
-  await prisma.user.update({ where: { id: existing.id }, data: patch }).catch((err) => {
-    logError("shopify.customer_profile_prisma_failed", { error: err.message, uid: existing.id });
-  });
+  await prisma.user.update({ where: { id: existing.id }, data: patch });
 }
 
 export async function POST(req) {
