@@ -71,7 +71,9 @@ export async function POST(req) {
             })
           : null;
 
-        if (!prepaid && !openAccess) return { blocked: true };
+        // Anyone may create a free Flirting account. A paid Shopify
+        // placeholder, when present, is claimed below and keeps its paid
+        // membership; otherwise the new account starts on Flirting.
 
         const createdMember = await tx.user.create({
           data: {
@@ -184,13 +186,6 @@ export async function POST(req) {
         });
         if (!racedMember) throw err;
         provisioned = { member: racedMember, created: false };
-      }
-
-      if (provisioned.blocked) {
-        return NextResponse.json(
-          { error: "not_prepaid", message: "This email is not registered as a member." },
-          { status: 403 }
-        );
       }
 
       member = provisioned.member;
