@@ -145,7 +145,7 @@ export async function createNotification({
       if (recipient?.email && recipient.notifications !== "off") {
         const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
         const url = href?.startsWith("http") ? href : `${site}${href || "/rooms"}`;
-        const roomMatch = String(text || "").match(/entered (.+)\\.$/i);
+        const roomMatch = String(text || "").match(/entered (.+)\.$/i);
         const loungeName = roomMatch?.[1] || "the lounge";
         const safeName = String(actorName || "Christa").replace(/[&<>"']/g, (character) => ({
           "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
