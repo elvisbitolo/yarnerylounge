@@ -10,7 +10,6 @@ import {
   signupWithSupabaseEmail,
   reconcileSessionCookie,
   refreshSession,
-  checkPaidSignup,
   resendSignupVerification,
 } from "@/lib/client-auth";
 import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
@@ -56,7 +55,7 @@ function BrandMark() {
   );
 }
 
-export default function SignupForm({ oauthPending = false, hasSession = false, openAccess = false }) {
+export default function SignupForm({ oauthPending = false, hasSession = false }) {
   const t = useTranslations("auth");
   const tc = useTranslations("common");
   const [name, setName] = useState("");
@@ -68,11 +67,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false, o
   const [resent, setResent] = useState(false);
   const [acceptedToS, setAcceptedToS] = useState(false);
   const [tosError, setTosError] = useState(false);
-  // Membership hint states: "idle" | "checking" | "ok" | "notMember" | "error".
-  // The debounced early precheck only ever *warns* — the submit-time check in
-  // handleSubmit stays the authoritative gate. "error" is a transient network
-  // blip: it must not block the form, so it renders nothing.
-  const [emailStatus, setEmailStatus] = useState("idle");
   // Submission or OAuth return hit the membership wall; show the explained
   // membership-required box with the plan CTA instead of silently redirecting.
   const [membershipRequired, setMembershipRequired] = useState(false);
@@ -148,12 +142,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false, o
     return () => clearTimeout(timer);
   }, []);
 
-  // Early membership warning: as soon as a plausible email is typed, ask
-  // /api/auth/precheck whether it is a paid member. Debounced so a long user
-  // email doesn't fire one request per keystroke, and only *warns* — the
-  // submit-time check remains the authoritative gate. A member email is status
-  // "ok" (nothing rendered); a network blip is "error" (nothing rendered, the
-  // form is still submittable).
+
   useEffect(() => {
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -304,10 +293,9 @@ export default function SignupForm({ oauthPending = false, hasSession = false, o
     setBusy("email");
     let navigated = false;
     try {
-      // The signup wall: only paid Speakeasy checkout emails may register.
-      // Checked BEFORE any account is created; blocked emails are sent to the
-      // speakeasy page to purchase a membership.
-      await checkPaidSignup(email);
+      // Free Flirting signup is open. The session endpoint claims a paid
+      // Shopify placeholder by email when one exists; otherwise it provisions
+      // the new account at the free Flirting tier.
       const result = await signupWithSupabaseEmail(name, email, password);
       if (result && result.confirm) {
         setVerifyEmail(email);
@@ -500,24 +488,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false, o
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              {emailStatus === "checking" && !membershipRequired && (
-                <p className={styles.checkingMembership}>{t("checkingMembership")}</p>
-              )}
-              {emailStatus === "notMember" && !membershipRequired && !openAccess && (
-                <div className={styles.emailWarning} role="status">
-                  <p>
-                    {t("emailNotMember")} {t("emailNotMemberHint")}
-                  </p>
-                  <a
-                    className={styles.link}
-                    href={LANDING_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t("choosePlan")} →
-                  </a>
-                </div>
-              )}
             </div>
             <PasswordInput
               id="password"
