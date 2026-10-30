@@ -1275,7 +1275,9 @@
 
 @media (hover: none) {
   .tooltip {
-    display: none;
+    width: min(300px, calc(100vw - 24px));
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
   }
 }
 
