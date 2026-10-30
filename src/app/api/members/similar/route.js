@@ -9,8 +9,7 @@ import { withNotSuspended } from "@/lib/server/member-visibility-core";
 
 function similarityScore(a, b) {
   let score = 0;
-  let max = 0;
-
+  let comparableWeight = 0;
   const values = (person, ...keys) => {
     const result = [];
     for (const key of keys) {
@@ -20,66 +19,60 @@ function similarityScore(a, b) {
     }
     return [...new Set(result.map((value) => value.toLowerCase()))];
   };
-
   const overlap = (left, right) => {
     if (!left.length || !right.length) return 0;
     return left.filter((value) => right.includes(value)).length / Math.max(left.length, right.length);
   };
-
+  // Missing profile fields are unknown, not evidence of incompatibility.
   const addSetSignal = (weight, ...keys) => {
-    max += weight;
-    score += overlap(values(a, ...keys), values(b, ...keys)) * weight;
+    const left = values(a, ...keys);
+    const right = values(b, ...keys);
+    if (!left.length || !right.length) return;
+    comparableWeight += weight;
+    score += overlap(left, right) * weight;
   };
-
-  const locationWeight = 2;
-  max += locationWeight;
-  if (a.country && b.country && a.country === b.country) score += locationWeight;
-  else if (a.country && b.country) score += 0.5;
-
-  const timezoneWeight = 2;
-  max += timezoneWeight;
+  if (a.country && b.country) {
+    comparableWeight += 2;
+    score += a.country === b.country ? 2 : 0.5;
+  }
   const aTimezone = a.extra?.timezone || a.timezone || "";
   const bTimezone = b.extra?.timezone || b.timezone || "";
-  if (aTimezone && bTimezone && aTimezone.toLowerCase() === bTimezone.toLowerCase()) score += timezoneWeight;
-
+  if (aTimezone && bTimezone) {
+    comparableWeight += 2;
+    if (aTimezone.toLowerCase() === bTimezone.toLowerCase()) score += 2;
+  }
   addSetSignal(3, "craftInterests", "crafts");
   addSetSignal(2, "projectTypes");
   addSetSignal(2, "hobbies", "crochetTechniques");
   addSetSignal(2, "communityGoals");
-
-  const yarnWeight = 2;
-  max += yarnWeight;
   const aYarn = a.yarnPreference || a.goToYarn || "";
   const bYarn = b.yarnPreference || b.goToYarn || "";
-  if (aYarn && bYarn && aYarn.toLowerCase() === bYarn.toLowerCase()) score += yarnWeight;
-
-  const skillWeight = 1;
-  max += skillWeight;
-  if (a.skillLevel && b.skillLevel && a.skillLevel === b.skillLevel) score += skillWeight;
-
-  const hookWeight = 1.5;
-  max += hookWeight;
-  if (a.favoriteHookSize && b.favoriteHookSize && a.favoriteHookSize.toLowerCase() === b.favoriteHookSize.toLowerCase()) {
-    score += hookWeight;
+  if (aYarn && bYarn) {
+    comparableWeight += 2;
+    if (aYarn.toLowerCase() === bYarn.toLowerCase()) score += 2;
   }
-
+  if (a.skillLevel && b.skillLevel) {
+    comparableWeight += 1;
+    if (a.skillLevel === b.skillLevel) score += 1;
+  }
+  if (a.favoriteHookSize && b.favoriteHookSize) {
+    comparableWeight += 1.5;
+    if (a.favoriteHookSize.toLowerCase() === b.favoriteHookSize.toLowerCase()) score += 1.5;
+  }
   addSetSignal(2, "favoriteColors");
-
-  const textWeight = 2;
-  max += textWeight;
-  const keywords = (s) => {
-    if (!s) return new Set();
-    return new Set(s.toLowerCase().split(/[\s,;.!?]+/).filter((w) => w.length > 3));
+  const keywords = (value) => {
+    if (!value) return new Set();
+    return new Set(value.toLowerCase().split(/[\\s,;.!?]+/).filter((word) => word.length > 3));
   };
-  const aKw = new Set([...keywords(a.headline), ...keywords(a.bio), ...keywords(a.goToYarn)]);
-  const bKw = new Set([...keywords(b.headline), ...keywords(b.bio), ...keywords(b.goToYarn)]);
-  if (aKw.size && bKw.size) {
-    let overlap = 0;
-    aKw.forEach((w) => { if (bKw.has(w)) overlap++; });
-    score += (overlap / Math.max(aKw.size, bKw.size)) * textWeight;
+  const aKeywords = new Set([...keywords(a.headline), ...keywords(a.bio), ...keywords(a.goToYarn)]);
+  const bKeywords = new Set([...keywords(b.headline), ...keywords(b.bio), ...keywords(b.goToYarn)]);
+  if (aKeywords.size && bKeywords.size) {
+    comparableWeight += 2;
+    let shared = 0;
+    aKeywords.forEach((word) => { if (bKeywords.has(word)) shared += 1; });
+    score += (shared / Math.max(aKeywords.size, bKeywords.size)) * 2;
   }
-
-  return max > 0 ? score / max : 0;
+  return comparableWeight > 0 ? score / comparableWeight : 0;
 }
 
 export async function GET(req) {
