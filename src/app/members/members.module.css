@@ -1275,7 +1275,9 @@
 
 @media (hover: none) {
   .tooltip {
-    display: none;
+    width: min(300px, calc(100vw - 24px));
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
   }
 }
 
@@ -1386,4 +1388,175 @@
 .similarHint {
   color: #9b9bab;
   font-size: 12px !important;
+}
+
+
+/* Members discovery refresh — visual-only overrides.
+   Keep the constellation and existing interactions intact while improving
+   hierarchy, contrast, keyboard focus, and narrow-screen usability. */
+.container {
+  width: min(100% - 40px, 1180px);
+  max-width: 1180px;
+  padding: clamp(24px, 4vw, 48px) 0;
+}
+
+.title {
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.subtitle {
+  margin-bottom: 24px;
+  color: rgba(232, 229, 242, 0.68);
+}
+
+.controls {
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.search {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid rgba(199, 182, 240, 0.2);
+  border-radius: 14px;
+  background: rgba(19, 18, 29, 0.78);
+  color: #f7f4ff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.search::placeholder {
+  color: rgba(213, 208, 229, 0.48);
+}
+
+.search:focus {
+  border-color: rgba(199, 182, 240, 0.72);
+  background: rgba(25, 23, 38, 0.96);
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.13);
+  outline: none;
+}
+
+.filters {
+  align-items: center;
+  gap: 8px;
+}
+
+.filterBtn {
+  min-height: 38px;
+  padding: 0 16px;
+  border-color: rgba(220, 213, 238, 0.16);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(239, 235, 248, 0.76);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.filterBtn:hover {
+  border-color: rgba(199, 182, 240, 0.55);
+  background: rgba(167, 139, 250, 0.1);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.filterActive {
+  border-color: rgba(199, 182, 240, 0.58);
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.24), rgba(246, 7, 122, 0.16));
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.filtersToggle {
+  min-height: 40px;
+  border-color: rgba(220, 213, 238, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(239, 235, 248, 0.8);
+}
+
+.filtersToggle:hover {
+  border-color: rgba(199, 182, 240, 0.58);
+  background: rgba(167, 139, 250, 0.1);
+  color: #ffffff;
+}
+
+.filtersToggleActive {
+  border-color: rgba(199, 182, 240, 0.58);
+  background: rgba(167, 139, 250, 0.2);
+  color: #ffffff;
+}
+
+.canvasFrame {
+  margin-top: 18px;
+  border-color: rgba(199, 182, 240, 0.13);
+  border-radius: 26px;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(109, 93, 246, 0.17), transparent 66%),
+    linear-gradient(145deg, rgba(31, 28, 47, 0.98), rgba(23, 22, 34, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 24px 70px rgba(0, 0, 0, 0.2);
+}
+
+.avatarPos:focus-visible {
+  outline: 2px solid #f6a6d0;
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+.tooltip {
+  border-color: rgba(199, 182, 240, 0.24);
+  background: rgba(29, 28, 34, 0.97);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.tooltipAction:focus-visible,
+.safetyBtn:focus-visible,
+.filterBtn:focus-visible,
+.filtersToggle:focus-visible,
+.layoutReset:focus-visible {
+  outline: 2px solid #c9b6f0;
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .container {
+    width: min(100% - 28px, 1180px);
+    padding: 28px 0;
+  }
+
+  .subtitle {
+    margin-bottom: 20px;
+  }
+
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 2px 1px 8px;
+    scrollbar-width: thin;
+  }
+
+  .filterBtn {
+    flex: 0 0 auto;
+  }
+
+  .canvasFrame {
+    margin-top: 14px;
+    border-radius: 18px;
+  }
+
+  .tooltip {
+    width: min(300px, calc(100vw - 24px));
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filterBtn,
+  .search,
+  .canvasGlow,
+  .avatarPos {
+    animation: none !important;
+    transition: none !important;
+  }
 }
