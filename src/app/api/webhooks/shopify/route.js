@@ -244,9 +244,10 @@ async function revokeAccess({ email, paymentStatus }) {
   const uid = existing.id;
 
   if (existing.id === existing.email || existing.isPrePaid) {
-    // Pre-paid placeholder record — no real account yet.
-    await prisma.user.delete({ where: { id: uid } });
+    // Pre-paid placeholder record — no real account yet. Delete its dependent
+    // subscription first because Subscription.id is also the User foreign key.
     await prisma.subscription.deleteMany({ where: { OR: [{ id: uid }, { userId: uid }] } });
+    await prisma.user.delete({ where: { id: uid } });
     return;
   }
 
