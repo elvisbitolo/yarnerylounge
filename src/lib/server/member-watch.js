@@ -272,3 +272,80 @@ export async function notifySecretYarneryOnline(targetId) {
     return { notified: 0, failed: 1 };
   }
 }
+
+
+/**
+ * Broadcast Christa's lounge entry to members who can access that room.
+ * The persisted owner email is the source of truth; login and page views do
+ * not call this function. The presence route invokes it only for a fresh,
+ * successful Jitsi room join (never for heartbeats or refreshes).
+ */
+export async function notifySecretYarneryRoom(targetId, room) {
+  try {
+    const prisma = getPrisma();
+    if (!prisma || !targetId || !room?.id) return { notified: 0, skipped: true };
+    const target = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { id: true, name: true, email: true, suspended: true, extra: true },
+    });
+    if (
+      !target ||
+      target.suspended ||
+      String(target.email || "").trim().toLowerCase() !== "secretyarnery@gmail.com" ||
+      target.extra?.chatSettings?.onlineVisibility === "nobody"
+    ) return { notified: 0, skipped: true };
+
+    let notified = 0;
+    let failed = 0;
+    let cursor = "";
+    while (true) {
+      const members = await prisma.user.findMany({
+        where: {
+          id: { not: targetId, ...(cursor ? { gt: cursor } : {}) },
+          OR: [{ suspended: false }, { suspended: null }],
+        },
+        orderBy: { id: "asc" },
+        take: 100,
+        select: { id: true, role: true, extra: true },
+      });
+      if (!members.length) break;
+      for (const member of members) {
+        try {
+          // A private group/space lounge must never be disclosed to a member
+          // who cannot enter it.
+          const access = await resolveRoomAccess(room.id, member.id, member);
+          if (access.denied) continue;
+          const loungeName = room.name || "the lounge";
+          const ok = await createNotification({
+            userId: member.id,
+            type: "priority_room",
+            actorId: target.id,
+            actorName: target.name || "Christa",
+            targetId: target.id,
+            href: room.slug ? `/rooms/${room.slug}` : "/rooms",
+            text: `${target.name || "Christa"} has just entered ${loungeName}.`,
+          });
+          if (ok) notified += 1;
+        } catch (err) {
+          failed += 1;
+          logError("member-watch.priority_room_recipient_failed", {
+            targetId,
+            recipientId: member.id,
+            roomId: room.id,
+            error: err?.message,
+          });
+        }
+      }
+      cursor = members[members.length - 1].id;
+      if (members.length < 100) break;
+    }
+    return { notified, failed };
+  } catch (err) {
+    logError("member-watch.priority_room_broadcast_failed", {
+      targetId,
+      roomId: room?.id,
+      error: err?.message,
+    });
+    return { notified: 0, failed: 1 };
+  }
+}
