@@ -21,7 +21,7 @@ export function mapShopifyLineItems(lineItems = []) {
     if (!variant) continue;
     if (!best || RANK[variant.plan] > RANK[best.plan]) best = variant;
   }
-  return best || SHOPIFY_VARIANTS[0];
+  return best;
 }
 
 export function computeExpiresAt(variant, from = new Date()) {
