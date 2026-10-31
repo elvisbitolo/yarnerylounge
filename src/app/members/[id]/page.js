@@ -239,7 +239,8 @@ const coverUrl = member.coverPhotoURL || "";
   return (
       <div className={styles.container}>
         <BackButton fallback="/members" label="All members" />
-
+        <div className={styles.profileLayout}>
+          <main className={styles.profileMain}>
         <div className={styles.profileCard}>
           <div
             className={coverUrl ? styles.banner : `${styles.banner} ${styles.bannerEmpty}`}
@@ -374,6 +375,8 @@ const coverUrl = member.coverPhotoURL || "";
           badges={earnedBadges}
         />
 
+          </main>
+          <aside className={styles.profileAside} aria-label="About this member and community actions">
         {!isSelf && memberSimilarities.length > 0 && (
           <div className={styles.similarBox}>
             <h2 className={styles.similarTitle}>What you have in common</h2>
@@ -423,8 +426,9 @@ const coverUrl = member.coverPhotoURL || "";
           </>
         )}
 
-        <MembersToExplore />
-
+        <MembersToExplore excludeId={id} />
+          </aside>
+        </div>
       </div>
   );
 }
