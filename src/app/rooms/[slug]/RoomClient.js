@@ -1367,6 +1367,11 @@ export default function RoomClient({
               {recordNotice}
             </p>
           )}
+          {recording && (
+            <p className={styles.recordNotice} role="status">
+              Connection-quality diagnostics are collected during recording to help troubleshoot audio and video quality.
+            </p>
+          )}
 
           <div
             className={
