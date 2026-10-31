@@ -44,13 +44,25 @@ export default function DailyMatchCard({ dailyMatch, dailyLoading, dailyError })
             </p>
             <div className={styles.matchPreview}>
               {dailyMatch.photoURL ? (
-                <Image
-                  src={dailyMatch.photoURL}
-                  alt={dailyMatch.memberName || "Today's fiber match"}
-                  width={64}
-                  height={64}
-                  className={styles.matchAvatar}
-                />
+                <>
+                  {/* Member-uploaded photos can live on different storage/CDN hosts. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={dailyMatch.photoURL}
+                    alt={dailyMatch.memberName || "Today's fiber match"}
+                    width={64}
+                    height={64}
+                    className={styles.matchAvatar}
+                    onError={(event) => {
+                      event.currentTarget.hidden = true;
+                      const fallback = event.currentTarget.nextElementSibling;
+                      if (fallback) fallback.hidden = false;
+                    }}
+                  />
+                  <div className={styles.matchAvatarPlaceholder} aria-hidden="true" hidden>
+                    {initialsFor(dailyMatch.memberName)}
+                  </div>
+                </>
               ) : (
                 <div className={styles.matchAvatarPlaceholder} aria-hidden="true">
                   {initialsFor(dailyMatch.memberName)}

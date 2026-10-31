@@ -611,3 +611,9 @@
 .matchTilePhoto[hidden] {
   display: none;
 }
+
+
+/* Keep failed-photo initials hidden until the matching image errors. */
+.matchAvatarPlaceholder[hidden] {
+  display: none;
+}
