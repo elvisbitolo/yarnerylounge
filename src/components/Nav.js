@@ -12,6 +12,7 @@ import SidebarProfile from "./SidebarProfile";
 import LiveNowBanner from "./LiveNowBanner";
 import InviteClaimer from "./InviteClaimer";
 import styles from "./Nav.module.css";
+import { Home, Map, Users, Heart, Newspaper, CalendarDays, Images, Video, Clapperboard, BriefcaseBusiness, Trophy, MessageCircle, GraduationCap, BookOpen, ClipboardList, Sparkles, FolderOpen, Star } from "lucide-react";
 const CHEVRON = (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
     <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -115,6 +116,14 @@ const LEARN_ITEMS = [
   { href: "/resources", key: "resources" },
 ];
 
+const NAV_ICONS = {
+  neighbourhoods: Map, members: Users, match: Heart, feed: Newspaper, events: CalendarDays,
+  gallery: Images, recordings: Video, studio: Clapperboard, portfolio: BriefcaseBusiness,
+  leaderboard: Trophy, profile: Home, membership: Star, courses: GraduationCap,
+  crochetAlongs: BookOpen, quizzes: ClipboardList, resources: FolderOpen,
+  roomHappyHour: MessageCircle, roomLofi: MessageCircle, roomVelvetDen: MessageCircle, roomSilentStudio: MessageCircle,
+};
+
 function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) {
   const isOpen = open.has(id);
   return (
@@ -126,7 +135,8 @@ function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) 
       <div className={isOpen ? `${styles.groupBody} ${styles.groupBodyOpen}` : styles.groupBody}>
         {items && items.map((item) => (
           <Link key={item.href} className={styles.sidebarLink} href={item.href} onClick={close}>
-            {item.label || t(item.key)}
+            {(() => { const Icon = NAV_ICONS[item.key]; return Icon ? <Icon className={styles.sidebarItemIcon} size={18} strokeWidth={1.8} aria-hidden="true" /> : null; })()}
+            <span>{item.label || t(item.key)}</span>
           </Link>
         ))}
         {children}
