@@ -370,7 +370,7 @@ const coverUrl = member.coverPhotoURL || "";
                 ))}
               </div>
             )}
-            <YarnProfile member={memberProfile} /></div>}}
+            <YarnProfile member={memberProfile} /></div>}
           badges={earnedBadges}
         />
 
