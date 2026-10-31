@@ -361,6 +361,10 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
             <span className={styles.burgerLine} />
           </button>
         </div>
+        <Link href="/dashboard" className={styles.communityBrand} aria-label="Christa’s Speakeasy home">
+          <img src="https://www.christasspeakeasy.com/icon-192.png" alt="" />
+          <span>Christa’s Speakeasy</span>
+        </Link>
         <div className={styles.topbarCenter}>
           <SearchForm />
         </div>
