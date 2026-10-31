@@ -4,9 +4,9 @@ import { useState } from "react";
 import { Bookmark, Heart, MessageCircle, Share2 } from "lucide-react";
 import styles from "./post-engagement.module.css";
 
-export default function PostEngagement({ post }) {
-  const [liked, setLiked] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
+export default function PostEngagement({ post, viewerId = "" }) {
+  const [liked, setLiked] = useState(Boolean(viewerId && post.likes && post.likes[viewerId]));
+  const [bookmarked, setBookmarked] = useState(Boolean(viewerId && post.bookmarks && post.bookmarks[viewerId]));
   const [likeCount, setLikeCount] = useState(Object.keys(post.likes || {}).length);
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState("");
@@ -42,9 +42,7 @@ export default function PostEngagement({ post }) {
     setError("");
     try {
       const response = await fetch("/api/posts/" + encodeURIComponent(post.id) + "/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: comment.trim() }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: comment.trim() }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not post comment");
@@ -62,22 +60,17 @@ export default function PostEngagement({ post }) {
     } catch (err) { if (err.name !== "AbortError") setError("Could not share this post."); }
   }
 
-  return (
-    <div className={styles.engagement}>
-      <div className={styles.actions}>
-        <button type="button" aria-pressed={liked} disabled={busy} onClick={() => toggle("like", "liked", setLiked)} className={liked ? styles.active : ""}><Heart size={17} /> Like <span>{likeCount}</span></button>
-        <button type="button" aria-expanded={commentsOpen} onClick={async () => { const next = !commentsOpen; setCommentsOpen(next); if (next) { try { await loadComments(); } catch (err) { setError(err.message); } } }}><MessageCircle size={17} /> Comment</button>
-        <button type="button" onClick={sharePost}><Share2 size={17} /> Share</button>
-        <button type="button" aria-pressed={bookmarked} disabled={busy} onClick={() => toggle("bookmark", "bookmarked", setBookmarked)} className={bookmarked ? styles.active : ""} aria-label={bookmarked ? "Remove bookmark" : "Bookmark post"}><Bookmark size={17} /> {bookmarked ? "Saved" : "Save"}</button>
-      </div>
-      {error && <p className={styles.feedback} role="status">{error}</p>}
-      {commentsOpen && <div className={styles.comments}>
-        {comments.map((item) => <div className={styles.comment} key={item.id}><strong>{item.authorName}</strong><p>{item.text}</p></div>)}
-        <form onSubmit={submitComment} className={styles.commentForm}>
-          <input value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} placeholder="Write a comment…" aria-label="Write a comment" />
-          <button type="submit" disabled={!comment.trim() || busy}>Post</button>
-        </form>
-      </div>}
+  return <div className={styles.engagement}>
+    <div className={styles.actions}>
+      <button type="button" aria-pressed={liked} disabled={busy} onClick={() => toggle("like", "liked", setLiked)} className={liked ? styles.active : ""}><Heart size={17} /> Like <span>{likeCount}</span></button>
+      <button type="button" aria-expanded={commentsOpen} onClick={async () => { const next = !commentsOpen; setCommentsOpen(next); if (next) { try { await loadComments(); } catch (err) { setError(err.message); } } }}><MessageCircle size={17} /> Comment</button>
+      <button type="button" onClick={sharePost}><Share2 size={17} /> Share</button>
+      <button type="button" aria-pressed={bookmarked} disabled={busy} onClick={() => toggle("bookmark", "bookmarked", setBookmarked)} className={bookmarked ? styles.active : ""} aria-label={bookmarked ? "Remove bookmark" : "Bookmark post"}><Bookmark size={17} /> {bookmarked ? "Saved" : "Save"}</button>
     </div>
-  );
+    {error && <p className={styles.feedback} role="status">{error}</p>}
+    {commentsOpen && <div className={styles.comments}>
+      {comments.map((item) => <div className={styles.comment} key={item.id}><strong>{item.authorName}</strong><p>{item.text}</p></div>)}
+      <form onSubmit={submitComment} className={styles.commentForm}><input value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} placeholder="Write a comment…" aria-label="Write a comment" /><button type="submit" disabled={!comment.trim() || busy}>Post</button></form>
+    </div>}
+  </div>;
 }
