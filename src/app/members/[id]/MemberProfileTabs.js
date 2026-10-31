@@ -14,7 +14,7 @@ const TAB_ITEMS = [
   { id: "badges", label: "Badges", Icon: Trophy },
 ];
 
-export default function MemberProfileTabs({ posts = [], projects = [], about, badges = [], isSelf = false }) {
+export default function MemberProfileTabs({ posts = [], projects = [], about, badges = [], isSelf = false, viewerId = "", member = {} }) {
   const [active, setActive] = useState("posts");
   return (
     <section className={styles.tabsShell} aria-label="Member profile sections">
@@ -33,9 +33,9 @@ export default function MemberProfileTabs({ posts = [], projects = [], about, ba
         <h2 className={profileStyles.sectionTitle}>Recent posts</h2>
         {posts.length === 0 ? <p className={profileStyles.empty}>No posts yet.</p> : <div className={profileStyles.postList}>
           {posts.map((post) => <article key={post.id} id={`post-${post.id}`} className={profileStyles.post}>
-            <p className={profileStyles.postText}>{post.text}</p>
+            <div className={profileStyles.postAuthor}>{member.photoURL ? <img src={member.photoURL} alt="" /> : <span>{(member.name || "M").slice(0, 1)}</span>}<div><strong>{member.name || "Member"}</strong><small>{post.createdAt ? new Date(post.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : ""}</small></div></div><p className={profileStyles.postText}>{post.text}</p>
             {post.imageUrl && <img src={post.imageUrl} alt="" className={profileStyles.postImage} />}
-            <PostEngagement post={post} />
+            <PostEngagement post={post} viewerId={viewerId} />
           </article>)}
         </div>}
       </div>
