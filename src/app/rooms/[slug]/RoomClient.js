@@ -725,11 +725,6 @@ export default function RoomClient({
 
     const markConnected = () => {
       syncCount();
-      if (connectAtRef.current) {
-        logDevTiming("JAAS joined room", connectAtRef.current);
-        connectAtRef.current = 0;
-      }
-      setConnectAt(0);
       setConnStalled(false);
       // Update refs before any follow-up work — setState is async and
       // autoEnableIfInside reads phaseRef.
@@ -745,6 +740,11 @@ export default function RoomClient({
     // lounge. XMPP connection establishment can happen before that point.
     const markJoined = () => {
       startRoomPresence();
+      if (connectAtRef.current) {
+        logDevTiming("JAAS joined room", connectAtRef.current);
+        connectAtRef.current = 0;
+      }
+      setConnectAt(0);
       markConnected();
     };
 
