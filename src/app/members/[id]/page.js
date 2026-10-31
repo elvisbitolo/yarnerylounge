@@ -17,6 +17,7 @@ import StickerDisplay from "./StickerDisplay";
 import YarnProfile from "./YarnProfile";
 import MembersToExplore from "./MembersToExplore";
 import MemberSafetyControls from "./MemberSafetyControls";
+import MemberProfileActions from "./MemberProfileActions";
 import MemberPresence from "./MemberPresence";
 import MemberProfileTabs from "./MemberProfileTabs";
 import { getMemberSafety } from "@/lib/server/member-safety";
@@ -229,7 +230,7 @@ const coverUrl = member.coverPhotoURL || "";
               : "You blocked this member. Unblock them to see their profile again."}
           </p>
           {safetyData.iBlocked && (
-            <MemberSafetyControls targetId={id} targetName={member.name} />
+            <MemberProfileActions targetId={id} targetName={member.name} />
           )}
         </div>
     );
