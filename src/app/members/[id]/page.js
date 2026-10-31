@@ -239,7 +239,8 @@ const coverUrl = member.coverPhotoURL || "";
   return (
       <div className={styles.container}>
         <BackButton fallback="/members" label="All members" />
-
+        <div className={styles.profileLayout}>
+          <main className={styles.profileMain}>
         <div className={styles.profileCard}>
           <div
             className={coverUrl ? styles.banner : `${styles.banner} ${styles.bannerEmpty}`}
@@ -336,6 +337,8 @@ const coverUrl = member.coverPhotoURL || "";
         </div>
 
         <MemberProfileTabs
+          viewerId={viewer.uid}
+          member={memberProfile}
           posts={posts}
           projects={projects}
           isSelf={isSelf}
@@ -374,6 +377,15 @@ const coverUrl = member.coverPhotoURL || "";
           badges={earnedBadges}
         />
 
+          </main>
+          <aside className={styles.profileAside} aria-label="About this member and community actions">
+        <section className={styles.similarBox}>
+          <h2 className={styles.similarTitle}>About {member.name || "this member"}</h2>
+          {member.headline && <p className={styles.bio}>{member.headline}</p>}
+          {member.bio && <p className={styles.bio}>{member.bio}</p>}
+          {(member.location || member.country) && <p className={styles.postMeta}>{[member.location, member.country].filter(Boolean).join(", ")}</p>}
+          <YarnProfile member={memberProfile} />
+        </section>
         {!isSelf && memberSimilarities.length > 0 && (
           <div className={styles.similarBox}>
             <h2 className={styles.similarTitle}>What you have in common</h2>
@@ -423,8 +435,9 @@ const coverUrl = member.coverPhotoURL || "";
           </>
         )}
 
-        <MembersToExplore />
-
+        <MembersToExplore excludeId={id} />
+          </aside>
+        </div>
       </div>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./explore.module.css";
 
-export default function MembersToExplore() {
+export default function MembersToExplore({ excludeId = "" }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,12 +13,12 @@ export default function MembersToExplore() {
     fetch("/api/members/similar")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (active && data) setMembers(data.members || []);
+        if (active && data) setMembers((data.members || []).filter((member) => member.id !== excludeId));
       })
       .catch(() => {})
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [excludeId]);
 
   if (loading) {
     return <p className={styles.loading}>Finding members to explore…</p>;
