@@ -135,8 +135,11 @@ export async function GET(req) {
     const expiryDate = sub.currentPeriodEnd instanceof Date ? sub.currentPeriodEnd : new Date(sub.currentPeriodEnd);
     if (!uid || Number.isNaN(expiryDate.getTime())) { stats.skipped++; continue; }
 
-    const daysLeft = Math.ceil((expiryDate.getTime() - now.getTime()) / DAY_MS);
-    const isExpiredWindow = daysLeft <= 0 && now.getTime() - expiryDate.getTime() <= 36 * 60 * 60 * 1000;
+    // Round to the nearest calendar day so a fixed daily cron does not miss a
+    // milestone merely because the subscription renews later in the day.
+    const daysLeft = Math.round((expiryDate.getTime() - now.getTime()) / DAY_MS);
+    const isExpiredWindow = expiryDate.getTime() <= now.getTime() &&
+      now.getTime() - expiryDate.getTime() <= 36 * 60 * 60 * 1000;
     if (!REMINDER_DAYS.has(daysLeft) && !isExpiredWindow) { stats.skipped++; continue; }
 
     const tier = canonicalTier(sub.tier || sub.plan || sub.planName);
