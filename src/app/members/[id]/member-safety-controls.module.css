@@ -1,0 +1,90 @@
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.actionButton {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #e4d7df;
+  border-radius: 999px;
+  background: #fff;
+  color: #51464e;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.actionButton:hover:not(:disabled) {
+  border-color: #f6077a;
+  color: #c90a65;
+  background: #fff5f9;
+}
+
+.actionButton[aria-pressed="true"] {
+  border-color: #f4b8d1;
+  background: #fff0f6;
+  color: #9e1654;
+}
+
+.actionButton:focus-visible,
+.reportTextarea:focus-visible {
+  outline: 2px solid #f6077a;
+  outline-offset: 2px;
+}
+
+.actionButton:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.notice {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  color: #756a68;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.warning {
+  color: #9e1654;
+  font-weight: 700;
+}
+
+.reportForm {
+  display: flex;
+  flex-basis: 100%;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.reportField {
+  flex: 1;
+  min-width: 0;
+}
+
+.reportTextarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1px solid #e4d7df;
+  border-radius: 10px;
+  background: #fff;
+  color: #332a30;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+@media (max-width: 420px) {
+  .reportForm { flex-direction: column; }
+  .reportField { width: 100%; }
+}
