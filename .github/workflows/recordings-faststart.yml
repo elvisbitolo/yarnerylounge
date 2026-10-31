@@ -1,0 +1,61 @@
+name: Recordings faststart
+
+# JaaS emits MP4s with the `moov` index at the end. Remuxing them needs more
+# disk and time than a Vercel function has, so this runs on a GitHub runner and
+# rewrites the stored object in place. The script is idempotent: files whose
+# `moov` already sits before `mdat` are skipped.
+#
+# Required repository secrets:
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   POSTGRES_URL_NON_POOLING  (already used by the migrations workflow)
+#
+# The job exits successfully when the Supabase secrets are absent, so enabling
+# the schedule before configuring them does not produce failing runs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum number of recordings to remux"
+        required: false
+        default: "5"
+        type: string
+      dry_run:
+        description: "Only report which recordings would be remuxed"
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "0 */6 * * *"
+
+concurrency:
+  group: recordings-faststart
+  cancel-in-progress: false
+
+jobs:
+  faststart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Verify ffmpeg
+        run: ffmpeg -version
+      - name: Remux recordings
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DIRECT_URL: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          FASTSTART_LIMIT: ${{ github.event.inputs.limit || '5' }}
+          FASTSTART_DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          args=(--limit "$FASTSTART_LIMIT")
+          if [ "$FASTSTART_DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          node scripts/faststart-recordings.mjs "${args[@]}"
