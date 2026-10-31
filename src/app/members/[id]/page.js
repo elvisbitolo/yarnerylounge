@@ -243,6 +243,11 @@ const coverUrl = member.coverPhotoURL || "";
             className={coverUrl ? styles.banner : `${styles.banner} ${styles.bannerEmpty}`}
             style={!coverUrl ? { background: bannerFallback } : undefined}
           >
+            <div className={styles.bannerBrand} aria-label="Christa’s Speakeasy">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="https://www.christasspeakeasy.com/icon-192.png" alt="" />
+              <span>Christa’s Speakeasy</span>
+            </div>
             {coverUrl && (
               // height:auto in CSS, so the banner takes the photo's own shape
               // rather than letterboxing it into a fixed box.
@@ -266,11 +271,6 @@ const coverUrl = member.coverPhotoURL || "";
             <h1 className={styles.title}>
               {member.name}
               <MemberBadge plan={member.plan} role={member.role} size={18} showHost={false} />
-              <span className={styles.communityBadge} title="Christa’s Speakeasy member">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/icon-192.png" alt="" />
-                Christa’s Speakeasy
-              </span>
               {member.role === "owner" && (
                 <span className={styles.ownerBadge}>{roleBadgeLabel(member.role, member.roleLabel)}</span>
               )}
