@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MessageCircle, FolderOpen, UserRound, Trophy, Medal } from "lucide-react";
 import styles from "./profile-tabs.module.css";
 import profileStyles from "./profile.module.css";
+import PostEngagement from "./PostEngagement";
 
 const TAB_ITEMS = [
   { id: "posts", label: "Posts", Icon: MessageCircle },
@@ -31,10 +32,10 @@ export default function MemberProfileTabs({ posts = [], projects = [], about, ba
       <div role="tabpanel" id="member-panel-posts" aria-labelledby="member-tab-posts" hidden={active !== "posts"} className={styles.tabPanel}>
         <h2 className={profileStyles.sectionTitle}>Recent posts</h2>
         {posts.length === 0 ? <p className={profileStyles.empty}>No posts yet.</p> : <div className={profileStyles.postList}>
-          {posts.map((post) => <article key={post.id} className={profileStyles.post}>
+          {posts.map((post) => <article key={post.id} id={`post-${post.id}`} className={profileStyles.post}>
             <p className={profileStyles.postText}>{post.text}</p>
             {post.imageUrl && <img src={post.imageUrl} alt="" className={profileStyles.postImage} />}
-            <p className={profileStyles.postMeta}>{post.createdAt ? new Date(post.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : ""}</p>
+            <PostEngagement post={post} />
           </article>)}
         </div>}
       </div>
