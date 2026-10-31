@@ -46,6 +46,27 @@ async function loadSystemSnapshot() {
   try {
     const prisma = getPrisma();
     const rows = await prisma.auditLog.findMany({
+      where: { action: { not: "jitsi.network.sample" }, metadata: { path: ["category"], not: null } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, actorId: true, actorName: true, action: true, targetId: true, metadata: true, createdAt: true },
+    });
+    snapshot.activityEvents = rows.map((row) => ({
+      id: row.id,
+      actorId: row.actorId,
+      actorName: row.actorName || "Member",
+      action: row.action,
+      targetId: row.targetId,
+      createdAt: row.createdAt,
+      ...(row.metadata && typeof row.metadata === "object" ? row.metadata : {}),
+    }));
+  } catch {
+    snapshot.activityEvents = null;
+  }
+
+  try {
+    const prisma = getPrisma();
+    const rows = await prisma.auditLog.findMany({
       where: { action: "jitsi.network.sample" },
       orderBy: { createdAt: "desc" },
       take: 40,
@@ -129,6 +150,40 @@ export default async function DeveloperPage() {
             <strong>{snapshot.recordings?.error ? "—" : snapshot.recordings?.failed ?? "—"}</strong>
             <small>Requires investigation if non-zero</small>
           </article>
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <div><p className={styles.eyebrow}>Member operations</p><h2>Activity & failure monitor</h2></div>
+          <span className={styles.muted}>Latest 100 recorded events</span>
+        </div>
+        <div className={styles.networkPanel}>
+          <p className={styles.networkIntro}>Membership payment and processing outcomes are recorded here alongside operational events explicitly instrumented by the application. Sensitive payment credentials and raw provider payloads are not stored.</p>
+          {snapshot.activityEvents === null ? (
+            <p className={styles.networkEmpty}>Activity diagnostics are currently unavailable.</p>
+          ) : snapshot.activityEvents.length === 0 ? (
+            <p className={styles.networkEmpty}>No activity events have been recorded yet.</p>
+          ) : (
+            <div className={styles.networkTableWrap}>
+              <table className={styles.networkTable}>
+                <thead><tr><th>Time</th><th>Member</th><th>Category</th><th>Event</th><th>Severity</th><th>Details</th><th>Reference</th></tr></thead>
+                <tbody>
+                  {snapshot.activityEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td>{new Date(event.createdAt).toLocaleString()}</td>
+                      <td>{event.actorName}</td>
+                      <td>{event.category || "system"}</td>
+                      <td>{event.action}</td>
+                      <td><span className={event.severity === "error" || event.severity === "critical" ? styles.eventError : event.severity === "warning" ? styles.eventWarning : styles.eventInfo}>{event.severity || "error"}</span></td>
+                      <td>{event.summary || "—"}</td>
+                      <td>{event.targetId || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
 
