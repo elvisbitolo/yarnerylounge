@@ -472,7 +472,7 @@
 .sectionTitle {
   font-size: 18px;
   font-weight: 700;
-  color: #ffffff;
+  color: #17171c;
   margin: 0 0 16px;
 }
 
@@ -790,4 +790,4 @@
 
 
 
-.postAuthor{display:flex;align-items:center;gap:10px;margin-bottom:12px;color:#f5f4f2}.postAuthor img,.postAuthor>span{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#342d33;display:grid;place-items:center}.postAuthor div{display:flex;flex-direction:column;gap:3px}.postAuthor small{color:#a3a3a3;font-size:11px}.profileLayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,310px);align-items:start;gap:22px;width:100%}.profileMain{min-width:0}.profileAside{min-width:0;display:flex;flex-direction:column;gap:18px;padding-top:18px}.profileAside>*{min-width:0;margin-bottom:0}.profileMain .profileCard{margin-top:20px}.profileMain .stats{margin:18px 0}@media(max-width:1080px){.profileLayout{grid-template-columns:minmax(0,1fr) 260px;gap:16px}}@media(max-width:820px){.profileLayout{grid-template-columns:minmax(0,1fr)}.profileAside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding-top:0}}@media(max-width:560px){.profileAside{display:flex}}
+.postAuthor{display:flex;align-items:center;gap:10px;margin-bottom:12px;color:#17171c}.postAuthor img,.postAuthor>span{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#f1e8ee;color:#17171c;display:grid;place-items:center}.postAuthor div{display:flex;flex-direction:column;gap:3px}.postAuthor small{color:#6b6b7b;font-size:11px}.profileLayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,310px);align-items:start;gap:22px;width:100%}.profileMain{min-width:0}.profileAside{min-width:0;display:flex;flex-direction:column;gap:18px;padding-top:18px}.profileAside>*{min-width:0;margin-bottom:0}.profileMain .profileCard{margin-top:20px}.profileMain .stats{margin:18px 0}@media(max-width:1080px){.profileLayout{grid-template-columns:minmax(0,1fr) 260px;gap:16px}}@media(max-width:820px){.profileLayout{grid-template-columns:minmax(0,1fr)}.profileAside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding-top:0}}@media(max-width:560px){.profileAside{display:flex}}
