@@ -441,6 +441,12 @@ export default function RoomClient({
   }
 
   function disposeApi() {
+    recordingRef.current = false;
+    if (networkStatsTimerRef.current) {
+      clearInterval(networkStatsTimerRef.current);
+      networkStatsTimerRef.current = null;
+    }
+    networkSessionRef.current = "";
     if (recordingPendingTimerRef.current) {
       clearTimeout(recordingPendingTimerRef.current);
       recordingPendingTimerRef.current = null;
@@ -668,7 +674,7 @@ export default function RoomClient({
           if (!recordingRef.current || !apiRef.current) return;
           try {
             const raw = await apiRef.current.getConnectionStats();
-            const numeric = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+            const numeric = (value) => value === null || value === undefined || value === "" ? null : Number.isFinite(Number(value)) ? Number(value) : null;
             const sample = {
               sessionId: networkSessionRef.current,
               roomId: String(roomId || "").slice(0, 120),
