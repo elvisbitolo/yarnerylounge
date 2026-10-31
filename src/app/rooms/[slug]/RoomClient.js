@@ -723,8 +723,7 @@ export default function RoomClient({
       refreshRemoteParticipants();
     });
 
-    const markJoined = () => {
-      startRoomPresence();
+    const markConnected = () => {
       syncCount();
       if (connectAtRef.current) {
         logDevTiming("JAAS joined room", connectAtRef.current);
@@ -740,6 +739,13 @@ export default function RoomClient({
       setConnStatus("connected");
       clearWatchdogs();
       handleConnectedMedia();
+    };
+
+    // Only the conference-level join event proves the member entered the
+    // lounge. XMPP connection establishment can happen before that point.
+    const markJoined = () => {
+      startRoomPresence();
+      markConnected();
     };
 
     api.addEventListener("videoConferenceJoined", markJoined);
@@ -763,10 +769,10 @@ export default function RoomClient({
     });
 
     api.addEventListener("connectionEstablished", () => {
-      // XMPP is up. Treat this as joined for overlay purposes — some JaaS
-      // builds delay or skip videoConferenceJoined while the iframe is covered.
+      // XMPP readiness is not proof of conference entry. Update connection UI
+      // only; room presence and owner lounge alerts wait for videoConferenceJoined.
       if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
-      markJoined();
+      markConnected();
     });
 
     api.addEventListener("connectionInterrupted", () => {
