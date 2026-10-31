@@ -37,7 +37,6 @@ export default function RecordingsLibrary({
   loadError,
   canDelete,
   currentUserId = null,
-  storage = null,
 }) {
   const t = useTranslations("recordings");
   const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -364,9 +363,10 @@ export default function RecordingsLibrary({
 
   // Keep the library live: a fast cadence while a pull is in flight, a slow
   // background check otherwise, so a recording that lands from the JaaS webhook
-  // appears without a manual reload. Every poll includes unready rows, which is
-  // also how the first non-ready row arms the faster cadence.
-  const hasUnready = items.some((r) => r.status !== "ready");
+  // appears without a manual reload. Only pending/processing rows arm the fast
+  // cadence: a failed row never resolves on its own, so treating it as
+  // "unready" would poll every 8s forever.
+  const hasUnready = items.some((r) => r.status === "pending" || r.status === "processing");
   useEffect(() => {
     const delay = hasUnready ? POLL_MS : IDLE_POLL_MS;
     const timer = setInterval(() => {
@@ -460,24 +460,6 @@ export default function RecordingsLibrary({
     <div>
       <h1 className={styles.title}>{t("title")}</h1>
       <p className={styles.subtitle}>{t("subtitle")}</p>
-
-      {storage && (
-        <div className={styles.storage}>
-          <div className={styles.storageBar}>
-            <span
-              className={`${styles.storageFill} ${storage.warning ? styles.storageFillWarn : ""}`}
-              style={{ width: `${Math.min(100, Math.round(storage.ratio * 100))}%` }}
-            />
-          </div>
-          <p className={styles.storageText}>
-            {t("storageUsage", {
-              used: formatBytes(storage.usedBytes),
-              limit: formatBytes(storage.limitBytes),
-            })}
-            {storage.warning ? ` · ${t("storageWarning")}` : ""}
-          </p>
-        </div>
-      )}
 
       {notice && (
         <p className={notice.type === "error" ? styles.error : styles.notice}>{notice.text}</p>

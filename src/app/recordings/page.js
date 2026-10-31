@@ -1,10 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import {
-  getRecordingsStorageUsage,
-  listRecordings,
-  signThumbnailUrls,
-} from "@/lib/server/recordings";
+import { listRecordings, signThumbnailUrls } from "@/lib/server/recordings";
 import { serializeRecording } from "@/lib/server/recordings-core";
 import { logError } from "@/lib/server/log";
 import RecordingsLibrary from "./RecordingsLibrary";
@@ -40,14 +36,6 @@ export default async function RecordingsPage() {
     loadError = error?.message || "Failed to load recordings";
   }
 
-  // The storage bar is informational: a failure here must not blank the page.
-  let storage = null;
-  try {
-    storage = await getRecordingsStorageUsage();
-  } catch (error) {
-    logError("recordings.page.storage_failed", { message: error?.message });
-  }
-
   return (
       <div className="recordings-page" style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 20px 64px" }}>
         <RecordingsLibrary
@@ -55,7 +43,6 @@ export default async function RecordingsPage() {
           loadError={loadError}
           canDelete={userDoc?.role === "owner"}
           currentUserId={user.uid}
-          storage={storage}
         />
       </div>
   );
