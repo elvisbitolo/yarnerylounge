@@ -6,6 +6,7 @@ import {
   getRoomPresence,
   leaveRoomPresence,
   touchRoomPresence,
+  touchRoomPresenceAndDetectEntry,
   countActiveRoomParticipants,
   hasActiveRoomPresence,
 } from "@/lib/server/room-presence";
@@ -93,9 +94,13 @@ export async function POST(req, { params }) {
   }
 
   const input = { sessionId, roomId: room.id, userId: auth.user.uid };
-  const result = status === "leave" ? await leaveRoomPresence(input) : await touchRoomPresence(input);
+  const result = status === "leave"
+    ? await leaveRoomPresence(input)
+    : status === "join"
+      ? await touchRoomPresenceAndDetectEntry(input)
+      : await touchRoomPresence(input);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 409 });
-  if (status === "join" && !alreadyPresent) {
+  if (status === "join" && result.newEntry) {
     // Secret Yarnery's owner activity is announced to eligible members;
     // ordinary members continue to notify only their explicit watchers.
     // The owner check is performed against the persisted account email.
