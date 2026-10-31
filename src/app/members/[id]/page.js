@@ -18,6 +18,7 @@ import YarnProfile from "./YarnProfile";
 import MembersToExplore from "./MembersToExplore";
 import MemberSafetyControls from "./MemberSafetyControls";
 import MemberPresence from "./MemberPresence";
+import MemberProfileTabs from "./MemberProfileTabs";
 import { getMemberSafety } from "@/lib/server/member-safety";
 import { listProjects } from "@/lib/server/projects";
 import styles from "./profile.module.css";
@@ -290,38 +291,6 @@ const coverUrl = member.coverPhotoURL || "";
               )}
             </div>
             {!isSelf && <MemberSafetyControls targetId={id} targetName={member.name} />}
-            {member.bio && <p className={styles.bio}>{member.bio}</p>}
-            {socialLinks.length > 0 && (
-              <div className={styles.socialLinks}>
-                {socialLinks.map((link, i) => (
-                  <a
-                    key={i}
-                    className={styles.socialLink}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={link.platform}
-                  >
-                    <span className={styles.socialIcon}>
-                      {link.platform === "instagram" && <Camera size={14} />}
-                      {link.platform === "tiktok" && <Music2 size={14} />}
-                      {link.platform === "youtube" && "▶"}
-                      {link.platform === "facebook" && <MessageCircle size={14} />}
-                      {link.platform === "twitter" && <X size={14} />}
-                      {link.platform === "etsy" && <ShoppingBag size={14} />}
-                      {link.platform === "pinterest" && <Pin size={14} />}
-                      {link.platform === "ravelry" && "🧶"}
-                      {link.platform === "website" && <Globe size={14} />}
-                      {link.platform === "other" && <Link2 size={14} />}
-                    </span>
-                    <span className={styles.socialLabel}>
-                      {link.platform === "twitter" ? "X / Twitter" : link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
-                    </span>
-                  </a>
-                ))}
-              </div>
-            )}
-            <YarnProfile member={memberProfile} />
             {recognitionCount > 0 && (
               <p className={styles.recognitionCount}>{recognitionCountLabel(recognitionCount)}</p>
             )}
@@ -374,47 +343,119 @@ const coverUrl = member.coverPhotoURL || "";
         </section>
 
         <div className={styles.stats}>
-          <Link className={styles.statItem} href="/leaderboard">
-            <span className={styles.statValue}>{memberPoints}</span>
-            <span className={styles.statLabel}>Points</span>
-          </Link>
-          <span className={styles.statItem}>
-            <span className={styles.statValue}>{memberStreak}</span>
-            <span className={styles.statLabel}>Day streak</span>
-          </span>
-          <span className={styles.statItem}>
-            <span className={styles.statValue}>{earnedBadges.length}</span>
-            <span className={styles.statLabel}>Badges</span>
-          </span>
-          {memberJoined && (
-            <span className={styles.statItem}>
-              <span className={styles.statValue}>{memberJoined}</span>
-              <span className={styles.statLabel}>Member since</span>
-            </span>
-          )}
-        </div>
-
-        {!isSelf && memberSimilarities.length > 0 && (
-          <div className={styles.similarBox}>
-            <h2 className={styles.similarTitle}>What you have in common</h2>
-            <ul className={styles.similarList}>
-              {memberSimilarities.map((s, i) => (
-                <li key={i} className={styles.similarItem}>
-                  <span className={styles.similarIcon}><s.icon size={16} /></span>
-                  <span>{s.label}</span>
-                </li>
-              ))}
-            </ul>
+        <MemberProfileTabs
+          posts={(
+            <>
+              <h2 className={styles.sectionTitle}>Recent posts</h2>
+        {posts.length === 0 ? (
+          <p className={styles.empty}>No posts yet.</p>
+        ) : (
+          <div className={styles.postList}>
+            {posts.map((post) => (
+              <article key={post.id} className={styles.post}>
+                <p className={styles.postText}>{post.text}</p>
+                {post.imageUrl && <img src={post.imageUrl} alt="" className={styles.postImage} />}
+                <p className={styles.postMeta}>
+                  {post.createdAt ? new Date(post.createdAt.toMillis ? post.createdAt.toMillis() : post.createdAt).toLocaleDateString([], {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  }) : ""}
+                </p>
+              </article>
+            ))}
           </div>
         )}
-
-        {!isSelf && <RecognitionForm toUid={id} values={RECOGNITION_VALUES} />}
-
-        <StickerDisplay
-          toUid={id}
-          toName={member.name}
-          isSelf={isSelf}
-          initialSummary={stickerSummary}
+            </>
+          )}
+          projects={(
+            <>
+              <section className={styles.projectsSection} aria-labelledby="projects-title">
+          <div className={styles.projectsHeader}>
+            <h2 id="projects-title" className={styles.sectionTitle}>Project portfolio</h2>
+            {isSelf && <Link className={styles.projectManageLink} href="/portfolio">Manage projects</Link>}
+          </div>
+          {projects.length === 0 ? (
+            <p className={styles.empty}>{isSelf ? "Add projects to show the community what you are making." : "No projects added yet."}</p>
+          ) : (
+            <div className={styles.projectGrid}>
+              {projects.map((project) => (
+                <article key={project.id} className={styles.projectCard}>
+                  {project.imageUrls?.[0] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={project.imageUrls[0]} alt="" className={styles.projectImage} />
+                  )}
+                  <div className={styles.projectBody}>
+                    <div className={styles.projectTitleRow}>
+                      <h3>{project.title}</h3>
+                      {project.featured && <span className={styles.projectFeatured}>Featured</span>}
+                    </div>
+                    <p className={styles.projectMeta}>{[project.craft, project.projectType, project.status].filter(Boolean).join(" · ")}</p>
+                    {project.description && <p className={styles.projectDescription}>{project.description}</p>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+            </>
+          )}
+          about={(
+            <div className={styles.aboutPanel}>
+              {member.bio && <p className={styles.bio}>{member.bio}</p>}
+            {socialLinks.length > 0 && (
+              <div className={styles.socialLinks}>
+                {socialLinks.map((link, i) => (
+                  <a
+                    key={i}
+                    className={styles.socialLink}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={link.platform}
+                  >
+                    <span className={styles.socialIcon}>
+                      {link.platform === "instagram" && <Camera size={14} />}
+                      {link.platform === "tiktok" && <Music2 size={14} />}
+                      {link.platform === "youtube" && "▶"}
+                      {link.platform === "facebook" && <MessageCircle size={14} />}
+                      {link.platform === "twitter" && <X size={14} />}
+                      {link.platform === "etsy" && <ShoppingBag size={14} />}
+                      {link.platform === "pinterest" && <Pin size={14} />}
+                      {link.platform === "ravelry" && "🧶"}
+                      {link.platform === "website" && <Globe size={14} />}
+                      {link.platform === "other" && <Link2 size={14} />}
+                    </span>
+                    <span className={styles.socialLabel}>
+                      {link.platform === "twitter" ? "X / Twitter" : link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            )}
+            <YarnProfile member={memberProfile} />
+            </div>
+          )}
+          badges={(
+            <>
+              {earnedBadges.length > 0 && (
+          <>
+            <h2 className={styles.sectionTitle}>Badges</h2>
+            <div className={styles.badgeGrid}>
+              {earnedBadges.map((badge) => (
+                <div key={badge.code} className={styles.badge}>
+                  <span className={styles.badgeIcon}><Medal size={16} /></span>
+                  <p className={styles.badgeName}>{badge.name}</p>
+                  <p className={styles.badgeDesc}>{badge.description}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+            </>
+          )}
+        />
+  initialSummary={stickerSummary}
         />
 
         {recognitions.length > 0 && (
@@ -443,43 +484,8 @@ const coverUrl = member.coverPhotoURL || "";
           </>
         )}
 
-        {earnedBadges.length > 0 && (
-          <>
-            <h2 className={styles.sectionTitle}>Badges</h2>
-            <div className={styles.badgeGrid}>
-              {earnedBadges.map((badge) => (
-                <div key={badge.code} className={styles.badge}>
-                  <span className={styles.badgeIcon}><Medal size={16} /></span>
-                  <p className={styles.badgeName}>{badge.name}</p>
-                  <p className={styles.badgeDesc}>{badge.description}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
         <MembersToExplore />
 
-        <h2 className={styles.sectionTitle}>Recent posts</h2>
-        {posts.length === 0 ? (
-          <p className={styles.empty}>No posts yet.</p>
-        ) : (
-          <div className={styles.postList}>
-            {posts.map((post) => (
-              <article key={post.id} className={styles.post}>
-                <p className={styles.postText}>{post.text}</p>
-                {post.imageUrl && <img src={post.imageUrl} alt="" className={styles.postImage} />}
-                <p className={styles.postMeta}>
-                  {post.createdAt ? new Date(post.createdAt.toMillis ? post.createdAt.toMillis() : post.createdAt).toLocaleDateString([], {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  }) : ""}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
       </div>
   );
 }
