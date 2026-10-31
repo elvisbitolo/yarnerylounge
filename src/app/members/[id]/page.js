@@ -291,7 +291,7 @@ const coverUrl = member.coverPhotoURL || "";
                 </Link>
               )}
             </div>
-            {!isSelf && <MemberSafetyControls targetId={id} targetName={member.name} />}
+            {!isSelf && <MemberProfileActions targetId={id} targetName={member.name} />}
             {recognitionCount > 0 && (
               <p className={styles.recognitionCount}>{recognitionCountLabel(recognitionCount)}</p>
             )}
