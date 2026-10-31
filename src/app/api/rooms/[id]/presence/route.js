@@ -53,9 +53,9 @@ export async function POST(req, { params }) {
   // Only on a genuine new join: a heartbeat for a seat already held must never
   // be refused, or a room filling up would freeze the people inside it.
   //
-  // `alreadyPresent` doubles as the watch trigger's freshness check: a page
-  // refresh re-sends "join" while the old session's presence row is still
-  // active, and that re-join is not an event worth announcing.
+  // `alreadyPresent` is used only by the capacity guard. The atomic
+  // presence helper below independently decides whether this is a first entry
+  // and therefore eligible for an owner lounge announcement.
   let alreadyPresent = false;
   if (status !== "leave") {
     const [headcount, rights, present] = await Promise.all([
