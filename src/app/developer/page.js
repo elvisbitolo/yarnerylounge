@@ -139,7 +139,7 @@ export default async function DeveloperPage() {
         </div>
         <div className={styles.networkPanel}>
           <p className={styles.networkIntro}>
-            Connection measurements are collected from each participant's Jitsi client only while a recording is active.
+            Connection measurements are collected from each participant&apos;s Jitsi client only while a recording is active.
             No IP addresses, device identifiers or media content are stored.
           </p>
           {snapshot.networkSamples === null ? (
