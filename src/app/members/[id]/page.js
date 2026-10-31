@@ -336,8 +336,9 @@ const coverUrl = member.coverPhotoURL || "";
         </div>
 
         <MemberProfileTabs
-          posts={<>{posts}</>}
-          projects={<>{projects}</>}
+          posts={posts}
+          projects={projects}
+          isSelf={isSelf}
           about={<div className={styles.aboutPanel}>{member.bio && <p className={styles.bio}>{member.bio}</p>}
             {socialLinks.length > 0 && (
               <div className={styles.socialLinks}>
@@ -369,8 +370,8 @@ const coverUrl = member.coverPhotoURL || "";
                 ))}
               </div>
             )}
-            <YarnProfile member={memberProfile} /></div>}
-          badges={<>{badges}</>}
+            <YarnProfile member={memberProfile} /></div>}}
+          badges={earnedBadges}
         />
 
         {!isSelf && memberSimilarities.length > 0 && (
