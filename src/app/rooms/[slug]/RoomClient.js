@@ -212,6 +212,9 @@ export default function RoomClient({
   const participantMutedRef = useRef({});
   const recordingPendingTimerRef = useRef(null);
   const recordNoticeTimerRef = useRef(null);
+  const networkStatsTimerRef = useRef(null);
+  const recordingRef = useRef(false);
+  const networkSessionRef = useRef("");
 
   // Mirror refs so timers/event handlers always read fresh values.
   const phaseRef = useRef("idle");
@@ -654,6 +657,49 @@ export default function RoomClient({
     // (hosts and viewers alike), not just the member who started it.
     api.addEventListener("recordingStatusChanged", (payload = {}) => {
       const on = Boolean(payload.on ?? payload.recording);
+      recordingRef.current = on;
+      if (networkStatsTimerRef.current) {
+        clearInterval(networkStatsTimerRef.current);
+        networkStatsTimerRef.current = null;
+      }
+      if (on) {
+        networkSessionRef.current = randomId();
+        const collectNetworkSample = async () => {
+          if (!recordingRef.current || !apiRef.current) return;
+          try {
+            const raw = await apiRef.current.getConnectionStats();
+            const numeric = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+            const sample = {
+              sessionId: networkSessionRef.current,
+              roomId: String(roomId || "").slice(0, 120),
+              roomName: String(roomName || slug || "Lounge").slice(0, 120),
+              connectionQuality: numeric(raw?.connectionQuality),
+              bandwidthDownload: numeric(raw?.bandwidth?.download),
+              bandwidthUpload: numeric(raw?.bandwidth?.upload),
+              bitrateDownload: numeric(raw?.bitrate?.download),
+              bitrateUpload: numeric(raw?.bitrate?.upload),
+              packetLossDownload: numeric(raw?.packetLoss?.download),
+              packetLossUpload: numeric(raw?.packetLoss?.upload),
+              packetLossTotal: numeric(raw?.packetLoss?.total),
+              rttMs: numeric(raw?.jvbRTT),
+              maxEnabledResolution: numeric(raw?.maxEnabledResolution),
+              iceConnected: typeof raw?.iceConnected === "boolean" ? raw.iceConnected : null,
+            };
+            await fetch("/api/developer/network", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(sample),
+              keepalive: true,
+            });
+          } catch {
+            // Diagnostics must never interrupt a live meeting or recording.
+          }
+        };
+        collectNetworkSample();
+        networkStatsTimerRef.current = setInterval(collectNetworkSample, 15000);
+      } else {
+        networkSessionRef.current = "";
+      }
       setRecording(on);
       clearRecordingPending();
       // JaaS records the view of whoever starts the recording. If this client is
@@ -692,6 +738,12 @@ export default function RoomClient({
 
     api.addEventListener("videoConferenceJoined", markJoined);
     api.addEventListener("videoConferenceLeft", () => {
+      recordingRef.current = false;
+      if (networkStatsTimerRef.current) {
+        clearInterval(networkStatsTimerRef.current);
+        networkStatsTimerRef.current = null;
+      }
+      networkSessionRef.current = "";
       stopRoomPresence();
       clearWatchdogs();
       clearRecordingPending();
@@ -955,6 +1007,11 @@ export default function RoomClient({
   }
 
   function dismissError() {
+    recordingRef.current = false;
+    if (networkStatsTimerRef.current) {
+      clearInterval(networkStatsTimerRef.current);
+      networkStatsTimerRef.current = null;
+    }
     stopRoomPresence();
     clearWatchdogs();
     disposeApi();
