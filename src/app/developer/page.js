@@ -101,69 +101,65 @@ export default async function DeveloperPage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Private engineering workspace</p>
-          <h1 className={styles.title}>Developer control centre</h1>
-          <p className={styles.subtitle}>Application operations, infrastructure checks and engineering shortcuts.</p>
+          <p className={styles.eyebrow}>ENGINEERING</p>
+          <h1 className={styles.title}>Developer Console</h1>
         </div>
         <div className={styles.identity}>
           <span className={styles.identityDot} />
-          <span>Developer access</span>
+          <span>Production</span>
         </div>
       </header>
 
       <section className={styles.hero}>
         <div>
-          <p className={styles.heroLabel}>Production workspace</p>
+          <p className={styles.heroLabel}>WORKSPACE</p>
           <h2>Christa’s Speakeasy</h2>
-          <p>Private to the authorized developer account. Member and owner workspaces remain separate.</p>
         </div>
         <div className={styles.heroMeta}>
-          <span>Environment</span>
+          <span>ENVIRONMENT</span>
           <strong>Production</strong>
-          <small>Snapshot checked {new Date(snapshot.checkedAt).toLocaleString()}</small>
+          <small>Updated {new Date(snapshot.checkedAt).toLocaleString()}</small>
         </div>
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHead}>
-          <div><p className={styles.eyebrow}>Live checks</p><h2>System health</h2></div>
-          <span className={styles.muted}>Fetched on page load</span>
+          <div><p className={styles.eyebrow}>OVERVIEW</p><h2>System health</h2></div>
         </div>
         <div className={styles.metrics}>
           <article className={styles.metric}>
             <span>Database connection</span>
             <Status value={snapshot.database} />
-            <small>Prisma connectivity probe</small>
+            <small>Database</small>
           </article>
           <article className={styles.metric}>
             <span>Recordings visible</span>
             <strong>{snapshot.recordings?.error ? "Unavailable" : snapshot.recordings?.visible ?? "—"}</strong>
-            <small>Latest active library records, max 60</small>
+            <small>Recording library</small>
           </article>
           <article className={styles.metric}>
             <span>Processing</span>
             <strong>{snapshot.recordings?.error ? "—" : snapshot.recordings?.processing ?? "—"}</strong>
-            <small>Pending or ingesting recordings</small>
+            <small>In progress</small>
           </article>
           <article className={styles.metric}>
             <span>Failed recordings</span>
             <strong>{snapshot.recordings?.error ? "—" : snapshot.recordings?.failed ?? "—"}</strong>
-            <small>Requires investigation if non-zero</small>
+            <small>Recording pipeline</small>
           </article>
         </div>
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHead}>
-          <div><p className={styles.eyebrow}>Member operations</p><h2>Activity & failure monitor</h2></div>
-          <span className={styles.muted}>Latest 100 recorded events</span>
+          <div><p className={styles.eyebrow}>MONITORING</p><h2>Activity & failures</h2></div>
+          <span className={styles.muted}>100 latest</span>
         </div>
         <div className={styles.networkPanel}>
-          <p className={styles.networkIntro}>Membership payment and processing outcomes are recorded here alongside operational events explicitly instrumented by the application. Sensitive payment credentials and raw provider payloads are not stored.</p>
           {snapshot.activityEvents === null ? (
-            <p className={styles.networkEmpty}>Activity diagnostics are currently unavailable.</p>
+            <p className={styles.networkEmpty}>Unable to load activity.</p>
           ) : snapshot.activityEvents.length === 0 ? (
-            <p className={styles.networkEmpty}>No activity events have been recorded yet.</p>
+            <p className={styles.networkEmpty}>No events yet</p>
           ) : (
             <div className={styles.networkTableWrap}>
               <table className={styles.networkTable}>
@@ -189,18 +185,14 @@ export default async function DeveloperPage() {
 
       <section className={styles.section}>
         <div className={styles.sectionHead}>
-          <div><p className={styles.eyebrow}>JaaS / Jitsi telemetry</p><h2>Private network diagnostics</h2></div>
-          <span className={styles.muted}>Samples captured every 15 seconds during recording</span>
+          <div><p className={styles.eyebrow}>LOUNGE</p><h2>Network diagnostics</h2></div>
+          <span className={styles.muted}>Jitsi · 15 sec intervals</span>
         </div>
         <div className={styles.networkPanel}>
-          <p className={styles.networkIntro}>
-            Connection measurements are collected from each participant&apos;s Jitsi client only while a recording is active.
-            No IP addresses, device identifiers or media content are stored.
-          </p>
           {snapshot.networkSamples === null ? (
-            <p className={styles.networkEmpty}>Network diagnostics are currently unavailable.</p>
+            <p className={styles.networkEmpty}>Unable to load network data.</p>
           ) : snapshot.networkSamples.length === 0 ? (
-            <p className={styles.networkEmpty}>No samples yet. Start a lounge recording and this panel will populate as participants send measurements.</p>
+            <p className={styles.networkEmpty}>No network samples yet</p>
           ) : (
             <div className={styles.networkTableWrap}>
               <table className={styles.networkTable}>
@@ -226,35 +218,31 @@ export default async function DeveloperPage() {
       </section>
 
       <section className={styles.section}>
-        <div className={styles.sectionHead}><div><p className={styles.eyebrow}>Engineering tools</p><h2>Operations</h2></div></div>
+        <div className={styles.sectionHead}><div><p className={styles.eyebrow}>SHORTCUTS</p><h2>Operations</h2></div></div>
         <div className={styles.tools}>
           <Link className={styles.tool} href="/recordings">
             <span className={styles.toolIcon}>REC</span>
-            <span><strong>Recording operations</strong><small>Review the library, pipeline states and private per-recording diagnostics.</small></span>
+            <span><strong>Recording operations</strong><small>Recordings & diagnostics</small></span>
             <span className={styles.arrow}>↗</span>
           </Link>
           <a className={styles.tool} href="https://github.com/elvisbitolo/yarnerylounge/actions" target="_blank" rel="noreferrer">
             <span className={styles.toolIcon}>CI</span>
-            <span><strong>GitHub Actions</strong><small>Inspect builds, scheduled jobs, faststart remux runs and deployment checks.</small></span>
+            <span><strong>GitHub Actions</strong><small>Builds & workflows</small></span>
             <span className={styles.arrow}>↗</span>
           </a>
           <a className={styles.tool} href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">
             <span className={styles.toolIcon}>DEP</span>
-            <span><strong>Vercel deployments</strong><small>Review production deployments, runtime logs and project settings.</small></span>
+            <span><strong>Vercel deployments</strong><small>Deployments & logs</small></span>
             <span className={styles.arrow}>↗</span>
           </a>
           <a className={styles.tool} href="https://supabase.com/dashboard" target="_blank" rel="noreferrer">
             <span className={styles.toolIcon}>DB</span>
-            <span><strong>Supabase infrastructure</strong><small>Open database, storage and project monitoring.</small></span>
+            <span><strong>Supabase infrastructure</strong><small>Database & storage</small></span>
             <span className={styles.arrow}>↗</span>
           </a>
         </div>
       </section>
 
-      <section className={styles.note}>
-        <strong>Access boundary</strong>
-        <p>This route checks the authenticated account email on the server. Unauthorized accounts receive a not-found response. The existing recording diagnostics API applies the same allowlist independently. No secrets, service-role keys or signed storage URLs are exposed here.</p>
-      </section>
     </main>
   );
 }
