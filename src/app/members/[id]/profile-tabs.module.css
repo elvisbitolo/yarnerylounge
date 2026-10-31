@@ -1,10 +1,10 @@
-.tabsShell { margin: 22px 0 32px; color: #f5f4f2; }
-.tabList { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border-bottom: 1px solid #342d33; gap: 4px; }
-.tab { position: relative; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 54px; padding: 10px 12px; border: 0; border-radius: 10px 10px 0 0; background: transparent; color: #aaa2aa; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.tabsShell { margin: 22px 0 32px; color: #17171c; }
+.tabList { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border-bottom: 1px solid #e6e6ef; gap: 4px; }
+.tab { position: relative; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 54px; padding: 10px 12px; border: 0; border-radius: 10px 10px 0 0; background: transparent; color: #625a63; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .tab:hover { color: #fff; background: #211a21; }
-.tabActive { color: #fff; background: #1a151a; }
+.tabActive { color: #17171c; background: #fff; }
 .tabActive::after { content: ""; position: absolute; right: 8px; bottom: -1px; left: 8px; height: 3px; border-radius: 3px 3px 0 0; background: #f6077a; }
-.tab:focus-visible { outline: 2px solid #fa81cd; outline-offset: -3px; }
+.tab:focus-visible { outline: 2px solid #c2185b; outline-offset: -3px; }
 .tabPanel { padding-top: 20px; }
 .tabPanel[hidden] { display: none; }
 @media (max-width: 560px) { .tab { flex-direction: column; gap: 5px; min-height: 58px; padding: 8px 4px; font-size: 11px; } }
