@@ -54,6 +54,7 @@ export default async function RecordingsPage() {
           recordings={recordings}
           loadError={loadError}
           canDelete={userDoc?.role === "owner"}
+          showDeveloperTools={user.email?.toLowerCase() === "elvisbitolo11@gmail.com"}
           currentUserId={user.uid}
           storage={storage}
         />

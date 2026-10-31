@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { AlertTriangle, Copy, Edit2, Film, Info, LayoutGrid, List, Play, Search, Trash2, User, X } from "lucide-react";
+import { AlertTriangle, Edit2, Film, LayoutGrid, List, Play, Search, Trash2, User } from "lucide-react";
 import {
   formatBytes,
   formatDuration,
@@ -21,6 +21,7 @@ import {
 } from "@/lib/recordings-view";
 import RecordingPlayer from "./RecordingPlayer";
 import ParticipantStack from "./ParticipantStack";
+import DeveloperDiagnostics from "./DeveloperDiagnostics";
 import styles from "./recordings.module.css";
 
 // How often to check for a recording that finished pulling.
@@ -38,6 +39,7 @@ export default function RecordingsLibrary({
   canDelete,
   currentUserId = null,
   storage = null,
+  showDeveloperTools = false,
 }) {
   const t = useTranslations("recordings");
   const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -461,7 +463,7 @@ export default function RecordingsLibrary({
       <h1 className={styles.title}>{t("title")}</h1>
       <p className={styles.subtitle}>{t("subtitle")}</p>
 
-      {storage && (
+      {showDeveloperTools && storage && (
         <div className={styles.storage}>
           <div className={styles.storageBar}>
             <span
@@ -695,11 +697,7 @@ export default function RecordingsLibrary({
                       )}
                     </div>
                     <p className={styles.cardMeta}>{failed ? t("failed") : t("processing")}</p>
-                    {failed && recording.errorCode && (
-                      <p className={styles.cardMeta} role="status">
-                        Error code: {recording.errorCode}
-                      </p>
-                    )}
+                    {failed && ( <p className={styles.cardMeta} role="status">{showDeveloperTools && recording.errorCode ? "Technical reference: " + recording.errorCode : "We could not prepare this recording. Please try again or contact support."}</p> )}
                     {failed && (canDelete || (currentUserId && recording.initiatorId === currentUserId)) && (
                       <div className={styles.actions}>
                         <button
@@ -809,55 +807,9 @@ export default function RecordingsLibrary({
                         </button>
                       </>
                     )}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        className={styles.shareButton}
-                        onClick={() => setDebugId(debugId === recording.id ? null : recording.id)}
-                        title="Owner details"
-                      >
-                        <Info size={12} style={{ marginRight: 4 }} /> Debug
-                      </button>
-                    )}
+                    {showDeveloperTools && <button type="button" className={styles.shareButton} onClick={() => setDebugId(debugId === recording.id ? null : recording.id)} aria-expanded={debugId === recording.id}>Developer diagnostics</button>}
                   </div>
-                  {canDelete && debugId === recording.id && (
-                    <div style={{ marginTop: 10, padding: 10, background: "rgba(255,255,255,0.02)", borderRadius: 8, fontSize: 11, lineHeight: 1.6 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <strong>Owner details</strong>
-                        <button type="button" onClick={() => setDebugId(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}><X size={12} /></button>
-                      </div>
-                      {[
-                        ["id", recording.id],
-                        ["initiatorId", recording.initiatorId],
-                        ["roomId", recording.roomId],
-                        ["roomName", recording.roomName],
-                        ["jaasSessionId", recording.jaasSessionId],
-                        ["jaasRecordingId", recording.jaasRecordingId],
-                        ["status", recording.status],
-                        ["share", recording.share],
-                        ["storagePath", recording.storagePath],
-                        ["thumbnailPath", recording.thumbnailPath],
-                        ["sizeBytes", recording.sizeBytes],
-                        ["durationSec", recording.durationSec],
-                        ["attempts", recording.attempts],
-                        ["sourceExpiresAt", recording.sourceExpiresAt],
-                        ["pulledAt", recording.pulledAt],
-                        ["createdAt", recording.createdAt],
-                        ["lastError", recording.lastError],
-                        ["errorCode", recording.errorCode],
-                      ].map(([k, v]) => (
-                        v != null && v !== "" ? (
-                          <div key={k} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                            <span style={{ opacity: 0.6, minWidth: 110 }}>{k}:</span>
-                            <span style={{ wordBreak: "break-all", flex: 1 }}>{String(v)}</span>
-                            {typeof v === "string" && v.length > 8 && (
-                              <button type="button" onClick={() => copyText(v)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }} title="Copy"><Copy size={10} /></button>
-                            )}
-                          </div>
-                        ) : null
-                      ))}
-                    </div>
-                  )}
+                  {showDeveloperTools && debugId === recording.id && <DeveloperDiagnostics recordingId={recording.id} panelId={"diagnostics-" + recording.id} onClose={() => setDebugId(null)} />}
                   {shareId === recording.id && (
                     <div className={styles.shareMenu}>
                       <button
@@ -901,6 +853,7 @@ export default function RecordingsLibrary({
         </>
       )}
 
+      {!trashOpen && items.length > 0 && <aside className={styles.memberHelp}><strong>Need a hand?</strong><span>Select Play to watch a recording. Use Share to send it privately to another member. If a recording is still being prepared, please check back shortly.</span></aside>}
       {canDelete && !trashOpen && items.length > 0 && (
         <p className={styles.footnote}>{t("ownerNote")}</p>
       )}
