@@ -43,6 +43,24 @@ async function loadSystemSnapshot() {
     snapshot.storage = { error: true };
   }
 
+  try {
+    const prisma = getPrisma();
+    const rows = await prisma.auditLog.findMany({
+      where: { action: "jitsi.network.sample" },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+      select: { id: true, actorName: true, metadata: true, createdAt: true },
+    });
+    snapshot.networkSamples = rows.map((row) => ({
+      id: row.id,
+      actorName: row.actorName || "Member",
+      createdAt: row.createdAt,
+      ...(row.metadata && typeof row.metadata === "object" ? row.metadata : {}),
+    }));
+  } catch {
+    snapshot.networkSamples = null;
+  }
+
   return snapshot;
 }
 
@@ -111,6 +129,44 @@ export default async function DeveloperPage() {
             <strong>{snapshot.recordings?.error ? "—" : snapshot.recordings?.failed ?? "—"}</strong>
             <small>Requires investigation if non-zero</small>
           </article>
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <div><p className={styles.eyebrow}>JaaS / Jitsi telemetry</p><h2>Private network diagnostics</h2></div>
+          <span className={styles.muted}>Samples captured every 15 seconds during recording</span>
+        </div>
+        <div className={styles.networkPanel}>
+          <p className={styles.networkIntro}>
+            Connection measurements are collected from each participant&apos;s Jitsi client only while a recording is active.
+            No IP addresses, device identifiers or media content are stored.
+          </p>
+          {snapshot.networkSamples === null ? (
+            <p className={styles.networkEmpty}>Network diagnostics are currently unavailable.</p>
+          ) : snapshot.networkSamples.length === 0 ? (
+            <p className={styles.networkEmpty}>No samples yet. Start a lounge recording and this panel will populate as participants send measurements.</p>
+          ) : (
+            <div className={styles.networkTableWrap}>
+              <table className={styles.networkTable}>
+                <thead><tr><th>Time</th><th>Participant</th><th>Lounge</th><th>Quality</th><th>Up / down bandwidth</th><th>Packet loss</th><th>JVB RTT</th><th>ICE</th></tr></thead>
+                <tbody>
+                  {snapshot.networkSamples.map((sample) => (
+                    <tr key={sample.id}>
+                      <td>{new Date(sample.createdAt).toLocaleString()}</td>
+                      <td>{sample.actorName}</td>
+                      <td>{sample.roomName || "—"}</td>
+                      <td>{sample.connectionQuality == null ? "—" : `${Number(sample.connectionQuality).toFixed(0)}%`}</td>
+                      <td>{sample.bandwidthUpload == null ? "—" : `${sample.bandwidthUpload} / ${sample.bandwidthDownload ?? "—"} kbps`}</td>
+                      <td>{sample.packetLossTotal == null ? "—" : `${sample.packetLossTotal}%`}</td>
+                      <td>{sample.rttMs == null ? "—" : `${sample.rttMs} ms`}</td>
+                      <td>{sample.iceConnected == null ? "—" : sample.iceConnected ? "Connected" : "Disconnected"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
 
