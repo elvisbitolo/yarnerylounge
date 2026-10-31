@@ -163,7 +163,8 @@ export async function GET(req) {
       if (existing) { stats.skipped++; continue; }
 
       const message = buildReminder({ name: member.name, tier, daysLeft: isExpiredWindow ? 0 : daysLeft, expiryDate });
-      await sendEmail({ to: member.email, ...message });
+      const emailResult = await sendEmail({ to: member.email, ...message });
+      if (emailResult?.skipped) throw new Error("Email provider is not configured; reminder was not recorded");
       await createNotification({
         userId: uid,
         type: "membership_expiry",
