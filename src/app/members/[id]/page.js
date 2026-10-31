@@ -17,7 +17,9 @@ import StickerDisplay from "./StickerDisplay";
 import YarnProfile from "./YarnProfile";
 import MembersToExplore from "./MembersToExplore";
 import MemberSafetyControls from "./MemberSafetyControls";
+import MemberProfileActions from "./MemberProfileActions";
 import MemberPresence from "./MemberPresence";
+import MemberProfileTabs from "./MemberProfileTabs";
 import { getMemberSafety } from "@/lib/server/member-safety";
 import { listProjects } from "@/lib/server/projects";
 import styles from "./profile.module.css";
@@ -228,7 +230,7 @@ const coverUrl = member.coverPhotoURL || "";
               : "You blocked this member. Unblock them to see their profile again."}
           </p>
           {safetyData.iBlocked && (
-            <MemberSafetyControls targetId={id} targetName={member.name} />
+            <MemberProfileActions targetId={id} targetName={member.name} />
           )}
         </div>
     );
@@ -243,11 +245,6 @@ const coverUrl = member.coverPhotoURL || "";
             className={coverUrl ? styles.banner : `${styles.banner} ${styles.bannerEmpty}`}
             style={!coverUrl ? { background: bannerFallback } : undefined}
           >
-            <div className={styles.bannerBrand} aria-label="Christa’s Speakeasy">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://www.christasspeakeasy.com/icon-192.png" alt="" />
-              <span>Christa’s Speakeasy</span>
-            </div>
             {coverUrl && (
               // height:auto in CSS, so the banner takes the photo's own shape
               // rather than letterboxing it into a fixed box.
@@ -294,8 +291,55 @@ const coverUrl = member.coverPhotoURL || "";
                 </Link>
               )}
             </div>
-            {!isSelf && <MemberSafetyControls targetId={id} targetName={member.name} />}
-            {member.bio && <p className={styles.bio}>{member.bio}</p>}
+            {!isSelf && <MemberProfileActions targetId={id} targetName={member.name} />}
+            {recognitionCount > 0 && (
+              <p className={styles.recognitionCount}>{recognitionCountLabel(recognitionCount)}</p>
+            )}
+          </div>
+          </div>
+        </div>
+
+        {isSelf && (
+          <div className={styles.inviteCard}>
+            <div className={styles.inviteCardBody}>
+              <h2 className={styles.inviteCardTitle}>Bring a friend</h2>
+              <p className={styles.inviteCardText}>
+                Share your personal invite link and you both earn points when they join and
+                publish their first post.
+              </p>
+            </div>
+            <Link className={styles.inviteCardBtn} href="/invite">
+              Invite a friend
+            </Link>
+          </div>
+        )}
+
+        <div className={styles.stats}>
+          <Link className={styles.statItem} href="/leaderboard">
+            <span className={styles.statValue}>{memberPoints}</span>
+            <span className={styles.statLabel}>Points</span>
+          </Link>
+          <span className={styles.statItem}>
+            <span className={styles.statValue}>{memberStreak}</span>
+            <span className={styles.statLabel}>Day streak</span>
+          </span>
+          <span className={styles.statItem}>
+            <span className={styles.statValue}>{earnedBadges.length}</span>
+            <span className={styles.statLabel}>Badges</span>
+          </span>
+          {memberJoined && (
+            <span className={styles.statItem}>
+              <span className={styles.statValue}>{memberJoined}</span>
+              <span className={styles.statLabel}>Member since</span>
+            </span>
+          )}
+        </div>
+
+        <MemberProfileTabs
+          posts={posts}
+          projects={projects}
+          isSelf={isSelf}
+          about={<div className={styles.aboutPanel}>{member.bio && <p className={styles.bio}>{member.bio}</p>}
             {socialLinks.length > 0 && (
               <div className={styles.socialLinks}>
                 {socialLinks.map((link, i) => (
@@ -326,78 +370,9 @@ const coverUrl = member.coverPhotoURL || "";
                 ))}
               </div>
             )}
-            <YarnProfile member={memberProfile} />
-            {recognitionCount > 0 && (
-              <p className={styles.recognitionCount}>{recognitionCountLabel(recognitionCount)}</p>
-            )}
-          </div>
-          </div>
-        </div>
-
-        {isSelf && (
-          <div className={styles.inviteCard}>
-            <div className={styles.inviteCardBody}>
-              <h2 className={styles.inviteCardTitle}>Bring a friend</h2>
-              <p className={styles.inviteCardText}>
-                Share your personal invite link and you both earn points when they join and
-                publish their first post.
-              </p>
-            </div>
-            <Link className={styles.inviteCardBtn} href="/invite">
-              Invite a friend
-            </Link>
-          </div>
-        )}
-
-        <section className={styles.projectsSection} aria-labelledby="projects-title">
-          <div className={styles.projectsHeader}>
-            <h2 id="projects-title" className={styles.sectionTitle}>Project portfolio</h2>
-            {isSelf && <Link className={styles.projectManageLink} href="/portfolio">Manage projects</Link>}
-          </div>
-          {projects.length === 0 ? (
-            <p className={styles.empty}>{isSelf ? "Add projects to show the community what you are making." : "No projects added yet."}</p>
-          ) : (
-            <div className={styles.projectGrid}>
-              {projects.map((project) => (
-                <article key={project.id} className={styles.projectCard}>
-                  {project.imageUrls?.[0] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={project.imageUrls[0]} alt="" className={styles.projectImage} />
-                  )}
-                  <div className={styles.projectBody}>
-                    <div className={styles.projectTitleRow}>
-                      <h3>{project.title}</h3>
-                      {project.featured && <span className={styles.projectFeatured}>Featured</span>}
-                    </div>
-                    <p className={styles.projectMeta}>{[project.craft, project.projectType, project.status].filter(Boolean).join(" · ")}</p>
-                    {project.description && <p className={styles.projectDescription}>{project.description}</p>}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <div className={styles.stats}>
-          <Link className={styles.statItem} href="/leaderboard">
-            <span className={styles.statValue}>{memberPoints}</span>
-            <span className={styles.statLabel}>Points</span>
-          </Link>
-          <span className={styles.statItem}>
-            <span className={styles.statValue}>{memberStreak}</span>
-            <span className={styles.statLabel}>Day streak</span>
-          </span>
-          <span className={styles.statItem}>
-            <span className={styles.statValue}>{earnedBadges.length}</span>
-            <span className={styles.statLabel}>Badges</span>
-          </span>
-          {memberJoined && (
-            <span className={styles.statItem}>
-              <span className={styles.statValue}>{memberJoined}</span>
-              <span className={styles.statLabel}>Member since</span>
-            </span>
-          )}
-        </div>
+            <YarnProfile member={memberProfile} /></div>}}
+          badges={earnedBadges}
+        />
 
         {!isSelf && memberSimilarities.length > 0 && (
           <div className={styles.similarBox}>
@@ -448,43 +423,8 @@ const coverUrl = member.coverPhotoURL || "";
           </>
         )}
 
-        {earnedBadges.length > 0 && (
-          <>
-            <h2 className={styles.sectionTitle}>Badges</h2>
-            <div className={styles.badgeGrid}>
-              {earnedBadges.map((badge) => (
-                <div key={badge.code} className={styles.badge}>
-                  <span className={styles.badgeIcon}><Medal size={16} /></span>
-                  <p className={styles.badgeName}>{badge.name}</p>
-                  <p className={styles.badgeDesc}>{badge.description}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
         <MembersToExplore />
 
-        <h2 className={styles.sectionTitle}>Recent posts</h2>
-        {posts.length === 0 ? (
-          <p className={styles.empty}>No posts yet.</p>
-        ) : (
-          <div className={styles.postList}>
-            {posts.map((post) => (
-              <article key={post.id} className={styles.post}>
-                <p className={styles.postText}>{post.text}</p>
-                {post.imageUrl && <img src={post.imageUrl} alt="" className={styles.postImage} />}
-                <p className={styles.postMeta}>
-                  {post.createdAt ? new Date(post.createdAt.toMillis ? post.createdAt.toMillis() : post.createdAt).toLocaleDateString([], {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  }) : ""}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
       </div>
   );
 }
