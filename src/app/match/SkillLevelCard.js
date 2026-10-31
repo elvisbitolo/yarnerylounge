@@ -68,7 +68,26 @@ export default function SkillLevelCard() {
                 <li key={member.id} className={styles.matchTile}>
                   <Link href={`/members/${member.id}`} className={styles.matchTileLink}>
                     {member.photoURL ? (
-                      <Image src={member.photoURL} alt={member.name} width={72} height={72} className={styles.matchTilePhoto} />
+                      <>
+                        {/* Use native img for member-uploaded URLs from different storage hosts. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={member.photoURL}
+                          alt={member.name || "Member"}
+                          width={72}
+                          height={72}
+                          className={styles.matchTilePhoto}
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.hidden = true;
+                            const fallback = event.currentTarget.nextElementSibling;
+                            if (fallback) fallback.hidden = false;
+                          }}
+                        />
+                        <span className={styles.matchTileInitials} aria-hidden="true" hidden>
+                          {initialsFor(member.name)}
+                        </span>
+                      </>
                     ) : (
                       <span className={styles.matchTileInitials} aria-hidden="true">{initialsFor(member.name)}</span>
                     )}
