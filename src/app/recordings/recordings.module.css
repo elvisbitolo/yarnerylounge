@@ -851,3 +851,34 @@
     max-width: none;
   }
 }
+
+/* Developer diagnostics: separate from the recording card's normal flow. */
+.diagnosticsPanel {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(246, 7, 122, .42);
+  border-radius: 12px;
+  background: #101017;
+  color: #f5f4f2;
+}
+.diagnosticsHeader { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.diagnosticsEyebrow { margin:0 0 4px; color:#fa81cd; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.diagnosticsTitle { margin:0; font-size:17px; font-weight:750; }
+.diagnosticsClose { display:grid; place-items:center; width:40px; height:40px; border:1px solid #393944; border-radius:9px; background:transparent; color:#f5f4f2; cursor:pointer; }
+.diagnosticsSummary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:14px; }
+.diagnosticsSummary span { display:flex; flex-direction:column; gap:4px; min-width:0; padding:10px; border:1px solid #34313f; border-radius:9px; background:#191920; }
+.diagnosticsSummary strong { overflow-wrap:anywhere; font-size:14px; }
+.diagnosticsSummary small { color:#a3a3a3; font-size:11px; }
+.diagnosticsList { margin:0; }
+.diagnosticsRow { display:grid; grid-template-columns:minmax(110px,.7fr) minmax(0,1.3fr); gap:12px; padding:9px 0; border-bottom:1px solid #292934; }
+.diagnosticsRow dt { color:#a3a3a3; font-size:12px; }
+.diagnosticsRow dd { display:flex; align-items:flex-start; gap:8px; min-width:0; margin:0; overflow-wrap:anywhere; font-size:12px; }
+.diagnosticsRow dd button { flex:0 0 32px; display:grid; place-items:center; width:32px; height:32px; margin-top:-7px; border:1px solid #393944; border-radius:7px; background:transparent; color:#fa81cd; cursor:pointer; }
+.diagnosticsMessage,.diagnosticsError,.diagnosticsFootnote { color:#a3a3a3; font-size:12px; line-height:1.6; }
+.diagnosticsError { color:#ff9b9b; }
+.diagnosticsFootnote { margin:12px 0 0; }
+@media (max-width:480px) {
+  .diagnosticsPanel { padding:12px; }
+  .diagnosticsSummary { grid-template-columns:1fr; }
+  .diagnosticsRow { grid-template-columns:1fr; gap:4px; }
+}
