@@ -9,7 +9,7 @@ import styles from "./profile.module.css";
 // touched. Deliberately quiet when the member is offline — nothing renders, so
 // the ~90% of members who are away stay clutter-free (same signal the member
 // directory gives). Reused on the viewer's own profile too.
-export default function MemberPresence({ userId }) {
+export default function MemberPresence({ userId, compact = false }) {
   const [presence, setPresence] = useState(null);
 
   useEffect(() => {
@@ -37,13 +37,17 @@ export default function MemberPresence({ userId }) {
   if (!presence?.online) return null;
 
   const room = presence.room?.slug ? presence.room : null;
+  if (compact) {
+    const label = room ? `In ${room.name}` : "Online now";
+    const dot = <span className={styles.presenceDot} aria-hidden="true" />;
+    return room
+      ? <Link href={`/rooms/${room.slug}`} className={styles.presenceAvatar} title={`Online · join ${room.name}`}>{dot}<span className="sr-only">{label}</span></Link>
+      : <span className={styles.presenceAvatar} title={label}>{dot}<span className="sr-only">{label}</span></span>;
+  }
+
   if (room) {
     return (
-      <Link
-        href={`/rooms/${room.slug}`}
-        className={styles.presenceLounge}
-        title={`Join ${room.name}`}
-      >
+      <Link href={`/rooms/${room.slug}`} className={styles.presenceLounge} title={`Join ${room.name}`}>
         <span className={styles.presenceDot} aria-hidden="true" />
         In {room.name}
       </Link>
