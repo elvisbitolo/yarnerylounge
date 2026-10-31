@@ -11,6 +11,7 @@ import { sendEmail } from "@/lib/server/email";
 import { logError, logInfo } from "@/lib/server/log";
 import { isActiveSub } from "@/lib/server/billing";
 import { getPrisma } from "@/lib/db/prisma";
+import { recordDeveloperEvent } from "@/lib/server/developer-events";
 
 function verifyHmac(rawBody, header) {
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
@@ -300,6 +301,8 @@ async function updateCustomerProfile({ email, data }) {
 }
 
 export async function POST(req) {
+  let eventEmail = "";
+  let eventTopic = "";
   try {
     const rawBody = await req.text();
 
@@ -308,12 +311,14 @@ export async function POST(req) {
     }
 
     const topic = req.headers.get("x-shopify-topic") || "";
+    eventTopic = topic;
     if (!topic || (!topic.startsWith("orders/") && topic !== "customers/update")) {
       return new NextResponse("Ignored", { status: 200 });
     }
 
     const data = JSON.parse(rawBody);
     const email = (data.email || data.customer?.email || "").toLowerCase().trim();
+    eventEmail = email;
     if (!email) return new NextResponse("No email found", { status: 400 });
 
     switch (topic) {
@@ -327,9 +332,29 @@ export async function POST(req) {
             orderId: data?.id?.toString?.() || "",
             financialStatus: data?.financial_status || "",
           });
+          const member = await getPrisma().user.findFirst({ where: { email }, select: { id: true, name: true } }).catch(() => null);
+          if (member) await recordDeveloperEvent({
+            actorId: member.id, actorName: member.name,
+            action: "membership.upgrade.payment_pending",
+            targetId: data?.id?.toString?.() || null,
+            severity: "warning", category: "membership",
+            summary: "Shopify order was created without a confirmed payment.",
+            metadata: { provider: "shopify", topic, paymentStatus: String(data?.financial_status || "unknown").slice(0, 40) },
+          });
           break;
         }
         await grantAccess({ data, email, order: data });
+        {
+          const member = await getPrisma().user.findFirst({ where: { email }, select: { id: true, name: true } }).catch(() => null);
+          if (member) await recordDeveloperEvent({
+            actorId: member.id, actorName: member.name,
+            action: "membership.upgrade.succeeded",
+            targetId: data?.id?.toString?.() || null,
+            severity: "info", category: "membership",
+            summary: "Shopify confirmed payment and membership processing completed.",
+            metadata: { provider: "shopify", topic },
+          });
+        }
         break;
       case "orders/cancelled":
       case "orders/refunded":
@@ -348,7 +373,17 @@ export async function POST(req) {
 
     return new NextResponse("Webhook processed", { status: 200 });
   } catch (error) {
-    logError("shopify.webhook_error", { error: error.message });
+    logError("shopify.webhook_error", { topic: eventTopic, error: error.message });
+    if (eventEmail) {
+      const member = await getPrisma().user.findFirst({ where: { email: eventEmail }, select: { id: true, name: true } }).catch(() => null);
+      if (member) await recordDeveloperEvent({
+        actorId: member.id, actorName: member.name,
+        action: "membership.webhook.failed",
+        severity: "error", category: "membership",
+        summary: "Shopify membership event could not be processed.",
+        metadata: { provider: "shopify", topic: eventTopic, errorType: String(error?.name || "Error").slice(0, 60) },
+      });
+    }
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
