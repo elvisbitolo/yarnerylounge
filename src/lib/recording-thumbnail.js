@@ -28,7 +28,9 @@ export function captureVideoFrame(url, { atSec = THUMBNAIL_AT_SEC } = {}) {
     video.crossOrigin = "anonymous";
     video.muted = true;
     video.playsInline = true;
-    video.preload = "auto";
+    // Metadata only: "auto" made the browser pull far more of a long,
+    // non-faststart MP4 than a single frame needs (and often blew the timeout).
+    video.preload = "metadata";
 
     let settled = false;
     const timer = setTimeout(() => finish(new Error("thumbnail_timeout")), LOAD_TIMEOUT_MS);

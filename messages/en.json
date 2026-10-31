@@ -756,8 +756,6 @@
     "trashFailed": "Couldn't load the Trash.",
     "movedToTrash": "Recording moved to Trash.",
     "undo": "Undo",
-    "storageUsage": "{used} of {limit} used",
-    "storageWarning": "Nearly full",
     "copyLink": "Copy link",
     "sendToChat": "Send to chat",
     "noChats": "No conversations yet.",

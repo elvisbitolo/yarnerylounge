@@ -17,7 +17,15 @@ function getStorageUploadCredentials() {
   return { supabaseUrl, serviceRoleKey };
 }
 
-const MAX_IN_MEMORY_BYTES = 8 * 1024 * 1024;
+function positiveNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+const MAX_IN_MEMORY_BYTES = positiveNumber(
+  process.env.RECORDINGS_MAX_IN_MEMORY_BYTES,
+  8 * 1024 * 1024
+);
 
 // Transcript sidecars are small; keep their buffering bounded. Video ingestion
 // streams directly to Storage instead of buffering the complete recording.
@@ -64,8 +72,20 @@ import {
 export const RECORDINGS_BUCKET = "recordings";
 
 // Guard against unexpectedly large JaaS responses before streaming them to Storage.
-// Supabase's project-wide and bucket-level limits remain authoritative.
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GiB
+// Supabase's project-wide and bucket-level limits remain authoritative; this is
+// only our own pre-flight ceiling. Defaults to 8 GiB so a multi-hour session is
+// not rejected outright, and can be raised/lowered per deployment.
+const MAX_UPLOAD_BYTES = positiveNumber(
+  process.env.RECORDINGS_MAX_UPLOAD_BYTES,
+  8 * 1024 * 1024 * 1024
+);
+
+// The pull runs inside a route whose maxDuration is 300s. Give the upload a
+// little headroom over the old 240s, but never let it outlive the function.
+const UPLOAD_TIMEOUT_MS = Math.min(
+  positiveNumber(process.env.RECORDINGS_UPLOAD_TIMEOUT_MS, 240_000),
+  290_000
+);
 const SIZE_LIMIT_NOTE =
   "Check Supabase Dashboard > Storage > Settings and the recordings bucket's file size limit.";
 
@@ -286,7 +306,7 @@ export async function pullRecording(recording) {
         body: upstream.body,
         // Node's fetch requires duplex for a streaming request body.
         duplex: "half",
-        signal: AbortSignal.timeout(240_000),
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       }
     );
     if (!uploadResponse.ok) {
@@ -611,30 +631,6 @@ export async function restoreRecording(id) {
     data: { deletedAt: null, deletedBy: null },
   });
   return { ok: true };
-}
-
-/** Total recording storage budget, overridable per deployment. */
-export const RECORDINGS_STORAGE_LIMIT_BYTES =
-  (Number(process.env.RECORDINGS_STORAGE_LIMIT_GB) || 5) * 1024 ** 3;
-
-/**
- * Sum the bytes still held in Storage. Trashed recordings count too: their
- * files stay until the purge sweep removes them.
- */
-export async function getRecordingsStorageUsage() {
-  const prisma = getPrisma();
-  const agg = await prisma.recording.aggregate({
-    _sum: { sizeBytes: true },
-    where: { storagePath: { not: null } },
-  });
-  const usedBytes = agg?._sum?.sizeBytes || 0;
-  const limitBytes = RECORDINGS_STORAGE_LIMIT_BYTES;
-  return {
-    usedBytes,
-    limitBytes,
-    ratio: limitBytes > 0 ? usedBytes / limitBytes : 0,
-    warning: limitBytes > 0 && usedBytes / limitBytes >= 0.8,
-  };
 }
 
 /** Trash listing for owners: newest deletions first. */

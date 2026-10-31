@@ -279,9 +279,8 @@ Shipped as separate commits, each verified with `npm test` / `npm run lint`
     `POST /api/recordings/[id]/restore`) can restore it.
     `purgeExpiredRecordings` frees Storage after `TRASH_RETENTION_DAYS = 30`,
     driven by the daily `/api/cron/recording-purge` cron.
-  - **Storage bar** — `getRecordingsStorageUsage` sums the bytes still held
-    (trashed files count) against `RECORDINGS_STORAGE_LIMIT_BYTES`
-    (`RECORDINGS_STORAGE_LIMIT_GB`, default 5) and warns at 80%.
+  - **Storage usage** — no in-app budget: the library relies on the Supabase
+    plan's own Storage quota instead of showing a fixed display limit.
   - Lint 0 errors (28 warnings); build OK.
 - **Phase 4 (partial, per scope decision)**: attendee avatars and sharing into
   chat/groups. Retention auto-delete and server-side re-encode were intentionally
@@ -322,8 +321,18 @@ the 24h link expires.
 > `storage_upload_failed: The object exceeded the maximum allowed size` even
 > though `storage.buckets.file_size_limit` is 50 GiB. The project **Global file
 > size limit** (Storage → Settings) takes precedence and defaults to 50 MB; raise
-> it on Pro (up to 500 GB) to match the app's `MAX_UPLOAD_BYTES` (2 GiB). Longer
-> recordings also hit the `MAX_IN_MEMORY_BYTES` (384 MiB) buffer cap.
+> it on Pro (up to 500 GB) to match the app's `MAX_UPLOAD_BYTES` (now 8 GiB,
+> overridable with `RECORDINGS_MAX_UPLOAD_BYTES`). The upload must also finish
+> inside the route's 300s `maxDuration` (timeout clamped to 290s). The
+> transcript buffer cap is `RECORDINGS_MAX_IN_MEMORY_BYTES` (default 8 MiB).
+>
+> **Faststart.** JaaS writes the MP4 index (`moov`) at the end, so playback and
+> thumbnail capture fetch the tail first. The `.github/workflows/recordings-faststart.yml`
+> workflow runs `scripts/faststart-recordings.mjs` on a GitHub runner (ffmpeg,
+> plenty of disk) every six hours to remux stored files in place. It is
+> idempotent and needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
+> `POSTGRES_URL_NON_POOLING` secrets. Run it manually with
+> `npm run recordings:faststart -- --limit 5 --dry-run`.
 
 ## Lounge & gallery polish
 
@@ -331,8 +340,9 @@ the 24h link expires.
   (`mime type ... is not supported`), so poster uploads failed with 503. The
   allowed MIME list now includes images and `ensureRecordingsBucket()` self-heals
   an existing bucket that lacks them (`7e7d10e`).
-- **Storage bar** — `RECORDINGS_STORAGE_LIMIT_GB` (default 5) is documented in
-  `.env.example`; set it in Vercel to match the project's Supabase quota.
+- **Storage usage** — the fixed 5 GB display budget was removed now that the
+  project runs on the Supabase Pro plan; the plan's Storage quota is the source
+  of truth.
 - **Member badges** — one `TIER_BADGE` table in `plans.js` is the single source
   for the Flirting (sparkles), Hooking Up (crown) and Moving In (gem) badges;
   `components/TierIcon.js` maps the semantic icon names to lucide glyphs.
