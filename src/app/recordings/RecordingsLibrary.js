@@ -697,11 +697,7 @@ export default function RecordingsLibrary({
                       )}
                     </div>
                     <p className={styles.cardMeta}>{failed ? t("failed") : t("processing")}</p>
-                    {failed && recording.errorCode && (
-                      <p className={styles.cardMeta} role="status">
-                        Error code: {recording.errorCode}
-                      </p>
-                    )}
+                    {failed && ( <p className={styles.cardMeta} role="status">{showDeveloperTools && recording.errorCode ? "Technical reference: " + recording.errorCode : "We could not prepare this recording. Please try again or contact support."}</p> )}
                     {failed && (canDelete || (currentUserId && recording.initiatorId === currentUserId)) && (
                       <div className={styles.actions}>
                         <button
