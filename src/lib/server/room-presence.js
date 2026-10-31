@@ -164,6 +164,44 @@ export async function hasActiveRoomPresence(roomId, userId, now = Date.now()) {
   }
 }
 
+// Atomically upsert a session and determine whether this is the user's
+// first active session in this lounge. The transaction-scoped advisory lock
+// closes the read-then-write race when multiple tabs join simultaneously.
+export async function touchRoomPresenceAndDetectEntry({ sessionId, roomId, userId }) {
+  const prisma = getPrisma();
+  if (!prisma) return { error: "Database unavailable" };
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const lockKey = `room-entry:${roomId}:${userId}`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+      const cutoff = cutoffDate();
+      const active = await tx.roomPresence.findFirst({
+        where: { roomId, userId, leftAt: null, lastSeenAt: { gt: cutoff } },
+        select: { id: true },
+      });
+      const existing = await tx.roomPresence.findUnique({
+        where: { id: sessionId },
+        select: { roomId: true, userId: true },
+      });
+      if (existing && (existing.roomId !== roomId || existing.userId !== userId)) {
+        return { error: "Invalid lounge session" };
+      }
+      const now = new Date();
+      const row = await tx.roomPresence.upsert({
+        where: { id: sessionId },
+        create: { id: sessionId, roomId, userId, joinedAt: now, lastSeenAt: now, leftAt: null },
+        update: { lastSeenAt: now, leftAt: null },
+        select: { id: true, lastSeenAt: true },
+      });
+      return { presence: row, newEntry: !active };
+    });
+  } catch (err) {
+    logError("room-presence.join_claim_failed", { error: err.message, roomId, userId });
+    return { error: "Could not update lounge presence" };
+  }
+}
+
 export async function touchRoomPresence({ sessionId, roomId, userId }) {
   const prisma = getPrisma();
   if (!prisma) return { error: "Database unavailable" };
