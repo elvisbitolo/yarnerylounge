@@ -44,12 +44,16 @@ export default function SimilarMembersCard({ similarMembers, topMatches, similar
                   <Link href={`/members/${member.id}`} className={styles.matchTileLink}>
                     {member.photoURL ? (
                       <>
-                      <Image
+                      {/* Member-uploaded photos use native img so arbitrary storage/CDN URLs
+                          are not rejected by Next Image remote-host configuration. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={member.photoURL}
                         alt={member.name || "Member"}
                         width={72}
                         height={72}
                         className={styles.matchTilePhoto}
+                        loading="lazy"
                         onError={(event) => {
                           event.currentTarget.hidden = true;
                           const fallback = event.currentTarget.nextElementSibling;
