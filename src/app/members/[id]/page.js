@@ -251,27 +251,31 @@ const coverUrl = member.coverPhotoURL || "";
             )}
           </div>
           <div className={styles.header}>
-          <div className={styles.avatar}>
-            {member.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className={styles.avatarImg} src={member.photoURL} alt={member.name || "Member"} />
-            ) : (
-              (member.name || "?").slice(0, 1).toUpperCase()
-            )}
+          <div className={styles.avatarWrap}>
+            <div className={styles.avatar}>
+              {member.photoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className={styles.avatarImg} src={member.photoURL} alt={member.name || "Member"} />
+              ) : (
+                (member.name || "?").slice(0, 1).toUpperCase()
+              )}
+            </div>
+            <MemberPresence userId={id} compact />
           </div>
           <div className={styles.headerBody}>
             <h1 className={styles.title}>
               {member.name}
-              <MemberBadge plan={member.plan} role={member.role} size={16} showHost={false} />
+              <MemberBadge plan={member.plan} role={member.role} size={18} showHost={false} />
+              <span className={styles.communityBadge} title="Christa’s Speakeasy member">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icon-192.png" alt="" />
+                Christa’s Speakeasy
+              </span>
               {member.role === "owner" && (
                 <span className={styles.ownerBadge}>{roleBadgeLabel(member.role, member.roleLabel)}</span>
               )}
-              {member.foundingMember && (
-                <span className={styles.foundingBadge}>Founding Yarnie 🧶</span>
-              )}
             </h1>
             {member.username && <p className={styles.username}>@{member.username}</p>}
-            <MemberPresence userId={id} />
             {member.headline && <p className={styles.headline}>{member.headline}</p>}
             {member.location && <p className={styles.location}>{member.location}</p>}
             {member.country && <p className={styles.location}>{member.country}</p>}

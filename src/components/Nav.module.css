@@ -1054,3 +1054,8 @@
 @media (max-width: 480px) {
   .notificationPopover { position: fixed; top: calc(var(--topbar-h, 48px) + 6px); left: 8px; right: 8px; width: auto; max-height: calc(100dvh - var(--topbar-h, 48px) - 24px); }
 }
+
+
+.sidebarLink { display: flex; align-items: center; gap: 12px; }
+.sidebarItemIcon { flex: 0 0 18px; color: var(--muted, #a3a3a3); transition: color .15s ease, transform .15s ease; }
+.sidebarLink:hover .sidebarItemIcon, .sidebarLink[aria-current="page"] .sidebarItemIcon { color: var(--primary, #f6077a); }
