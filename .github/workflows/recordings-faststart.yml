@@ -44,6 +44,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
       - name: Verify ffmpeg
         run: ffmpeg -version
       - name: Remux recordings
