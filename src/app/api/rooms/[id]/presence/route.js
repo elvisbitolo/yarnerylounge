@@ -6,6 +6,7 @@ import {
   getRoomPresence,
   leaveRoomPresence,
   touchRoomPresence,
+  touchRoomPresenceAndDetectEntry,
   countActiveRoomParticipants,
   hasActiveRoomPresence,
 } from "@/lib/server/room-presence";
@@ -52,9 +53,9 @@ export async function POST(req, { params }) {
   // Only on a genuine new join: a heartbeat for a seat already held must never
   // be refused, or a room filling up would freeze the people inside it.
   //
-  // `alreadyPresent` doubles as the watch trigger's freshness check: a page
-  // refresh re-sends "join" while the old session's presence row is still
-  // active, and that re-join is not an event worth announcing.
+  // `alreadyPresent` is used only by the capacity guard. The atomic
+  // presence helper below independently decides whether this is a first entry
+  // and therefore eligible for an owner lounge announcement.
   let alreadyPresent = false;
   if (status !== "leave") {
     const [headcount, rights, present] = await Promise.all([
@@ -93,9 +94,13 @@ export async function POST(req, { params }) {
   }
 
   const input = { sessionId, roomId: room.id, userId: auth.user.uid };
-  const result = status === "leave" ? await leaveRoomPresence(input) : await touchRoomPresence(input);
+  const result = status === "leave"
+    ? await leaveRoomPresence(input)
+    : status === "join"
+      ? await touchRoomPresenceAndDetectEntry(input)
+      : await touchRoomPresence(input);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 409 });
-  if (status === "join" && !alreadyPresent) {
+  if (status === "join" && result.newEntry) {
     // Secret Yarnery's owner activity is announced to eligible members;
     // ordinary members continue to notify only their explicit watchers.
     // The owner check is performed against the persisted account email.
