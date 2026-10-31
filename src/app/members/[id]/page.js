@@ -337,6 +337,8 @@ const coverUrl = member.coverPhotoURL || "";
         </div>
 
         <MemberProfileTabs
+          viewerId={viewer.uid}
+          member={memberProfile}
           posts={posts}
           projects={projects}
           isSelf={isSelf}
