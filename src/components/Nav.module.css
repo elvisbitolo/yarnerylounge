@@ -1059,3 +1059,21 @@
 .sidebarLink { display: flex; align-items: center; gap: 12px; }
 .sidebarItemIcon { flex: 0 0 18px; color: var(--muted, #a3a3a3); transition: color .15s ease, transform .15s ease; }
 .sidebarLink:hover .sidebarItemIcon, .sidebarLink[aria-current="page"] .sidebarItemIcon { color: var(--primary, #f6077a); }
+
+
+.communityBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  margin-left: 10px;
+  color: #f5f4f2;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.025em;
+  white-space: nowrap;
+}
+.communityBrand img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+@media (max-width: 1100px) { .communityBrand span { display: none; } .communityBrand { margin-left: 2px; } }
+@media (max-width: 480px) { .communityBrand img { width: 30px; height: 30px; } }
