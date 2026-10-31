@@ -1,0 +1,5 @@
+.wrap { position: relative; display: inline-flex; margin-top: 10px; }
+.moreButton { display:inline-flex; align-items:center; gap:7px; min-height:36px; padding:0 14px; border:1px solid #d9cbc4; border-radius:999px; background:#fff; color:#51464e; font-size:12px; font-weight:700; cursor:pointer; }
+.moreButton:hover { border-color:#f6077a; color:#c90a65; }
+.moreButton:focus-visible { outline:2px solid #f6077a; outline-offset:2px; }
+.menu { position:absolute; z-index:10; top:calc(100% + 8px); left:0; min-width:260px; padding:12px; border:1px solid #e7dce2; border-radius:14px; background:#fff; box-shadow:0 12px 32px rgba(0,0,0,.14); }
