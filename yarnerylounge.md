@@ -321,8 +321,18 @@ the 24h link expires.
 > `storage_upload_failed: The object exceeded the maximum allowed size` even
 > though `storage.buckets.file_size_limit` is 50 GiB. The project **Global file
 > size limit** (Storage → Settings) takes precedence and defaults to 50 MB; raise
-> it on Pro (up to 500 GB) to match the app's `MAX_UPLOAD_BYTES` (2 GiB). Longer
-> recordings also hit the `MAX_IN_MEMORY_BYTES` (384 MiB) buffer cap.
+> it on Pro (up to 500 GB) to match the app's `MAX_UPLOAD_BYTES` (now 8 GiB,
+> overridable with `RECORDINGS_MAX_UPLOAD_BYTES`). The upload must also finish
+> inside the route's 300s `maxDuration` (timeout clamped to 290s). The
+> transcript buffer cap is `RECORDINGS_MAX_IN_MEMORY_BYTES` (default 8 MiB).
+>
+> **Faststart.** JaaS writes the MP4 index (`moov`) at the end, so playback and
+> thumbnail capture fetch the tail first. The `.github/workflows/recordings-faststart.yml`
+> workflow runs `scripts/faststart-recordings.mjs` on a GitHub runner (ffmpeg,
+> plenty of disk) every six hours to remux stored files in place. It is
+> idempotent and needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
+> `POSTGRES_URL_NON_POOLING` secrets. Run it manually with
+> `npm run recordings:faststart -- --limit 5 --dry-run`.
 
 ## Lounge & gallery polish
 

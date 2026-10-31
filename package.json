@@ -15,6 +15,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
+    "recordings:faststart": "node scripts/faststart-recordings.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"
