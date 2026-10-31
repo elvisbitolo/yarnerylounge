@@ -882,3 +882,7 @@
   .diagnosticsSummary { grid-template-columns:1fr; }
   .diagnosticsRow { grid-template-columns:1fr; gap:4px; }
 }
+
+.memberHelp { display:flex; flex-direction:column; gap:5px; margin-top:24px; padding:16px 18px; border:1px solid #34313f; border-radius:12px; background:linear-gradient(120deg,rgba(246,7,122,.08),rgba(250,129,205,.035)); color:#f5f4f2; font-size:14px; line-height:1.6; }
+.memberHelp strong { font-size:15px; }
+.memberHelp span { color:#b7b4c0; }
