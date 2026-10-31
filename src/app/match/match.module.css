@@ -104,7 +104,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: linear-gradient(135deg, #ad1457, #6d0f35);
   color: #ffffff;
   flex-shrink: 0;
 }
@@ -120,14 +120,14 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--primary);
+  color: #ad1457;
   margin: 0 0 2px;
   font-weight: 700;
 }
 
 .statusLine {
   font-size: 13px;
-  color: #9b9bab;
+  color: #625a63;
   margin: 0;
 }
 
@@ -151,7 +151,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--primary);
+  color: #ad1457;
   margin: 0;
 }
 
@@ -167,7 +167,7 @@
 
 .matchWindow {
   margin: 0;
-  color: #6b5c8a;
+  color: #594875;
   font-size: 12px;
   font-weight: 600;
 }
@@ -190,7 +190,7 @@
   flex-wrap: wrap;
   gap: 4px 12px;
   font-size: 12px;
-  color: #9b9bab;
+  color: #625a63;
 }
 
 .matchActions {
@@ -274,7 +274,7 @@
 }
 
 .matchProject small {
-  color: #777183;
+  color: #625a63;
   font-size: 11px;
 }
 
@@ -285,7 +285,7 @@
   min-height: 42px;
   padding: 0 18px;
   border-radius: 12px;
-  background: var(--primary);
+  background: #ad1457;
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -293,7 +293,7 @@
 }
 
 .primaryBtn:hover {
-  background: var(--primary-dark, var(--primary));
+  background: #880e4f;
 }
 
 .secondaryBtn {
@@ -319,7 +319,7 @@
 
 .matchNote {
   font-size: 12px;
-  color: #9b9bab;
+  color: #625a63;
   margin: 0;
 }
 
@@ -366,7 +366,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: linear-gradient(135deg, #ad1457, #6d0f35);
   color: #ffffff;
   font-weight: 800;
   font-size: 20px;
@@ -383,14 +383,14 @@
 
 .matchTileMeta {
   font-size: 12px;
-  color: #9b9bab;
+  color: #625a63;
 }
 
 .matchScore {
   font-size: 11px;
   font-weight: 700;
-  color: var(--primary);
-  background: rgba(37, 99, 235, 0.08);
+  color: #ad1457;
+  background: rgba(173, 20, 87, 0.08);
   border-radius: 999px;
   padding: 3px 10px;
 }
@@ -429,7 +429,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: linear-gradient(135deg, #ad1457, #6d0f35);
   color: #ffffff;
   font-weight: 700;
   font-size: 20px;
@@ -447,26 +447,26 @@
 
 .matchHeadline {
   font-size: 13px;
-  color: #9b9bab;
+  color: #625a63;
   margin: 2px 0 0;
 }
 
 .matchMeta {
   font-size: 12px;
-  color: #b8b8c8;
+  color: #625a63;
   margin: 2px 0 0;
 }
 
 .matchCount {
   font-size: 13px;
   font-weight: 700;
-  color: var(--primary);
+  color: #ad1457;
 }
 
 .cardAction {
   font-size: 13px;
   font-weight: 700;
-  color: var(--primary);
+  color: #ad1457;
   text-decoration: none;
   transition: color 0.15s ease;
 }
@@ -478,7 +478,7 @@
 .comingSoon {
   font-size: 12px;
   font-weight: 700;
-  color: #9b9bab;
+  color: #625a63;
 }
 
 @media (max-width: 640px) {
@@ -546,7 +546,7 @@
   justify-content: center;
   height: 44px;
   padding: 0 24px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: linear-gradient(135deg, #ad1457, #6d0f35);
   border: none;
   border-radius: 12px;
   font-size: 15px;
