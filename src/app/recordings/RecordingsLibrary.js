@@ -853,6 +853,7 @@ export default function RecordingsLibrary({
         </>
       )}
 
+      {!trashOpen && items.length > 0 && <aside className={styles.memberHelp}><strong>Need a hand?</strong><span>Select Play to watch a recording. Use Share to send it privately to another member. If a recording is still being prepared, please check back shortly.</span></aside>}
       {canDelete && !trashOpen && items.length > 0 && (
         <p className={styles.footnote}>{t("ownerNote")}</p>
       )}
