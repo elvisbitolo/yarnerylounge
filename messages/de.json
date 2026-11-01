@@ -151,7 +151,16 @@
     "pinnedByYou": "Von dir angepinnt",
     "recentlyHappened": "Zuletzt passiert",
     "showWhatsOn": "„Was ansteht“ anzeigen",
-    "hideWhatsOn": "„Was ansteht“ ausblenden"
+    "hideWhatsOn": "„Was ansteht“ ausblenden",
+    "liveLobbies": "Live Lobby",
+    "neighborhoods": "Nachbarschaften",
+    "loungeHours": "Lounge-Stunden",
+    "newThisMonth": "Diesen Monat",
+    "totalBooked": "Total gebucht",
+    "quickActionsLabel": "Schnellaktionen öffnen",
+    "manageMembers": "Mitglieder verwalten",
+    "manageEvents": "Events verwalten",
+    "viewAnalytics": "Analytics anzeigen"
   },
   "feed": {
     "title": "Feed",

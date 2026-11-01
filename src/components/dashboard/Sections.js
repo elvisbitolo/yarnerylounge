@@ -29,7 +29,7 @@ function formatTime(ms) {
   });
 }
 
-export function CommunityNextSteps() {
+export function CommunityNextSteps({ stats }) {
   const actions = [
     { href: "/messages", title: "Check your messages", detail: "Continue a conversation with another member." },
     { href: "/feed", title: "Join a discussion", detail: "Share an update or reply to a community post." },
@@ -37,10 +37,14 @@ export function CommunityNextSteps() {
     { href: "/events", title: "See what's coming up", detail: "Find an event or session to join." },
   ];
 
+  const statsText = stats
+    ? `Community has ${stats.activeMembers} active members, ${stats.newThisWeek} new this week`
+    : "Community has active members";
+
   return (
     <Card title="Make a connection today" theme="violet">
       <p className={styles.itemBody} style={{ marginBottom: 10 }}>
-        A few easy ways to take part in the community.
+        {statsText}
       </p>
       <ul className={styles.list}>
         {actions.map((action) => (

@@ -41,6 +41,7 @@ export default function DashboardShell() {
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [editId, setEditingId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -179,6 +180,33 @@ export default function DashboardShell() {
         theme="sky"
       />
     );
+    kpis.push(
+      <StatCard
+        key="liveLobbies"
+        label={t("liveLobbies")}
+        value={roomsValue?.length || 0}
+        deltaLabel="active now"
+        theme="rose"
+      />
+    );
+    kpis.push(
+      <StatCard
+        key="neighborhoods"
+        label={t("neighborhoods")}
+        value={statsValue?.neighborhoods?.total || 0}
+        deltaLabel={t("newThisMonth", { count: statsValue?.neighborhoods?.newThisMonth || 0 })}
+        theme="amber"
+      />
+    );
+    kpis.push(
+      <StatCard
+        key="loungeHours"
+        label={t("loungeHours")}
+        value={statsValue?.loungeHours?.total || 0}
+        deltaLabel={t("totalBooked", { count: statsValue?.loungeHours?.totalBooked || 0 })}
+        theme="emerald"
+      />
+    );
   }
 
   return (
@@ -202,6 +230,16 @@ export default function DashboardShell() {
                 {exporting ? "Exporting…" : "Export CSV"}
               </button>
             )}
+            {isStaff && (
+              <button
+                type="button"
+                className={styles.fabButton}
+                onClick={() => setEditingId("")}
+                aria-label={t("quickActions")}
+              >
+                {t("quickActionsLabel")}
+              </button>
+            )}
             <form className={styles.search} onSubmit={handleSearch}>
               <span className={styles.searchIcon}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -217,8 +255,21 @@ export default function DashboardShell() {
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Search"
               />
-            </form>
-          </div>
+</form>
+              {isStaff && (
+                <div className={styles.quickLinks}>
+                  <Link href="/admin/members" className={styles.link}>
+                    {t("manageMembers")}
+                  </Link>
+                  <Link href="/admin/events" className={styles.link}>
+                    {t("manageEvents")}
+                  </Link>
+                  <Link href="/admin/analytics" className={styles.link}>
+                    {t("viewAnalytics")}
+                  </Link>
+                </div>
+              )}
+            </div>
         </div>
 
         <div data-tour="tour-welcome">
@@ -227,7 +278,7 @@ export default function DashboardShell() {
         <DashboardNotificationCard />
         <div className={styles.grid}>
           <div className={styles.col}>
-            <CommunityNextSteps />
+            <CommunityNextSteps stats={stats?.ok ? stats.value : {}} />
             <ReturnVisitCard streak={user.streak} points={user.points} />
           </div>
         </div>
