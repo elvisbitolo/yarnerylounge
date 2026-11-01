@@ -1,21 +1,35 @@
 {
-  "name": "Yarnery Lounge",
+  "id": "/",
+  "name": "Secret Yarnery",
   "short_name": "Yarnery",
-  "description": "Paid membership community with live video rooms, courses, events and groups.",
+  "description": "A private community to connect, learn and grow together through live video lounges, courses, events and groups.",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",
+  "categories": ["social", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
