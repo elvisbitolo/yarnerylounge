@@ -264,6 +264,7 @@
     "archived": "Archivé",
     "restore": "Restaurer",
     "edited": "Modifié",
+    "impressions": "{count, plural, one {# impression} other {# impressions}}",
     "scheduledFor": "Programmé pour {when}",
     "markedSensitive": "Marqué comme sensible",
     "quotedPost": "Cite un autre post",

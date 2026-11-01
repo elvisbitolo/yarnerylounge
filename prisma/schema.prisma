@@ -95,6 +95,7 @@ model User {
   postComments           PostComment[]
   pollVotes              PollVote[]
   posts                  Post[]
+  postImpressions        PostImpression[]
   articles               Article[]
   articleComments        ArticleComment[]
   roomMessages           RoomMessage[]
@@ -403,6 +404,7 @@ model Post {
   versions PostVersion[]
   subscriptions PostSubscription[]
   moderationLog PostModerationLog[]
+  impressions PostImpression[]
   space    Space?          @relation(fields: [spaceId], references: [id])
   group    Group?          @relation(fields: [groupId], references: [id])
 
@@ -413,6 +415,27 @@ model Post {
   @@index([lastActivityAt(sort: Desc)])
   @@index([deletedAt])
   @@index([scheduledAt])
+}
+
+// A single viewport impression of a post. One row per member, post and browser
+// session: the client only reports a card after it has been at least half
+// visible for a second, and the unique constraint makes retries and duplicate
+// batch flushes idempotent. Aggregated counts are read per page with groupBy,
+// so the Post row itself stays write-light.
+model PostImpression {
+  id         String   @id @default(cuid())
+  postId     String
+  viewerId   String
+  sessionKey String
+  createdAt  DateTime @default(now())
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewer User @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, viewerId, sessionKey])
+  @@index([postId, createdAt])
+  @@index([viewerId, createdAt])
+  @@index([createdAt])
 }
 
 // Immutable snapshots of a post's text taken every time it is edited, so the
