@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { listEvents } from "@/lib/server/events";
+import { logError } from "@/lib/server/log";
 import { expandEvent } from "@/lib/server/events-core";
 
 export async function GET() {
@@ -89,3 +90,5 @@ export async function GET() {
     logError("calendar.feed_failed", { error: err.message });
     return new Response("Failed to generate calendar", { status: 500 });
   }
+
+}
