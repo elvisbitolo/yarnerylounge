@@ -43,13 +43,14 @@ export async function POST(req) {
       },
     });
 
-    const isStaff = auth.userDoc?.role === "owner" || auth.userDoc?.role === "moderator";
-    const spaces = new Set(
-      auth.userDoc?.extra?.spaceMemberIds ? ...auth.userDoc.extra.spaceMemberIds : []
-    );
-    const groups = new Set(
-      auth.userDoc?.extra?.groupMemberIds ? ...auth.userDoc.extra.groupMemberIds : []
-    );
+const isStaff = auth.userDoc?.role === "owner" || auth.userDoc?.role === "moderator";
+const extra = auth.userDoc?.extra || {};
+const spaces = new Set(
+  extra.spaceMemberIds ? [...extra.spaceMemberIds] : []
+);
+const groups = new Set(
+  extra.groupMemberIds ? [...extra.groupMemberIds] : []
+);
     // fallback: if extra not available, fetch memberships quickly
     if (spaces.size === 0) {
       try {

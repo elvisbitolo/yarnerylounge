@@ -264,6 +264,7 @@
     "archived": "Archived",
     "restore": "Restore",
     "edited": "Edited",
+    "onlyOwnerCanPost": "You can start a post (owner only)",
     "impressions": "{count, plural, one {# impression} other {# impressions}}",
     "scheduledFor": "Scheduled for {when}",
     "markedSensitive": "Marked as sensitive",

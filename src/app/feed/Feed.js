@@ -2181,6 +2181,16 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
               (post.authorName || "?").slice(0, 1).toUpperCase()
             )}
           </div>
+          {post.imageUrl && (
+            <img
+              src={post.imageUrl}
+              alt={post.altText || ""}
+              className={styles.postImage}
+              loading="lazy"
+              decoding="async"
+              style={{ width: 80, height: 80, borderRadius: 8, marginRight: 8, marginBottom: 8 }}
+            />
+          )}
           <div className={styles.postHeaderInfo}>
             <p className={styles.postAuthor}>
               {isSystemPost(post) ? (
@@ -2774,6 +2784,11 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
             : groupId
             ? t("noPostsGroup")
             : t("noPosts")}
+          {role === "owner" && (
+            <span style={{fontSize: 12, marginLeft: 8, color: "#ff6b6b"}}>
+              {t("onlyOwnerCanPost")}
+            </span>
+          )}
         </p>
       ) : (
         <div className={styles.postList} role="feed" aria-busy={loadingMore} aria-label={t("title")}>
@@ -2839,6 +2854,28 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
 
       <p data-feed-live aria-live="polite" className={styles.liveRegion} />
       </div>
+      {canModerate && (
+        <button
+          className={styles.fabButton}
+          onClick={() => setEditingId("")}
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            background: "#ff6b6b",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 1000,
+          }}
+        >
+          ⨀
+        </button>
+      )}
       {pendingUndo && (
         <div className={styles.undoToast} role="status">
           <span>{t("movedToTrash")}</span>
