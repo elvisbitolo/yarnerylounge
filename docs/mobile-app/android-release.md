@@ -18,25 +18,27 @@ database is introduced.
 ## Implemented web-app prerequisites
 
 - The web manifest uses the product's canonical **Secret Yarnery** name.
-- Manifest identity, scope, launch route, display mode, theme and icons are
-  explicitly declared.
+- Manifest identity, scope, launch route, display mode and theme are explicit.
 - Existing application routes, auth/session endpoints, VAPID web push and
   Supabase/Postgres data remain unchanged.
+- Only icons whose maskable-safe-area treatment has been verified should be
+  declared with `purpose: "maskable"`; a regular icon must not be relabelled.
 
-## Generate the Android project
+## Free direct-APK route (no Play Console)
 
-Run from the repository root on a machine with Node.js 24, a supported JDK,
-Android SDK command-line tools, and an Android device/emulator:
+Run from a machine with Node.js, a supported JDK, Android SDK command-line
+tools, and (for device installation) Android Platform Tools:
 
 ```bash
 npx --yes @bubblewrap/cli init --manifest=https://christasspeakeasy.com/manifest.webmanifest
 ```
 
-During initialization, use a stable reverse-DNS application ID owned by the
-publisher (suggested: `com.secretyarnery.app`; confirm availability before
-publishing), set the start URL to `/dashboard`, and retain the HTTPS origin
-`https://christasspeakeasy.com`. Do not commit a generated signing keystore
-or passwords.
+Use the stable application ID `com.secretyarnery.app`, the launch path
+`/dashboard`, and the HTTPS origin `https://christasspeakeasy.com`.
+Keep the generated signing keystore and passwords private and backed up in
+secure storage. **Never commit the keystore, passwords, or signing secrets.**
+The same signing key is required for all future APK updates; losing it means
+users cannot install an update over the existing app.
 
 Then build and install:
 
@@ -45,27 +47,44 @@ npx @bubblewrap/cli build
 npx @bubblewrap/cli install
 ```
 
-## Required before a verified full-screen release
+Bubblewrap generates a signed APK named `app-release-signed.apk`. That APK
+can be distributed directly (for example, from a download page on the website)
+without Play Console registration. Android users will need to approve the
+browser's “install unknown apps” prompt. Updates must be signed with the same
+private key and redistributed manually. Do not publish an AAB as though it
+were directly installable; the APK is the sideload artifact.
 
-1. Create the Play Console app and decide whether Play App Signing will be used.
-2. Obtain the **app-signing** SHA-256 certificate fingerprint (not merely the
-   upload-key fingerprint).
-3. Publish `/.well-known/assetlinks.json` with the exact package ID and
-   SHA-256 fingerprint. Do not publish a placeholder: a mismatch makes Chrome
-   fall back to browser UI.
-4. Verify origin association, install from an internal testing track, and test
-   sign-in, Google OAuth, logout, session expiry, web push, payments, downloads,
-   Jitsi camera/microphone, audio routing, background/foreground and reconnect
-   on physical Android devices.
-5. Run Lighthouse PWA checks and verify offline/error handling for all
-   TWA launch-critical routes.
-6. Validate Safari/iOS Add to Home Screen and all critical member journeys on
-   real iOS devices separately.
+## Digital Asset Links for verified full-screen mode
+
+Direct distribution still needs domain association for the TWA to open without
+browser UI. After generating the signing key:
+
+1. Obtain its **APK signing certificate SHA-256 fingerprint** from the exact
+   keystore used to sign the distributed APK.
+2. Create `public/.well-known/assetlinks.json` with relation
+   `delegate_permission/common.handle_all_urls`, namespace `android_app`,
+   package name `com.secretyarnery.app`, and that exact fingerprint.
+3. Deploy the file to
+   `https://christasspeakeasy.com/.well-known/assetlinks.json`.
+4. Validate the association and TWA launch before distributing the APK.
+
+Do not publish a placeholder fingerprint. A mismatch makes Chrome fall back
+to browser UI. If the signing key is ever rotated, the association must be
+updated and the transition planned before users receive the new APK.
+
+## Release validation
+
+Before calling the app release-ready, test on physical Android devices:
+sign-in, Google OAuth if enabled, logout, session expiry, browser push,
+payments, downloads, Jitsi camera/microphone permissions, audio routing,
+background/foreground transitions, deep links, reconnect and APK updates.
+Run Bubblewrap PWA validation and Lighthouse checks. Validate Safari/iOS Add
+to Home Screen and critical member journeys separately on a real iOS device.
 
 ## Safety boundary
 
 No database migration, Supabase configuration change, auth-cookie relaxation,
 service-role key, native push provider, production deploy, signing key or
-Digital Asset Links assertion is part of this scaffold. Browser push remains
-the existing VAPID implementation. Native push is a separate phase requiring
-a provider/configuration decision and duplicate-delivery handling.
+Digital Asset Links assertion is part of the initial scaffold. Browser push
+remains the existing VAPID implementation. Native push is a separate phase
+requiring a provider/configuration decision and duplicate-delivery handling.
