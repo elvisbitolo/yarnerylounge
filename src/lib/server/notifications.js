@@ -165,27 +165,6 @@ export async function createNotification({
     }
   }
 
-  if (type === "priority_online") {
-    try {
-      const recipient = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true, notifications: true },
-      });
-      if (recipient?.email && recipient.notifications !== "off") {
-        const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
-        const url = href?.startsWith("http") ? href : `${site}${href || "/members"}`;
-        await sendEmail({
-          to: recipient.email,
-          subject: `${actorName || "Secret Yarnery"} is now online`,
-          text: `${actorName || "Secret Yarnery"} is now online on Christa's Speakeasy. View profile: ${url}`,
-          html: `<p><strong>${actorName || "Secret Yarnery"}</strong> is now online on Christa's Speakeasy.</p><p><a href="${url}">View profile</a></p><p>You can manage notification preferences in your account.</p>`,
-        });
-      }
-    } catch (err) {
-      logError("notifications.priority_online_email_failed", { userId, error: err?.message });
-    }
-  }
-
   // WhatsApp DM (additive). Only for mentions and DMs.
   try {
     if ((isWhatsAppConfigured() || (process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)) && (type === "mention" || type === "dm")) {
