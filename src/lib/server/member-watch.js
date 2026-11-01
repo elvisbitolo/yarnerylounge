@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { sendEmail } from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notifications";
 import { resolveRoomAccess } from "@/lib/server/room-access";
 import { BLOCKED_KEY, isSafetyId } from "./member-safety-core.js";
@@ -273,6 +274,30 @@ export async function notifySecretYarneryRoom(targetId, room) {
       cursor = members[members.length - 1].id;
       if (members.length < 100) break;
     }
+
+    // Send the owner a confirmation so she sees that her lounge entry was
+    // announced, even though she is excluded from the member-facing fan-out.
+    if (notified > 0) {
+      try {
+        const site = process.env.NEXT_PUBLIC_APP_URL || "https://www.christasspeakeasy.com";
+        const loungeName = room.name || "your lounge";
+        const url = room.slug ? `${site}/rooms/${room.slug}` : `${site}/rooms`;
+        await sendEmail({
+          to: target.email,
+          subject: `Your lounge alert reached ${notified} member${notified === 1 ? "" : "s"}`,
+          text:
+            `Your arrival in ${loungeName} was announced to ${notified} member${notified === 1 ? "" : "s"}.\n\n` +
+            `Open the lounge: ${url}`,
+        });
+      } catch (err) {
+        logError("member-watch.owner_summary_failed", {
+          targetId,
+          roomId: room.id,
+          error: err?.message,
+        });
+      }
+    }
+
     return { notified, failed };
   } catch (err) {
     logError("member-watch.priority_room_broadcast_failed", {
