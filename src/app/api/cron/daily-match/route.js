@@ -25,6 +25,10 @@ export const maxDuration = 300;
 
 const BATCH = 500;
 
+// The owner asked to keep her inbox to the lounge-entry confirmation only.
+// Her Daily Match still appears in-app, but it is not emailed.
+const OWNER_EMAIL = "secretyarnery@gmail.com";
+
 // Members who could have a Daily Match. The authoritative eligibility rule is
 // canUseMatchmaker(), so this only narrows the set cheaply and lets the real
 // resolver decide per member - duplicating tier logic here would drift.
@@ -169,6 +173,7 @@ export async function GET(req) {
           });
           if (
             member?.email &&
+            String(member.email).trim().toLowerCase() !== OWNER_EMAIL &&
             member.notifications !== "off" &&
             member.notificationPreferences?.emailMatches !== false
           ) {
