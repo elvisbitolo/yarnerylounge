@@ -264,6 +264,7 @@
     "archived": "Archivé",
     "restore": "Restaurer",
     "edited": "Modifié",
+    "onlyOwnerCanPost": "Vous pouvez poster (propriétaire uniquement)",
     "impressions": "{count, plural, one {# impression} other {# impressions}}",
     "scheduledFor": "Programmé pour {when}",
     "markedSensitive": "Marqué comme sensible",
