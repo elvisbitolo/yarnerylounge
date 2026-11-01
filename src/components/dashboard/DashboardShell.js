@@ -41,7 +41,7 @@ export default function DashboardShell() {
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [editId, setEditingId] = useState("");
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -233,11 +233,13 @@ export default function DashboardShell() {
             {isStaff && (
               <button
                 type="button"
-                className={styles.fabButton}
-                onClick={() => setEditingId("")}
-                aria-label={t("quickActions")}
+                className={styles.quickActionsToggle}
+                onClick={() => setQuickActionsOpen((open) => !open)}
+                aria-label={quickActionsOpen ? "Hide quick actions" : t("quickActionsLabel")}
+                aria-expanded={quickActionsOpen}
+                aria-controls="dashboard-quick-actions"
               >
-                {t("quickActionsLabel")}
+                {quickActionsOpen ? "Hide quick actions" : t("quickActionsLabel")}
               </button>
             )}
             <form className={styles.search} onSubmit={handleSearch}>
@@ -292,9 +294,11 @@ export default function DashboardShell() {
             <SectionError message={t("spotlightLoadError")} onRetry={handleRetry} />
           )
         )}
-        <div data-tour="tour-actions">
-          <QuickActions isStaff={isStaff} />
-        </div>
+        {(!isStaff || quickActionsOpen) && (
+          <div id="dashboard-quick-actions" data-tour="tour-actions">
+            <QuickActions isStaff={isStaff} />
+          </div>
+        )}
 
         <div data-tour="tour-community">
           <CommunityHub />
