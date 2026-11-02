@@ -16,7 +16,6 @@ const DEFAULTS = {
   emailEvents: true,
   emailRoomAnnouncements: true,
   emailMatches: false,
-  emailDigest: true,
 };
 
 export async function GET() {
@@ -60,6 +59,7 @@ export async function GET() {
       });
     } else {
       prefs = { ...DEFAULTS, ...stored };
+      delete prefs.emailDigest;
     }
   } catch (err) {
     logError("notifications.prisma_prefs_read_failed", { error: err.message });
@@ -92,6 +92,7 @@ export async function PUT(req) {
 
   // Preserve preferences owned by other features instead of wiping unknown keys.
   const prefs = { ...DEFAULTS, ...existing };
+  delete prefs.emailDigest;
   for (const key of Object.keys(DEFAULTS)) {
     if (typeof body[key] === "boolean") prefs[key] = body[key];
   }
