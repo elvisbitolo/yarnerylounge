@@ -917,7 +917,7 @@ export default function RoomClient({
       const rooms = Array.isArray(info) ? info : info?.rooms || [];
       const participants = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
       const participant = participants.find((item) =>
-        item.displayName === displayName || item.id === userId
+        item.displayName === displayName || item.id === userId || item.userContext?.id === userId
       );
       if (participant?.id) api.executeCommand("setParticipantVolume", participant.id, 0);
     } catch {
@@ -937,7 +937,7 @@ export default function RoomClient({
       const rooms = Array.isArray(info) ? info : info?.rooms || [];
       const list = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
       const remote = list
-        .filter((p) => p.userContext?.id !== userId && p.isLocal !== true)
+        .filter((p) => p.isLocal !== true && (!userId || p.userContext?.id !== userId))
         .map((p) => ({
           participantId: p.id || "",
           displayName: p.displayName || "",
