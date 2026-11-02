@@ -120,9 +120,8 @@ function jaasFlag(value) {
 //   moderator   -> grants JaaS moderator powers (and JaaS recording UI)
 //   recording   -> grants the JaaS "recording" feature in features.*
 //   transcription -> grants the JaaS "transcription" feature. This is a
-//      billable add-on ($0.03/min) and only *permits* the feature: JaaS shows
-//      it under the triple-dot > Subtitles menu and each participant still
-//      turns it on themselves. Set JITSI_TRANSCRIPTION="off" as a kill switch.
+//      billable add-on and only *permits* the feature. Enable it explicitly
+//      with JITSI_TRANSCRIPTION="on" after confirming the account pricing.
 export function buildJitsiTokenPayload({
   appId,
   identity,
