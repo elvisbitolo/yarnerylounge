@@ -59,8 +59,8 @@ export async function GET() {
       });
     } else {
       prefs = { ...DEFAULTS, ...stored };
-      delete prefs.emailDigest;
     }
+    delete prefs.emailDigest;
   } catch (err) {
     logError("notifications.prisma_prefs_read_failed", { error: err.message });
   }
