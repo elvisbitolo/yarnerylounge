@@ -55,11 +55,15 @@ export async function POST(_req, { params }) {
             skipped += 1;
             continue;
           }
-          await sendEmail({
+          const emailResult = await sendEmail({
             to: email,
             subject: `Christa is now in ${room.name || "the lounge"}`,
             text: `Hi ${member.name || "there"},\n\nChrista is now in ${room.name || "the lounge"} and would love to see you there.\n\nJoin the lounge: ${loungeUrl}\n\nYou can unsubscribe from optional email notifications in Account → Notifications.`,
           });
+          if (emailResult?.skipped) {
+            failed += 1;
+            continue;
+          }
           sent += 1;
         } catch (error) {
           failed += 1;
