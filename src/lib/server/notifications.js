@@ -3,7 +3,6 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { getUserDoc } from "@/lib/server/auth";
 import { sendPushToUser } from "@/lib/server/push";
-import { sendEmail } from "@/lib/server/email";
 import { buildPushPayload } from "@/lib/server/push-core";
 import { notificationRow } from "@/lib/server/notifications-core";
 import { isWhatsAppConfigured, sendWhatsAppText } from "@/lib/server/social/whatsapp";
@@ -136,34 +135,6 @@ export async function createNotification({
   // site are recalled too. Respects the same type→preference gate above.
   dispatchPush(userId, buildPushPayload({ actorName, text, href }));
 
-  if (type === "priority_room") {
-    try {
-      const recipient = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true, notifications: true },
-      });
-      if (recipient?.email && recipient.notifications !== "off") {
-        const site = process.env.NEXT_PUBLIC_SITE_URL || "https://www.christasspeakeasy.com";
-        const url = href?.startsWith("http") ? href : `${site}${href || "/rooms"}`;
-        const roomMatch = String(text || "").match(/entered (.+)\.$/i);
-        const loungeName = roomMatch?.[1] || "the lounge";
-        const safeName = String(actorName || "Christa").replace(/[&<>"']/g, (character) => ({
-          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-        })[character]);
-        const safeRoom = loungeName.replace(/[&<>"']/g, (character) => ({
-          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-        })[character]);
-        await sendEmail({
-          to: recipient.email,
-          subject: `${actorName || "Christa"} is in ${loungeName}`,
-          text: `${actorName || "Christa"} has just entered ${loungeName}. Come join her: ${url}`,
-          html: `<p>Hey there!</p><p><strong>${safeName}</strong> has just entered <strong>${safeRoom}</strong>.</p><p>She's inside the lounge. Come join her!</p><p><a href="${url}">Join ${safeRoom}</a></p>`,
-        });
-      }
-    } catch (err) {
-      logError("notifications.priority_room_email_failed", { userId, error: err?.message });
-    }
-  }
 
   // WhatsApp DM (additive). Only for mentions and DMs.
   try {

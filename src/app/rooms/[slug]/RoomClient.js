@@ -178,6 +178,7 @@ export default function RoomClient({
   // Transient message shown when a recording command fails (the host-controls
   // notice is hidden unless that sheet is open, which it isn't here).
   const [recordNotice, setRecordNotice] = useState("");
+  const [announcementPending, setAnnouncementPending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [mountKey, setMountKey] = useState(0);
   const [connectAt, setConnectAt] = useState(0);
@@ -986,6 +987,26 @@ export default function RoomClient({
     recordNoticeTimerRef.current = setTimeout(() => setRecordNotice(""), 6000);
   }
 
+  async function sendLoungeAnnouncement() {
+    if (String(userEmail || "").trim().toLowerCase() !== "secretyarnery@gmail.com" || !roomId || announcementPending) return;
+    setAnnouncementPending(true);
+    setRecordNotice("");
+    try {
+      const response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/announcement-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not send the lounge announcement.");
+      flashRecordNotice(`Lounge announcement emailed to ${data.sent} member${data.sent === 1 ? "" : "s"}.`);
+    } catch (error) {
+      flashRecordNotice(error?.message || "Could not send the lounge announcement.");
+    } finally {
+      setAnnouncementPending(false);
+    }
+  }
+
   function startRecording() {
     const api = apiRef.current;
     if (!api) return;
@@ -1341,6 +1362,17 @@ export default function RoomClient({
                 >
                   <Music size={15} aria-hidden="true" />
                   {musicOn ? t("stopMusic") : t("playMusic")}
+                </button>
+              )}
+              {String(userEmail || "").trim().toLowerCase() === "secretyarnery@gmail.com" && (
+                <button
+                  type="button"
+                  className={styles.announcementBtn}
+                  onClick={sendLoungeAnnouncement}
+                  disabled={phase !== "connected" || announcementPending}
+                  title="Email eligible members that Christa is in this lounge"
+                >
+                  {announcementPending ? "Sending..." : "Notify Members"}
                 </button>
               )}
               {canRecord ? (

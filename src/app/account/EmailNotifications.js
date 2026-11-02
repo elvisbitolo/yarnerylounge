@@ -32,9 +32,9 @@ export default function EmailNotifications({ enabled }) {
   return (
     <div className={styles.row}>
       <div>
-        <span className={styles.label}>Email notifications</span>
+        <span className={styles.label}>All optional email notifications</span>
         <p className={styles.hint}>
-          Receive emails about new messages, comments on your posts and RSVPs.
+          Turn this off to unsubscribe from all optional email notifications. In-app notifications will continue to work.
         </p>
       </div>
       <button
@@ -45,7 +45,7 @@ export default function EmailNotifications({ enabled }) {
         aria-pressed={on}
         aria-label={on ? "Turn off email notifications" : "Turn on email notifications"}
       >
-        {on ? "On" : "Off"}
+        {busy ? "Saving..." : on ? "Unsubscribe" : "Resubscribe"}
       </button>
       {error && <p className={styles.error}>{error}</p>}
     </div>

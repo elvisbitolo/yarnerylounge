@@ -822,6 +822,33 @@
   background: rgba(167, 139, 250, 0.34);
 }
 
+.announcementBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(246, 7, 122, 0.45);
+  background: rgba(246, 7, 122, 0.14);
+  color: #ffd0e6;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.announcementBtn:hover:not(:disabled) {
+  background: rgba(246, 7, 122, 0.24);
+  border-color: rgba(246, 7, 122, 0.75);
+}
+
+.announcementBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .recordBtnLive {
   display: inline-flex;
   align-items: center;
