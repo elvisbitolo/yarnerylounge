@@ -18,6 +18,8 @@ export default async function RecordingsPage() {
   if (!user) redirect("/login");
   const userDoc = await getUserDoc(user.uid);
 
+  const renderedAt = Date.now();
+
   let recordings = [];
   let loadError = null;
   try {
@@ -52,6 +54,7 @@ export default async function RecordingsPage() {
       <div className="recordings-page" style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 20px 64px" }}>
         <RecordingsLibrary
           recordings={recordings}
+          renderedAt={renderedAt}
           loadError={loadError}
           canDelete={userDoc?.role === "owner"}
           showDeveloperTools={user.email?.toLowerCase() === "elvisbitolo11@gmail.com"}

@@ -19,12 +19,8 @@ export default function ConsentForm() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!accepted) {
-      setTosError(true);
-      return;
-    }
+  async function saveConsent() {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -45,6 +41,12 @@ export default function ConsentForm() {
       setError(err.message || t("consentFailed"));
       setBusy(false);
     }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!accepted) { setTosError(true); return; }
+    await saveConsent();
   }
 
   async function handleSignOut() {
@@ -86,10 +88,12 @@ export default function ConsentForm() {
                   type="checkbox"
                   checked={accepted}
                   required
+                  disabled={busy}
                   aria-invalid={tosError}
                   onChange={(e) => {
-                    setAccepted(e.target.checked);
-                    if (e.target.checked) setTosError(false);
+                    const checked = e.target.checked;
+                    setAccepted(checked);
+                    if (checked) { setTosError(false); void saveConsent(); }
                   }}
                 />
                 <span>
@@ -109,7 +113,7 @@ export default function ConsentForm() {
               )}
             </div>
 
-            <button className={styles.submit} type="submit" disabled={busy}>
+            <button className={styles.submit} type="submit" disabled={busy || !accepted}>
               {busy ? t("consentWorking") : t("consentSubmit")}
             </button>
           </form>
