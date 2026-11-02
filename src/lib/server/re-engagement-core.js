@@ -22,6 +22,7 @@ function readExtra(row) {
 }
 
 export function isAutomationEmailOptOut(row) {
+  if (row?.notifications === "off") return true;
   const prefs = row?.notificationPreferences;
   if (prefs && prefs.automations === false) return true;
   const extra = readExtra(row);
