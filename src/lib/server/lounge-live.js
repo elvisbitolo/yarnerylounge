@@ -8,7 +8,6 @@
 // without a database.
 
 import { createNotification } from "@/lib/server/notifications";
-import { sendEmail } from "@/lib/server/email";
 import { logError, logInfo } from "@/lib/server/log";
 import { NOT_SUSPENDED } from "@/lib/server/member-visibility-core";
 import { getPrisma } from "@/lib/db/prisma";
@@ -49,7 +48,7 @@ function vapidReady() {
  * itself because it is written by the room UI's heartbeat, so it only reflects
  * a real, live session.
  */
-async function wasRecentlyPresent(userId, roomId, now) {
+async function wasRecentlyPresent(userId, roomId, now, sessionId) {
   const prisma = getPrisma();
   if (!prisma || !userId || !roomId) return false;
   try {
@@ -58,6 +57,7 @@ async function wasRecentlyPresent(userId, roomId, now) {
       where: {
         roomId,
         userId,
+        ...(sessionId ? { id: { not: sessionId } } : {}),
         joinedAt: { gte: cutoff },
         OR: [{ leftAt: null }, { leftAt: { gte: cutoff } }],
       },
@@ -168,7 +168,7 @@ async function matchesAnnouncer(user, prisma) {
  *
  * @returns {Promise<{announced: boolean, reason: string, notified?: number, push?: number, email?: number}>}
  */
-export async function announceLoungeLive({ user, room, now = Date.now() }) {
+export async function announceLoungeLive({ user, room, now = Date.now(), sessionId = "" }) {
   const prisma = getPrisma();
   const announcer = await matchesAnnouncer(user, prisma);
 
@@ -188,7 +188,7 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
 
   // Cheap guards first: both are a query, and both suppress the common case.
   const [present, recent] = await Promise.all([
-    wasRecentlyPresent(user.uid, room.id, now),
+    wasRecentlyPresent(user.uid, room.id, now, sessionId),
     joinedRecently(user.uid, room.id, now),
   ]);
   const guard = shouldAnnounce({
@@ -219,15 +219,8 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
 
   const message = buildLiveMessage(room.name);
   const href = room?.slug ? `/rooms/${room.slug}` : "/rooms";
-  const { subject, text } = buildLiveEmail({
-    roomName: room.name,
-    roomSlug: room?.slug,
-    appUrl: process.env.NEXT_PUBLIC_APP_URL,
-  });
-
   let notified = 0;
   let pushed = 0;
-  let emailed = 0;
 
   for (let i = 0; i < recipients.length; i += BATCH) {
     const batch = recipients.slice(i, i + BATCH);
@@ -259,16 +252,8 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
           return;
         }
 
-        // No usable push subscription, so fall back to email. Skip silently if
-        // there is no address rather than logging one failure per member.
-        if (member.email && push.reason === "no_subscription") {
-          try {
-            await sendEmail({ to: member.email, subject, text });
-            emailed += 1;
-          } catch (err) {
-            logError("lounge-live.email_failed", { userId: member.id, error: err.message });
-          }
-        }
+        // Member-facing lounge alerts are in-app/push only. Member emails
+        // are reserved for Christa's explicit "Notify Members" action.
       })
     );
   }
@@ -278,9 +263,9 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
     roomName: room.name,
     notified,
     pushed,
-    emailed,
+    emailed: 0,
   });
-  return { announced: true, reason: "live", notified, push: pushed, email: emailed };
+  return { announced: true, reason: "live", notified, push: pushed, email: 0 };
 }
 
 /**
