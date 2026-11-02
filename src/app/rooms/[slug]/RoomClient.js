@@ -810,20 +810,27 @@ export default function RoomClient({
       setRecording(false);
     });
 
-    api.addEventListener("connectionEstablished", () => {
+    // These connection lifecycle names are not part of every Jitsi build.
+    // Register them only when this deployed iframe explicitly advertises them.
+    const supportedEvents = new Set(api.getSupportedEvents?.() || []);
+    const addIfSupported = (eventName, handler) => {
+      if (supportedEvents.has(eventName)) api.addEventListener(eventName, handler);
+    };
+
+    addIfSupported("connectionEstablished", () => {
       // XMPP readiness is not proof of conference entry. Update connection UI
       // only; room presence and owner lounge alerts wait for videoConferenceJoined.
       if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
       markConnected();
     });
 
-    api.addEventListener("connectionInterrupted", () => {
+    addIfSupported("connectionInterrupted", () => {
       if (phaseRef.current !== "connected") return;
       setConnStatus("reconnecting");
       armReconnectWatchdog();
     });
 
-    api.addEventListener("connectionRestored", () => {
+    addIfSupported("connectionRestored", () => {
       setConnStatus("connected");
       if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
     });
