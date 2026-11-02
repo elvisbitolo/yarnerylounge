@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:strict/strict";
+import assert from "node:assert/strict";
 import { sanitizeImpressionPayload, isTrackablePost, newSessionKey, MAX_IMPRESSION_BATCH } from "../impressions-core.js";
 
 test("sanitizeImpressionPayload rejects null", () => {
@@ -21,18 +21,18 @@ test("sanitizeImpressionPayload rejects invalid sessionKey too short", () => {
 test("sanitizeImpressionPayload rejects postIds list exceeding max", () => {
   const longIds = Array(51).fill("p1");
   assert.equal(
-    sanitizeImpressionPayload({ sessionKey: "valid", postIds: longIds }).postIds.length,
-    MAX_IMPRESSION_BATCH
+    sanitizeImpressionPayload({ sessionKey: "validkey", postIds: longIds }),
+    null
   );
 });
 
 test("sanitizeImpressionPayload returns clean payload", () => {
   const result = sanitizeImpressionPayload({
-    sessionKey: "abc123",
+    sessionKey: "abc12345",
     postIds: ["p1", "p2"],
   });
   assert.ok(result !== null);
-  assert.deepStrictEqual(result.sessionKey, "abc123");
+  assert.deepStrictEqual(result.sessionKey, "abc12345");
   assert.deepStrictEqual(result.postIds, ["p1", "p2"]);
 });
 

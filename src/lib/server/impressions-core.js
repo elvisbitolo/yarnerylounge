@@ -21,7 +21,7 @@ function newSessionKey() {
 function sanitizeImpressionPayload(body) {
   if (!body || typeof body !== "object") return null;
   const { sessionKey, postIds } = body;
-  if (!typeof sessionKey === "string" || !IMPRESSION_SESSION_RE.test(sessionKey)) return null;
+  if (typeof sessionKey !== "string" || !IMPRESSION_SESSION_RE.test(sessionKey)) return null;
   const ids = Array.isArray(postIds) ? postIds : [];
   if (ids.length > MAX_IMPRESSION_BATCH) return null;
   const clean = ids.filter(id => typeof id === "string" && id.length > 0 && id.length <= 64);
