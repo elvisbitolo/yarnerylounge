@@ -14,11 +14,11 @@ export default function AdminMembersPage() {
   const [role, setRole] = useState("member");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
-  const [delBusy, setDelBusy] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);\n  const [planDrafts, setPlanDrafts] = useState({});\n  const [planBusy, setPlanBusy] = useState(null);
 
   const loadMembers = useCallback(async () => {
     const res = await fetch("/api/admin/members");
-    if (res.ok) setMembers((await res.json()).members);
+    if (res.ok) {\n      const nextMembers = (await res.json()).members;\n      setMembers(nextMembers);\n      setPlanDrafts((current) => Object.fromEntries(nextMembers.map((member) => [member.id, current[member.id] || { tier: member.tier || "flirting", expiresAt: member.expiresAt ? new Date(member.expiresAt).toISOString().slice(0, 10) : "" }])));\n    }
   }, []);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function AdminMembersPage() {
     await loadMembers();
   }
 
-  function requestDelete(member) {
+  function updatePlanDraft(id, changes) {\n    setPlanDrafts((current) => ({ ...current, [id]: { ...current[id], ...changes } }));\n  }\n\n  async function savePlan(member) {\n    const draft = planDrafts[member.id];\n    if (!draft?.tier || !draft?.expiresAt) { setError("Choose a plan and expiry date."); return; }\n    setPlanBusy(member.id); setError("");\n    try {\n      const res = await fetch(`/api/admin/members/${member.id}/plan`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });\n      const data = await res.json().catch(() => ({}));\n      if (!res.ok) throw new Error(data.error || "Plan update failed");\n      await loadMembers();\n      setError(data.emailSent ? "Plan updated and member notified by email." : "Plan updated. Email was not sent; check the member email and email service.");\n    } catch (err) { setError(err.message || "Plan update failed"); }\n    finally { setPlanBusy(null); }\n  }\n\n  function requestDelete(member) {
     setError("");
     setDeleting(member);
   }
