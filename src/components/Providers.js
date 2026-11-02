@@ -3,7 +3,6 @@
 import { NextIntlClientProvider } from "next-intl";
 import { useEffect, useState } from "react";
 import { MembershipProvider } from "@/lib/membership";
-import ConnectionStatus from "@/components/ConnectionStatus";
 
 function readLocale() {
   if (typeof document === "undefined") return "";
@@ -43,7 +42,6 @@ export default function Providers({ messages, locale: serverLocale, children }) 
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale] || messages} timeZone="UTC">
       <MembershipProvider>
-        <ConnectionStatus />
         {children}
       </MembershipProvider>
     </NextIntlClientProvider>
