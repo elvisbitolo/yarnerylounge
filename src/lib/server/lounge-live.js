@@ -1,8 +1,8 @@
 // "Christa is live" — announce the owner's lounge arrivals to every member.
 //
-// Triggered from the JaaS token route, which already records a RoomEvent for
-// every join. This module decides whether the join is worth announcing and
-// then fans out over three channels, none of which may block or fail a join.
+// Triggered after the room-presence endpoint confirms videoConferenceJoined.
+// This module decides whether the arrival is worth announcing and fans out
+// over in-app and push channels without blocking the member's join.
 //
 // The rules themselves live in ./lounge-live-core.js so they can be tested
 // without a database.
