@@ -604,12 +604,12 @@ export default function MembersDirectory({
         }).catch(() => setSaveError("Could not release that member."));
         return;
       }
-      router.push(`/members/${id}`);
+      window.location.assign(`/members/${id}`);
       return;
     }
     clickRec.current = { id, at: now };
     clearTimeout(navTimer.current);
-    navTimer.current = setTimeout(() => router.push(`/members/${id}`), 300);
+    navTimer.current = setTimeout(() => window.location.assign(`/members/${id}`), 300);
   }
 
   async function resetAllPins() {
@@ -912,20 +912,28 @@ export default function MembersDirectory({
             >
               ✦ Match
             </button>
-            <Link
+            <button
+              type="button"
               className={styles.tooltipAction}
-              href={`/chat?with=${hover.member.id}`}
-              onClick={() => setHover(null)}
+              onClick={() => {
+                const target = hover.member.id;
+                setHover(null);
+                window.location.assign(`/chat?with=${target}`);
+              }}
             >
               <MessageCircle size={13} /> Message
-            </Link>
-            <Link
+            </button>
+            <button
+              type="button"
               className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
-              href={`/members/${hover.member.id}`}
-              onClick={() => setHover(null)}
+              onClick={() => {
+                const target = hover.member.id;
+                setHover(null);
+                window.location.assign(`/members/${target}`);
+              }}
             >
               View profile
-            </Link>
+            </button>
           </div>
         </div>
       )}
@@ -951,7 +959,7 @@ export default function MembersDirectory({
                 className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
                 onClick={() => {
                   setMatchTarget(null);
-                  router.push(`/chat?with=${matchTarget.id}`);
+                  window.location.assign(`/chat?with=${matchTarget.id}`);
                 }}
               >
                 <MessageCircle size={13} /> Say hello
