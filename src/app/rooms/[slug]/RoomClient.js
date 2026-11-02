@@ -557,6 +557,7 @@ export default function RoomClient({
 
   function toggleCamera() {
     const next = !videoDesiredRef.current;
+    videoDesiredRef.current = next;
     setVideoDesired(next);
     if (next) {
       startDetecting();
@@ -569,6 +570,7 @@ export default function RoomClient({
 
   function toggleMic() {
     const next = !micDesiredRef.current;
+    micDesiredRef.current = next;
     setMicDesired(next);
     if (next) {
       startDetecting();
