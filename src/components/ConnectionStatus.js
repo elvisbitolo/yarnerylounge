@@ -5,7 +5,8 @@ import { Wifi, WifiOff, RefreshCw, X } from "lucide-react";
 import styles from "./ConnectionStatus.module.css";
 
 export default function ConnectionStatus() {
-  const [offline, setOffline] = useState(false);
+  const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && !navigator.onLine);
+  const offlineRef = useRef(typeof navigator !== "undefined" && !navigator.onLine);
   const [message, setMessage] = useState("");
   const [showRecovered, setShowRecovered] = useState(false);
   const timerRef = useRef(null);
@@ -17,8 +18,9 @@ export default function ConnectionStatus() {
     timerRef.current = setTimeout(() => setMessage(""), 7000);
   }, []);
 
-  const verifyConnection = useCallback(async () => {
+  const verifyConnection = useCallback(async ({ announceRecovery = false } = {}) => {
     if (!navigator.onLine) {
+      offlineRef.current = true;
       setOffline(true);
       setShowRecovered(false);
       return false;
@@ -31,14 +33,15 @@ export default function ConnectionStatus() {
         credentials: "same-origin",
       });
       if (!response.ok) throw new Error("Connection check failed");
+      const wasOffline = offlineRef.current;
+      offlineRef.current = false;
       setOffline(false);
-      setShowRecovered(true);
-      setMessage("You're back online. You can continue using Secret Yarnery.");
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        setMessage("");
-        setShowRecovered(false);
-      }, 4500);
+      if (announceRecovery && wasOffline) {
+        setShowRecovered(true);
+        setMessage("Connection restored.");
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => { setMessage(""); setShowRecovered(false); }, 2500);
+      }
       return true;
     } catch {
       setOffline(true);
@@ -48,15 +51,14 @@ export default function ConnectionStatus() {
   }, []);
 
   useEffect(() => {
-    setOffline(!navigator.onLine);
-
     const onOffline = () => {
+      offlineRef.current = true;
       setOffline(true);
       setShowRecovered(false);
       setMessage("Your internet connection is unavailable. Some features may not work until you're connected again.");
     };
     const onOnline = () => {
-      verifyConnection();
+      verifyConnection({ announceRecovery: true });
     };
     const onRequestError = () => showNetworkError();
 
