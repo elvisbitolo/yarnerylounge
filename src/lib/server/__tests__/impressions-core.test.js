@@ -21,8 +21,8 @@ test("sanitizeImpressionPayload rejects invalid sessionKey too short", () => {
 test("sanitizeImpressionPayload rejects postIds list exceeding max", () => {
   const longIds = Array(51).fill("p1");
   assert.equal(
-    sanitizeImpressionPayload({ sessionKey: "validkey", postIds: longIds }).postIds.length,
-    MAX_IMPRESSION_BATCH
+    sanitizeImpressionPayload({ sessionKey: "validkey", postIds: longIds }),
+    null
   );
 });
 
