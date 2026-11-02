@@ -1153,7 +1153,6 @@ export default function RoomClient({
       video: { height: { ideal: 540, max: 720 }, width: { ideal: 960, max: 1280 } },
       audio: MEDIA_AUDIO_CONSTRAINTS,
     },
-    disableSimulcast: true,
     resolution: 720,
     toolbarButtons: ROOM_TOOLBAR,
   };
