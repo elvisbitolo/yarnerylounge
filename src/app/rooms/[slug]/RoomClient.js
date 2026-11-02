@@ -209,6 +209,8 @@ export default function RoomClient({
   const tileViewRef = useRef(null);
   const previewVideoRef = useRef(null);
   const activeStreamRef = useRef(null);
+  const mediaRequestRef = useRef(0);
+  const mediaInitApiRef = useRef(null);
   const mountKeyRef = useRef(0);
   const participantMutedRef = useRef({});
   const recordingPendingTimerRef = useRef(null);
@@ -424,6 +426,7 @@ export default function RoomClient({
   }
 
   function stopAllMedia() {
+    mediaRequestRef.current += 1;
     const stream = activeStreamRef.current;
     if (stream) {
       stream.getTracks().forEach((t) => t.stop());
@@ -465,6 +468,7 @@ export default function RoomClient({
     apiReadyRef.current = false;
     tileForcedRef.current = false;
     tileViewRef.current = null;
+    mediaInitApiRef.current = null;
   }
 
   // ---- Device preflight (independent of the JaaS connection) ----
@@ -494,16 +498,26 @@ export default function RoomClient({
     if (wantAudio) setMicStatus("starting");
 
     const t0 = nowMs();
+    const requestId = mediaRequestRef.current;
     try {
-      const stream = await withTimeout(
-        navigator.mediaDevices.getUserMedia({
-          video: wantVideo ? MEDIA_VIDEO_CONSTRAINTS : false,
-          audio: wantAudio ? MEDIA_AUDIO_CONSTRAINTS : false,
-        }),
-        DETECT_TIMEOUT_MS,
-        "Media detection"
-      );
-      if (!activeStreamRef.current) activeStreamRef.current = stream;
+      // getUserMedia cannot be aborted. Stop a stream if it resolves after the
+      // request was superseded or the prejoin screen was left.
+      const mediaRequest = navigator.mediaDevices.getUserMedia({
+        video: wantVideo ? MEDIA_VIDEO_CONSTRAINTS : false,
+        audio: wantAudio ? MEDIA_AUDIO_CONSTRAINTS : false,
+      }).then((stream) => {
+        if (requestId !== mediaRequestRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return null;
+        }
+        return stream;
+      });
+      const stream = await withTimeout(mediaRequest, DETECT_TIMEOUT_MS, "Media detection");
+      if (!stream || requestId !== mediaRequestRef.current) {
+        stream?.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      activeStreamRef.current = stream;
       const hasVideo = stream.getVideoTracks().length > 0;
       const hasAudio = stream.getAudioTracks().length > 0;
       if (wantVideo) {
@@ -518,9 +532,9 @@ export default function RoomClient({
         setMicStatus(hasAudio ? "ready" : "unavailable");
       }
       if (hasVideo) setPreviewStream(stream);
-      autoEnableIfInside();
     } catch (err) {
       const timedOut = err?.name === "MediaTimeout";
+      if (timedOut && requestId === mediaRequestRef.current) mediaRequestRef.current += 1;
       const kindWanted = wantVideo && !wantAudio ? "camera" : wantAudio && !wantVideo ? "mic" : "camera";
       const n = timedOut
         ? { code: JITSI_ERROR.CAMERA_TIMEOUT, message: friendlyMediaError(JITSI_ERROR.CAMERA_TIMEOUT, "camera") }
@@ -543,11 +557,13 @@ export default function RoomClient({
 
   function toggleCamera() {
     const next = !videoDesiredRef.current;
+    videoDesiredRef.current = next;
     setVideoDesired(next);
     if (next) {
       startDetecting();
     } else {
-      stopAllMedia();
+      if (micDesiredRef.current && !audioLocked) startDetecting();
+      else stopAllMedia();
       setVideoStatus("off");
       setCameraMsg("");
     }
@@ -555,11 +571,13 @@ export default function RoomClient({
 
   function toggleMic() {
     const next = !micDesiredRef.current;
+    micDesiredRef.current = next;
     setMicDesired(next);
     if (next) {
       startDetecting();
     } else {
-      stopAllMedia();
+      if (videoDesiredRef.current) startDetecting();
+      else stopAllMedia();
       setMicStatus("off");
       setMicMsg("");
     }
@@ -570,22 +588,33 @@ export default function RoomClient({
   // muted-by-default JaaS state rather than waiting for a parent "ready" track.
   function autoEnableIfInside() {
     const api = apiRef.current;
-    if (!api) return;
-    if (phaseRef.current !== "connected") return;
-    if (viewer) return;
-    try {
-      if (videoDesiredRef.current) {
-        api.executeCommand("toggleVideo");
-        setVideoStatus("starting");
-        armCameraWatchdog();
+    if (!api || phaseRef.current !== "connected" || viewer) return;
+    if (mediaInitApiRef.current === api) return;
+    mediaInitApiRef.current = api;
+
+    const enableIfMuted = (checkMethod, isDesired, command, setStatus) => {
+      if (!isDesired()) return;
+      try {
+        Promise.resolve(api[checkMethod]()).then((muted) => {
+          if (apiRef.current !== api || phaseRef.current !== "connected" || !isDesired()) return;
+          if (muted === true) {
+            api.executeCommand(command);
+            setStatus("starting");
+            if (command === "toggleVideo") armCameraWatchdog();
+          } else if (muted === false) {
+            setStatus("ready");
+            if (command === "toggleVideo") setCameraMsg("");
+          }
+        }).catch(() => {
+          if (mediaInitApiRef.current === api) mediaInitApiRef.current = null;
+        });
+      } catch {
+        if (mediaInitApiRef.current === api) mediaInitApiRef.current = null;
       }
-      if (micDesiredRef.current && !audioLocked) {
-        api.executeCommand("toggleAudio");
-        setMicStatus("starting");
-      }
-    } catch {
-      /* api not ready yet */
-    }
+    };
+
+    enableIfMuted("isVideoMuted", () => videoDesiredRef.current, "toggleVideo", setVideoStatus);
+    enableIfMuted("isAudioMuted", () => micDesiredRef.current && !audioLocked, "toggleAudio", setMicStatus);
   }
 
   function retryCamera() {
@@ -593,11 +622,13 @@ export default function RoomClient({
     setVideoStatus("starting");
     const api = apiRef.current;
     if (api) {
-      try {
-        api.executeCommand("toggleVideo");
-      } catch {
-        /* retry via remount if needed */
-      }
+      Promise.resolve(api.isVideoMuted()).then((muted) => {
+        if (apiRef.current !== api || !videoDesiredRef.current) return;
+        if (muted) api.executeCommand("toggleVideo");
+        else setVideoStatus("ready");
+      }).catch(() => {
+        if (apiRef.current === api) setVideoStatus("error");
+      });
     }
     armCameraWatchdog();
   }
@@ -607,11 +638,13 @@ export default function RoomClient({
     setMicStatus("starting");
     const api = apiRef.current;
     if (api) {
-      try {
-        api.executeCommand("toggleAudio");
-      } catch {
-        /* retry via remount if needed */
-      }
+      Promise.resolve(api.isAudioMuted()).then((muted) => {
+        if (apiRef.current !== api || !micDesiredRef.current || audioLocked) return;
+        if (muted) api.executeCommand("toggleAudio");
+        else setMicStatus("ready");
+      }).catch(() => {
+        if (apiRef.current === api) setMicStatus("error");
+      });
     }
   }
 
@@ -649,9 +682,15 @@ export default function RoomClient({
     if (!api) return;
     apiRef.current = api;
     apiReadyRef.current = true;
-    const syncCount = () => {
+    const readParticipants = async () => {
+      const info = await api.getRoomsInfo();
+      const rooms = Array.isArray(info) ? info : info?.rooms || [];
+      return rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
+    };
+    const syncCount = async () => {
       try {
-        setParticipantCount(api.getParticipantsInfo()?.length || 0);
+        const participants = await readParticipants();
+        if (apiRef.current === api) setParticipantCount(participants.length);
       } catch {
         /* not ready yet */
       }
@@ -775,22 +814,31 @@ export default function RoomClient({
       setRecording(false);
     });
 
-    api.addEventListener("connectionEstablished", () => {
+    // These connection lifecycle names are not part of every Jitsi build.
+    // Register them only when this deployed iframe explicitly advertises them.
+    const supportedEvents = new Set(api.getSupportedEvents?.() || []);
+    const addIfSupported = (eventName, handler) => {
+      if (supportedEvents.has(eventName)) api.addEventListener(eventName, handler);
+    };
+
+    addIfSupported("connectionEstablished", () => {
       // XMPP readiness is not proof of conference entry. Update connection UI
       // only; room presence and owner lounge alerts wait for videoConferenceJoined.
       if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
       markConnected();
     });
 
-    api.addEventListener("connectionInterrupted", () => {
+    addIfSupported("connectionInterrupted", () => {
       if (phaseRef.current !== "connected") return;
       setConnStatus("reconnecting");
       armReconnectWatchdog();
     });
 
-    api.addEventListener("connectionRestored", () => {
+    addIfSupported("connectionRestored", () => {
       setConnStatus("connected");
       if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+      mediaInitApiRef.current = null;
+      handleConnectedMedia();
     });
 
     api.addEventListener("conferenceFailed", (error) => {
@@ -803,10 +851,7 @@ export default function RoomClient({
 
     api.addEventListener("errorOccurred", (error) => {
       const type = error?.error?.type || error?.type || "";
-      const fatal =
-        typeof type === "string" &&
-        type.toLowerCase().includes("conference") &&
-        (error?.fatal === true || error?.error?.fatal === true);
+      const fatal = error?.isFatal === true || error?.error?.isFatal === true;
       if (fatal) {
         // eslint-disable-next-line no-console
         console.error("[room] fatal errorOccurred:", JSON.stringify(error, null, 2));
@@ -818,23 +863,28 @@ export default function RoomClient({
       }
     });
 
-    // Local media track feedback: the source of truth for camera/mic status.
-    api.addEventListener("videoAvailable", (available) => {
-      if (available) {
+    // Keep media state synchronized with the documented IFrame API events.
+    api.addEventListener("videoMuteStatusChanged", ({ muted } = {}) => {
+      if (muted === false) {
         setVideoStatus("ready");
         setCameraMsg("");
-      } else if (videoDesiredRef.current && phaseRef.current === "connected") {
-        setVideoStatus("off");
-      }
+      } else if (muted === true && videoDesiredRef.current) setVideoStatus("off");
     });
-    api.addEventListener("audioAvailable", (available) => {
-      if (available) setMicStatus("ready");
+    api.addEventListener("audioMuteStatusChanged", ({ muted } = {}) => {
+      if (muted === false) setMicStatus("ready");
+      else if (muted === true && micDesiredRef.current) setMicStatus("off");
+    });
+    api.addEventListener("videoAvailabilityChanged", ({ available } = {}) => {
+      if (available === false && videoDesiredRef.current) setVideoStatus("unavailable");
+    });
+    api.addEventListener("audioAvailabilityChanged", ({ available } = {}) => {
+      if (available === false && micDesiredRef.current) setMicStatus("unavailable");
     });
 
-    // Gallery view by default: correct Jitsi once if it lands on stage/film view.
-    api.addEventListener("tileViewChanged", ({ visible }) => {
-      tileViewRef.current = !!visible;
-      if (!visible && !tileForcedRef.current) {
+    // tileViewChanged reports `enabled`, not `visible`.
+    api.addEventListener("tileViewChanged", ({ enabled } = {}) => {
+      tileViewRef.current = enabled === true;
+      if (enabled === false && !tileForcedRef.current) {
         tileForcedRef.current = true;
         api.executeCommand("toggleTileView");
       }
@@ -859,16 +909,17 @@ export default function RoomClient({
     router.push("/rooms");
   }
 
-  function muteRemoteParticipant(userId, displayName) {
+  async function muteRemoteParticipant(userId, displayName) {
     const api = apiRef.current;
     if (!api || !displayName) return;
     try {
-      const participant = (api.getParticipantsInfo?.() || []).find((item) =>
-        item.displayName === displayName || item.formattedDisplayName === displayName || item.id === userId
+      const info = await api.getRoomsInfo();
+      const rooms = Array.isArray(info) ? info : info?.rooms || [];
+      const participants = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
+      const participant = participants.find((item) =>
+        item.displayName === displayName || item.id === userId || item.userContext?.id === userId
       );
-      if (participant?.participantId) {
-        api.executeCommand("setRemoteParticipantVolume", participant.participantId, 0);
-      }
+      if (participant?.id) api.executeCommand("setParticipantVolume", participant.id, 0);
     } catch {
       /* The preference is still stored server-side when the remote API is unavailable. */
     }
@@ -876,26 +927,27 @@ export default function RoomClient({
 
   // ---- Host controls: moderator mute + per-participant volume ----
 
-  // getParticipantsInfo() returns { participantId, displayName, formattedDisplayName,
-  // avatarUrl, isLocal, email, role } per attendee. isLocal entries are filtered out
-  // so the host only ever manages other members.
-  function refreshRemoteParticipants() {
+  // Use the current IFrame API rooms/participants shape. The JWT identity is
+  // stored in userContext.id, which lets us exclude our own local participant.
+  async function refreshRemoteParticipants() {
     const api = apiRef.current;
     if (!api) return;
     try {
-      const list = api.getParticipantsInfo?.() || [];
+      const info = await api.getRoomsInfo();
+      const rooms = Array.isArray(info) ? info : info?.rooms || [];
+      const list = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
       const remote = list
-        .filter((p) => !p.isLocal)
+        .filter((p) => p.isLocal !== true && (!userId || p.userContext?.id !== userId))
         .map((p) => ({
-          participantId: p.participantId || p.id || "",
-          displayName: p.formattedDisplayName || p.displayName || "",
-          email: p.email || "",
-          avatarUrl: p.avatarUrl || "",
-          muted: !!participantMutedRef.current[p.participantId || p.id || ""],
+          participantId: p.id || "",
+          displayName: p.displayName || "",
+          email: p.userContext?.email || "",
+          avatarUrl: p.userContext?.avatar || "",
+          muted: !!participantMutedRef.current[p.id || ""],
         }));
-      setRemoteParticipants(remote);
+      if (apiRef.current === api) setRemoteParticipants(remote);
     } catch {
-      setRemoteParticipants([]);
+      if (apiRef.current === api) setRemoteParticipants([]);
     }
   }
 
@@ -1169,7 +1221,8 @@ export default function RoomClient({
     enableClosePage: false,
     disableInviteFunctions: true,
     disableProfile: !isStaff,
-    channelLastN: -1,
+    // Bound received streams to protect mobile CPUs and variable networks.
+    channelLastN: 9,
     tileView: { enabled: true, maxColumns: 4 },
     // Start everything muted so joining never blocks on a slow/unreliable
     // camera. Desired devices are enabled right after join, independently.
@@ -1180,7 +1233,8 @@ export default function RoomClient({
       video: { height: { ideal: 540, max: 720 }, width: { ideal: 960, max: 1280 } },
       audio: MEDIA_AUDIO_CONSTRAINTS,
     },
-    disableSimulcast: true,
+    // Let Jitsi adapt video layers to each receiver's available bandwidth.
+    disableSimulcast: false,
     resolution: 720,
     toolbarButtons: ROOM_TOOLBAR,
   };

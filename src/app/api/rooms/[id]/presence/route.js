@@ -1,4 +1,5 @@
 import { NextResponse, after } from "next/server";
+import { getPrisma } from "@/lib/db/prisma";
 import { requireActiveMember, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { requireRoomAccess } from "@/lib/server/room-access";
@@ -13,6 +14,8 @@ import {
 import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { notifySecretYarneryRoom, notifyWatchersRoom } from "@/lib/server/member-watch";
+import { announceLoungeLive } from "@/lib/server/lounge-live";
+import { isLoungeLiveEnabled } from "@/lib/server/lounge-live-core";
 
 export const dynamic = "force-dynamic";
 
@@ -101,10 +104,32 @@ export async function POST(req, { params }) {
       : await touchRoomPresence(input);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 409 });
   if (status === "join" && result.newEntry) {
-    // Secret Yarnery's owner activity is announced to eligible members;
-    // ordinary members continue to notify only their explicit watchers.
-    // The owner check is performed against the persisted account email.
+    // This is the first point at which we know the member actually entered
+    // the Jitsi conference. A prewarmed token must never count as attendance.
     after(async () => {
+      if (room.persisted) {
+        const joinedAt = new Date();
+        if (isLoungeLiveEnabled()) {
+          await announceLoungeLive({
+            user: {
+              uid: auth.user.uid,
+              email: auth.user.email || auth.userDoc?.email || "",
+              name: auth.userDoc?.name || auth.user.displayName || "Member",
+            },
+            room: { id: room.id, name: room.name, slug: room.slug },
+            now: joinedAt.getTime(),
+            sessionId,
+          });
+        }
+        // Record only after the announcement checks the previous join history;
+        // this also removes the former create-vs-query race.
+        const prisma = getPrisma();
+        if (prisma) {
+          await prisma.roomEvent.create({
+            data: { userId: auth.user.uid, roomId: room.id, roomName: room.name, joinedAt },
+          }).catch((err) => console.error("roomEvent.record_failed", err));
+        }
+      }
       const broadcast = await notifySecretYarneryRoom(auth.user.uid, room);
       if (broadcast.skipped) await notifyWatchersRoom(auth.user.uid, room);
     });
