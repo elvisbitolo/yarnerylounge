@@ -724,7 +724,7 @@ export default function RoomClient({
       refreshRemoteParticipants();
     });
 
-    const markConnected = () => {
+    const markConnected = ({ conferenceJoined = false } = {}) => {
       syncCount();
       setConnStalled(false);
       // Update refs before any follow-up work — setState is async and
@@ -734,7 +734,13 @@ export default function RoomClient({
       setPhase("connected");
       setConnStatus("connected");
       clearWatchdogs();
-      handleConnectedMedia();
+
+      // Jitsi emits connectionEstablished before videoConferenceJoined.
+      // Both events update connection UI, but only the conference-level event
+      // may enable local media. Calling toggleVideo from both events toggles
+      // the camera on and immediately back off, leaving other members with the
+      // participant avatar instead of a live video tile.
+      if (conferenceJoined) handleConnectedMedia();
     };
 
     // Only the conference-level join event proves the member entered the
@@ -746,7 +752,7 @@ export default function RoomClient({
         connectAtRef.current = 0;
       }
       setConnectAt(0);
-      markConnected();
+      markConnected({ conferenceJoined: true });
     };
 
     api.addEventListener("videoConferenceJoined", markJoined);
