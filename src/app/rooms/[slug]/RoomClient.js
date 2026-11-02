@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
+import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music, Mail } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -178,6 +178,7 @@ export default function RoomClient({
   // Transient message shown when a recording command fails (the host-controls
   // notice is hidden unless that sheet is open, which it isn't here).
   const [recordNotice, setRecordNotice] = useState("");
+  const [announcementBusy, setAnnouncementBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [mountKey, setMountKey] = useState(0);
   const [connectAt, setConnectAt] = useState(0);
@@ -242,6 +243,7 @@ export default function RoomClient({
   const viewer = !planCanPublish || viewerOnly;
   const audioLocked = disableAudio || forceMuteOnJoin;
   const canRecord = isStaff || isHost || isCoHost;
+  const canSendLoungeAnnouncement = String(userEmail).trim().toLowerCase() === "secretyarnery@gmail.com";
 
   // AmbientAudio owns the <audio> element and reports its state; the header
   // button only mirrors it, so both controls can never disagree.
@@ -963,6 +965,19 @@ export default function RoomClient({
     refreshRemoteParticipants();
   }
 
+  async function sendLoungeAnnouncement() {
+    if (announcementBusy) return;
+    setAnnouncementBusy(true);
+    setRecordNotice("");
+    try {
+      const response = await fetch("/api/rooms/announce", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId, slug }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not send lounge announcement");
+      flashRecordNotice("Email announcement sent to " + (data.sent || 0) + " members.");
+    } catch (error) { flashRecordNotice(error.message || "Could not send lounge announcement"); }
+    finally { setAnnouncementBusy(false); }
+  }
+
   // ---- Recording control (staff / host / co-host) ----
   // JaaS confirms asynchronously through recordingStatusChanged, so the button
   // shows a pending state and only trusts the event — with a timeout so a
@@ -1340,6 +1355,11 @@ export default function RoomClient({
                 >
                   <Music size={15} aria-hidden="true" />
                   {musicOn ? t("stopMusic") : t("playMusic")}
+                </button>
+              )}
+              {canSendLoungeAnnouncement && (
+                <button type="button" className={styles.musicBtn} onClick={sendLoungeAnnouncement} disabled={phase !== "connected" || announcementBusy} title="Email members that Christa is live in this lounge">
+                  <Mail size={15} aria-hidden="true" /> {announcementBusy ? "Sending…" : "Notify members"}
                 </button>
               )}
               {canRecord ? (
