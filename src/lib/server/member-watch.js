@@ -277,7 +277,7 @@ export async function notifySecretYarneryRoom(targetId, room) {
 
     // Send the owner a confirmation so she sees that her lounge entry was
     // announced, even though she is excluded from the member-facing fan-out.
-    if (notified > 0 && target.notifications !== "off") {
+    if (target.notifications !== "off") {
       try {
         const site = process.env.NEXT_PUBLIC_APP_URL || "https://www.christasspeakeasy.com";
         const loungeName = room.name || "your lounge";
