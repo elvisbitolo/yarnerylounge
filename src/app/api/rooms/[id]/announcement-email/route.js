@@ -7,7 +7,7 @@ import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 const CHRISTAS_EMAIL = "secretyarnery@gmail.com";
 
 export async function POST(_req, { params }) {
@@ -50,7 +50,7 @@ export async function POST(_req, { params }) {
           continue;
         }
         try {
-          const memberAccess = await resolveRoomAccess(room.id, member.id, member);
+          const memberAccess = room.alwaysOn ? { room } : await resolveRoomAccess(room.id, member.id, member);
           if (memberAccess.denied) {
             skipped += 1;
             continue;
