@@ -1,4 +1,4 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getRoomBySlugEnsuringAlwaysOn } from "@/lib/server/rooms";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
@@ -24,10 +24,7 @@ import {
   describeJitsiToken,
 } from "@/lib/server/jitsi";
 import { logError, logInfo } from "@/lib/server/log";
-import { getPrisma } from "@/lib/db/prisma";
 import { toMillis } from "@/lib/server/user-core";
-import { announceLoungeLive } from "@/lib/server/lounge-live";
-import { isLoungeLiveEnabled } from "@/lib/server/lounge-live-core";
 
 // Development-only diagnostic sink. Never logs the token itself or the key.
 function logJwtDiagnostics(token) {
@@ -219,50 +216,9 @@ export async function POST(req) {
     }
     logJwtDiagnostics(token);
 
-    // Only DB-backed rooms carry a stable roomId — the canonical always-on
-    // fallback (persisted:false) has a synthetic id (the slug) that would
-    // violate RoomEvent_roomId_fkey, so joins are recorded for real rooms.
-    if (room.persisted) {
-      const prisma = getPrisma();
-      const joinedAt = new Date();
-      prisma.roomEvent
-        .create({
-          data: {
-            userId: auth.user.uid,
-            roomId: room.id,
-            roomName: room.name,
-            joinedAt,
-          },
-        })
-        .catch((err) => console.error("roomEvent.record_failed", err));
+    // Token prewarming only authorizes the meeting. Attendance and room
+    // notifications are recorded after the client confirms videoConferenceJoined.
 
-      // "Christa is live" broadcast. Runs after the response so a slow Resend
-      // or an unreachable push endpoint can never delay or fail a join, and
-      // so a broadcast failure is invisible to the person joining.
-      if (isLoungeLiveEnabled()) {
-        after(async () => {
-          try {
-            await announceLoungeLive({
-              user: {
-                uid: auth.user.uid,
-                // The DB row is the fallback because the session's email claim
-                // is optional — without it the announcer match fails silently.
-                email: auth.user.email || userDoc?.email || "",
-                name: displayName,
-              },
-              room: { id: room.id, name: room.name, slug: room.slug },
-              now: joinedAt.getTime(),
-            });
-          } catch (err) {
-            logError("lounge-live.failed", { error: err?.message });
-          }
-        });
-      } else {
-        // The master switch being off used to leave no trace at all; one line
-        // per join makes a dead broadcast visible in the function logs.
-        logInfo("lounge-live.disabled", { roomId: room.id });
-      }
-    }
 
     return NextResponse.json({
       token,
