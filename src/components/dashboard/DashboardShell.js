@@ -10,7 +10,6 @@ import {
   WelcomeBanner,
   CommunityNextSteps,
   ReturnVisitCard,
-  QuickActions,
   CommunityHub,
   RecentActivity,
   UpcomingRooms,
@@ -41,7 +40,6 @@ export default function DashboardShell() {
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -141,6 +139,7 @@ export default function DashboardShell() {
   }
 
   const { user, isStaff, stats, activity, upcomingRooms, spotlight, content, needsAttention, leaderboard } = data;
+  const isOwner = user.role === "owner";
 
   const statsValue = stats?.ok ? stats.value : null;
   const activityValue = activity?.ok ? activity.value : [];
@@ -150,7 +149,7 @@ export default function DashboardShell() {
 
   const kpis = [];
   if (statsValue) {
-    kpis.push(
+    if (isStaff) kpis.push(
       <StatCard
         key="members"
         label={t("totalMembers")}
@@ -159,7 +158,7 @@ export default function DashboardShell() {
         deltaLabel={t("newIn30d")}
         theme="indigo"
       />    );
-    kpis.push(
+    if (isStaff) kpis.push(
       <StatCard
         key="live"
         label={t("liveViewers")}
@@ -168,10 +167,7 @@ export default function DashboardShell() {
         theme="rose"
       />
     );
-    kpis.push(
-      <StatCard key="points" label={t("yourPoints")} value={(user.points || 0).toLocaleString()} deltaLabel={t("communityRecognition")} theme="emerald" />
-    );
-    kpis.push(
+    if (isStaff) kpis.push(
       <StatCard
         key="engagement"
         label={t("engagement")}
@@ -180,7 +176,7 @@ export default function DashboardShell() {
         theme="sky"
       />
     );
-    kpis.push(
+    if (isStaff) kpis.push(
       <StatCard
         key="liveLobbies"
         label={t("liveLobbies")}
@@ -189,25 +185,10 @@ export default function DashboardShell() {
         theme="rose"
       />
     );
-    kpis.push(
-      <StatCard
-        key="neighborhoods"
-        label={t("neighborhoods")}
-        value={statsValue?.neighborhoods?.total || 0}
-        deltaLabel={t("newThisMonth", { count: statsValue?.neighborhoods?.newThisMonth || 0 })}
-        theme="amber"
-      />
-    );
-    kpis.push(
-      <StatCard
-        key="loungeHours"
-        label={t("loungeHours")}
-        value={statsValue?.loungeHours?.total || 0}
-        deltaLabel={t("totalBooked", { count: statsValue?.loungeHours?.totalBooked || 0 })}
-        theme="emerald"
-      />
-    );
   }
+  kpis.push(
+    <StatCard key="points" label={t("yourPoints")} value={(user.points || 0).toLocaleString()} deltaLabel={t("communityRecognition")} theme="emerald" />
+  );
 
   return (
     <div className={styles.pageWrap}>
@@ -220,7 +201,7 @@ export default function DashboardShell() {
             </p>
           </div>
           <div className={styles.headerRight} data-tour="tour-search">
-            {isStaff && (
+            {isOwner && (
               <button
                 type="button"
                 className={styles.exportBtn}
@@ -228,18 +209,6 @@ export default function DashboardShell() {
                 disabled={exporting}
               >
                 {exporting ? "Exporting…" : "Export CSV"}
-              </button>
-            )}
-            {isStaff && (
-              <button
-                type="button"
-                className={styles.quickActionsToggle}
-                onClick={() => setQuickActionsOpen((open) => !open)}
-                aria-label={quickActionsOpen ? "Hide quick actions" : t("quickActionsLabel")}
-                aria-expanded={quickActionsOpen}
-                aria-controls="dashboard-quick-actions"
-              >
-                {quickActionsOpen ? "Hide quick actions" : t("quickActionsLabel")}
               </button>
             )}
             <form className={styles.search} onSubmit={handleSearch}>
@@ -280,7 +249,7 @@ export default function DashboardShell() {
         <DashboardNotificationCard />
         <div className={styles.grid}>
           <div className={styles.col}>
-            <CommunityNextSteps stats={stats?.ok ? stats.value : {}} />
+            <CommunityNextSteps stats={isStaff && stats?.ok ? stats.value : null} />
             <ReturnVisitCard streak={user.streak} points={user.points} />
           </div>
         </div>
@@ -294,12 +263,6 @@ export default function DashboardShell() {
             <SectionError message={t("spotlightLoadError")} onRetry={handleRetry} />
           )
         )}
-        {(!isStaff || quickActionsOpen) && (
-          <div id="dashboard-quick-actions" data-tour="tour-actions">
-            <QuickActions isStaff={isStaff} />
-          </div>
-        )}
-
         <div data-tour="tour-community">
           <CommunityHub />
         </div>
@@ -332,17 +295,17 @@ export default function DashboardShell() {
           </div>
 
           <div className={styles.col}>
-            {needsAttention?.ok ? (
+            {isStaff && (needsAttention?.ok ? (
               <NeedsAttention data={attentionValue} />
             ) : (
               <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
-            )}
+            ))}
 
-            {content?.ok ? (
+            {isStaff && (content?.ok ? (
               <ContentPerformance data={contentValue} />
             ) : (
               <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
-            )}
+            ))}
 
             {leaderboard?.ok && leaderboard.value.length > 0 && (
               <div className={styles.card}>
