@@ -185,11 +185,9 @@ export async function POST(req) {
     // kid fails every join. JITSI_KEY_ID is preferred, JITSI_API_KEY_ID is the
     // fallback (see getJitsiApiKeyId).
     const started = Date.now();
-    // Transcription is provisioned on the JaaS plan and is available to every
-    // member (it only surfaces the Jitsi > Subtitles menu; participants still
-    // choose to switch it on). JITSI_TRANSCRIPTION="off" disables the flag
-    // without a code change, which matters because it is billed per minute.
-    const transcription = process.env.JITSI_TRANSCRIPTION !== "off";
+    // JaaS transcription is a billable add-on. Keep it disabled unless the
+    // operator explicitly opts in after confirming the account's pricing.
+    const transcription = process.env.JITSI_TRANSCRIPTION === "on";
     const token = jwt.sign(
       buildJitsiTokenPayload({
         appId: getJitsiAppId(),
