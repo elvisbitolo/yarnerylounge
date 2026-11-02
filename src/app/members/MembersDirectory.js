@@ -583,7 +583,7 @@ export default function MembersDirectory({
     }
     e.preventDefault();
     e.stopPropagation();
-    router.push(`/members/${member.id}`);
+    window.location.assign(`/members/${member.id}`);
   }
 
   async function resetAllPins() {
@@ -896,7 +896,7 @@ export default function MembersDirectory({
               onClick={() => {
                 const target = hover.member.id;
                 setHover(null);
-                router.push(`/chat?with=${target}`);
+                window.location.assign(`/chat?with=${target}`);
               }}
             >
               <MessageCircle size={13} /> Message
@@ -907,7 +907,7 @@ export default function MembersDirectory({
               onClick={() => {
                 const target = hover.member.id;
                 setHover(null);
-                router.push(`/members/${target}`);
+                window.location.assign(`/members/${target}`);
               }}
             >
               View profile
@@ -937,7 +937,7 @@ export default function MembersDirectory({
                 className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
                 onClick={() => {
                   setMatchTarget(null);
-                  router.push(`/chat?with=${matchTarget.id}`);
+                  window.location.assign(`/chat?with=${matchTarget.id}`);
                 }}
               >
                 <MessageCircle size={13} /> Say hello
