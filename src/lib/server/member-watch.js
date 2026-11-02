@@ -221,7 +221,7 @@ export async function notifySecretYarneryRoom(targetId, room) {
     if (!prisma || !targetId || !room?.id) return { notified: 0, skipped: true };
     const target = await prisma.user.findUnique({
       where: { id: targetId },
-      select: { id: true, name: true, email: true, suspended: true, extra: true },
+      select: { id: true, name: true, email: true, suspended: true, extra: true, notifications: true },
     });
     if (
       !target ||
@@ -277,7 +277,7 @@ export async function notifySecretYarneryRoom(targetId, room) {
 
     // Send the owner a confirmation so she sees that her lounge entry was
     // announced, even though she is excluded from the member-facing fan-out.
-    if (notified > 0) {
+    if (notified > 0 && target.notifications !== "off") {
       try {
         const site = process.env.NEXT_PUBLIC_APP_URL || "https://www.christasspeakeasy.com";
         const loungeName = room.name || "your lounge";
