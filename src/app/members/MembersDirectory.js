@@ -182,10 +182,6 @@ export default function MembersDirectory({
   // Clicks are deferred for editors so a double-click can be caught before the
   // profile route fires; this flag swallows the one that follows a real drag.
   const dragClickRef = useRef(false);
-  const clickRec = useRef({ id: null, at: 0 });
-  const navTimer = useRef(null);
-
-  useEffect(() => () => clearTimeout(navTimer.current), []);
 
   const patchFilters = useCallback(
     (patch) => setFilters((prev) => ({ ...prev, ...patch })),
@@ -577,39 +573,13 @@ export default function MembersDirectory({
   // Editors get a 300ms grace on a normal click so the second tap of a
   // double-click arrives first. Non-pinned avatars still navigate on that
   // second tap — an impatient double-click should not strand the reader.
-  function onAvatarClick(e, id, pinned) {
+  function onAvatarClick(e) {
+    // A completed drag must not activate the underlying profile link.
     if (dragClickRef.current) {
       dragClickRef.current = false;
       e.preventDefault();
       e.stopPropagation();
-      return;
     }
-    if (!canEditLayout) return;
-    e.preventDefault();
-    // The event's own clock rather than Date.now(), which the compiler rejects
-    // here as impure — and it only ever gets compared against the timeStamp of
-    // the previous click, so a consistent session-relative clock is exactly
-    // what is wanted.
-    const now = e.timeStamp;
-    const prev = clickRec.current;
-    if (prev.id === id && now - prev.at < 300) {
-      clickRec.current = { id: null, at: 0 };
-      clearTimeout(navTimer.current);
-      if (pinned) {
-        applyPin(id, null);
-        fetch("/api/members/layout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, reset: true }),
-        }).catch(() => setSaveError("Could not release that member."));
-        return;
-      }
-      router.push(`/members/${id}`);
-      return;
-    }
-    clickRec.current = { id, at: now };
-    clearTimeout(navTimer.current);
-    navTimer.current = setTimeout(() => router.push(`/members/${id}`), 300);
   }
 
   async function resetAllPins() {
@@ -673,7 +643,7 @@ export default function MembersDirectory({
           <span className={styles.layoutHint}>
             {saving === "one"
               ? "Saving…"
-              : "Drag an avatar to place it. Double-click to release it. Everyone sees the arrangement you save."}
+              : "Drag an avatar to place it. Click an avatar to open its profile. Use Reset layout to restore the automatic arrangement."}
           </span>
           <button
             type="button"
@@ -734,7 +704,7 @@ export default function MembersDirectory({
                     onMouseLeave={scheduleHide}
                     onFocus={(e) => showDetails(member, e)}
                     onBlur={scheduleHide}
-                    onClick={(e) => onAvatarClick(e, member.id, pinned)}
+                    onClick={onAvatarClick}
                     onPointerDown={(e) => startDrag(e, slot)}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
