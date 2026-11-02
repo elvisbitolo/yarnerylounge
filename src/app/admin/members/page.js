@@ -14,11 +14,17 @@ export default function AdminMembersPage() {
   const [role, setRole] = useState("member");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
-  const [delBusy, setDelBusy] = useState(false);\n  const [planDrafts, setPlanDrafts] = useState({});\n  const [planBusy, setPlanBusy] = useState(null);
+  const [delBusy, setDelBusy] = useState(false);
+  const [planDrafts, setPlanDrafts] = useState({});
+  const [planBusy, setPlanBusy] = useState(null);
 
   const loadMembers = useCallback(async () => {
     const res = await fetch("/api/admin/members");
-    if (res.ok) {\n      const nextMembers = (await res.json()).members;\n      setMembers(nextMembers);\n      setPlanDrafts((current) => Object.fromEntries(nextMembers.map((member) => [member.id, current[member.id] || { tier: member.tier || "flirting", expiresAt: member.expiresAt ? new Date(member.expiresAt).toISOString().slice(0, 10) : "" }])));\n    }
+    if (res.ok) {
+      const nextMembers = (await res.json()).members;
+      setMembers(nextMembers);
+      setPlanDrafts((current) => Object.fromEntries(nextMembers.map((member) => [member.id, current[member.id] || { tier: member.tier || "flirting", expiresAt: member.expiresAt ? new Date(member.expiresAt).toISOString().slice(0, 10) : "" }])));
+    }
   }, []);
 
   useEffect(() => {
@@ -53,7 +59,25 @@ export default function AdminMembersPage() {
     await loadMembers();
   }
 
-  function updatePlanDraft(id, changes) {\n    setPlanDrafts((current) => ({ ...current, [id]: { ...current[id], ...changes } }));\n  }\n\n  async function savePlan(member) {\n    const draft = planDrafts[member.id];\n    if (!draft?.tier || !draft?.expiresAt) { setError("Choose a plan and expiry date."); return; }\n    setPlanBusy(member.id); setError("");\n    try {\n      const res = await fetch(`/api/admin/members/${member.id}/plan`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });\n      const data = await res.json().catch(() => ({}));\n      if (!res.ok) throw new Error(data.error || "Plan update failed");\n      await loadMembers();\n      setError(data.emailSent ? "Plan updated and member notified by email." : "Plan updated. Email was not sent; check the member email and email service.");\n    } catch (err) { setError(err.message || "Plan update failed"); }\n    finally { setPlanBusy(null); }\n  }\n\n  function requestDelete(member) {
+  function updatePlanDraft(id, changes) {
+    setPlanDrafts((current) => ({ ...current, [id]: { ...current[id], ...changes } }));
+  }
+
+  async function savePlan(member) {
+    const draft = planDrafts[member.id];
+    if (!draft?.tier || !draft?.expiresAt) { setError("Choose a plan and expiry date."); return; }
+    setPlanBusy(member.id); setError("");
+    try {
+      const res = await fetch(`/api/admin/members/${member.id}/plan`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Plan update failed");
+      await loadMembers();
+      setError(data.emailSent ? "Plan updated and member notified by email." : "Plan updated. Email was not sent; check the member email and email service.");
+    } catch (err) { setError(err.message || "Plan update failed"); }
+    finally { setPlanBusy(null); }
+  }
+
+  function requestDelete(member) {
     setError("");
     setDeleting(member);
   }
@@ -160,6 +184,15 @@ export default function AdminMembersPage() {
                       Host
                     </a>
                     {role === "owner" && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", width: "100%" }}>
+                        <select className={styles.input} style={{ width: 145, height: 36 }} value={planDrafts[member.id]?.tier || "flirting"} onChange={(e) => updatePlanDraft(member.id, { tier: e.target.value })}>
+                          <option value="flirting">Flirting</option><option value="hooking-up">Hooking Up</option><option value="moving-in">Moving In</option>
+                        </select>
+                        <input className={styles.input} style={{ width: 155, height: 36 }} type="date" min={new Date().toISOString().slice(0, 10)} value={planDrafts[member.id]?.expiresAt || ""} onChange={(e) => updatePlanDraft(member.id, { expiresAt: e.target.value })} aria-label="Membership expiry date" />
+                        <button className={styles.submit} style={{ height: 36, padding: "0 14px", fontSize: 13 }} disabled={planBusy === member.id} onClick={() => savePlan(member)}>{planBusy === member.id ? "Saving…" : "Save plan"}</button>
+                      </div>
+                    )}
+                    {role === "owner" && (
                       <button
                         className={member.foundingMember ? styles.submit : styles.toggle}
                         style={{ height: 36, padding: "0 14px", fontSize: 13 }}
@@ -192,7 +225,9 @@ export default function AdminMembersPage() {
       <ConfirmModal
         open={!!deleting}
         title="Delete member"
-        message={`Delete ${deleting?.name || "this member"} permanently?\n\nThis removes their account, posts, and all data. This can't be undone.`}
+        message={`Delete ${deleting?.name || "this member"} permanently?
+
+This removes their account, posts, and all data. This can't be undone.`}
         confirmLabel="Delete"
         busy={delBusy}
         busyLabel="Deleting…"
