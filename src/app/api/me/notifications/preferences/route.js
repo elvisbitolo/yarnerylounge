@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 
-const DEFAULTS_VERSION = 2;
+const DEFAULTS_VERSION = 3;
 
 const DEFAULTS = {
   chat: true,
@@ -14,7 +14,7 @@ const DEFAULTS = {
   watch: true,
   emailMessages: true,
   emailEvents: true,
-  emailMatches: true,
+  emailLounge: true,
   emailDigest: true,
 };
 
