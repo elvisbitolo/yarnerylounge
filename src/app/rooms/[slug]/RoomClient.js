@@ -592,11 +592,11 @@ export default function RoomClient({
     if (mediaInitApiRef.current === api) return;
     mediaInitApiRef.current = api;
 
-    const enableIfMuted = (checkMethod, desired, command, setStatus) => {
-      if (!desired) return;
+    const enableIfMuted = (checkMethod, isDesired, command, setStatus) => {
+      if (!isDesired()) return;
       try {
         Promise.resolve(api[checkMethod]()).then((muted) => {
-          if (apiRef.current !== api || phaseRef.current !== "connected") return;
+          if (apiRef.current !== api || phaseRef.current !== "connected" || !isDesired()) return;
           if (muted === true) {
             api.executeCommand(command);
             setStatus("starting");
@@ -613,8 +613,8 @@ export default function RoomClient({
       }
     };
 
-    enableIfMuted("isVideoMuted", videoDesiredRef.current, "toggleVideo", setVideoStatus);
-    enableIfMuted("isAudioMuted", micDesiredRef.current && !audioLocked, "toggleAudio", setMicStatus);
+    enableIfMuted("isVideoMuted", () => videoDesiredRef.current, "toggleVideo", setVideoStatus);
+    enableIfMuted("isAudioMuted", () => micDesiredRef.current && !audioLocked, "toggleAudio", setMicStatus);
   }
 
   function retryCamera() {
@@ -622,11 +622,13 @@ export default function RoomClient({
     setVideoStatus("starting");
     const api = apiRef.current;
     if (api) {
-      try {
-        api.executeCommand("toggleVideo");
-      } catch {
-        /* retry via remount if needed */
-      }
+      Promise.resolve(api.isVideoMuted()).then((muted) => {
+        if (apiRef.current !== api || !videoDesiredRef.current) return;
+        if (muted) api.executeCommand("toggleVideo");
+        else setVideoStatus("ready");
+      }).catch(() => {
+        if (apiRef.current === api) setVideoStatus("error");
+      });
     }
     armCameraWatchdog();
   }
@@ -636,11 +638,13 @@ export default function RoomClient({
     setMicStatus("starting");
     const api = apiRef.current;
     if (api) {
-      try {
-        api.executeCommand("toggleAudio");
-      } catch {
-        /* retry via remount if needed */
-      }
+      Promise.resolve(api.isAudioMuted()).then((muted) => {
+        if (apiRef.current !== api || !micDesiredRef.current || audioLocked) return;
+        if (muted) api.executeCommand("toggleAudio");
+        else setMicStatus("ready");
+      }).catch(() => {
+        if (apiRef.current === api) setMicStatus("error");
+      });
     }
   }
 
@@ -833,6 +837,8 @@ export default function RoomClient({
     addIfSupported("connectionRestored", () => {
       setConnStatus("connected");
       if (reconnectWatchdogRef.current) clearTimeout(reconnectWatchdogRef.current);
+      mediaInitApiRef.current = null;
+      handleConnectedMedia();
     });
 
     api.addEventListener("conferenceFailed", (error) => {
