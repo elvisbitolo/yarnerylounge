@@ -35,6 +35,7 @@ const MONTH_MS = 30 * DAY_MS;
 
 export default function RecordingsLibrary({
   recordings,
+  renderedAt,
   loadError,
   canDelete,
   currentUserId = null,
@@ -63,7 +64,8 @@ export default function RecordingsLibrary({
   const [convosLoaded, setConvosLoaded] = useState(false);
   const [sendingTo, setSendingTo] = useState(null);
   // Captured once per mount so "this week/month" does not shift mid-render.
-  const [now] = useState(() => Date.now());
+  // Use the server timestamp for the first render on both server and client.
+  const [now] = useState(renderedAt);
   // Poster frames already signed by the server, plus any captured this session.
   const [thumbs, setThumbs] = useState(() =>
     Object.fromEntries(
