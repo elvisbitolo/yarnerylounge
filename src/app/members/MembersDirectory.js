@@ -890,20 +890,28 @@ export default function MembersDirectory({
             >
               ✦ Match
             </button>
-            <Link
+            <button
+              type="button"
               className={styles.tooltipAction}
-              href={`/chat?with=${hover.member.id}`}
-              onClick={() => setHover(null)}
+              onClick={() => {
+                const target = hover.member.id;
+                setHover(null);
+                router.push(`/chat?with=${target}`);
+              }}
             >
               <MessageCircle size={13} /> Message
-            </Link>
-            <Link
+            </button>
+            <button
+              type="button"
               className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
-              href={`/members/${hover.member.id}`}
-              onClick={() => setHover(null)}
+              onClick={() => {
+                const target = hover.member.id;
+                setHover(null);
+                router.push(`/members/${target}`);
+              }}
             >
               View profile
-            </Link>
+            </button>
           </div>
         </div>
       )}
