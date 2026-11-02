@@ -17,7 +17,6 @@ import {
   LIVE_ANNOUNCER_NAME,
   LIVE_COOLDOWN_MS,
   LIVE_PRESENCE_GRACE_MS,
-  buildLiveEmail,
   buildLiveMessage,
   decideAnnouncer,
   isLoungeLiveEnabled,
@@ -90,9 +89,8 @@ async function joinedRecently(userId, roomId, now) {
 /**
  * Push to one member, if they have a live subscription.
  *
- * Resolves to a status so the caller can fall back to email for members whose
- * subscription has gone stale. 404/410 mean the endpoint is gone for good, so
- * the row is dropped rather than retried forever.
+ * Resolves to a status for push delivery. 404/410 mean the endpoint is gone for
+ * good, so the row is dropped rather than retried forever.
  */
 async function pushToUser({ userId, title, body, url }) {
   const prisma = getPrisma();
@@ -263,7 +261,6 @@ export async function announceLoungeLive({ user, room, now = Date.now(), session
     roomName: room.name,
     notified,
     pushed,
-    emailed: 0,
   });
   return { announced: true, reason: "live", notified, push: pushed, email: 0 };
 }
