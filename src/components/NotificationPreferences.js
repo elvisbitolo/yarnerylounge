@@ -16,7 +16,6 @@ const EMAIL_KEYS = [
   { key: "emailMessages", label: "Messages and mentions", hint: "Email when you receive direct messages or are mentioned in chat" },
   { key: "emailEvents", label: "Events and recordings", hint: "Event reminders and recording-ready emails" },
   { key: "emailRoomAnnouncements", label: "Lounge announcements", hint: "Email announcements when the lounge host invites members to join" },
-  { key: "emailDigest", label: "Weekly community digest", hint: "A weekly roundup of posts and upcoming events" },
 ];
 
 export default function NotificationPreferences() {
@@ -63,7 +62,6 @@ export default function NotificationPreferences() {
       setSaving(false);
     }
   }
-
 
   if (!prefs) {
     return <p style={{ fontSize: 13, color: "#9b9bab" }}>Loading preferences...</p>;
