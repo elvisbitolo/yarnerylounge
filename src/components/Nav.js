@@ -231,9 +231,9 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
   const pathname = usePathname();
   const isRoomPage = pathname?.startsWith("/rooms/");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== "undefined" && window.localStorage.getItem("sidebarCollapsed") === "1"
-  );
+  // Keep the first client render identical to the server. Restore the saved
+  // preference only after hydration to avoid React text/markup mismatches.
+  const [collapsed, setCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState(() => new Set());
   const [collections, setCollections] = useState([]);
   const [hasHostTools, setHasHostTools] = useState(
@@ -303,7 +303,19 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
   }, [pathname, administrationLinks, hasHostTools, role]);
 
   useEffect(() => {
-    window.localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+    try {
+      setCollapsed(window.localStorage.getItem("sidebarCollapsed") === "1");
+    } catch {
+      // Storage can be unavailable in private browsing; use the default.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+    } catch {
+      // The sidebar remains usable when storage is unavailable.
+    }
   }, [collapsed]);
 
   useEffect(() => {
