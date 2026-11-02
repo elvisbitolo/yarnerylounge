@@ -15,7 +15,7 @@ const IN_APP_KEYS = [
 const EMAIL_KEYS = [
   { key: "emailMessages", label: "Messages and mentions", hint: "Email when you receive direct messages or are mentioned in chat" },
   { key: "emailEvents", label: "Events and recordings", hint: "Event reminders and recording-ready emails" },
-  { key: "emailMatches", label: "Daily Match", hint: "Email when your new Daily Match is available" },
+  { key: "emailLounge", label: "Lounge announcements", hint: "Email when Christa enters a lounge or sends a lounge alert" },
   { key: "emailDigest", label: "Weekly community digest", hint: "A weekly roundup of posts and upcoming events" },
 ];
 
@@ -48,7 +48,7 @@ export default function NotificationPreferences() {
       const res = await fetch("/api/me/notifications/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(prefs),
+        body: JSON.stringify(nextPrefs),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -96,7 +96,7 @@ export default function NotificationPreferences() {
       <p className={styles.hint}>Choose which optional emails you receive. Essential account-security emails may still be sent.</p>
       {renderRows(EMAIL_KEYS)}
       {error && <p className={styles.error}>{error}</p>}
-      {saved && <p className={styles.formSaved}>Preferences saved.</p>}
+      {saved && <p className={styles.formSaved}>Preferences saved.</p>}\n      <button type="button" className={styles.manage} onClick={() => { const next = { ...prefs, emailMessages: false, emailEvents: false, emailLounge: false, emailDigest: false }; setPrefs(next); handleSave(next); }} disabled={saving} style={{ marginTop: 16, marginRight: 10 }}>Unsubscribe from optional emails</button>
       <button
         className={styles.manage}
         onClick={handleSave}
