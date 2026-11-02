@@ -20,7 +20,7 @@ export default function ConsentForm() {
   const [busy, setBusy] = useState(false);
 
   async function saveConsent() {
-    if (!accepted || busy) return;
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
