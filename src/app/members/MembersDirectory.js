@@ -573,13 +573,17 @@ export default function MembersDirectory({
   // Editors get a 300ms grace on a normal click so the second tap of a
   // double-click arrives first. Non-pinned avatars still navigate on that
   // second tap — an impatient double-click should not strand the reader.
-  function onAvatarClick(e) {
-    // A completed drag must not activate the underlying profile link.
+  function onAvatarClick(e, member) {
+    // A completed drag must not activate the profile.
     if (dragClickRef.current) {
       dragClickRef.current = false;
       e.preventDefault();
       e.stopPropagation();
+      return;
     }
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/members/${member.id}`);
   }
 
   async function resetAllPins() {
@@ -679,12 +683,11 @@ export default function MembersDirectory({
                 const top = dragging ? dragPos.top : slot.top;
                 const pinned = pins.has(member.id);
                 return (
-                  <Link
+                  <button
                     key={member.id}
-                    href={`/members/${member.id}`}
-                    // A native link-drag would steal the pointer stream as soon
-                    // as the cursor moved a few pixels past the avatar, and
-                    // with it the drag.
+                    type="button"
+                    // Use explicit client navigation rather than relying on a
+                    // nested/scaled anchor click after pointer capture.
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
                     className={`${styles.avatarPos}${dragging ? ` ${styles.avatarDragging}` : ""}`}
@@ -698,13 +701,18 @@ export default function MembersDirectory({
                       // scrolling the page out from under the pointer, and
                       // every other member must still be able to scroll past.
                       touchAction: canEditLayout ? "none" : undefined,
-                      cursor: canEditLayout ? (dragging ? "grabbing" : "grab") : undefined,
+                      cursor: canEditLayout ? (dragging ? "grabbing" : "grab") : "pointer",
+                      border: 0,
+                      padding: 0,
+                      background: "transparent",
+                      color: "inherit",
+                      font: "inherit",
                     }}
                     onMouseEnter={(e) => showDetails(member, e)}
                     onMouseLeave={scheduleHide}
                     onFocus={(e) => showDetails(member, e)}
                     onBlur={scheduleHide}
-                    onClick={onAvatarClick}
+                    onClick={(e) => onAvatarClick(e, member)}
                     onPointerDown={(e) => startDrag(e, slot)}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
@@ -752,7 +760,7 @@ export default function MembersDirectory({
                     ) : onlineUids.has(member.id) ? (
                       <span className={styles.onlineDot} title="Online now" />
                     ) : null}
-                  </Link>
+                  </button>
                 );
               })}
       </div>
