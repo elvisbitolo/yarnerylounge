@@ -562,7 +562,8 @@ export default function RoomClient({
     if (next) {
       startDetecting();
     } else {
-      stopAllMedia();
+      if (micDesiredRef.current && !audioLocked) startDetecting();
+      else stopAllMedia();
       setVideoStatus("off");
       setCameraMsg("");
     }
@@ -575,7 +576,8 @@ export default function RoomClient({
     if (next) {
       startDetecting();
     } else {
-      stopAllMedia();
+      if (videoDesiredRef.current) startDetecting();
+      else stopAllMedia();
       setMicStatus("off");
       setMicMsg("");
     }
@@ -599,6 +601,9 @@ export default function RoomClient({
             api.executeCommand(command);
             setStatus("starting");
             if (command === "toggleVideo") armCameraWatchdog();
+          } else if (muted === false) {
+            setStatus("ready");
+            if (command === "toggleVideo") setCameraMsg("");
           }
         }).catch(() => {
           if (mediaInitApiRef.current === api) mediaInitApiRef.current = null;
