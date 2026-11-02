@@ -1,5 +1,6 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 
 export const ROOM_PRESENCE_WINDOW_MS = 90_000;
 
@@ -202,16 +203,45 @@ export async function touchRoomPresenceAndDetectEntry({ sessionId, roomId, userI
   }
 }
 
+
+ // Reserve a room seat and create presence under one room-scoped advisory lock.
+ // This prevents simultaneous joins from oversubscribing the final available seat.
+export async function claimRoomPresenceWithinCapacity({ sessionId, roomId, userId, maxParticipants, exempt = false }) {
+  const prisma = getPrisma();
+  if (!prisma) return { error: "Database unavailable" };
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const lockKey = `room-capacity:${roomId}`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+      const existing = await tx.roomPresence.findUnique({ where: { id: sessionId }, select: { roomId: true, userId: true } });
+      if (existing && (existing.roomId !== roomId || existing.userId !== userId)) return { error: "Invalid lounge session" };
+      const cutoff = cutoffDate();
+      const activeForUser = await tx.roomPresence.findFirst({ where: { roomId, userId, leftAt: null, lastSeenAt: { gt: cutoff } }, select: { id: true } });
+      const activePeople = await tx.roomPresence.findMany({ where: { roomId, leftAt: null, lastSeenAt: { gt: cutoff } }, select: { userId: true }, distinct: ["userId"] });
+      const verdict = evaluateJoinCapacity({ maxParticipants, activeCount: activePeople.length, alreadyPresent: !!activeForUser, exempt });
+      if (!verdict.allowed) return { full: true, cap: verdict.cap, activeCount: verdict.activeCount };
+      const now = new Date();
+      const row = await tx.roomPresence.upsert({
+        where: { id: sessionId },
+        create: { id: sessionId, roomId, userId, joinedAt: now, lastSeenAt: now, leftAt: null },
+        update: { lastSeenAt: now, leftAt: null },
+        select: { id: true, lastSeenAt: true },
+      });
+      return { presence: row, newEntry: !activeForUser };
+    });
+  } catch (err) {
+    logError("room-presence.capacity_claim_failed", { error: err.message, roomId, userId });
+    return { error: "Could not reserve a lounge place" };
+  }
+}
+
 export async function touchRoomPresence({ sessionId, roomId, userId }) {
   const prisma = getPrisma();
   if (!prisma) return { error: "Database unavailable" };
   try {
     const existing = await prisma.roomPresence.findUnique({ where: { id: sessionId }, select: { roomId: true, userId: true } });
-    if (existing && (existing.roomId !== roomId || existing.userId !== userId)) return { error: "Invalid lounge session" };
-    const row = await prisma.roomPresence.upsert({
-      where: { id: sessionId },
-      create: { id: sessionId, roomId, userId, joinedAt: new Date(), lastSeenAt: new Date(), leftAt: null },
-      update: { lastSeenAt: new Date(), leftAt: null },
+    if (!existing || existing.roomId !== roomId || existing.userId !== userId) return { error: "No active lounge session" };
+    const row = await prisma.roomPresence.update({ where: { id: sessionId }, data: { lastSeenAt: new Date(), leftAt: null },
       select: { id: true, lastSeenAt: true },
     });
     return { presence: row };
