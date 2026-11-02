@@ -6,8 +6,11 @@ import {
   getRoomPresence,
   leaveRoomPresence,
   touchRoomPresence,
-  claimRoomPresenceWithinCapacity,
+  touchRoomPresenceAndDetectEntry,
+  countActiveRoomParticipants,
+  hasActiveRoomPresence,
 } from "@/lib/server/room-presence";
+import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { notifySecretYarneryRoom, notifyWatchersRoom } from "@/lib/server/member-watch";
 
@@ -45,32 +48,57 @@ export async function POST(req, { params }) {
   }
   const room = access.room;
 
-  const input = { sessionId, roomId: room.id, userId: auth.user.uid };
-  let result;
-  if (status === "leave") {
-    result = await leaveRoomPresence(input);
-  } else if (status === "heartbeat") {
-    // Existing members must keep their seat even when the room is now full.
-    result = await touchRoomPresence(input);
-  } else {
-    const rights = await getScopedHostRights(auth.user.uid, "room", room.id);
-    const exempt =
-      auth.userDoc?.role === "owner" ||
-      auth.userDoc?.role === "moderator" ||
-      rights.isHost ||
-      rights.isCoHost;
-    result = await claimRoomPresenceWithinCapacity({
-      ...input,
-      maxParticipants: room.maxParticipants,
-      exempt,
-    });
-    if (result.full) {
-      return NextResponse.json(
-        { error: "This lounge is full", cap: result.cap },
-        { status: 409 }
-      );
+  // Enforce Room.maxParticipants, which was previously stored and displayed but
+  // never checked, so every lounge accepted unlimited concurrent members.
+  // Only on a genuine new join: a heartbeat for a seat already held must never
+  // be refused, or a room filling up would freeze the people inside it.
+  //
+  // `alreadyPresent` is used only by the capacity guard. The atomic
+  // presence helper below independently decides whether this is a first entry
+  // and therefore eligible for an owner lounge announcement.
+  let alreadyPresent = false;
+  if (status !== "leave") {
+    const [headcount, rights, present] = await Promise.all([
+      countActiveRoomParticipants(room.id),
+      getScopedHostRights(auth.user.uid, "room", room.id),
+      hasActiveRoomPresence(room.id, auth.user.uid),
+    ]);
+    alreadyPresent = present;
+    if (headcount.ok) {
+      const exempt =
+        auth.userDoc?.role === "owner" ||
+        auth.userDoc?.role === "moderator" ||
+        rights.isHost ||
+        rights.isCoHost;
+      const verdict = evaluateJoinCapacity({
+        maxParticipants: room.maxParticipants,
+        activeCount: headcount.count,
+        alreadyPresent,
+        exempt,
+      });
+      if (!verdict.allowed) {
+        return NextResponse.json(
+          { error: "This lounge is full", cap: verdict.cap },
+          { status: 409 }
+        );
+      }
     }
+    // headcount.ok === false means we could not ask the database. Admit rather
+    // than lock everyone out of every lounge on a transient read failure.
+    //
+    // Note the count-then-upsert window: two members joining in the same
+    // millisecond can both read a headcount below the cap and both be admitted,
+    // overshooting by one. Closing it needs a serializable transaction, which is
+    // not worth it for a lounge cap; the seat limit is a courtesy guard, not a
+    // billing control.
   }
+
+  const input = { sessionId, roomId: room.id, userId: auth.user.uid };
+  const result = status === "leave"
+    ? await leaveRoomPresence(input)
+    : status === "join"
+      ? await touchRoomPresenceAndDetectEntry(input)
+      : await touchRoomPresence(input);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 409 });
   if (status === "join" && result.newEntry) {
     // Secret Yarnery's owner activity is announced to eligible members;

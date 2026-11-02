@@ -55,13 +55,3 @@ next-env.d.ts
 # Role-change backups written by scripts/limit-owners.mjs before it writes to
 # the User table. They contain member names and emails, so they stay local.
 scripts/.role-backup-*.json
-
-# Android / Bubblewrap
-.gradle/
-app/build/
-*.apk
-*.aab
-*.idsig
-*.keystore
-*.jks
-manifest-checksum.txt

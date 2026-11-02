@@ -14,7 +14,7 @@ const DEFAULTS = {
   watch: true,
   emailMessages: true,
   emailEvents: true,
-  emailLounge: true,
+  emailMatches: true,
   emailDigest: true,
 };
 

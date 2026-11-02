@@ -78,8 +78,7 @@ export function renderBrandedEmail({ subject, text = "", html = "" }) {
         </td></tr>
         <tr><td style="padding:22px 30px;background:#f8f6f7;border-top:1px solid #eee8eb;">
           <p style="margin:0 0 8px;color:#555555;font-size:12px;line-height:1.6;">You're receiving this email because of activity or notifications associated with your ${BRAND} account.</p>
-          <p style="margin:0;color:${MUTED};font-size:12px;line-height:1.6;">Manage your notification preferences or unsubscribe from optional emails.</p>
-          <p style="margin:12px 0 0;"><a href="https://www.christasspeakeasy.com/account/notifications" style="display:inline-block;padding:10px 16px;border-radius:8px;background:${ACCENT};color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;">Unsubscribe / Email settings</a></p>
+          <p style="margin:0;color:${MUTED};font-size:12px;line-height:1.6;">Manage your notification preferences in your account.</p>
           <p style="margin:14px 0 0;color:#999999;font-size:11px;">© ${year} ${BRAND}</p>
         </td></tr>
       </table>

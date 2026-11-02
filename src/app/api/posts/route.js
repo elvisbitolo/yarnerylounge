@@ -558,26 +558,6 @@ export async function GET(req) {
       opts: { sort, afterKey, spaceIdParam, groupIdParam, views: ctx.views },
     });
 
-    if (posts.length) {
-      try {
-        const ids = posts.map((p) => p.id);
-        const grouped = await prisma.postImpression.groupBy({
-          by: ["postId"],
-          where: { postId: { in: ids } },
-          _count: { _all: true },
-        });
-        const impressionMap = new Map(grouped.map((r) => [r.postId, r._count._all]));
-        posts = posts.map((p) => {
-          if (impressionMap.has(p.id) && (p.authorId === user.uid || ctx.isModerator)) {
-            return { ...p, impressionCount: impressionMap.get(p.id) };
-          }
-          return p;
-        });
-      } catch (err) {
-        logError("postImpr.feed_counts_failed", { error: err.message });
-      }
-    }
-
     let nextCursor = null;
     if (hasMore) {
       if (needsOffset) {

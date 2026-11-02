@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import styles from "./dashboard.module.css";
 import { Card, EmptyState } from "./Section";
-import { Users, Map, Images, Trophy } from "lucide-react";
 
 function timeAgo(ms) {
   if (!ms) return "";
@@ -30,7 +29,7 @@ function formatTime(ms) {
   });
 }
 
-export function CommunityNextSteps({ stats }) {
+export function CommunityNextSteps() {
   const actions = [
     { href: "/messages", title: "Check your messages", detail: "Continue a conversation with another member." },
     { href: "/feed", title: "Join a discussion", detail: "Share an update or reply to a community post." },
@@ -38,14 +37,10 @@ export function CommunityNextSteps({ stats }) {
     { href: "/events", title: "See what's coming up", detail: "Find an event or session to join." },
   ];
 
-  const statsText = stats
-    ? `Community has ${Number(stats.engagement?.active7) || 0} active members this week; ${Number(stats.members?.new30) || 0} joined in the last 30 days.`
-    : "Find a conversation, meet someone new, or join an upcoming event.";
-
   return (
     <Card title="Make a connection today" theme="violet">
       <p className={styles.itemBody} style={{ marginBottom: 10 }}>
-        {statsText}
+        A few easy ways to take part in the community.
       </p>
       <ul className={styles.list}>
         {actions.map((action) => (
@@ -118,7 +113,109 @@ export function WelcomeBanner({ name }) {
   );
 }
 
-const COMMUNITY_ICONS = { members: Users, neighbourhoods: Map, gallery: Images, leaderboard: Trophy };
+function ActionIcon({ icon }) {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+  };
+  switch (icon) {
+    case "goLive":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
+          <path d="M7 7a8 8 0 0 0 0 10M17 7a8 8 0 0 1 0 10M4.5 4.5a12 12 0 0 0 0 15M19.5 4.5a12 12 0 0 1 0 15" />
+        </svg>
+      );
+    case "addProject":
+      return (
+        <svg {...common}>
+          <path d="M12 2l9 4.9v10.2L12 22l-9-4.9V6.9L12 2z" />
+          <path d="M12 2v20M3 6.9l9 4.9 9-4.9" />
+        </svg>
+      );
+    case "askQuestion":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.6 9a2.4 2.4 0 1 1 3.9 1.9c-.9.7-1.5 1.2-1.5 2.6" />
+          <circle cx="12" cy="16.8" r="0.4" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "shareWin":
+      return (
+        <svg {...common}>
+          <path d="M6 9H4.5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h1.5M6 9h12v10H6V9z" />
+          <path d="M6 9V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3M15 15l1.5 4-3-2-3 2 1.5-4a3.5 3.5 0 1 1 3-3.5M9.5 15a6 6 0 1 1 9 .5" />
+        </svg>
+      );
+    case "neighbourhoods":
+      return (
+        <svg {...common}>
+          <path d="M6 20c2 0 4-1.5 4.5-.5z" />
+          <path d="M14 20c2 0 4-1.5 4.5-.5z" />
+          <path d="M6 20l4-3M14 20l-2-4M4 15l2-6M10 13l3-5" />
+        </svg>
+      );
+    case "members":
+      return (
+        <svg {...common}>
+          <circle cx="9" cy="8" r="3.5" />
+          <path d="M2.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5" />
+          <circle cx="17" cy="9" r="2.5" />
+          <path d="M17.5 15c2.4.3 4 1.7 4.5 4" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>
+      );
+  }
+}
+
+export function QuickActions() {
+  const t = useTranslations("dashboard");
+  const actions = [
+    { key: "post", href: "/feed", icon: "post" },
+    { key: "joinARoom", href: "/rooms", icon: "goLive" },
+    { key: "neighbourhoods", href: "/neighbourhoods", icon: "neighbourhoods" },
+    { key: "members", href: "/members", icon: "members" },
+  ];
+  return (
+    <Card title={t("quickActions")} theme="sky">
+      <div
+        className={styles.quickActions}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
+          gap: 10,
+        }}
+      >
+        {actions.map((action) => (
+          <Link
+            key={action.key}
+            className={styles.kpi}
+            href={action.href}
+            style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 7, padding: 14 }}
+          >
+            <span className={styles.quickActionIcon}>
+              <ActionIcon icon={action.icon} />
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#0a0e2a" }}>{t(action.key)}</span>
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 export function CommunityHub() {
   const t = useTranslations("dashboard");
@@ -147,10 +244,7 @@ export function CommunityHub() {
             style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 6, padding: 14 }}
           >
             <span className={styles.quickActionIcon} style={{ color: "var(--dash-accent, #f42e79)" }}>
-              {(() => {
-                const Icon = COMMUNITY_ICONS[link.icon];
-                return Icon ? <Icon size={22} strokeWidth={1.8} aria-hidden="true" /> : null;
-              })()}
+              <ActionIcon icon={link.icon} />
             </span>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#0a0e2a" }}>{tNav(link.key)}</span>
           </Link>

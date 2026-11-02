@@ -182,6 +182,10 @@ export default function MembersDirectory({
   // Clicks are deferred for editors so a double-click can be caught before the
   // profile route fires; this flag swallows the one that follows a real drag.
   const dragClickRef = useRef(false);
+  const clickRec = useRef({ id: null, at: 0 });
+  const navTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(navTimer.current), []);
 
   const patchFilters = useCallback(
     (patch) => setFilters((prev) => ({ ...prev, ...patch })),
@@ -573,17 +577,39 @@ export default function MembersDirectory({
   // Editors get a 300ms grace on a normal click so the second tap of a
   // double-click arrives first. Non-pinned avatars still navigate on that
   // second tap — an impatient double-click should not strand the reader.
-  function onAvatarClick(e, member) {
-    // A completed drag must not activate the profile.
+  function onAvatarClick(e, id, pinned) {
     if (dragClickRef.current) {
       dragClickRef.current = false;
       e.preventDefault();
       e.stopPropagation();
       return;
     }
+    if (!canEditLayout) return;
     e.preventDefault();
-    e.stopPropagation();
-    window.location.assign(`/members/${member.id}`);
+    // The event's own clock rather than Date.now(), which the compiler rejects
+    // here as impure — and it only ever gets compared against the timeStamp of
+    // the previous click, so a consistent session-relative clock is exactly
+    // what is wanted.
+    const now = e.timeStamp;
+    const prev = clickRec.current;
+    if (prev.id === id && now - prev.at < 300) {
+      clickRec.current = { id: null, at: 0 };
+      clearTimeout(navTimer.current);
+      if (pinned) {
+        applyPin(id, null);
+        fetch("/api/members/layout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, reset: true }),
+        }).catch(() => setSaveError("Could not release that member."));
+        return;
+      }
+      router.push(`/members/${id}`);
+      return;
+    }
+    clickRec.current = { id, at: now };
+    clearTimeout(navTimer.current);
+    navTimer.current = setTimeout(() => router.push(`/members/${id}`), 300);
   }
 
   async function resetAllPins() {
@@ -647,7 +673,7 @@ export default function MembersDirectory({
           <span className={styles.layoutHint}>
             {saving === "one"
               ? "Saving…"
-              : "Drag an avatar to place it. Click an avatar to open its profile. Use Reset layout to restore the automatic arrangement."}
+              : "Drag an avatar to place it. Double-click to release it. Everyone sees the arrangement you save."}
           </span>
           <button
             type="button"
@@ -683,11 +709,12 @@ export default function MembersDirectory({
                 const top = dragging ? dragPos.top : slot.top;
                 const pinned = pins.has(member.id);
                 return (
-                  <button
+                  <Link
                     key={member.id}
-                    type="button"
-                    // Use explicit client navigation rather than relying on a
-                    // nested/scaled anchor click after pointer capture.
+                    href={`/members/${member.id}`}
+                    // A native link-drag would steal the pointer stream as soon
+                    // as the cursor moved a few pixels past the avatar, and
+                    // with it the drag.
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
                     className={`${styles.avatarPos}${dragging ? ` ${styles.avatarDragging}` : ""}`}
@@ -701,18 +728,13 @@ export default function MembersDirectory({
                       // scrolling the page out from under the pointer, and
                       // every other member must still be able to scroll past.
                       touchAction: canEditLayout ? "none" : undefined,
-                      cursor: canEditLayout ? (dragging ? "grabbing" : "grab") : "pointer",
-                      border: 0,
-                      padding: 0,
-                      background: "transparent",
-                      color: "inherit",
-                      font: "inherit",
+                      cursor: canEditLayout ? (dragging ? "grabbing" : "grab") : undefined,
                     }}
                     onMouseEnter={(e) => showDetails(member, e)}
                     onMouseLeave={scheduleHide}
                     onFocus={(e) => showDetails(member, e)}
                     onBlur={scheduleHide}
-                    onClick={(e) => onAvatarClick(e, member)}
+                    onClick={(e) => onAvatarClick(e, member.id, pinned)}
                     onPointerDown={(e) => startDrag(e, slot)}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
@@ -760,7 +782,7 @@ export default function MembersDirectory({
                     ) : onlineUids.has(member.id) ? (
                       <span className={styles.onlineDot} title="Online now" />
                     ) : null}
-                  </button>
+                  </Link>
                 );
               })}
       </div>
@@ -890,28 +912,20 @@ export default function MembersDirectory({
             >
               ✦ Match
             </button>
-            <button
-              type="button"
+            <Link
               className={styles.tooltipAction}
-              onClick={() => {
-                const target = hover.member.id;
-                setHover(null);
-                window.location.assign(`/chat?with=${target}`);
-              }}
+              href={`/chat?with=${hover.member.id}`}
+              onClick={() => setHover(null)}
             >
               <MessageCircle size={13} /> Message
-            </button>
-            <button
-              type="button"
+            </Link>
+            <Link
               className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
-              onClick={() => {
-                const target = hover.member.id;
-                setHover(null);
-                window.location.assign(`/members/${target}`);
-              }}
+              href={`/members/${hover.member.id}`}
+              onClick={() => setHover(null)}
             >
               View profile
-            </button>
+            </Link>
           </div>
         </div>
       )}
@@ -937,7 +951,7 @@ export default function MembersDirectory({
                 className={`${styles.tooltipAction} ${styles.tooltipActionPrimary}`}
                 onClick={() => {
                   setMatchTarget(null);
-                  window.location.assign(`/chat?with=${matchTarget.id}`);
+                  router.push(`/chat?with=${matchTarget.id}`);
                 }}
               >
                 <MessageCircle size={13} /> Say hello

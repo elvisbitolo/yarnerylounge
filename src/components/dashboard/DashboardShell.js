@@ -10,6 +10,7 @@ import {
   WelcomeBanner,
   CommunityNextSteps,
   ReturnVisitCard,
+  QuickActions,
   CommunityHub,
   RecentActivity,
   UpcomingRooms,
@@ -139,7 +140,6 @@ export default function DashboardShell() {
   }
 
   const { user, isStaff, stats, activity, upcomingRooms, spotlight, content, needsAttention, leaderboard } = data;
-  const isOwner = user.role === "owner";
 
   const statsValue = stats?.ok ? stats.value : null;
   const activityValue = activity?.ok ? activity.value : [];
@@ -149,7 +149,7 @@ export default function DashboardShell() {
 
   const kpis = [];
   if (statsValue) {
-    if (isStaff) kpis.push(
+    kpis.push(
       <StatCard
         key="members"
         label={t("totalMembers")}
@@ -158,7 +158,7 @@ export default function DashboardShell() {
         deltaLabel={t("newIn30d")}
         theme="indigo"
       />    );
-    if (isStaff) kpis.push(
+    kpis.push(
       <StatCard
         key="live"
         label={t("liveViewers")}
@@ -167,7 +167,10 @@ export default function DashboardShell() {
         theme="rose"
       />
     );
-    if (isStaff) kpis.push(
+    kpis.push(
+      <StatCard key="points" label={t("yourPoints")} value={(user.points || 0).toLocaleString()} deltaLabel={t("communityRecognition")} theme="emerald" />
+    );
+    kpis.push(
       <StatCard
         key="engagement"
         label={t("engagement")}
@@ -176,19 +179,7 @@ export default function DashboardShell() {
         theme="sky"
       />
     );
-    if (isStaff) kpis.push(
-      <StatCard
-        key="liveLobbies"
-        label={t("liveLobbies")}
-        value={roomsValue?.length || 0}
-        deltaLabel="active now"
-        theme="rose"
-      />
-    );
   }
-  kpis.push(
-    <StatCard key="points" label={t("yourPoints")} value={(user.points || 0).toLocaleString()} deltaLabel={t("communityRecognition")} theme="emerald" />
-  );
 
   return (
     <div className={styles.pageWrap}>
@@ -201,7 +192,7 @@ export default function DashboardShell() {
             </p>
           </div>
           <div className={styles.headerRight} data-tour="tour-search">
-            {isOwner && (
+            {isStaff && (
               <button
                 type="button"
                 className={styles.exportBtn}
@@ -226,21 +217,8 @@ export default function DashboardShell() {
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Search"
               />
-</form>
-              {isStaff && (
-                <div className={styles.quickLinks}>
-                  <Link href="/admin/members" className={styles.link}>
-                    {t("manageMembers")}
-                  </Link>
-                  <Link href="/admin/events" className={styles.link}>
-                    {t("manageEvents")}
-                  </Link>
-                  <Link href="/admin/analytics" className={styles.link}>
-                    {t("viewAnalytics")}
-                  </Link>
-                </div>
-              )}
-            </div>
+            </form>
+          </div>
         </div>
 
         <div data-tour="tour-welcome">
@@ -249,7 +227,7 @@ export default function DashboardShell() {
         <DashboardNotificationCard />
         <div className={styles.grid}>
           <div className={styles.col}>
-            <CommunityNextSteps stats={isStaff && stats?.ok ? stats.value : null} />
+            <CommunityNextSteps />
             <ReturnVisitCard streak={user.streak} points={user.points} />
           </div>
         </div>
@@ -263,6 +241,10 @@ export default function DashboardShell() {
             <SectionError message={t("spotlightLoadError")} onRetry={handleRetry} />
           )
         )}
+        <div data-tour="tour-actions">
+          <QuickActions isStaff={isStaff} />
+        </div>
+
         <div data-tour="tour-community">
           <CommunityHub />
         </div>
@@ -295,17 +277,17 @@ export default function DashboardShell() {
           </div>
 
           <div className={styles.col}>
-            {isStaff && (needsAttention?.ok ? (
+            {needsAttention?.ok ? (
               <NeedsAttention data={attentionValue} />
             ) : (
               <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
-            ))}
+            )}
 
-            {isStaff && (content?.ok ? (
+            {content?.ok ? (
               <ContentPerformance data={contentValue} />
             ) : (
               <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
-            ))}
+            )}
 
             {leaderboard?.ok && leaderboard.value.length > 0 && (
               <div className={styles.card}>

@@ -261,7 +261,7 @@ export async function announceLoungeLive({ user, room, now = Date.now() }) {
 
         // No usable push subscription, so fall back to email. Skip silently if
         // there is no address rather than logging one failure per member.
-        if (member.email && member.notificationPreferences?.emailLounge !== false && push.reason === "no_subscription") {
+        if (member.email && push.reason === "no_subscription") {
           try {
             await sendEmail({ to: member.email, subject, text });
             emailed += 1;

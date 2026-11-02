@@ -138,7 +138,7 @@ export async function getDashboardStats(uid, userDoc) {
   }
 
   const liveViewers = await computeLiveViewers(activeRoomList);
-  const revenue = userDoc?.role === "owner" ? await computeRevenue(now, since30) : null;
+  const revenue = isStaff ? await computeRevenue(now, since30) : null;
   const contributing = await countUsersContributing(since30);
 
   return {
@@ -300,13 +300,7 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
     try {
       const [posts, users, rsvps] = await Promise.all([
         prisma.post.findMany({
-          where: {
-            deletedAt: null,
-            archivedAt: null,
-            scheduledAt: null,
-            hidden: false,
-            ...(role === "owner" || role === "moderator" ? {} : { authorId: uid }),
-          },
+          where: { deletedAt: null, archivedAt: null, scheduledAt: null, hidden: false },
           orderBy: { createdAt: "desc" },
           take: 30,
           select: {
@@ -319,18 +313,12 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
             createdAt: true,
           },
         }),
-        role === "owner" || role === "moderator"
-          ? prisma.user.findMany({
-              orderBy: { createdAt: "desc" },
-              take: 10,
-              select: { id: true, name: true, createdAt: true },
-            })
-          : Promise.resolve([]),
-        prisma.rsvp.findMany({
-          where: role === "owner" || role === "moderator" ? {} : { userId: uid },
+        prisma.user.findMany({
           orderBy: { createdAt: "desc" },
           take: 10,
+          select: { id: true, name: true, createdAt: true },
         }),
+        prisma.rsvp.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
       ]);
       return buildActivityItems(
         posts,
@@ -638,7 +626,7 @@ function buildDashboardContent(posts, comments) {
   };
 }
 
-export async function getDashboardContent(uid, role, memberships) {
+export async function getDashboardContent() {
   const prisma = getPrisma();
   if (prisma) {
     try {
@@ -652,18 +640,13 @@ export async function getDashboardContent(uid, role, memberships) {
             text: true,
             authorId: true,
             authorName: true,
-            spaceId: true,
-            groupId: true,
             likes: true,
             createdAt: true,
           },
         }),
         prisma.postComment.findMany({ take: 3000, select: { postId: true } }),
       ]);
-      const visiblePosts = posts.filter((post) => canReadPostServer(post, uid, role, memberships));
-      const visiblePostIds = new Set(visiblePosts.map((post) => post.id));
-      const visibleComments = comments.filter((comment) => visiblePostIds.has(comment.postId));
-      return buildDashboardContent(visiblePosts, visibleComments);
+      return buildDashboardContent(posts, comments);
     } catch (err) {
       logError("dashboard-command.prisma_content_failed", { error: err.message });
     }
@@ -787,12 +770,12 @@ export async function getDashboardCommandData(uid, userDoc) {
 
   const [stats, activity, upcomingRooms, spotlight, messages, content, notifications, needsAttention, onboarding, leaderboard] =
     await Promise.all([
-      isStaff ? attempt(() => getDashboardStats(uid, userDoc)) : Promise.resolve({ ok: true, value: null }),
+      attempt(() => getDashboardStats(uid, userDoc)),
       attempt(() => getDashboardActivity(uid, role, memberships)),
       attempt(() => getDashboardUpcomingRooms()),
       attempt(() => getDashboardSpotlight(uid)),
       attempt(() => getDashboardMessages(uid)),
-      isStaff ? attempt(() => getDashboardContent(uid, role, memberships)) : Promise.resolve({ ok: true, value: null }),
+      attempt(() => getDashboardContent()),
       attempt(() => getDashboardNotifications(uid)),
       attempt(() => getDashboardNeedsAttention(userDoc)),
       attempt(() => getDashboardOnboarding(uid)),

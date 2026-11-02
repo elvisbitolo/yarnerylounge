@@ -383,10 +383,6 @@
   font-size: 15px;
 }
 
-.fabButton {
-  font-size: 24px;
-}
-
 .postList {
   display: flex;
   flex-direction: column;
@@ -399,7 +395,6 @@
   border-radius: 14px;
   padding: 20px;
   position: relative;
-  min-height: 120px;
 }
 
 .post::before {
@@ -1001,23 +996,6 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--card-bg, #ffffff);
-  border-bottom: 1px solid var(--card-border, #e6e6ef);
-}
-
-@media (max-width: 640px) {
-  .filterTabs {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .filterTab {
-    width: 100%;
-    text-align: center;
-    padding: 8px 0;
-  }
 }
 
 .filterTab {
