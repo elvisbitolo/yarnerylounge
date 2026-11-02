@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import styles from "./dashboard.module.css";
 import { Card, EmptyState } from "./Section";
+import { Users, Map, Images, Trophy } from "lucide-react";
 
 function timeAgo(ms) {
   if (!ms) return "";
@@ -217,6 +218,8 @@ export function QuickActions() {
   );
 }
 
+const COMMUNITY_ICONS = { members: Users, neighbourhoods: Map, gallery: Images, leaderboard: Trophy };
+
 export function CommunityHub() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
@@ -244,7 +247,7 @@ export function CommunityHub() {
             style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: 6, padding: 14 }}
           >
             <span className={styles.quickActionIcon} style={{ color: "var(--dash-accent, #f42e79)" }}>
-              <ActionIcon icon={link.icon} />
+              {(() => { const Icon = COMMUNITY_ICONS[link.icon]; return Icon ? <Icon size={22} strokeWidth={1.8} aria-hidden="true" /> : null; })()}
             </span>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#0a0e2a" }}>{tNav(link.key)}</span>
           </Link>
