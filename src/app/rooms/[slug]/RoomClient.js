@@ -673,9 +673,15 @@ export default function RoomClient({
     if (!api) return;
     apiRef.current = api;
     apiReadyRef.current = true;
-    const syncCount = () => {
+    const readParticipants = async () => {
+      const info = await api.getRoomsInfo();
+      const rooms = Array.isArray(info) ? info : info?.rooms || [];
+      return rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
+    };
+    const syncCount = async () => {
       try {
-        setParticipantCount(api.getParticipantsInfo()?.length || 0);
+        const participants = await readParticipants();
+        if (apiRef.current === api) setParticipantCount(participants.length);
       } catch {
         /* not ready yet */
       }
@@ -885,16 +891,17 @@ export default function RoomClient({
     router.push("/rooms");
   }
 
-  function muteRemoteParticipant(userId, displayName) {
+  async function muteRemoteParticipant(userId, displayName) {
     const api = apiRef.current;
     if (!api || !displayName) return;
     try {
-      const participant = (api.getParticipantsInfo?.() || []).find((item) =>
-        item.displayName === displayName || item.formattedDisplayName === displayName || item.id === userId
+      const info = await api.getRoomsInfo();
+      const rooms = Array.isArray(info) ? info : info?.rooms || [];
+      const participants = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
+      const participant = participants.find((item) =>
+        item.displayName === displayName || item.id === userId
       );
-      if (participant?.participantId) {
-        api.executeCommand("setRemoteParticipantVolume", participant.participantId, 0);
-      }
+      if (participant?.id) api.executeCommand("setParticipantVolume", participant.id, 0);
     } catch {
       /* The preference is still stored server-side when the remote API is unavailable. */
     }
@@ -902,26 +909,27 @@ export default function RoomClient({
 
   // ---- Host controls: moderator mute + per-participant volume ----
 
-  // getParticipantsInfo() returns { participantId, displayName, formattedDisplayName,
-  // avatarUrl, isLocal, email, role } per attendee. isLocal entries are filtered out
-  // so the host only ever manages other members.
-  function refreshRemoteParticipants() {
+  // Use the current IFrame API rooms/participants shape. The JWT identity is
+  // stored in userContext.id, which lets us exclude our own local participant.
+  async function refreshRemoteParticipants() {
     const api = apiRef.current;
     if (!api) return;
     try {
-      const list = api.getParticipantsInfo?.() || [];
+      const info = await api.getRoomsInfo();
+      const rooms = Array.isArray(info) ? info : info?.rooms || [];
+      const list = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
       const remote = list
-        .filter((p) => !p.isLocal)
+        .filter((p) => p.userContext?.id !== userId && p.isLocal !== true)
         .map((p) => ({
-          participantId: p.participantId || p.id || "",
-          displayName: p.formattedDisplayName || p.displayName || "",
-          email: p.email || "",
-          avatarUrl: p.avatarUrl || "",
-          muted: !!participantMutedRef.current[p.participantId || p.id || ""],
+          participantId: p.id || "",
+          displayName: p.displayName || "",
+          email: p.userContext?.email || "",
+          avatarUrl: p.userContext?.avatar || "",
+          muted: !!participantMutedRef.current[p.id || ""],
         }));
-      setRemoteParticipants(remote);
+      if (apiRef.current === api) setRemoteParticipants(remote);
     } catch {
-      setRemoteParticipants([]);
+      if (apiRef.current === api) setRemoteParticipants([]);
     }
   }
 
