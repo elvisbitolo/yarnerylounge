@@ -1,0 +1,51 @@
+.wrapper {
+  position: fixed;
+  z-index: 10000;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  width: min(620px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.bannerOffline, .bannerOnline, .toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  color: #fff;
+  background: #171717;
+  box-shadow: 0 12px 40px rgba(0,0,0,.42);
+  pointer-events: auto;
+}
+.bannerOffline { border-color: rgba(229,72,77,.55); background: #241416; }
+.bannerOnline { border-color: rgba(34,197,94,.4); background: #102018; }
+.toast { border-color: rgba(245,158,11,.45); background: #211b10; }
+.icon { display: grid; flex: 0 0 auto; place-items: center; }
+.bannerOffline .icon, .toast .icon { color: #ff777b; }
+.bannerOnline .icon { color: #4ade80; }
+.copy { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.copy strong { font-size: 14px; font-weight: 700; }
+.copy span { color: #d4d4d4; font-size: 12px; line-height: 1.4; }
+.retry, .close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 9px;
+  padding: 8px 10px;
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.close { padding: 7px; }
+@media (max-width: 420px) {
+  .bannerOffline, .bannerOnline, .toast { gap: 9px; padding: 12px; }
+  .copy span { font-size: 11px; }
+  .retry { padding: 7px; }
+}
