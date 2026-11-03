@@ -92,7 +92,7 @@ export function DashboardActivityPreview() {
             </li>;
           })}
         </ul>
-      ) : <p className={styles.itemBody}>You're all caught up. New likes, replies and mentions will appear here.</p>}
+      ) : <p className={styles.itemBody}>You&apos;re all caught up. New likes, replies and mentions will appear here.</p>}
     </DashboardCard>
   );
 }
