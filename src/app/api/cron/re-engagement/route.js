@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notifications";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import {
   selectReengagementCandidates,
-  buildReengagementEmail,
-  buildWelcomeBackEmail,
   REENGAGEMENT_DAILY_LIMIT,
 } from "@/lib/server/re-engagement-core";
 
@@ -72,7 +69,7 @@ export async function GET(req) {
     logError("reengagement.prisma_event_read_failed", { error: err.message });
   }
 
-  const stats = { candidates: candidates.length, sent: 0, emailSent: 0, inAppSent: 0, skipped: 0, onboarding: 0, returning: 0 };
+  const stats = { candidates: candidates.length, sent: 0, inAppSent: 0, skipped: 0, onboarding: 0, returning: 0 };
   for (const member of candidates) {
     let delivered = false;
     try {
@@ -90,18 +87,6 @@ export async function GET(req) {
       logError("reengagement.notification_failed", { uid: member.id, error: err.message });
     }
 
-    if (member.email && member.notifications !== "off") {
-      const message = member.reengagementKind === "onboarding"
-        ? buildWelcomeBackEmail({ name: member.name, appUrl: SITE_BASE })
-        : buildReengagementEmail({ name: member.name, appUrl: SITE_BASE, nextEvent });
-      try {
-        await sendEmail({ to: member.email, ...message });
-        delivered = true;
-        stats.emailSent++;
-      } catch (err) {
-        logError("reengagement.email_failed", { uid: member.id, error: err.message });
-      }
-    }
 
     if (!delivered) { stats.skipped++; continue; }
 
