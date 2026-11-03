@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, SwitchCamera, SlidersHorizontal, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
+import { LogOut, Camera, CameraOff, SwitchCamera, SlidersHorizontal, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
+import RoomMusicPicker from "@/components/RoomMusicPicker";
 import RoomBackground from "@/components/RoomBackground";
 import styles from "./room.module.css";
 import {
@@ -150,6 +151,7 @@ export default function RoomClient({
   musicUrl,
   musicPlaying,
   musicFileId,
+  musicName = "",
   hostId = "",
   userId = "",
   userEmail = "",
@@ -193,6 +195,8 @@ export default function RoomClient({
 
   // ---- Background music (played by AmbientAudio; this header only asks) ----
   const [musicOn, setMusicOn] = useState(false);
+  const [sharedMusic, setSharedMusic] = useState({ musicUrl: musicUrl || "", musicFileId: musicFileId || "", musicName: musicName || "", musicPlaying: !!musicPlaying });
+  const isMusicManager = ["secretyarnery@gmail.com", "elvisbitolo11@gmail.com"].includes(String(userEmail || "").trim().toLowerCase());
   const [effectsOpen, setEffectsOpen] = useState(false);
   const [backgroundEffect, setBackgroundEffect] = useState("none");
 
@@ -260,7 +264,21 @@ export default function RoomClient({
     return () => window.removeEventListener("speakeasy-music-state", onState);
   }, []);
 
-  const musicAvailable = alwaysOn;
+  const musicAvailable = alwaysOn && isMusicManager;
+
+  useEffect(() => {
+    if (!alwaysOn) return undefined;
+    let active = true;
+    const refresh = () => fetch(`/api/rooms/music?room=${encodeURIComponent(slug)}`, { credentials: "include", cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (active && data) setSharedMusic({ musicUrl: data.music || "", musicFileId: data.musicFileId || "", musicName: data.musicName || "", musicPlaying: !!data.musicPlaying }); })
+      .catch(() => {});
+    refresh();
+    const timer = window.setInterval(refresh, 4000);
+    const onChanged = () => refresh();
+    window.addEventListener("room-music-changed", onChanged);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("room-music-changed", onChanged); };
+  }, [alwaysOn, slug]);
 
   // Always-on lounges are joinable any time; only scheduled (non-alwaysOn)
   // rooms gate on the next upcoming start for non-hosts.
@@ -1421,12 +1439,13 @@ export default function RoomClient({
       <div className={styles.roomWrap}>
         <AmbientAudio
           active={alwaysOn}
-          musicUrl={musicUrl}
-          musicPlaying={musicPlaying}
-          musicFileId={musicFileId}
+          musicUrl={sharedMusic.musicUrl}
+          musicPlaying={sharedMusic.musicPlaying}
+          musicFileId={sharedMusic.musicFileId}
           hasVideoBackdrop={alwaysOn}
-          pauseWhenBusy={participantCount > 1}
+          pauseWhenBusy={false}
         />
+        {musicAvailable && <RoomMusicPicker isStaff={isMusicManager} roomSlug={slug} />}
 
         <div className={styles.liveRoom}>
           <header className={styles.roomHeader}>
@@ -1476,20 +1495,6 @@ export default function RoomClient({
                     </div>
                   )}
                 </div>
-              )}
-              {musicAvailable && (
-                <button
-                  type="button"
-                  className={musicOn ? styles.musicBtnOn : styles.musicBtn}
-                  aria-pressed={musicOn}
-                  onClick={() =>
-                    window.dispatchEvent(new CustomEvent("speakeasy-music-command"))
-                  }
-                  title={musicOn ? t("stopMusic") : t("playMusic")}
-                >
-                  <Music size={15} aria-hidden="true" />
-                  {musicOn ? t("stopMusic") : t("playMusic")}
-                </button>
               )}
               {String(userEmail || "").trim().toLowerCase() === "secretyarnery@gmail.com" && (
                 <button

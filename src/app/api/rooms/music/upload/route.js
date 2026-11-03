@@ -22,6 +22,8 @@ export async function POST(req) {
   const auth = await requireUser();
   const denied = guardJson(auth);
   if (denied) return denied;
+  const email = String(auth.user?.email || "").trim().toLowerCase();
+  if (!["secretyarnery@gmail.com", "elvisbitolo11@gmail.com"].includes(email)) return NextResponse.json({ error: "Only authorised lounge music managers can upload audio" }, { status: 403 });
 
   const formData = await req.formData();
   const file = formData.get("file");
