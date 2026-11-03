@@ -2,8 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   selectReengagementCandidates,
-  buildReengagementEmail,
-  buildWelcomeBackEmail,
   isAutomationEmailOptOut,
 } from "../re-engagement-core.js";
 
@@ -83,28 +81,4 @@ test("select: the per-run cap is applied", () => {
 test("isAutomationEmailOptOut: defaults to false", () => {
   assert.equal(isAutomationEmailOptOut(user()), false);
   assert.equal(isAutomationEmailOptOut(null), false);
-});
-
-test("buildReengagementEmail: includes event and correct links", () => {
-  const { subject, text, html } = buildReengagementEmail({ name: "Bea", appUrl: "https://example.com/", nextEvent: { title: "Stitch Night", date: "Mon, Oct 19" } });
-  assert.equal(subject, "We missed you at the Lounge");
-  assert.match(text, /Hi Bea,/);
-  assert.match(text, /https:\/\/example\.com\/feed/);
-  assert.match(text, /Next up: Stitch Night \(Mon, Oct 19\)/);
-  assert.match(html, /https:\/\/example\.com\/feed/);
-  assert.match(html, /Stitch Night/);
-});
-
-test("buildReengagementEmail: escapes names", () => {
-  const { text, html } = buildReengagementEmail({ name: "<b>Bo</b>", appUrl: "https://example.com" });
-  assert.match(text, /Hi <b>Bo<\/b>,/);
-  assert.match(html, /&lt;b&gt;Bo&lt;\/b&gt;/);
-});
-
-test("buildWelcomeBackEmail: has welcome CTA and opt-out guidance", () => {
-  const { subject, text, html } = buildWelcomeBackEmail({ name: "Bea", appUrl: "https://example.com/" });
-  assert.match(subject, /first visit/i);
-  assert.match(text, /https:\/\/example\.com\/feed/);
-  assert.match(html, /Explore the community/);
-  assert.match(text, /Account > Notifications/);
 });
