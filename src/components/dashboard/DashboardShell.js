@@ -20,6 +20,7 @@ import {
 import EventsSpotlight from "./EventsSpotlight";
 import DashboardNotificationCard from "./DashboardNotificationCard";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
+import { DashboardActivityPreview, DashboardCommunityFeed, DashboardMemberDiscovery, DashboardMembershipCard } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -231,6 +232,11 @@ export default function DashboardShell() {
           <div className={styles.col}>
             <CommunityNextSteps />
             <ReturnVisitCard streak={user.streak} points={user.points} />
+            <DashboardMembershipCard />
+          </div>
+          <div className={styles.col}>
+            <DashboardActivityPreview />
+            <DashboardMemberDiscovery />
           </div>
         </div>
         {/* Option A: the full-width What's On band sits directly under the
@@ -250,6 +256,7 @@ export default function DashboardShell() {
         <div data-tour="tour-community">
           <CommunityHub />
         </div>
+        <DashboardCommunityFeed />
 
         <div className={styles.kpiGrid} data-tour="tour-kpis">{kpis}</div>
 
