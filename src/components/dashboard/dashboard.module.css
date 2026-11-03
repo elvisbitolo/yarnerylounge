@@ -1262,3 +1262,82 @@
     min-height: 48px;
   }
 }
+
+
+/* Christa's live lounge invitation */
+.christaLiveCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 20px;
+  padding: 22px 24px;
+  border: 1px solid color-mix(in srgb, #16a34a 35%, var(--dash-border, #eadfd2));
+  border-radius: 16px;
+  background: linear-gradient(110deg, color-mix(in srgb, #16a34a 8%, var(--card-bg, #fff)), var(--card-bg, #fff) 68%);
+  box-shadow: 0 8px 24px rgba(10, 14, 42, 0.045);
+}
+.christaLiveMain { min-width: 0; }
+.christaLiveEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.christaLiveDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, .13);
+  animation: christaLivePulse 1.8s ease-in-out infinite;
+}
+.christaLiveTitle {
+  margin: 0;
+  color: var(--card-title, var(--dash-text, #0a0e2a));
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.christaLiveDescription {
+  margin: 6px 0 0;
+  color: var(--card-text, var(--dash-text, #0a0e2a));
+  font-size: 13px;
+  line-height: 1.5;
+}
+.christaLiveDescription strong { color: var(--dash-accent, #f42e79); }
+.christaLiveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: var(--dash-accent, #f42e79);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform .15s ease, background .15s ease;
+}
+.christaLiveButton:hover {
+  background: var(--dash-accent-hover, #d81f66);
+  transform: translateY(-1px);
+}
+.christaLiveButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--dash-accent, #f42e79) 35%, transparent);
+  outline-offset: 3px;
+}
+@keyframes christaLivePulse {
+  50% { box-shadow: 0 0 0 7px rgba(22, 163, 74, .06); }
+}
+@media (max-width: 640px) {
+  .christaLiveCard { align-items: stretch; flex-direction: column; gap: 14px; padding: 18px; }
+  .christaLiveButton { width: 100%; }
+}
