@@ -3241,3 +3241,85 @@
     display: inline-flex;
   }
 }
+
+
+/* Jitsi-backed camera background effects. */
+.effectsWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.effectsTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.88);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.effectsTrigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.effectsMenu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 9px);
+  right: 0;
+  width: min(250px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: #17151a;
+  color: #fff;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.32);
+}
+
+.effectsTitle {
+  display: block;
+  margin: 2px 4px 9px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.effectOption,
+.effectOptionActive {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.effectOption:hover,
+.effectOptionActive {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.effectsHint {
+  margin: 9px 4px 2px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+  line-height: 1.45;
+}
