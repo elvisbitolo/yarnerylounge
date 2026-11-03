@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
+import { LogOut, Camera, CameraOff, SwitchCamera, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -223,6 +223,7 @@ export default function RoomClient({
   const phaseRef = useRef("idle");
   const connStatusRef = useRef("connecting");
   const videoDesiredRef = useRef(true);
+  const cameraFacingModeRef = useRef("user");
   const micDesiredRef = useRef(true);
   const videoStatusRef = useRef("idle");
   const micStatusRef = useRef("idle");
@@ -503,7 +504,7 @@ export default function RoomClient({
       // getUserMedia cannot be aborted. Stop a stream if it resolves after the
       // request was superseded or the prejoin screen was left.
       const mediaRequest = navigator.mediaDevices.getUserMedia({
-        video: wantVideo ? MEDIA_VIDEO_CONSTRAINTS : false,
+        video: wantVideo ? { ...MEDIA_VIDEO_CONSTRAINTS, facingMode: { ideal: cameraFacingModeRef.current } } : false,
         audio: wantAudio ? MEDIA_AUDIO_CONSTRAINTS : false,
       }).then((stream) => {
         if (requestId !== mediaRequestRef.current) {
@@ -567,6 +568,20 @@ export default function RoomClient({
       setVideoStatus("off");
       setCameraMsg("");
     }
+  }
+
+  function flipCamera() {
+    if (!videoDesiredRef.current || viewer) return;
+    const next = cameraFacingModeRef.current === "user" ? "environment" : "user";
+    cameraFacingModeRef.current = next;
+    if (phaseRef.current === "connected") {
+      const api = apiRef.current;
+      if (!api) { setCameraMsg("Camera controls are not ready yet."); return; }
+      try { api.executeCommand("toggleCamera", next); setCameraMsg(""); }
+      catch { setCameraMsg("Unable to switch cameras. Please try again."); }
+      return;
+    }
+    startDetecting();
   }
 
   function toggleMic() {
@@ -1330,6 +1345,7 @@ export default function RoomClient({
                 </div>
 
                 <div className={styles.prejoinToggles}>
+                  <button type="button" className={styles.flipCameraBtn} onClick={flipCamera} disabled={!videoDesired || videoStatus !== "ready"} aria-label="Switch front or rear camera" title="Switch camera"><SwitchCamera size={16} />Flip</button>
                   <button
                     type="button"
                     className={videoDesired ? styles.prejoinToggleOn : styles.prejoinToggle}
@@ -1410,6 +1426,7 @@ export default function RoomClient({
                 <span className={styles.liveDot} aria-hidden="true" />
                 {t("live")} · {participantCount}
               </span>
+              {!viewer && <button type="button" className={styles.flipCameraBtn} onClick={flipCamera} disabled={!videoDesired || phase !== "connected"} aria-label="Switch front or rear camera" title="Switch camera"><SwitchCamera size={16} />Flip</button>}
               {musicAvailable && (
                 <button
                   type="button"
