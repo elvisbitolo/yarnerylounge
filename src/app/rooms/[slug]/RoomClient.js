@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, SwitchCamera, SlidersHorizontal, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
+import { LogOut, Camera, CameraOff, SwitchCamera, SlidersHorizontal, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomMusicPicker from "@/components/RoomMusicPicker";
@@ -1495,20 +1495,6 @@ export default function RoomClient({
                     </div>
                   )}
                 </div>
-              )}
-              {false && musicAvailable && (
-                <button
-                  type="button"
-                  className={musicOn ? styles.musicBtnOn : styles.musicBtn}
-                  aria-pressed={musicOn}
-                  onClick={() =>
-                    window.dispatchEvent(new CustomEvent("speakeasy-music-command"))
-                  }
-                  title={musicOn ? t("stopMusic") : t("playMusic")}
-                >
-                  <Music size={15} aria-hidden="true" />
-                  {musicOn ? t("stopMusic") : t("playMusic")}
-                </button>
               )}
               {String(userEmail || "").trim().toLowerCase() === "secretyarnery@gmail.com" && (
                 <button
