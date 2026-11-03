@@ -960,7 +960,7 @@
   display: flex;
   align-items: stretch;
   justify-content: space-around;
-  background: var(--dash-bg, #070707);
+  background: #000000;
   border-top: 1px solid var(--border, #242424);
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
