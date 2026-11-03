@@ -264,10 +264,9 @@ export default function RoomClient({
     return () => window.removeEventListener("speakeasy-music-state", onState);
   }, []);
 
-  const musicAvailable = alwaysOn && isMusicManager;
+  const musicAvailable = isMusicManager;
 
   useEffect(() => {
-    if (!alwaysOn) return undefined;
     let active = true;
     const refresh = () => fetch(`/api/rooms/music?room=${encodeURIComponent(slug)}`, { credentials: "include", cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
@@ -278,7 +277,7 @@ export default function RoomClient({
     const onChanged = () => refresh();
     window.addEventListener("room-music-changed", onChanged);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener("room-music-changed", onChanged); };
-  }, [alwaysOn, slug]);
+  }, [slug]);
 
   // Always-on lounges are joinable any time; only scheduled (non-alwaysOn)
   // rooms gate on the next upcoming start for non-hosts.
@@ -1438,11 +1437,11 @@ export default function RoomClient({
       <RoomBackground show={alwaysOn && phase === "connected"} musicActive={musicOn} />
       <div className={styles.roomWrap}>
         <AmbientAudio
-          active={alwaysOn}
+          active={true}
           musicUrl={sharedMusic.musicUrl}
           musicPlaying={sharedMusic.musicPlaying}
           musicFileId={sharedMusic.musicFileId}
-          hasVideoBackdrop={alwaysOn}
+          hasVideoBackdrop={true}
           pauseWhenBusy={false}
         />
         {musicAvailable && <RoomMusicPicker isStaff={isMusicManager} roomSlug={slug} />}
