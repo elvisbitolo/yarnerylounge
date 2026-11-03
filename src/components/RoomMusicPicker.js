@@ -292,7 +292,7 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
 
           <div style={{ display: "flex", gap: 8 }}>
             <button
-              onClick={() => save({ musicUrl: url || undefined, musicFileId: fileId || undefined, musicName: name })}
+              onClick={() => save({})}
               disabled={saving || (!url && !fileId)}
               style={{
                 flex: 1,
