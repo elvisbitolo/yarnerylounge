@@ -30,7 +30,7 @@ export async function GET() {
         userId: owner.id,
         leftAt: null,
         lastSeenAt: { gt: new Date(Date.now() - PRESENCE_WINDOW_MS) },
-        room: { status: "active" },
+        room: { is: { status: "active" } },
       },
       orderBy: { lastSeenAt: "desc" },
       select: { roomId: true },
