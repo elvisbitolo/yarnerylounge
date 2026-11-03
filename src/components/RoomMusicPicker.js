@@ -100,7 +100,7 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ roomSlug, ...updates }),
+        body: JSON.stringify({ roomSlug, musicUrl: url || "", musicFileId: fileId || "", musicName: name, ...updates }),
         signal: controller.signal,
       });
       clearTimeout(timer);
@@ -181,7 +181,7 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
             Room Music
           </div>
           <p style={{ fontSize: 12, color: "#8b8b9b", margin: "0 0 14px" }}>
-            Set the background music. Plays on every page for all visitors.
+            Set the background music. Plays for everyone in this lounge only.
           </p>
 
           {playing && (
@@ -256,7 +256,7 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
           </button>
           <input ref={fileRef} type="file" accept="audio/*" onChange={handleFile} style={{ display: "none" }} />
           <p style={{ fontSize: 11, color: "#6b6b7b", margin: "0 0 10px" }}>
-            Max 750KB. For larger songs, use a URL below.
+            Max 700KB. For larger tracks, paste a direct audio URL below.
           </p>
 
           {fileId && (
