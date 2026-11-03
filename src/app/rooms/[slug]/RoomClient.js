@@ -200,6 +200,7 @@ export default function RoomClient({
   const [videoStatus, setVideoStatus] = useState("idle"); // idle|starting|ready|off|denied|unavailable|inuse|timeout|unsupported|error
   const [micStatus, setMicStatus] = useState("idle");
   const [cameraMsg, setCameraMsg] = useState("");
+  const [cameraSwitching, setCameraSwitching] = useState(false);
   const [micMsg, setMicMsg] = useState("");
   const [previewStream, setPreviewStream] = useState(null);
 
@@ -224,6 +225,7 @@ export default function RoomClient({
   const connStatusRef = useRef("connecting");
   const videoDesiredRef = useRef(true);
   const cameraFacingModeRef = useRef("user");
+  const cameraSwitchPendingRef = useRef(false);
   const micDesiredRef = useRef(true);
   const videoStatusRef = useRef("idle");
   const micStatusRef = useRef("idle");
@@ -570,18 +572,78 @@ export default function RoomClient({
     }
   }
 
-  function flipCamera() {
-    if (!videoDesiredRef.current || viewer) return;
-    const next = cameraFacingModeRef.current === "user" ? "environment" : "user";
-    cameraFacingModeRef.current = next;
-    if (phaseRef.current === "connected") {
-      const api = apiRef.current;
-      if (!api) { setCameraMsg("Camera controls are not ready yet."); return; }
-      try { api.executeCommand("toggleCamera", next); setCameraMsg(""); }
-      catch { setCameraMsg("Unable to switch cameras. Please try again."); }
+  async function flipCamera() {
+    if (!videoDesiredRef.current || viewer || cameraSwitchPendingRef.current) return;
+
+    if (phaseRef.current !== "connected") {
+      cameraFacingModeRef.current = cameraFacingModeRef.current === "user" ? "environment" : "user";
+      startDetecting();
       return;
     }
-    startDetecting();
+
+    const api = apiRef.current;
+    if (!api || typeof api.getAvailableDevices !== "function" || typeof api.getCurrentDevices !== "function" || typeof api.setVideoInputDevice !== "function") {
+      setCameraMsg("Camera switching is unavailable in this call. Please try again after rejoining.");
+      return;
+    }
+
+    cameraSwitchPendingRef.current = true;
+    setCameraSwitching(true);
+    setCameraMsg("Switching camera…");
+
+    try {
+      const [available, current] = await Promise.all([
+        api.getAvailableDevices(),
+        api.getCurrentDevices(),
+      ]);
+
+      if (apiRef.current !== api || phaseRef.current !== "connected") return;
+
+      const videoInputs = Array.isArray(available?.videoInput)
+        ? available.videoInput.filter((device) => device?.deviceId)
+        : [];
+      const currentDevice = current?.videoInput;
+      const currentId = currentDevice?.deviceId;
+      const currentLabel = String(currentDevice?.label || "").toLowerCase();
+      const isFront = /front|user|facetime|selfie/.test(currentLabel);
+      const isRear = /back|rear|environment|world|main camera/.test(currentLabel);
+
+      let targetDevice = null;
+      if (isFront) {
+        targetDevice = videoInputs.find((device) => /back|rear|environment|world|main camera/i.test(device.label || ""));
+      } else if (isRear) {
+        targetDevice = videoInputs.find((device) => /front|user|facetime|selfie/i.test(device.label || ""));
+      }
+
+      if (!targetDevice && videoInputs.length === 2) {
+        targetDevice = videoInputs.find((device) => device.deviceId !== currentId) || null;
+      }
+
+      if (!targetDevice || targetDevice.deviceId === currentId) {
+        throw new Error("The other camera could not be identified on this device.");
+      }
+
+      await Promise.resolve(api.setVideoInputDevice(targetDevice.label || "", targetDevice.deviceId));
+
+      if (apiRef.current !== api || phaseRef.current !== "connected") return;
+
+      const selected = await api.getCurrentDevices();
+      if (selected?.videoInput?.deviceId && selected.videoInput.deviceId !== targetDevice.deviceId) {
+        throw new Error("The camera did not confirm the switch.");
+      }
+
+      cameraFacingModeRef.current = /back|rear|environment|world|main camera/i.test(targetDevice.label || "")
+        ? "environment"
+        : "user";
+      setCameraMsg("");
+    } catch (error) {
+      if (apiRef.current === api) {
+        setCameraMsg(error?.message || "Unable to switch cameras. Your current camera has been left selected.");
+      }
+    } finally {
+      cameraSwitchPendingRef.current = false;
+      setCameraSwitching(false);
+    }
   }
 
   function toggleMic() {
@@ -862,6 +924,15 @@ export default function RoomClient({
       const n = normalizeJitsiError(error);
       setRoomError(n);
       setPhase("error");
+    });
+
+    addIfSupported("cameraError", (error = {}) => {
+      cameraSwitchPendingRef.current = false;
+      setCameraSwitching(false);
+      const detail = String(error.message || error.type || "").trim();
+      setCameraMsg(detail
+        ? `Camera unavailable: ${detail}`
+        : "The camera could not start. Check Chrome's camera permission and try again.");
     });
 
     api.addEventListener("errorOccurred", (error) => {
@@ -1345,7 +1416,7 @@ export default function RoomClient({
                 </div>
 
                 <div className={styles.prejoinToggles}>
-                  <button type="button" className={styles.flipCameraBtn} onClick={flipCamera} disabled={!videoDesired || videoStatus !== "ready"} aria-label="Switch front or rear camera" title="Switch camera"><SwitchCamera size={16} />Flip</button>
+                  <button type="button" className={styles.flipCameraBtn} onClick={flipCamera} disabled={!videoDesired || videoStatus !== "ready" || cameraSwitching} aria-label="Switch front or rear camera" title="Switch camera"><SwitchCamera size={16} />Flip</button>
                   <button
                     type="button"
                     className={videoDesired ? styles.prejoinToggleOn : styles.prejoinToggle}
@@ -1426,7 +1497,7 @@ export default function RoomClient({
                 <span className={styles.liveDot} aria-hidden="true" />
                 {t("live")} · {participantCount}
               </span>
-              {!viewer && <button type="button" className={styles.flipCameraBtn} onClick={flipCamera} disabled={!videoDesired || phase !== "connected"} aria-label="Switch front or rear camera" title="Switch camera"><SwitchCamera size={16} />Flip</button>}
+              {!viewer && <button type="button" className={styles.flipCameraBtn} onClick={flipCamera} disabled={!videoDesired || phase !== "connected" || cameraSwitching} aria-label="Switch front or rear camera" title="Switch camera"><SwitchCamera size={16} />Flip</button>}
               {musicAvailable && (
                 <button
                   type="button"
