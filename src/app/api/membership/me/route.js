@@ -14,7 +14,11 @@ export async function GET() {
     const denied = guardJson(auth);
     if (denied) return denied;
 
-    return NextResponse.json({ ok: true, membership: deriveMembership(auth.userDoc) });
+    const rawExpiry = auth.userDoc?.expiresAt;
+    const expiryMs = rawExpiry?.toMillis?.() ?? (rawExpiry instanceof Date ? rawExpiry.getTime() : Number(rawExpiry) || 0);
+    const expiresAt = expiryMs > 0 ? new Date(expiryMs).toISOString() : null;
+    const daysRemaining = expiresAt ? Math.max(0, Math.ceil((expiryMs - Date.now()) / 86400000)) : null;
+    return NextResponse.json({ ok: true, membership: deriveMembership(auth.userDoc), expiresAt, daysRemaining });
   } catch (err) {
     logError("membership.me_failed", { error: err.message });
     return NextResponse.json(
