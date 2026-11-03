@@ -196,7 +196,6 @@ export default function RoomClient({
 
   // ---- Media state (camera/mic live their own lifecycle) ----
   const [videoDesired, setVideoDesired] = useState(true);
-  const [cameraFacingMode, setCameraFacingMode] = useState("user");
   const [micDesired, setMicDesired] = useState(true);
   const [videoStatus, setVideoStatus] = useState("idle"); // idle|starting|ready|off|denied|unavailable|inuse|timeout|unsupported|error
   const [micStatus, setMicStatus] = useState("idle");
@@ -575,7 +574,6 @@ export default function RoomClient({
     if (!videoDesiredRef.current || viewer) return;
     const next = cameraFacingModeRef.current === "user" ? "environment" : "user";
     cameraFacingModeRef.current = next;
-    setCameraFacingMode(next);
     if (phaseRef.current === "connected") {
       const api = apiRef.current;
       if (!api) { setCameraMsg("Camera controls are not ready yet."); return; }
