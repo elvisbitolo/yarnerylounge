@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, SwitchCamera, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
+import { LogOut, Camera, CameraOff, SwitchCamera, SlidersHorizontal, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX, Music } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomBackground from "@/components/RoomBackground";
@@ -193,6 +193,8 @@ export default function RoomClient({
 
   // ---- Background music (played by AmbientAudio; this header only asks) ----
   const [musicOn, setMusicOn] = useState(false);
+  const [effectsOpen, setEffectsOpen] = useState(false);
+  const [backgroundEffect, setBackgroundEffect] = useState("none");
 
   // ---- Media state (camera/mic live their own lifecycle) ----
   const [videoDesired, setVideoDesired] = useState(true);
@@ -582,6 +584,19 @@ export default function RoomClient({
       return;
     }
     startDetecting();
+  }
+
+  function applyBackgroundEffect(effect) {
+    const api = apiRef.current;
+    if (!api || phaseRef.current !== "connected" || !videoDesiredRef.current) return;
+    try {
+      api.executeCommand("setBlurredBackground", effect);
+      setBackgroundEffect(effect);
+      setEffectsOpen(false);
+      setCameraMsg("");
+    } catch {
+      setCameraMsg("Unable to apply this camera effect. Please try again.");
+    }
   }
 
   function toggleMic() {
@@ -1427,6 +1442,41 @@ export default function RoomClient({
                 {t("live")} · {participantCount}
               </span>
               {!viewer && <button type="button" className={styles.flipCameraBtn} onClick={flipCamera} disabled={!videoDesired || phase !== "connected"} aria-label="Switch front or rear camera" title="Switch camera"><SwitchCamera size={16} />Flip</button>}
+              {!viewer && (
+                <div className={styles.effectsWrap}>
+                  <button
+                    type="button"
+                    className={styles.effectsTrigger}
+                    onClick={() => setEffectsOpen((open) => !open)}
+                    disabled={!videoDesired || phase !== "connected"}
+                    aria-expanded={effectsOpen}
+                    aria-haspopup="true"
+                  >
+                    <SlidersHorizontal size={15} /> Effects
+                  </button>
+                  {effectsOpen && (
+                    <div className={styles.effectsMenu} role="group" aria-label="Camera background effects">
+                      <span className={styles.effectsTitle}>Background effects</span>
+                      {[
+                        { value: "none", label: "Natural" },
+                        { value: "slight-blur", label: "Soft blur" },
+                        { value: "blur", label: "Blur" },
+                      ].map((effect) => (
+                        <button
+                          key={effect.value}
+                          type="button"
+                          className={backgroundEffect === effect.value ? styles.effectOptionActive : styles.effectOption}
+                          onClick={() => applyBackgroundEffect(effect.value)}
+                        >
+                          <span>{effect.label}</span>
+                          {backgroundEffect === effect.value && <span aria-hidden="true">✓</span>}
+                        </button>
+                      ))}
+                      <p className={styles.effectsHint}>Effects are applied to your outgoing camera feed when supported by your device and Jitsi.</p>
+                    </div>
+                  )}
+                </div>
+              )}
               {musicAvailable && (
                 <button
                   type="button"
