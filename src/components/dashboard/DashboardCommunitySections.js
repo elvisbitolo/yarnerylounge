@@ -131,8 +131,16 @@ export function DashboardMembershipCard() {
             <span className={styles.membershipBadge}>{membership.label || membership.planKey || "Flirting"}</span>
             <span className={styles.itemMeta}>Current plan</span>
           </div>
-          <p className={styles.itemBody}>Explore the benefits available with your membership and see options for upgrading.</p>
-          <Link className={styles.spotCta} href="/membership">Explore membership</Link>
+          {membership.expiresAt ? (
+            <p className={styles.itemBody}>
+              {membership.daysRemaining === 0
+                ? "Your membership has reached its expiry date."
+                : "Expires on " + new Date(membership.expiresAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) + " · " + membership.daysRemaining + " day(s) remaining."}
+            </p>
+          ) : (
+            <p className={styles.itemBody}>Your current membership benefits and plan options are available here.</p>
+          )}
+          <Link className={styles.spotCta} href="/membership">Manage membership</Link>
         </>
       ) : <p className={styles.itemBody}>Membership details are temporarily unavailable.</p>}
     </DashboardCard>
