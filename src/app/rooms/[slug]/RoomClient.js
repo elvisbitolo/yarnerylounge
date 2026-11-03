@@ -1586,12 +1586,6 @@ export default function RoomClient({
                         : t("connectingShortWait")}
                   </p>
                   <p className={styles.stageJoinRecording}>{t("recordingJoinNotice")}</p>
-                  {connStalled && (
-                    <button type="button" className={styles.stageJoinRetry} onClick={reconnectNow}>
-                      <RefreshCcw size={14} />
-                      {t("retry")}
-                    </button>
-                  )}
                 </div>
               </div>
             )}
