@@ -57,13 +57,13 @@ export function normalizeRecurring(value) {
   return "none";
 }
 
-// Validates an IANA zone name. Guards against arbitrary strings reaching the DB
-// and, more importantly, against the "UTC" that some browsers report: a real
-// zone is needed to keep a recurring block's wall clock meaningful.
+// Validate IANA time-zone identifiers before storing them. UTC is explicitly
+// supported: it is a valid, stable wall-clock zone for recurring availability.
 const IANA_SHAPE = /^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+){1,2}$/;
 export function normalizeTimeZone(value) {
   const tz = typeof value === "string" ? value.trim() : "";
-  if (!tz || tz === "UTC" || tz === "GMT" || tz === "Z") return null;
+  if (tz === "UTC") return "UTC";
+  if (!tz || tz === "GMT" || tz === "Z") return null;
   return IANA_SHAPE.test(tz) ? tz : null;
 }
 
