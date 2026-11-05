@@ -236,7 +236,7 @@ export async function getAudienceSeries(days) {
   return { series, days, startTotal: membersBefore };
 }
 
-async function buildActivityItems(posts, users, rsvps, slugResolver, uid, role, memberships, limit) {
+async function buildActivityItems(posts, users, rsvps, photoByUserId, nameByUserId, slugResolver, uid, role, memberships, limit) {
   const items = [];
   const visiblePosts = [];
   const spaceIds = new Set();
@@ -255,7 +255,9 @@ async function buildActivityItems(posts, users, rsvps, slugResolver, uid, role, 
     items.push({
       id: `post-${post.id}`,
       kind: "post",
-      actor: post.authorName || "Member",
+      actorId: post.authorId || null,
+      actor: post.authorName || nameByUserId.get(post.authorId) || "Member",
+      actorPhotoUrl: photoByUserId.get(post.authorId) || null,
       text: (post.text || "").slice(0, 140),
       href:
         post.spaceId && spaceSlugs.get(post.spaceId)
@@ -272,7 +274,9 @@ async function buildActivityItems(posts, users, rsvps, slugResolver, uid, role, 
     items.push({
       id: `user-${user.id}`,
       kind: "signup",
+      actorId: user.id,
       actor: user.name || "New member",
+      actorPhotoUrl: photoByUserId.get(user.id) || null,
       text: "joined the community",
       href: "/members",
       createdAt: toMillis(user.createdAt),
@@ -284,7 +288,9 @@ async function buildActivityItems(posts, users, rsvps, slugResolver, uid, role, 
     items.push({
       id: `rsvp-${rsvp.id}`,
       kind: "rsvp",
-      actor: rsvp.name || "A member",
+      actorId: rsvp.userId || null,
+      actor: rsvp.name || nameByUserId.get(rsvp.userId) || "A member",
+      actorPhotoUrl: photoByUserId.get(rsvp.userId) || null,
       text: "RSVP'd to an event",
       href: "/events",
       createdAt: toMillis(rsvp.createdAt),
@@ -320,12 +326,31 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
           take: 10,
           select: { id: true, name: true, createdAt: true },
         }),
-        prisma.rsvp.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
+        prisma.rsvp.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, userId: true, name: true, createdAt: true },
+        }),
       ]);
+      const actorIds = [...new Set([
+        ...posts.map((post) => post.authorId),
+        ...users.map((member) => member.id),
+        ...rsvps.map((rsvp) => rsvp.userId),
+      ].filter(Boolean))];
+      const actorProfiles = actorIds.length
+        ? await prisma.user.findMany({
+            where: { id: { in: actorIds } },
+            select: { id: true, name: true, photoURL: true },
+          })
+        : [];
+      const photoByUserId = new Map(actorProfiles.map((member) => [member.id, member.photoURL || null]));
+      const nameByUserId = new Map(actorProfiles.map((member) => [member.id, member.name || "Member"]));
       return buildActivityItems(
         posts,
         users,
         rsvps,
+        photoByUserId,
+        nameByUserId,
         async (spaceIds, groupIds) => {
           const [spaces, groups] = await Promise.all([
             spaceIds.size
@@ -504,9 +529,10 @@ async function getRecentHappened(events, limit, roomNameBySlug) {
 // the next meetups, blocks members pinned for everyone, the viewer's own next
 // availability block, and a short "recently happened" history. Occurrence ids
 // key recurring events; hrefs always point at the base event page.
-export async function getDashboardSpotlight(uid, limit = 5) {
+export async function getDashboardSpotlight(uid, userDoc, limit = 5) {
   const now = Date.now();
-  const roomList = await listRooms();
+  // Keep the room-name lookup scoped to lounges the current member can see.
+  const roomList = await listVisibleCommunityRooms(uid, userDoc);
   const roomNameBySlug = new Map(roomList.map((room) => [room.slug, room.name || room.slug]));
   const allEvents = await listEvents();
   const upcoming = expandEvents(allEvents)
@@ -815,7 +841,7 @@ export async function getDashboardCommandData(uid, userDoc) {
       attempt(() => getDashboardStats(uid, userDoc)),
       attempt(() => getDashboardActivity(uid, role, memberships)),
       attempt(() => getDashboardUpcomingRooms(uid, userDoc)),
-      attempt(() => getDashboardSpotlight(uid)),
+      attempt(() => getDashboardSpotlight(uid, userDoc)),
       attempt(() => getDashboardMessages(uid)),
       attempt(() => getDashboardContent()),
       attempt(() => getDashboardNotifications(uid)),

@@ -262,19 +262,37 @@ export function RecentActivity({ data }) {
         <EmptyState text={t("noActivity")} />
       ) : (
         <ul className={styles.list}>
-          {data.map((item) => (
-            <li key={item.id}>
-              <Link className={styles.item} href={item.href}>
-                <span className={styles.itemSplit}>
-                  <span className={styles.itemTitle}>
-                    {item.actor}
-                    <span className={styles.itemMeta}> · <span className={styles.itemText}>{item.text}</span></span>
-                  </span>
+          {data.map((item) => {
+            const actorName = item.actor || "Member";
+            const initials = actorName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
+            const profileHref = item.actorId ? `/members/${encodeURIComponent(item.actorId)}` : null;
+            const avatar = item.actorPhotoUrl ? (
+              <img className={styles.dashboardActivityAvatar} src={item.actorPhotoUrl} alt="" loading="lazy" />
+            ) : (
+              <span className={styles.dashboardActivityAvatarFallback} aria-hidden="true">{initials}</span>
+            );
+            return (
+              <li key={item.id}>
+                <div className={styles.dashboardActivityRow}>
+                  {profileHref ? (
+                    <Link className={styles.dashboardActivityActor} href={profileHref}>
+                      {avatar}
+                      <span className={styles.itemTitle}>{actorName}</span>
+                    </Link>
+                  ) : (
+                    <span className={styles.dashboardActivityActor}>
+                      {avatar}
+                      <span className={styles.itemTitle}>{actorName}</span>
+                    </span>
+                  )}
                   <span className={styles.itemMeta}>{timeAgo(item.createdAt)}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
+                  <Link className={styles.dashboardActivityText} href={item.href || "/feed"}>
+                    {item.text}
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </Card>
