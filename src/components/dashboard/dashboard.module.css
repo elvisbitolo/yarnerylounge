@@ -1485,3 +1485,52 @@
     padding: 14px;
   }
 }
+
+
+/* Member photos in dashboard activity previews */
+.activityRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+}
+
+.activityContent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.activityAvatar,
+.activityAvatarFallback {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.activityAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-border, var(--dash-border, #eadfd2));
+  color: var(--card-text, var(--dash-text, #0a0e2a));
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .activityAvatar,
+  .activityAvatarFallback {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .activityRow {
+    gap: 9px;
+  }
+}
