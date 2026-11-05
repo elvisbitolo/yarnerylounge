@@ -36,7 +36,14 @@ export async function GET(request) {
       select: {
         id: true,
         type: true,
+        actorId: true,
         actorName: true,
+        actor: {
+          select: {
+            id: true,
+            photoURL: true,
+          },
+        },
         text: true,
         href: true,
         read: true,
@@ -45,7 +52,14 @@ export async function GET(request) {
     });
 
     const notifications = rows.map((row) => ({
-      ...row,
+      id: row.id,
+      type: row.type,
+      actorId: row.actor?.id || row.actorId || null,
+      actorName: row.actorName || "",
+      actorPhotoUrl: row.actor?.photoURL || null,
+      text: row.text,
+      href: row.href,
+      read: row.read,
       createdAt: row.createdAt.toISOString(),
     }));
     return NextResponse.json({ unread, notifications });

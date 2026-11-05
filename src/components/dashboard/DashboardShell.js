@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import StatCard from "./StatCard";
 import AudienceChart from "./AudienceChart";
 import {
+  DashboardMemberAvatar,
   WelcomeBanner,
   CommunityNextSteps,
   ReturnVisitCard,
@@ -310,14 +311,11 @@ export default function DashboardShell() {
                 <ul className={styles.list}>
                   {leaderboard.value.map((entry) => (
                     <li key={entry.userId}>
-                      <Link className={styles.item} href={`/members/${entry.userId}`}>
-                        <span className={styles.itemSplit}>
-                          <span className={styles.itemTitle}>
-                            #{entry.rank} {entry.name}
-                          </span>
-                          <span className={styles.itemMeta}>
-                            {t("pts", { points: entry.points, badges: entry.badgeCount })}
-                          </span>
+                      <Link className={`${styles.item} ${styles.dashboardRecognitionItem}`} href={`/members/${entry.userId}`}>
+                        <DashboardMemberAvatar name={entry.name} photoURL={entry.photoURL} />
+                        <span className={styles.dashboardRecognitionName}>
+                          <span className={styles.itemTitle}>#{entry.rank} {entry.name}</span>
+                          <span className={styles.itemMeta}>{t("pts", { points: entry.points, badges: entry.badgeCount })}</span>
                         </span>
                       </Link>
                     </li>
