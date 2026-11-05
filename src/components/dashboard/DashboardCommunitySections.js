@@ -393,3 +393,48 @@ export function DashboardMembershipCard() {
     </DashboardCard>
   );
 }
+
+
+export function DashboardCommunityBuilderCard() {
+  const { value: profile, loading } = useDashboardResource("/api/me", "profile");
+  const tier = String(profile?.tier || profile?.plan || "").toLowerCase();
+  const isMovingIn = tier === "moving-in";
+
+  if (loading || !isMovingIn) return null;
+
+  return (
+    <section className={styles.communityBuilderCard} aria-labelledby="community-builder-title">
+      <div className={styles.communityBuilderArtwork} aria-hidden="true">
+        <span className={styles.communityBuilderOrb} />
+        <span className={styles.communityBuilderYarn}>🧶</span>
+        <span className={styles.communityBuilderStitch}>✳</span>
+        <span className={styles.communityBuilderThread} />
+      </div>
+      <div className={styles.communityBuilderContent}>
+        <div className={styles.communityBuilderTopline}>
+          <span className={styles.communityBuilderPill}>MOVING IN · YOUR BUILDER PRIVILEGE</span>
+          <span className={styles.communityBuilderSparkle} aria-hidden="true">✦</span>
+        </div>
+        <h2 id="community-builder-title">Your ideas deserve a community of their own.</h2>
+        <p className={styles.communityBuilderDescription}>
+          You’re not just here to join in. Bring people together around the crafts, projects and conversations you love — and help shape what this community becomes.
+        </p>
+        <div className={styles.communityBuilderActions}>
+          <Link className={styles.communityBuilderPrimary} href="/admin/groups">
+            <span className={styles.communityBuilderActionIcon} aria-hidden="true">＋</span>
+            Create a crochet circle
+            <span aria-hidden="true">→</span>
+          </Link>
+          <Link className={styles.communityBuilderSecondary} href="/neighbourhoods">
+            Explore neighbourhoods
+            <span aria-hidden="true">↗</span>
+          </Link>
+        </div>
+        <div className={styles.communityBuilderFooter}>
+          <span aria-hidden="true">✦</span>
+          Your membership gives you the tools. Your imagination brings the community to life.
+        </div>
+      </div>
+    </section>
+  );
+}
