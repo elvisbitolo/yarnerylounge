@@ -153,7 +153,7 @@ export default function WelcomeJourney({ initial }) {
       <p className={styles.intro}>A few quick details help other members recognise you and help us bring the right people, rooms and inspiration your way. You can change everything later.</p>
 
       <div className={styles.progressMeta}><span>Step {step + 1} of 4</span><span>{Math.round(((step + 1) / 4) * 100)}%</span></div>
-      <div className={styles.progressTrack}><span style={{ width: `${((step + 1) / 3) * 100}%` }} /></div>
+      <div className={styles.progressTrack}><span style={{ width: `${((step + 1) / 4) * 100}%` }} /></div>
       <div className={styles.stepLabels}>{steps.map((item, index) => <span key={item} className={index === step ? styles.activeStep : index < step ? styles.pastStep : ""}>{item}</span>)}</div>
 
       {step === 0 && (
