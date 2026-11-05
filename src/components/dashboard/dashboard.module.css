@@ -2150,3 +2150,37 @@ a.activityActor:hover .itemTitle {
   .dashboardActivityAvatarFallback { flex-basis: 30px; width: 30px; height: 30px; }
   .dashboardActivityText { padding-left: 39px; }
 }
+
+
+.welcomeIdentity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.welcomeAvatar,
+.welcomeAvatarFallback {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+}
+
+.welcomeAvatar {
+  object-fit: cover;
+}
+
+.welcomeAvatarFallback {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.welcomeTitle {
+  line-height: 1.25;
+}
