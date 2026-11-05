@@ -236,6 +236,22 @@ export async function getAudienceSeries(days) {
   return { series, days, startTotal: membersBefore };
 }
 
+function resolveActivityMemberName(profile, fallback = "") {
+  const name = typeof profile?.name === "string" ? profile.name.trim() : "";
+  const placeholder = !name || ["member", "new member", "community member", "user"].includes(name.toLowerCase());
+  if (!placeholder) return name;
+
+  const fullName = [profile?.firstName, profile?.lastName]
+    .filter((part) => typeof part === "string" && part.trim())
+    .join(" ")
+    .trim();
+  if (fullName) return fullName;
+
+  const emailPrefix = typeof profile?.email === "string" ? profile.email.split("@")[0] : "";
+  const readableEmailName = emailPrefix.replace(/[._-]+/g, " ").replace(/\\s+/g, " ").trim();
+  return readableEmailName || fallback || "Member";
+}
+
 async function buildActivityItems(posts, users, rsvps, photoByUserId, nameByUserId, slugResolver, uid, role, memberships, limit) {
   const items = [];
   const visiblePosts = [];
@@ -256,7 +272,7 @@ async function buildActivityItems(posts, users, rsvps, photoByUserId, nameByUser
       id: `post-${post.id}`,
       kind: "post",
       actorId: post.authorId || null,
-      actor: post.authorName || nameByUserId.get(post.authorId) || "Member",
+      actor: resolveActivityMemberName({ name: post.authorName }, nameByUserId.get(post.authorId)),
       actorPhotoUrl: photoByUserId.get(post.authorId) || null,
       text: (post.text || "").slice(0, 140),
       href:
@@ -275,7 +291,7 @@ async function buildActivityItems(posts, users, rsvps, photoByUserId, nameByUser
       id: `user-${user.id}`,
       kind: "signup",
       actorId: user.id,
-      actor: user.name || "New member",
+      actor: resolveActivityMemberName(user, nameByUserId.get(user.id)),
       actorPhotoUrl: photoByUserId.get(user.id) || null,
       text: "joined the community",
       href: "/members",
@@ -289,7 +305,7 @@ async function buildActivityItems(posts, users, rsvps, photoByUserId, nameByUser
       id: `rsvp-${rsvp.id}`,
       kind: "rsvp",
       actorId: rsvp.userId || null,
-      actor: rsvp.name || nameByUserId.get(rsvp.userId) || "A member",
+      actor: resolveActivityMemberName({ name: rsvp.name }, nameByUserId.get(rsvp.userId) || "A member"),
       actorPhotoUrl: photoByUserId.get(rsvp.userId) || null,
       text: "RSVP'd to an event",
       href: "/events",
@@ -324,7 +340,7 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
         prisma.user.findMany({
           orderBy: { createdAt: "desc" },
           take: 10,
-          select: { id: true, name: true, createdAt: true },
+          select: { id: true, name: true, firstName: true, lastName: true, email: true, createdAt: true },
         }),
         prisma.rsvp.findMany({
           orderBy: { createdAt: "desc" },
@@ -340,11 +356,11 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
       const actorProfiles = actorIds.length
         ? await prisma.user.findMany({
             where: { id: { in: actorIds } },
-            select: { id: true, name: true, photoURL: true },
+            select: { id: true, name: true, firstName: true, lastName: true, email: true, photoURL: true },
           })
         : [];
       const photoByUserId = new Map(actorProfiles.map((member) => [member.id, member.photoURL || null]));
-      const nameByUserId = new Map(actorProfiles.map((member) => [member.id, member.name || "Member"]));
+      const nameByUserId = new Map(actorProfiles.map((member) => [member.id, resolveActivityMemberName(member)]));
       return buildActivityItems(
         posts,
         users,
