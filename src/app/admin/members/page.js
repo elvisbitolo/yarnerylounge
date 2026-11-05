@@ -1,22 +1,39 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import ConfirmModal from "@/components/ConfirmModal";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import styles from "../rooms/admin.module.css";
 
+const PAGE_SIZE = 10;
 const PLAN_OPTIONS = [
   { value: "flirting", label: "Flirting (Free)", rank: 0 },
   { value: "hooking-up", label: "Hooking Up", rank: 1 },
   { value: "moving-in", label: "Moving In", rank: 2 },
 ];
 
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function csvCell(value) {
+  return '"' + String(value ?? "").replace(/"/g, '""') + '"';
+}
+
 export default function AdminMembersPage() {
   const router = useRouter();
   const [members, setMembers] = useState([]);
   const [query, setQuery] = useState("");
+  const [planFilter, setPlanFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [role, setRole] = useState("member");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
@@ -24,7 +41,7 @@ export default function AdminMembersPage() {
 
   const loadMembers = useCallback(async () => {
     const res = await fetch("/api/admin/members");
-    if (res.ok) setMembers((await res.json()).members);
+    if (res.ok) setMembers((await res.json()).members || []);
   }, []);
 
   useEffect(() => {
@@ -70,9 +87,7 @@ export default function AdminMembersPage() {
     setDelBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/members/${member.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/admin/members/${member.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || "Delete failed");
@@ -85,138 +100,176 @@ export default function AdminMembersPage() {
     }
   }
 
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? members.filter(
-        (m) =>
-          (m.name || "").toLowerCase().includes(q) ||
-          (m.email || "").toLowerCase().includes(q)
-      )
-    : members;
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return members.filter((member) => {
+      const matchesQuery = !q ||
+        [member.name, member.email, member.id].some((value) => String(value || "").toLowerCase().includes(q));
+      const matchesPlan = planFilter === "all" || (member.plan || "flirting") === planFilter;
+      const matchesRole = roleFilter === "all" || (member.role || "member") === roleFilter;
+      const status = member.suspended ? "suspended" :
+        ["active", "trial"].includes(member.subStatus) ? "active" : "inactive";
+      const matchesStatus = statusFilter === "all" || status === statusFilter;
+      return matchesQuery && matchesPlan && matchesRole && matchesStatus;
+    });
+  }, [members, query, planFilter, roleFilter, statusFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageMembers = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const start = filtered.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+  const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
+
+  function exportMembers() {
+    const headers = ["Name", "Email", "Plan", "Role", "Status", "Joined"];
+    const rows = filtered.map((member) => [
+      member.name || "Unnamed",
+      member.email,
+      PLAN_OPTIONS.find((option) => option.value === (member.plan || "flirting"))?.label || member.plan,
+      member.role,
+      member.suspended ? "Suspended" : ["active", "trial"].includes(member.subStatus) ? "Active" : "Inactive",
+      formatDate(member.createdAt),
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "speakeasy-members.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function pageNumbers() {
+    if (pageCount <= 5) return Array.from({ length: pageCount }, (_, index) => index + 1);
+    const values = new Set([1, pageCount, currentPage, currentPage - 1, currentPage + 1]);
+    return [...values].filter((value) => value >= 1 && value <= pageCount).sort((a, b) => a - b);
+  }
 
   return (
     <>
-      <div className={styles.container}>
-        <h1 className={styles.title}>Members</h1>
-        <p className={styles.linkRow}>
+      <div className={styles.container + " " + styles.membersContainer}>
+        <div className={styles.membersHeader}>
+          <div>
+            <h1 className={styles.title}>Members</h1>
+            <p className={styles.membersSubtitle}>Manage your community, subscriptions and member access.</p>
+          </div>
           <a className={styles.link} href="/admin/hosts">Assign scoped hosts →</a>
-        </p>
+        </div>
+
         {error && <p className={styles.error}>{error}</p>}
 
-        <input
-          className={styles.input}
-          type="search"
-          placeholder="Search members…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{ maxWidth: 360, marginBottom: 16 }}
-        />
+        <div className={styles.memberToolbar}>
+          <input
+            className={styles.input + " " + styles.memberSearch}
+            type="search"
+            placeholder="Search by name, email or member ID…"
+            value={query}
+            onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+            aria-label="Search members"
+          />
+          <select className={styles.input + " " + styles.memberFilter} value={planFilter} onChange={(event) => { setPlanFilter(event.target.value); setPage(1); }} aria-label="Filter by plan">
+            <option value="all">All Plans</option>
+            {PLAN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <select className={styles.input + " " + styles.memberFilter} value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1); }} aria-label="Filter by role">
+            <option value="all">All Roles</option>
+            <option value="owner">Owner</option>
+            <option value="moderator">Moderator</option>
+            <option value="host">Host</option>
+            <option value="member">Member</option>
+          </select>
+          <select className={styles.input + " " + styles.memberFilter} value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }} aria-label="Filter by status">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <button type="button" className={styles.exportButton} onClick={exportMembers}>Export CSV ↓</button>
+        </div>
 
-        {filtered.length === 0 ? (
-          <p className={styles.empty}>No members found.</p>
-        ) : (
-          <div className={styles.list}>
-            {filtered.map((member) => (
-              <div key={member.id} className={styles.item}>
-                <div>
-                  <p className={styles.itemName}>
-                    {member.name || "Unnamed"}
-                    {["owner", "moderator"].includes(member.role) && (
-                      <span style={{ fontSize: 12, color: "#9b9bab", fontWeight: 500 }}>
-                        {" "}({roleBadgeLabel(member.role, member.roleLabel).toLowerCase()})
-                      </span>
-                    )}
-                  </p>
-                  <p className={styles.itemMeta}>
-                    {member.email || ""}
-                    {member.suspended ? " · suspended" : ""}
-                    {member.tier ? ` · ${member.tier}` : ""}
-                    {member.subStatus === "active" || member.subStatus === "trial"
-                      ? ` · subscribed (${member.subStatus})`
-                      : member.subStatus !== "none"
-                        ? ` · sub ${member.subStatus}`
-                        : ""}
-                  </p>
-                </div>
-                {member.role !== "owner" && (
-                  <div className={styles.itemActions}>
-<a
-                      className={styles.toggle}
-                      style={{ display: "inline-block", height: 36, padding: "8px 14px", fontSize: 13 }}
-                      href={`/members/${member.id}`}
-                    >
-                      Profile
-                    </a>
-                    {role === "owner" && (
-                      <select
-                        className={styles.input}
-                        style={{ width: 130, height: 36, padding: "0 8px" }}
-                        value={member.role === "moderator" ? "moderator" : "member"}
-                        onChange={(e) => updateMember(member.id, { role: e.target.value })}
-                      >
-                        <option value="member">Member</option>
-                        <option value="moderator">Moderator</option>
-                      </select>
-                    )}
-                    {role === "owner" && (
-                      <select
-                        className={styles.input}
-                        style={{ width: 130, height: 36, padding: "0 8px" }}
-                        value={member.plan || "flirting"}
-                        onChange={(e) => updateMember(member.id, { plan: e.target.value })}
-                      >
-                        {[...PLAN_OPTIONS]
-                          .sort((a, b) => Number(b.value === member.plan) - Number(a.value === member.plan))
-                          .map((option) => (
-                            <option
-                              key={option.value}
-                              value={option.value}
-                              disabled={
-                                ["active", "trial"].includes(member.subStatus) &&
-                                option.rank < (PLAN_OPTIONS.find((item) => item.value === member.plan)?.rank ?? 0)
-                              }
-                            >
-                              {option.label}
-                            </option>
+        <div className={styles.membersTableWrap}>
+          <table className={styles.membersTable}>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Member</th>
+                <th>Email</th>
+                <th>Plan</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageMembers.map((member, index) => {
+                const memberPlan = member.plan || "flirting";
+                const isActive = ["active", "trial"].includes(member.subStatus);
+                const statusLabel = member.suspended ? "Suspended" : isActive ? (member.subStatus === "trial" ? "Trial" : "Active") : "Inactive";
+                return (
+                  <tr key={member.id}>
+                    <td className={styles.memberIndex}>{start + index}</td>
+                    <td>
+                      <a className={styles.memberIdentity} href={`/members/${member.id}`}>
+                        <span className={styles.memberAvatar} style={member.photoURL ? { backgroundImage: `url("${member.photoURL}")` } : undefined}>
+                          {!member.photoURL && (member.name || "U").trim().charAt(0).toUpperCase()}
+                        </span>
+                        <span className={styles.memberName}>{member.name || "Unnamed"}</span>
+                      </a>
+                    </td>
+                    <td className={styles.memberEmail}>{member.email || "—"}</td>
+                    <td>
+                      {role === "owner" && member.role !== "owner" ? (
+                        <select className={styles.tableSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
+                          {[...PLAN_OPTIONS].sort((a, b) => Number(b.value === memberPlan) - Number(a.value === memberPlan)).map((option) => (
+                            <option key={option.value} value={option.value} disabled={isActive && option.rank < (PLAN_OPTIONS.find((item) => item.value === memberPlan)?.rank ?? 0)}>{option.label}</option>
                           ))}
-                      </select>
-                    )}
-                    <a
-                      className={styles.toggle}
-                      style={{ display: "inline-block", height: 36, padding: "8px 14px", fontSize: 13 }}
-                      href={`/admin/hosts?userId=${member.id}`}
-                    >
-                      Host
-                    </a>
-                    {role === "owner" && (
-                      <button
-                        className={member.foundingMember ? styles.submit : styles.toggle}
-                        style={{ height: 36, padding: "0 14px", fontSize: 13 }}
-                        onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}
-                      >
-                        {member.foundingMember ? "Unmark 🧶" : "Mark founding"}
-                      </button>
-                    )}
-                  <button
-                    className={member.suspended ? styles.submit : styles.delete}
-                    style={{ height: 36, padding: "0 14px", fontSize: 13 }}
-                    onClick={() => updateMember(member.id, { suspended: !member.suspended })}
-                  >
-                    {member.suspended ? "Unsuspend" : "Suspend"}
-                  </button>
-                  <button
-                    className={styles.delete}
-                    style={{ height: 36, padding: "0 14px", fontSize: 13 }}
-                    onClick={() => requestDelete(member)}
-                  >
-                    Delete
-                  </button>
-                  </div>
-                )}
-              </div>
+                        </select>
+                      ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
+                    </td>
+                    <td>
+                      {role === "owner" && member.role !== "owner" ? (
+                        <select className={styles.tableSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
+                          <option value="member">Member</option><option value="moderator">Moderator</option>
+                        </select>
+                      ) : <span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span>}
+                    </td>
+                    <td><span className={member.suspended ? styles.statusSuspended : isActive ? styles.statusActive : styles.statusInactive}>{statusLabel}</span></td>
+                    <td className={styles.memberJoined}>{formatDate(member.createdAt)}</td>
+                    <td>
+                      <div className={styles.memberActions}>
+                        <a className={styles.actionLink} href={`/members/${member.id}`}>Profile</a>
+                        {member.role !== "owner" && <>
+                          <a className={styles.actionLink} href={`/admin/hosts?userId=${member.id}`}>Host</a>
+                          {role === "owner" && <>
+                            <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}>{member.foundingMember ? "Unmark 🧶" : "Mark founding"}</button>
+                            <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { suspended: !member.suspended })}>{member.suspended ? "Unsuspend" : "Suspend"}</button>
+                            <button type="button" className={styles.actionDelete} onClick={() => requestDelete(member)}>Delete</button>
+                          </>}
+                        </>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {pageMembers.length === 0 && <tr><td colSpan={8} className={styles.membersEmpty}>No members match these filters.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={styles.paginationFooter}>
+          <span className={styles.paginationSummary}>Showing <strong>{start}–{end}</strong> of <strong>{filtered.length}</strong> members</span>
+          <nav className={styles.pagination} aria-label="Members pagination">
+            <button type="button" className={styles.pageButton} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>‹ <span>Previous</span></button>
+            {pageNumbers().map((number, index, numbers) => (
+              <span className={styles.pageNumberGroup} key={number}>
+                {index > 0 && number - numbers[index - 1] > 1 && <span className={styles.pageEllipsis}>…</span>}
+                <button type="button" aria-current={currentPage === number ? "page" : undefined} className={currentPage === number ? styles.pageButtonActive : styles.pageButton} onClick={() => setPage(number)}>{number}</button>
+              </span>
             ))}
-          </div>
-        )}
+            <button type="button" className={styles.pageButton} disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}><span>Next</span> ›</button>
+          </nav>
+        </div>
       </div>
       <ConfirmModal
         open={!!deleting}
