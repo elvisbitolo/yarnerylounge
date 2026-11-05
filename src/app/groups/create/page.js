@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import styles from "../groups.module.css";
 
 export default function CreateCirclePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const requestedParent = searchParams.get("parent") || "";
-  const wantsSubgroup = searchParams.get("type") === "subgroup";
+  const [requestedParent] = useState(() => (
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("parent") || "" : ""
+  ));
+  const [wantsSubgroup] = useState(() => (
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("type") === "subgroup" : false
+  ));
   const [groups, setGroups] = useState([]);
   const [parentGroupId, setParentGroupId] = useState(requestedParent);
   const [name, setName] = useState("");
@@ -31,14 +34,15 @@ export default function CreateCirclePage() {
         const movingIn = String(profile.tier || profile.plan || "").toLowerCase() === "moving-in";
         if (!movingIn) throw new Error("Creating crochet circles and subgroups is a Moving In membership privilege.");
         if (active) {
-          setGroups((groupData.groups || []).filter((group) => !group.parentGroupId && group.status === "active"));
-          setParentGroupId(requestedParent);
+          const mainGroups = (groupData.groups || []).filter((group) => !group.parentGroupId && group.status === "active");
+          setGroups(mainGroups);
+          setParentGroupId(requestedParent || (wantsSubgroup ? mainGroups[0]?.id || "" : ""));
         }
       })
       .catch((err) => { if (active) setError(err.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [requestedParent]);
+  }, [requestedParent, wantsSubgroup]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -65,6 +69,7 @@ export default function CreateCirclePage() {
 
   const selectedParent = groups.find((group) => group.id === parentGroupId);
   const isSubgroup = !!parentGroupId || wantsSubgroup;
+  const needsParent = wantsSubgroup && !parentGroupId;
 
   if (loading) {
     return <main className={styles.container}><p className={styles.subtitle}>Preparing your circle builder…</p></main>;
@@ -105,7 +110,10 @@ export default function CreateCirclePage() {
           {selectedParent && (
             <p className={styles.createCircleParentNote}>This subgroup will appear inside <strong>{selectedParent.name}</strong>.</p>
           )}
-          <button className={styles.createCircleSubmit} type="submit" disabled={busy || !name.trim()}>
+          {needsParent && (
+            <p className={styles.createCircleParentNote}>Create a main crochet circle first, or choose an existing circle above, before launching a subgroup.</p>
+          )}
+          <button className={styles.createCircleSubmit} type="submit" disabled={busy || !name.trim() || needsParent}>
             {busy ? "Creating…" : isSubgroup ? "Launch subgroup" : "Create crochet circle"}
           </button>
         </form>
