@@ -18,7 +18,10 @@ export async function GET() {
         id: true,
         name: true,
         email: true,
+        photoURL: true,
+        createdAt: true,
         role: true,
+        roleLabel: true,
         plan: true,
         suspended: true,
         foundingMember: true,
@@ -34,18 +37,21 @@ export async function GET() {
         trialEnd: true,
       },
     });
-    const subMap = new Map(subs.map((s) => [s.id, s]));
-    const members = users.map((u) => {
-      const sub = subMap.get(u.id) || null;
+    const subMap = new Map(subs.map((sub) => [sub.id, sub]));
+    const members = users.map((user) => {
+      const sub = subMap.get(user.id) || null;
       const active = isActiveSub(sub);
       return {
-        id: u.id,
-        name: u.name || "",
-        email: u.email || "",
-        role: u.role || "member",
-        plan: (sub && active ? sub.tier : null) || u.plan || "flirting",
-        suspended: u.suspended || false,
-        foundingMember: !!u.foundingMember,
+        id: user.id,
+        name: user.name || "",
+        email: user.email || "",
+        photoURL: user.photoURL || "",
+        createdAt: user.createdAt,
+        role: user.role || "member",
+        roleLabel: user.roleLabel || "",
+        plan: (sub && active ? sub.tier : null) || user.plan || "flirting",
+        suspended: user.suspended || false,
+        foundingMember: !!user.foundingMember,
         tier: sub && active ? sub.tier || "lounge" : "",
         subStatus: active
           ? sub.status === "trialing"
