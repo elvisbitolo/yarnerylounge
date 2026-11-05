@@ -86,11 +86,19 @@ export default function SigningInPage() {
             window.location.assign("/consent");
           }, 300);
         } else if (ready) {
-          // Full reload so server-rendered pages read the fresh session cookie.
-          // Give the branded screen at least a moment so the swap feels smooth.
+          // Only genuinely new accounts carry this server-set flag. Existing
+          // members continue straight to the dashboard.
+          let destination = "/dashboard";
+          try {
+            const response = await fetch("/api/me", { cache: "no-store" });
+            const member = response.ok ? await response.json() : null;
+            if (member?.welcomeJourneyPending) destination = "/welcome";
+          } catch {
+            // A transient profile read must not strand a successfully signed-in member.
+          }
           timeoutId = setTimeout(() => {
-            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload reads the httpOnly session cookie
-            window.location.assign("/dashboard");
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload reads the fresh httpOnly session cookie
+            window.location.assign(destination);
           }, 900);
         } else {
           giveUp();
