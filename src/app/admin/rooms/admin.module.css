@@ -515,3 +515,46 @@ a.statCard:hover {
   .pagination { flex-wrap: wrap; }
   .pageButton span { display: none; }
 }
+
+
+/* Responsive admin members experience */
+.membersDesktopTable { display: block; min-width: 0; }
+.membersMobileList { display: none; }
+.mobileMemberCard { min-width: 0; padding: 16px; border: 1px solid #ececf1; border-radius: 13px; background: #fff; box-shadow: 0 2px 8px rgba(25, 25, 35, .035); }
+.mobileMemberTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.mobileMemberTop .memberIdentity { min-width: 0; flex: 1; }
+.mobileMemberAvatar { width: 42px; height: 42px; flex-basis: 42px; }
+.mobileMemberIdentityText { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mobileMemberName { overflow: hidden; color: #20202a; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.mobileMemberEmail { overflow-wrap: anywhere; color: #777783; font-size: 11px; }
+.mobileMemberDetails { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 16px 0; padding: 13px 0; border-top: 1px solid #f0f0f3; border-bottom: 1px solid #f0f0f3; }
+.mobileMemberDetails div { min-width: 0; }
+.mobileMemberDetails dt { margin-bottom: 5px; color: #898995; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.mobileMemberDetails dd { margin: 0; color: #33333d; font-size: 12px; }
+.mobileMemberSelect { width: 100%; max-width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid #e2e2e9; border-radius: 8px; background: #fff; color: #34343d; font: inherit; font-size: 12px; }
+.mobileMemberActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mobileMemberActions .actionLink, .mobileMemberActions .actionDelete { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; font-size: 11px; }
+.mobileMembersEmpty { margin: 0; padding: 28px 16px; border: 1px dashed #d8d8e3; border-radius: 12px; color: #777783; text-align: center; }
+@media (max-width: 760px) {
+  .membersContainer { padding: 22px 14px; }
+  .membersDesktopTable { display: none; }
+  .membersMobileList { display: grid; gap: 12px; }
+  .membersHeader { gap: 12px; }
+  .membersHeader .title { font-size: 25px; }
+  .membersSubtitle { line-height: 1.5; }
+  .memberToolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .memberSearch { grid-column: 1 / -1; }
+  .memberFilter { min-width: 0; }
+  .exportButton { grid-column: 1 / -1; min-height: 44px; }
+  .paginationFooter { gap: 12px; }
+  .pagination { justify-content: flex-start; gap: 6px; }
+  .pageButton, .pageButtonActive { min-width: 38px; min-height: 38px; }
+}
+@media (max-width: 380px) {
+  .membersContainer { padding: 18px 10px; }
+  .mobileMemberCard { padding: 13px; }
+  .mobileMemberTop { align-items: flex-start; }
+  .mobileMemberTop > .statusActive, .mobileMemberTop > .statusInactive, .mobileMemberTop > .statusSuspended { flex-shrink: 0; }
+  .mobileMemberActions { gap: 6px; }
+  .mobileMemberActions .actionLink, .mobileMemberActions .actionDelete { flex: 1 1 auto; }
+}
