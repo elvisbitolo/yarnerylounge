@@ -246,8 +246,8 @@ export default function AdminMembersPage() {
                     </td>
                     <td className={styles.memberEmail}>{member.email || "—"}</td>
                     <td>
-                      {role === "owner" && member.role !== "owner" ? (
-                        <select className={styles.tableSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
+                      {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
+                        <select className={styles.tableSelect} value={memberPlan} onChange={(event) => requestPlanChange(member, event.target.value)} aria-label={`Plan for ${member.name || member.email}`}>
                           {[...PLAN_OPTIONS].sort((a, b) => Number(b.value === memberPlan) - Number(a.value === memberPlan)).map((option) => (
                             <option key={option.value} value={option.value} >{option.label}</option>
                           ))}
@@ -311,7 +311,7 @@ export default function AdminMembersPage() {
                     {role === "owner" && member.role !== "owner" ? (
                       <select className={styles.mobileMemberSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
                         {PLAN_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value} disabled={isActive && option.rank < (PLAN_OPTIONS.find((item) => item.value === memberPlan)?.rank ?? 0)}>{option.label}</option>
+                          <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
                     ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
@@ -358,6 +358,17 @@ export default function AdminMembersPage() {
           </nav>
         </div>
       </div>
+      <ConfirmModal
+        open={!!planChange}
+        title="Confirm membership downgrade"
+        message={planChange ? `Change ${planChange.member.name || planChange.member.email || "this member"} from ${PLAN_OPTIONS.find((option) => option.value === (planChange.member.plan || "flirting"))?.label} to ${PLAN_OPTIONS.find((option) => option.value === planChange.nextPlan)?.label}? This takes effect immediately and removes access to features exclusive to the previous tier.` : ""}
+        confirmLabel="Apply downgrade"
+        busy={planBusy}
+        busyLabel="Updating…"
+        danger
+        onConfirm={confirmPlanChange}
+        onCancel={() => !planBusy && setPlanChange(null)}
+      />
       <ConfirmModal
         open={!!deleting}
         title="Delete member"
