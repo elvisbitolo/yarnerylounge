@@ -70,7 +70,14 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
     dragRef.current = null;
     if (drag.moved) {
       suppressClickRef.current = true;
-      window.localStorage.setItem("room-music-control-position", JSON.stringify(position));
+      try {
+        window.localStorage.setItem("room-music-control-position", JSON.stringify({
+          left: Math.max(8, Math.min(drag.startLeft + (e.clientX - drag.startX), window.innerWidth - 56)),
+          bottom: Math.max(8, Math.min(drag.startBottom - (e.clientY - drag.startY), window.innerHeight - 56)),
+        }));
+      } catch {
+        // Dragging still works when browser storage is unavailable.
+      }
       window.setTimeout(() => { suppressClickRef.current = false; }, 0);
     }
   }
@@ -232,8 +239,12 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
           ref={panelRef}
           style={{
             position: "fixed",
-            bottom: position.bottom + 58,
-            left: position.left,
+            bottom: typeof window === "undefined"
+              ? position.bottom + 58
+              : Math.min(position.bottom + 58, Math.max(12, window.innerHeight - 180)),
+            left: typeof window === "undefined"
+              ? position.left
+              : Math.max(8, Math.min(position.left, window.innerWidth - 356)),
             zIndex: 1000,
             width: 340,
             maxWidth: "calc(100vw - 32px)",
