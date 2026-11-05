@@ -60,7 +60,7 @@ export default async function GroupPage({ params }) {
     (groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
   const canLaunchSubgroup =
     canBuildNeighborhoods(caps) &&
-    (group.createdBy === user.uid || groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
+    (isMember || groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
 
   return (
       <div className={styles.container}>
