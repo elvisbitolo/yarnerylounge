@@ -24,7 +24,6 @@ export const BADGES = {
   streak_3: { name: "3 Day Streak", description: "Visited 3 days in a row" },
   streak_7: { name: "7 Day Streak", description: "Visited 7 days in a row" },
   streak_30: { name: "30 Day Streak", description: "Visited 30 days in a row" },
-  course_complete: { name: "Course Completed", description: "Finished a course" },
 };
 
 function todayKey(offset = 0) {
