@@ -159,9 +159,13 @@ export default function AdminMembersPage() {
                         value={member.plan || "flirting"}
                         onChange={(e) => updateMember(member.id, { plan: e.target.value }) }
                       >
+                        {member.plan === "moving-in" && (
+                          <option value="moving-in">Moving In</option>
+                        )}
+                        {member.plan === "hooking-up" && (
+                          <option value="hooking-up">Hooking Up</option>
+                        )}
                         <option value="flirting">Flirting (Free)</option>
-                        <option value="hooking-up">Hooking Up</option>
-                        <option value="moving-in">Moving In</option>
                       </select>
                     )}
                     <a
