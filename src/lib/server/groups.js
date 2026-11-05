@@ -28,6 +28,7 @@ function mapGroupRow(row) {
     welcomePostText: row.welcomePostText || "",
     avatar: row.avatar || "",
     imageUrl: row.imageUrl || "",
+    parentGroupId: row.parentGroupId || "",
   };
 }
 
@@ -79,6 +80,21 @@ export async function getGroupBySlug(slug) {
   } catch (err) {
     logError("groups.prisma_get_by_slug_failed", { error: err.message });
     return null;
+  }
+}
+
+export async function getChildGroups(parentGroupId) {
+  try {
+    const prisma = getPrisma();
+    if (!prisma || !parentGroupId) return [];
+    const rows = await prisma.group.findMany({
+      where: { parentGroupId, status: "active" },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map(mapGroupRow);
+  } catch (err) {
+    logError("groups.prisma_children_failed", { error: err.message, parentGroupId });
+    return [];
   }
 }
 
