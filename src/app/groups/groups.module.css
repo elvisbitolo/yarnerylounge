@@ -949,6 +949,7 @@
   cursor: pointer;
 }
 .createCirclePhotoPicker:hover { border-color: #ff7eb5; background: rgba(233,30,99,.06); }
+.createCirclePhotoPicker:focus-within { outline: 2px solid rgba(255,126,181,.55); outline-offset: 3px; }
 .createCirclePhotoPicker > span:last-of-type { display: grid; gap: 5px; }
 .createCirclePhotoPicker strong { color: #f5f5fa; font-size: 13px; }
 .createCirclePhotoPicker small { color: #9b9bab; font-size: 11px; font-weight: 450; line-height: 1.45; }
