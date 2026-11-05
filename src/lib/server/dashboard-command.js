@@ -248,7 +248,7 @@ function resolveActivityMemberName(profile, fallback = "") {
   if (fullName) return fullName;
 
   const emailPrefix = typeof profile?.email === "string" ? profile.email.split("@")[0] : "";
-  const readableEmailName = emailPrefix.replace(/[._-]+/g, " ").replace(/\\s+/g, " ").trim();
+  const readableEmailName = emailPrefix.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
   return readableEmailName || fallback || "Member";
 }
 
@@ -838,7 +838,7 @@ export async function getDashboardCommandData(uid, userDoc) {
 
   const user = {
     uid,
-    name: userDoc?.name || userDoc?.displayName || "Member",
+    name: resolveActivityMemberName(userDoc, userDoc?.displayName || "Member"),
     email: userDoc?.email || "",
     role,
     photoURL: userDoc?.photoURL || "",
