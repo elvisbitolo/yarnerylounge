@@ -935,3 +935,53 @@
   cursor: pointer;
 }
 .createCircleSubmit:disabled { opacity: .55; cursor: not-allowed; }
+
+
+.createCirclePhotoPicker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 112px;
+  padding: 13px;
+  border: 1px dashed rgba(255,126,181,.42);
+  border-radius: 13px;
+  background: rgba(255,255,255,.025);
+  cursor: pointer;
+}
+.createCirclePhotoPicker:hover { border-color: #ff7eb5; background: rgba(233,30,99,.06); }
+.createCirclePhotoPicker > span:last-of-type { display: grid; gap: 5px; }
+.createCirclePhotoPicker strong { color: #f5f5fa; font-size: 13px; }
+.createCirclePhotoPicker small { color: #9b9bab; font-size: 11px; font-weight: 450; line-height: 1.45; }
+.createCirclePhotoPicker input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.createCirclePhotoPlaceholder {
+  display: grid;
+  place-items: center;
+  flex: 0 0 82px;
+  width: 82px;
+  height: 82px;
+  border-radius: 11px;
+  background: rgba(233,30,99,.14);
+  color: #ffabd0;
+  font-size: 28px;
+}
+.createCirclePhotoPreview {
+  flex: 0 0 110px;
+  width: 110px;
+  height: 82px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.createCircleUploadStatus { color: #ffabd0; font-size: 11px; }
+.createCircleRemovePhoto {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #ffabd0;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.groupCardImageLink { display: block; margin: -24px -24px 16px; overflow: hidden; border-radius: 13px 13px 0 0; }
+.groupCardImage { display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover; transition: transform .2s ease; }
+.card:hover .groupCardImage { transform: scale(1.025); }
