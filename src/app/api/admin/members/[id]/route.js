@@ -23,6 +23,10 @@ export async function PATCH(req, { params }) {
   }
 
   const update = {};
+  const existingSub = plan !== undefined
+    ? await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } })
+    : null;
+
   if (role !== undefined) {
     if (!["member", "moderator"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
@@ -55,9 +59,6 @@ export async function PATCH(req, { params }) {
     if (auth.userDoc.role !== "owner") {
       return NextResponse.json({ error: "Only the owner can upgrade plans" }, { status: 403 });
     }
-    const existingSub = await prisma.subscription.findFirst({
-      where: { OR: [{ id: id }, { userId: id }] },
-    });
     const isActive = existingSub ? isActiveSub(existingSub) : false;
     if (!mayWriteTier({
       currentTier: existingSub?.tier,
@@ -79,40 +80,47 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Could not update member" }, { status: 500 });
   }
 
-  await prisma.subscription.upsert({
-    where: { id: id },
-    create: {
-      id: id,
-      userId: id,
-      provider: "admin",
-      status: "active",
-      plan: plan || existing.plan || "flirting",
-      tier: plan || existingSub?.tier || "flirting",
-      planName: plan || existing.plan || "Flirting",
-      role: existing.role,
-      shopifyCustomerId: existing.shopifyCustomerId || "",
-      shopifyOrderId: existing.shopifyOrderId || "",
-      currentPeriodEnd: null,
-      canceledAt: null,
-      cancelAtPeriodEnd: false,
-      updatedAt: new Date(),
-    },
-    update: {
-      plan: update.plan,
-      tier: update.tier,
-      planName: update.plan,
-      status: "active",
-      updatedAt: new Date(),
-    },
-  });
+  if (plan !== undefined) {
+    try {
+      await prisma.subscription.upsert({
+        where: { id },
+        create: {
+          id,
+          userId: id,
+          provider: "admin",
+          status: "active",
+          plan,
+          tier: plan,
+          planName: plan,
+          role: existing.role,
+          shopifyCustomerId: existing.shopifyCustomerId || "",
+          shopifyOrderId: existing.shopifyOrderId || "",
+          currentPeriodEnd: null,
+          canceledAt: null,
+          cancelAtPeriodEnd: false,
+          updatedAt: new Date(),
+        },
+        update: {
+          plan,
+          tier: plan,
+          planName: plan,
+          status: "active",
+          updatedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      logError("admin.members.subscription_update_failed", { error: err.message, uid: id });
+      return NextResponse.json({ error: "Member plan was updated, but subscription details could not be saved" }, { status: 500 });
+    }
 
-  await logAudit({
-    actorId: auth.user.uid,
-    actorName: auth.userDoc?.name || auth.user.email || "",
-    action: "member.plan_upgraded",
-    targetId: id,
-    metadata: { plan: update.plan, prevPlan: existing.plan, role: existing.role },
-  });
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: auth.userDoc?.name || auth.user.email || "",
+      action: "member.plan_upgraded",
+      targetId: id,
+      metadata: { plan, prevPlan: existing.plan, role: existing.role },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
