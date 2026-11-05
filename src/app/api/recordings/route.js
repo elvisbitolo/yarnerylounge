@@ -34,10 +34,17 @@ export async function GET(req) {
     // Dashboard cards request signed poster URLs explicitly; other library
     // consumers avoid the extra Storage round-trip unless they need thumbnails.
     if (searchParams.get("thumbnails") === "1") {
-      const thumbnailUrls = await signThumbnailUrls(rows);
-      data.forEach((recording) => {
-        recording.thumbnailUrl = thumbnailUrls[recording.id] || null;
-      });
+      try {
+        const thumbnailUrls = await signThumbnailUrls(rows);
+        data.forEach((recording) => {
+          recording.thumbnailUrl = thumbnailUrls[recording.id] || null;
+        });
+      } catch {
+        // A poster-signing failure should never hide otherwise playable videos.
+        data.forEach((recording) => {
+          recording.thumbnailUrl = null;
+        });
+      }
     }
     return NextResponse.json({ ok: true, data });
   } catch (error) {
