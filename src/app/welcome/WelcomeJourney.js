@@ -77,36 +77,51 @@ export default function WelcomeJourney({ initial }) {
     }
   }
 
-  async function finish(includeInterests) {
+  async function saveInterests() {
     setError("");
     setBusy(true);
     try {
-      if (includeInterests) {
-        if (!craftInterests.length || !projectTypes.length || !communityGoals.length) {
-          throw new Error("Choose at least one craft, project type and community goal — or skip this step for now.");
-        }
-        const response = await fetch("/api/onboarding", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            skillLevel, craftInterests, projectTypes, communityGoals,
-            yarnPreference, hookSize,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
-          }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Could not save your interests");
+      if (!craftInterests.length || !projectTypes.length || !communityGoals.length) {
+        throw new Error("Choose at least one craft, project type and community goal — or skip this step for now.");
       }
+      const response = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skillLevel, craftInterests, projectTypes, communityGoals,
+          yarnPreference, hookSize,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not save your interests");
+      setStep(3);
+    } catch (err) {
+      setError(err.message || "Could not save your interests");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function completeJourney() {
+    setError("");
+    setBusy(true);
+    try {
       const response = await fetch("/api/welcome-journey", { method: "POST" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Could not finish your welcome");
       router.replace("/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err.message || "Something went wrong");
+      setError(err.message || "Could not finish your welcome");
     } finally {
       setBusy(false);
     }
+  }
+
+  function skipInterests() {
+    setError("");
+    setStep(3);
   }
 
   async function next() {
@@ -130,14 +145,14 @@ export default function WelcomeJourney({ initial }) {
     }
   }
 
-  const steps = ["Your identity", "Your story", "Your interests"];
+  const steps = ["Your identity", "Your story", "Your interests", "Meet the community"];
   return (
     <section className={styles.card}>
       <p className={styles.eyebrow}>Welcome to Yarnery Lounge</p>
       <h1 className={styles.title}>Let’s make this feel like yours.</h1>
       <p className={styles.intro}>A few quick details help other members recognise you and help us bring the right people, rooms and inspiration your way. You can change everything later.</p>
 
-      <div className={styles.progressMeta}><span>Step {step + 1} of 3</span><span>{Math.round(((step + 1) / 3) * 100)}%</span></div>
+      <div className={styles.progressMeta}><span>Step {step + 1} of 4</span><span>{Math.round(((step + 1) / 4) * 100)}%</span></div>
       <div className={styles.progressTrack}><span style={{ width: `${((step + 1) / 3) * 100}%` }} /></div>
       <div className={styles.stepLabels}>{steps.map((item, index) => <span key={item} className={index === step ? styles.activeStep : index < step ? styles.pastStep : ""}>{item}</span>)}</div>
 
@@ -184,13 +199,29 @@ export default function WelcomeJourney({ initial }) {
         </div>
       )}
 
+      {step === 3 && (
+        <div className={styles.content}>
+          <h2 className={styles.communityTitle}>You’re part of the Yarnery community.</h2>
+          <p className={styles.communityIntro}>Your profile is taking shape. Here are a few easy ways to meet people, find inspiration and feel at home.</p>
+          <div className={styles.exploreLinks}>
+            <a href="/rooms"><strong>Join a live lounge</strong><span>Say hello and craft alongside other members.</span></a>
+            <a href="/members"><strong>Meet other Yarnies</strong><span>Discover members who share your interests.</span></a>
+            <a href="/feed"><strong>Share your first post</strong><span>Show what you’re making or ask the community.</span></a>
+            <a href="/events"><strong>Find an event</strong><span>See what’s happening and join in.</span></a>
+          </div>
+          <p className={styles.hint}>You can do these whenever you’re ready. Your welcome checklist will help you keep track.</p>
+        </div>
+      )}
+
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.actions}>
         {step > 0 && <button type="button" className={styles.secondary} onClick={() => { setError(""); setStep((current) => current - 1); }} disabled={busy}>Back</button>}
-        {step < 2 ? <button type="button" className={styles.primary} onClick={next} disabled={busy || uploading}>{busy ? "Saving…" : "Save and continue"}</button> : <>
-          <button type="button" className={styles.secondary} onClick={() => finish(false)} disabled={busy}>{busy ? "Finishing…" : "Skip for now"}</button>
-          <button type="button" className={styles.primary} onClick={() => finish(true)} disabled={busy}>{busy ? "Finishing…" : "Finish and explore"}</button>
+        {step < 2 && <button type="button" className={styles.primary} onClick={next} disabled={busy || uploading}>{busy ? "Saving…" : "Save and continue"}</button>}
+        {step === 2 && <>
+          <button type="button" className={styles.secondary} onClick={skipInterests} disabled={busy}>Skip interests</button>
+          <button type="button" className={styles.primary} onClick={saveInterests} disabled={busy}>{busy ? "Saving…" : "Save interests"}</button>
         </>}
+        {step === 3 && <button type="button" className={styles.primary} onClick={completeJourney} disabled={busy}>{busy ? "Finishing…" : "Enter Yarnery Lounge"}</button>}
       </div>
     </section>
   );
