@@ -30,6 +30,7 @@ export default async function GroupsPage() {
       name: group.name,
       slug: group.slug,
       description: group.description || "",
+      imageUrl: group.imageUrl || group.avatar || "",
       sidebarDescription: group.sidebarDescription || "",
       hangoutTag: group.hangoutTag || "",
       hangoutRoomSlug: group.hangoutRoomSlug || "",
