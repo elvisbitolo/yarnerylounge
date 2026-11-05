@@ -1,7 +1,7 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { canModerate } from "@/lib/server/auth";
 import { getSettings } from "@/lib/server/settings";
-import { listRooms } from "@/lib/server/rooms";
+import { listVisibleCommunityRooms } from "@/lib/server/rooms";
 import { isRoomLive } from "@/lib/server/rooms-core";
 import { activeRoomMemberCounts } from "@/lib/server/room-presence";
 import { listEvents, expandEvents, listRsvps, getEvent } from "@/lib/server/events";
@@ -535,9 +535,9 @@ export async function getDashboardSpotlight(uid, limit = 5) {
   return { events, myBlocks, pinnedBlocks, recent };
 }
 
-export async function getDashboardUpcomingRooms(limit = 6) {
+export async function getDashboardUpcomingRooms(uid, userDoc, limit = 6) {
   const now = Date.now();
-  const [rooms, events] = await Promise.all([listRooms(), listEvents()]);
+  const [rooms, events] = await Promise.all([listVisibleCommunityRooms(uid, userDoc), listEvents()]);
   const activeRooms = rooms.filter((room) => room.status === "active");
   const liveRooms = activeRooms.filter((room) => isRoomLive(room, now));
   const scheduledRooms = activeRooms
@@ -814,7 +814,7 @@ export async function getDashboardCommandData(uid, userDoc) {
     await Promise.all([
       attempt(() => getDashboardStats(uid, userDoc)),
       attempt(() => getDashboardActivity(uid, role, memberships)),
-      attempt(() => getDashboardUpcomingRooms()),
+      attempt(() => getDashboardUpcomingRooms(uid, userDoc)),
       attempt(() => getDashboardSpotlight(uid)),
       attempt(() => getDashboardMessages(uid)),
       attempt(() => getDashboardContent()),
