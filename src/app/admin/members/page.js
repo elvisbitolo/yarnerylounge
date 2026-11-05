@@ -38,6 +38,8 @@ export default function AdminMembersPage() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
   const [delBusy, setDelBusy] = useState(false);
+  const [planChange, setPlanChange] = useState(null);
+  const [planBusy, setPlanBusy] = useState(false);
 
   const loadMembers = useCallback(async () => {
     const res = await fetch("/api/admin/members");
@@ -71,9 +73,33 @@ export default function AdminMembersPage() {
     if (!res.ok) {
       const data = await res.json();
       setError(data.error || "Update failed");
-      return;
+      return false;
     }
     await loadMembers();
+    return true;
+  }
+
+  function requestPlanChange(member, nextPlan) {
+    const current = PLAN_OPTIONS.find((option) => option.value === (member.plan || "flirting"));
+    const next = PLAN_OPTIONS.find((option) => option.value === nextPlan);
+    if (!next || nextPlan === (member.plan || "flirting")) return;
+    if (current && next.rank < current.rank) {
+      setError("");
+      setPlanChange({ member, nextPlan });
+      return;
+    }
+    updateMember(member.id, { plan: nextPlan });
+  }
+
+  async function confirmPlanChange() {
+    if (!planChange) return;
+    setPlanBusy(true);
+    try {
+      const updated = await updateMember(planChange.member.id, { plan: planChange.nextPlan });
+      if (updated) setPlanChange(null);
+    } finally {
+      setPlanBusy(false);
+    }
   }
 
   function requestDelete(member) {
@@ -223,7 +249,7 @@ export default function AdminMembersPage() {
                       {role === "owner" && member.role !== "owner" ? (
                         <select className={styles.tableSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
                           {[...PLAN_OPTIONS].sort((a, b) => Number(b.value === memberPlan) - Number(a.value === memberPlan)).map((option) => (
-                            <option key={option.value} value={option.value} disabled={isActive && option.rank < (PLAN_OPTIONS.find((item) => item.value === memberPlan)?.rank ?? 0)}>{option.label}</option>
+                            <option key={option.value} value={option.value} >{option.label}</option>
                           ))}
                         </select>
                       ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
