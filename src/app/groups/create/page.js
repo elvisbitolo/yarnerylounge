@@ -14,6 +14,7 @@ export default function CreateCirclePage() {
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("type") === "subgroup" : false
   ));
   const [groups, setGroups] = useState([]);
+  const [canCreate, setCanCreate] = useState(false);
   const [parentGroupId, setParentGroupId] = useState(requestedParent);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -26,18 +27,15 @@ export default function CreateCirclePage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetch("/api/groups", { cache: "no-store" }),
-      fetch("/api/me", { cache: "no-store" }),
-    ])
-      .then(async ([groupsResponse, profileResponse]) => {
-        if (!groupsResponse.ok || !profileResponse.ok) throw new Error("Could not load your community access.");
-        const [groupData, profile] = await Promise.all([groupsResponse.json(), profileResponse.json()]);
-        const movingIn = String(profile.tier || profile.plan || "").toLowerCase() === "moving-in";
-        if (!movingIn) throw new Error("Creating crochet circles and subgroups is a Moving In membership privilege.");
+    fetch("/api/groups", { cache: "no-store" })
+      .then(async (groupsResponse) => {
+        if (!groupsResponse.ok) throw new Error("Could not load your community access.");
+        const groupData = await groupsResponse.json();
+        if (!groupData.canCreate) throw new Error("Creating crochet circles and subgroups is a Moving In membership privilege.");
         if (active) {
+          setCanCreate(true);
           const mainGroups = (groupData.groups || []).filter(
-            (group) => !group.parentGroupId && group.status === "active" && (group.joined || group.createdBy === profile.uid)
+            (group) => !group.parentGroupId && group.status === "active" && (group.joined || group.createdBy === groupData.uid)
           );
           setGroups(mainGroups);
           const requested = mainGroups.find((group) => group.id === requestedParent);
@@ -123,6 +121,7 @@ export default function CreateCirclePage() {
         </p>
         {error && <p className={styles.error} role="alert">{error}</p>}
         {success && <p className={styles.createCircleSuccess} role="status">{success}</p>}
+        {canCreate && (
         <form className={styles.createCircleForm} onSubmit={handleSubmit}>
           <div className={styles.createCircleField}>
             <span>Circle photo</span>
@@ -176,6 +175,7 @@ export default function CreateCirclePage() {
             {busy ? "Creating…" : uploadingImage ? "Uploading photo…" : isSubgroup ? "Launch subgroup" : "Create crochet circle"}
           </button>
         </form>
+        )}
       </section>
     </main>
   );
