@@ -38,6 +38,8 @@ export async function GET() {
     check: {
       profile: {
         name: userDoc?.name || user.name || "",
+        username: userDoc?.username || "",
+        photoURL: userDoc?.photoURL || "",
         headline: userDoc?.headline || "",
         location: userDoc?.location || "",
         bio: userDoc?.bio || "",

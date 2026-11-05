@@ -108,6 +108,7 @@ export async function GET() {
     uid: user.uid,
     name: userDoc?.name || user.name || user.displayName || "",
     username: userDoc?.username || "",
+    welcomeJourneyPending: userDoc?.extra?.welcomeJourneyPending === true,
     email: user.email,
     role: userDoc?.role || "member",
     roleLabel: userDoc?.roleLabel || "",
