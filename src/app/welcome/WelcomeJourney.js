@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import styles from "./welcome.module.css";
 
 const CRAFTS = ["crochet", "knitting", "weaving", "spinning", "dyeing", "embroidery", "macrame"];
-const PROJECTS = ["amigurumi", "garments", "blankets", "accessories", "home decor", "baby items", "jewelry"];
+const PROJECTS = ["amigurumi", "garments", "blankets", "accessories", "home-decor", "baby-items", "jewelry"];
 const GOALS = ["learn", "share", "patterns", "connect", "courses"];
 const label = (value) => value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
