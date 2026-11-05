@@ -847,6 +847,7 @@ export async function getDashboardCommandData(uid, userDoc) {
     email: userDoc?.email || "",
     role,
     photoURL: userDoc?.photoURL || "",
+    username: userDoc?.username || "",
     points: Number(gamification?.points) || 0,
     streak: Number(gamification?.streak) || 0,
     membership: {
