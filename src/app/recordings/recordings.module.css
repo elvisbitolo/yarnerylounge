@@ -886,3 +886,55 @@
 .memberHelp { display:flex; flex-direction:column; gap:5px; margin-top:24px; padding:16px 18px; border:1px solid #34313f; border-radius:12px; background:linear-gradient(120deg,rgba(246,7,122,.08),rgba(250,129,205,.035)); color:#f5f4f2; font-size:14px; line-height:1.6; }
 .memberHelp strong { font-size:15px; }
 .memberHelp span { color:#b7b4c0; }
+
+
+/* Immersive recording playback */
+.playerPanelCinema {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+  margin: 0;
+  padding: clamp(16px, 3vw, 36px);
+  border: 0;
+  border-radius: 0;
+  background: rgba(5, 5, 9, 0.98);
+}
+.playerPanelCinema .playerHead,
+.playerPanelCinema .playerControls,
+.playerPanelCinema .playerDetails {
+  width: min(100%, 1200px);
+  margin-left: auto;
+  margin-right: auto;
+}
+.playerPanelCinema .playerStageCinema {
+  width: min(100%, 1200px);
+  height: min(70vh, 760px);
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 12px;
+}
+.playerPanelCinema .videoCinema {
+  object-fit: contain;
+}
+.playerDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin: 14px auto 0;
+  padding: 0;
+}
+.playerDetails div { display: flex; flex-direction: column; gap: 3px; min-width: 100px; }
+.playerDetails dt { color: #9292a2; font-size: 11px; }
+.playerDetails dd { margin: 0; color: #e7e7ee; font-size: 13px; overflow-wrap: anywhere; }
+.playerPanelCinema .playerDetails { padding-bottom: 8px; }
+@media (max-width: 620px) {
+  .playerPanelCinema { justify-content: flex-start; padding: 12px; }
+  .playerPanelCinema .playerStageCinema { width: 100%; height: min(62vh, 620px); }
+  .playerPanelCinema .playerControls { gap: 6px; }
+  .playerPanelCinema .controlButton { padding: 8px; }
+  .playerDetails { gap: 10px 16px; }
+}

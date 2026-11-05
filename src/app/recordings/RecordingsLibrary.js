@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { AlertTriangle, Edit2, Film, LayoutGrid, List, Play, Search, Trash2, User } from "lucide-react";
+import { AlertTriangle, Download, Edit2, Film, LayoutGrid, List, Play, Search, User } from "lucide-react";
 import {
   formatBytes,
   formatDuration,
@@ -37,6 +37,7 @@ export default function RecordingsLibrary({
   recordings,
   loadError,
   canDelete,
+  canDownload = false,
   currentUserId = null,
   storage = null,
   showDeveloperTools = false,
@@ -249,6 +250,27 @@ export default function RecordingsLibrary({
       setNotice({ type: "error", text: error?.message || t("retryFailed") });
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  async function downloadRecording(recording) {
+    setBusyId(recording.id);
+    setNotice(null);
+    try {
+      let media = playback[recording.id];
+      if (!media?.downloadUrl) {
+        const res = await fetch(`/api/recordings/${recording.id}/play`, { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok || !json?.ok) throw new Error(json?.error || t("playbackFailed"));
+        media = json;
+        setPlayback((prev) => ({ ...prev, [recording.id]: json }));
+      }
+      if (!media.downloadUrl) throw new Error(t("downloadUnavailable"));
+      window.location.assign(media.downloadUrl);
+    } catch (error) {
+      setNotice({ type: "error", text: error?.message || t("downloadUnavailable") });
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -787,6 +809,18 @@ export default function RecordingsLibrary({
                     >
                       {t("share")}
                     </button>
+                    {canDownload && (
+                      <button
+                        type="button"
+                        className={styles.shareButton}
+                        onClick={() => downloadRecording(recording)}
+                        disabled={busyId === recording.id}
+                        title={t("download")}
+                      >
+                        <Download size={13} /> {busyId === recording.id ? t("preparingDownload") : t("download")}
+                      </button>
+                    )}
+
                     {(canDelete || (currentUserId && recording.initiatorId === currentUserId)) && (
                       <>
                         <button
