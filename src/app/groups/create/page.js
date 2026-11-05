@@ -34,9 +34,12 @@ export default function CreateCirclePage() {
         const movingIn = String(profile.tier || profile.plan || "").toLowerCase() === "moving-in";
         if (!movingIn) throw new Error("Creating crochet circles and subgroups is a Moving In membership privilege.");
         if (active) {
-          const mainGroups = (groupData.groups || []).filter((group) => !group.parentGroupId && group.status === "active");
+          const mainGroups = (groupData.groups || []).filter(
+            (group) => !group.parentGroupId && group.status === "active" && (group.joined || group.createdBy === profile.uid)
+          );
           setGroups(mainGroups);
-          setParentGroupId(requestedParent || (wantsSubgroup ? mainGroups[0]?.id || "" : ""));
+          const requested = mainGroups.find((group) => group.id === requestedParent);
+          setParentGroupId(requested?.id || (wantsSubgroup ? mainGroups[0]?.id || "" : ""));
         }
       })
       .catch((err) => { if (active) setError(err.message); })
@@ -92,12 +95,12 @@ export default function CreateCirclePage() {
           <label className={styles.createCircleField}>
             <span>{isSubgroup ? "Main crochet circle" : "Make this a subgroup (optional)"}</span>
             <select value={parentGroupId} onChange={(event) => setParentGroupId(event.target.value)}>
-              <option value="">Start a new main circle</option>
+              <option value="">{wantsSubgroup ? "Choose a main circle you belong to" : "Start a new main circle"}</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>{group.emoji ? group.emoji + " " : ""}{group.name}</option>
               ))}
             </select>
-            <small>Subgroups sit one level beneath a main crochet circle. Join the main circle first if you did not create it.</small>
+            <small>Subgroups sit one level beneath a main crochet circle. Only circles you have joined or created are listed.</small>
           </label>
           <label className={styles.createCircleField}>
             <span>{isSubgroup ? "Subgroup name" : "Circle name"}</span>
@@ -111,7 +114,12 @@ export default function CreateCirclePage() {
             <p className={styles.createCircleParentNote}>This subgroup will appear inside <strong>{selectedParent.name}</strong>.</p>
           )}
           {needsParent && (
-            <p className={styles.createCircleParentNote}>Create a main crochet circle first, or choose an existing circle above, before launching a subgroup.</p>
+            <p className={styles.createCircleParentNote}>
+              {groups.length
+                ? "Choose a main crochet circle above before launching your subgroup."
+                : "Join a main crochet circle first. You can explore available circles from the groups page."}
+              {" "}<Link className={styles.link} href="/groups">Explore circles</Link>
+            </p>
           )}
           <button className={styles.createCircleSubmit} type="submit" disabled={busy || !name.trim() || needsParent}>
             {busy ? "Creating…" : isSubgroup ? "Launch subgroup" : "Create crochet circle"}
