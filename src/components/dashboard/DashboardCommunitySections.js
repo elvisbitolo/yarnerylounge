@@ -34,6 +34,27 @@ function DashboardCard({ title, href, linkLabel, children }) {
   );
 }
 
+function MemberActivityAvatar({ photoURL, name }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const initial = (name || "M").trim().charAt(0).toUpperCase() || "M";
+
+  if (photoURL && !imageFailed) {
+    return (
+      <img
+        className={styles.activityAvatar}
+        src={photoURL}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        decoding="async"
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  return <span className={styles.activityAvatarFallback} aria-hidden="true">{initial}</span>;
+}
+
 function relativeTime(value) {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return "";
@@ -55,13 +76,18 @@ export function DashboardCommunityFeed() {
           {posts.map((post) => (
             <li key={post.id}>
               <Link className={styles.item} href="/feed">
-                <span className={styles.itemSplit}>
-                  <span className={styles.itemTitle}>{post.authorName || "Community member"}</span>
-                  <span className={styles.itemMeta}>{relativeTime(post.createdAt)}</span>
+                <span className={styles.activityRow}>
+                  <MemberActivityAvatar photoURL={post.authorPhotoUrl} name={post.authorName} />
+                  <span className={styles.activityContent}>
+                    <span className={styles.itemSplit}>
+                      <span className={styles.itemTitle}>{post.authorName || "Community member"}</span>
+                      <span className={styles.itemMeta}>{relativeTime(post.createdAt)}</span>
+                    </span>
+                    {post.title ? <strong className={styles.itemTitle}>{post.title}</strong> : null}
+                    <span className={styles.itemBody}>{(post.text || post.excerpt || "Shared a community update").slice(0, 180)}</span>
+                    <span className={styles.itemMeta}>{Object.keys(post.likes || {}).length} likes · {post.commentCount || 0} comments</span>
+                  </span>
                 </span>
-                {post.title ? <strong className={styles.itemTitle}>{post.title}</strong> : null}
-                <span className={styles.itemBody}>{(post.text || post.excerpt || "Shared a community update").slice(0, 180)}</span>
-                <span className={styles.itemMeta}>{Object.keys(post.likes || {}).length} likes · {post.commentCount || 0} comments</span>
               </Link>
             </li>
           ))}
@@ -82,12 +108,17 @@ export function DashboardActivityPreview() {
             const href = typeof item.href === "string" && item.href.startsWith("/") ? item.href : "/notifications";
             return <li key={item.id}>
               <Link className={styles.item} href={href}>
-                <span className={styles.itemSplit}>
-                  <span className={styles.itemTitle}>{item.actorName || "Yarnery Lounge"}</span>
-                  <span className={styles.itemMeta}>{relativeTime(item.createdAt)}</span>
+                <span className={styles.activityRow}>
+                  <MemberActivityAvatar photoURL={item.actorPhotoUrl} name={item.actorName || "Yarnery Lounge"} />
+                  <span className={styles.activityContent}>
+                    <span className={styles.itemSplit}>
+                      <span className={styles.itemTitle}>{item.actorName || "Yarnery Lounge"}</span>
+                      <span className={styles.itemMeta}>{relativeTime(item.createdAt)}</span>
+                    </span>
+                    <span className={styles.itemBody}>{item.text || "You have a new community notification."}</span>
+                    {!item.read ? <span className={styles.activityUnread}>New</span> : null}
+                  </span>
                 </span>
-                <span className={styles.itemBody}>{item.text || "You have a new community notification."}</span>
-                {!item.read ? <span className={styles.activityUnread}>New</span> : null}
               </Link>
             </li>;
           })}
