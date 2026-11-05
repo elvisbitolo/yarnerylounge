@@ -5,6 +5,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { mayWriteTier } from "@/lib/server/shopify";
 import { isActiveSub } from "@/lib/server/billing";
 import { logError, logInfo } from "@/lib/server/log";
+import { deleteMemberData } from "@/lib/server/delete-member-data";
 
 const SUPABASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,6 +24,10 @@ export async function PATCH(req, { params }) {
   }
 
   const update = {};
+  const existingSub = plan !== undefined
+    ? await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } })
+    : null;
+
   if (role !== undefined) {
     if (!["member", "moderator"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
@@ -55,9 +60,6 @@ export async function PATCH(req, { params }) {
     if (auth.userDoc.role !== "owner") {
       return NextResponse.json({ error: "Only the owner can upgrade plans" }, { status: 403 });
     }
-    const existingSub = await prisma.subscription.findFirst({
-      where: { OR: [{ id: id }, { userId: id }] },
-    });
     const isActive = existingSub ? isActiveSub(existingSub) : false;
     if (!mayWriteTier({
       currentTier: existingSub?.tier,
@@ -69,50 +71,58 @@ export async function PATCH(req, { params }) {
       }, { status: 400 });
     }
     update.plan = plan;
-    update.tier = plan;
   }
 
   try {
-    await prisma.user.update({ where: { id }, data: update });
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id }, data: update });
+
+      if (plan !== undefined) {
+        await tx.subscription.upsert({
+          where: { id },
+          create: {
+            id,
+            userId: id,
+            provider: "admin",
+            status: "active",
+            plan,
+            tier: plan,
+            planName: plan,
+            role: existing.role,
+            shopifyCustomerId: existing.shopifyCustomerId || "",
+            shopifyOrderId: existing.shopifyOrderId || "",
+            currentPeriodEnd: null,
+            canceledAt: null,
+            cancelAtPeriodEnd: false,
+            updatedAt: new Date(),
+          },
+          update: {
+            plan,
+            tier: plan,
+            planName: plan,
+            status: "active",
+            currentPeriodEnd: null,
+            canceledAt: null,
+            cancelAtPeriodEnd: false,
+            updatedAt: new Date(),
+          },
+        });
+      }
+    });
   } catch (err) {
-    logError("admin.members.update_prisma_failed", { error: err.message, uid: id });
+    logError("admin.members.update_failed", { error: err.message, uid: id });
     return NextResponse.json({ error: "Could not update member" }, { status: 500 });
   }
 
-  await prisma.subscription.upsert({
-    where: { id: id },
-    create: {
-      id: id,
-      userId: id,
-      provider: "admin",
-      status: "active",
-      plan: plan || existing.plan || "flirting",
-      tier: plan || existingSub?.tier || "flirting",
-      planName: plan || existing.plan || "Flirting",
-      role: existing.role,
-      shopifyCustomerId: existing.shopifyCustomerId || "",
-      shopifyOrderId: existing.shopifyOrderId || "",
-      currentPeriodEnd: null,
-      canceledAt: null,
-      cancelAtPeriodEnd: false,
-      updatedAt: new Date(),
-    },
-    update: {
-      plan: update.plan,
-      tier: update.tier,
-      planName: update.plan,
-      status: "active",
-      updatedAt: new Date(),
-    },
-  });
-
-  await logAudit({
-    actorId: auth.user.uid,
-    actorName: auth.userDoc?.name || auth.user.email || "",
-    action: "member.plan_upgraded",
-    targetId: id,
-    metadata: { plan: update.plan, prevPlan: existing.plan, role: existing.role },
-  });
+  if (plan !== undefined) {
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: auth.userDoc?.name || auth.user.email || "",
+      action: "member.plan_upgraded",
+      targetId: id,
+      metadata: { plan, prevPlan: existing.plan, role: existing.role },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
