@@ -405,10 +405,14 @@ export function DashboardCommunityBuilderCard() {
   return (
     <section className={styles.communityBuilderCard} aria-labelledby="community-builder-title">
       <div className={styles.communityBuilderArtwork} aria-hidden="true">
-        <span className={styles.communityBuilderOrb} />
-        <span className={styles.communityBuilderYarn}>🧶</span>
-        <span className={styles.communityBuilderStitch}>✳</span>
-        <span className={styles.communityBuilderThread} />
+        <img
+          className={styles.communityBuilderImage}
+          src="/images/community-builder-crochet.webp"
+          alt=""
+          width="360"
+          height="360"
+          loading="lazy"
+        />
       </div>
       <div className={styles.communityBuilderContent}>
         <div className={styles.communityBuilderTopline}>
