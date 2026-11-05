@@ -184,16 +184,43 @@ export function DashboardActivityPreview() {
         <ul className={styles.list}>
           {notifications.map((item) => {
             const href = typeof item.href === "string" && item.href.startsWith("/") ? item.href : "/notifications";
-            return <li key={item.id}>
-              <Link className={styles.item} href={href}>
-                <span className={styles.itemSplit}>
-                  <span className={styles.itemTitle}>{item.actorName || "Yarnery Lounge"}</span>
+            const actorName = item.actorName || "Yarnery Lounge";
+            const initials = actorName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "Y";
+            const profileHref = item.actorId ? `/members/${encodeURIComponent(item.actorId)}` : null;
+            const avatar = item.actorPhotoUrl ? (
+              <img className={styles.activityAvatar} src={item.actorPhotoUrl} alt="" loading="lazy" />
+            ) : profileHref ? (
+              <span className={styles.activityAvatarFallback} aria-hidden="true">{initials}</span>
+            ) : (
+              <span className={styles.activitySystemAvatar} aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3.5 14 8l4.5 2-4.5 2-2 4.5L10 12l-4.5-2L10 8l2-4.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                  <path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" fill="currentColor" />
+                </svg>
+              </span>
+            );
+            return (
+              <li key={item.id}>
+                <div className={styles.activityItem}>
+                  {profileHref ? (
+                    <Link className={styles.activityActor} href={profileHref} aria-label={`View ${actorName}'s profile`}>
+                      {avatar}
+                      <span className={styles.itemTitle}>{actorName}</span>
+                    </Link>
+                  ) : (
+                    <span className={styles.activityActor}>
+                      {avatar}
+                      <span className={styles.itemTitle}>{actorName}</span>
+                    </span>
+                  )}
                   <span className={styles.itemMeta}>{relativeTime(item.createdAt)}</span>
-                </span>
-                <span className={styles.itemBody}>{item.text || "You have a new community notification."}</span>
-                {!item.read ? <span className={styles.activityUnread}>New</span> : null}
-              </Link>
-            </li>;
+                  <Link className={styles.activityContent} href={href}>
+                    <span className={styles.itemBody}>{item.text || "You have a new community notification."}</span>
+                    {!item.read ? <span className={styles.activityUnread}>New</span> : null}
+                  </Link>
+                </div>
+              </li>
+            );
           })}
         </ul>
       ) : <p className={styles.itemBody}>You&apos;re all caught up. New likes, replies and mentions will appear here.</p>}
