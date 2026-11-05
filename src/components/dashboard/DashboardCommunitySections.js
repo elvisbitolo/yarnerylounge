@@ -144,7 +144,7 @@ export function DashboardCommunityFeed() {
         <ul className={styles.list}>
           {posts.map((post) => {
             const authorName = post.authorName || "Community member";
-            const initials = authorName.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
+            const initials = authorName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
             const profileHref = post.authorId ? `/members/${encodeURIComponent(post.authorId)}` : "/members";
             return (
               <li key={post.id}>
