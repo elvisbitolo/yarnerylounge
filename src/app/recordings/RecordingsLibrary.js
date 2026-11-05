@@ -37,6 +37,7 @@ export default function RecordingsLibrary({
   recordings,
   loadError,
   canDelete,
+  canDownload = false,
   currentUserId = null,
   storage = null,
   showDeveloperTools = false,
@@ -808,7 +809,7 @@ export default function RecordingsLibrary({
                     >
                       {t("share")}
                     </button>
-                    {canDelete && (
+                    {canDownload && (
                       <button
                         type="button"
                         className={styles.shareButton}
