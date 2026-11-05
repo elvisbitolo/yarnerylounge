@@ -20,7 +20,7 @@ import {
 import EventsSpotlight from "./EventsSpotlight";
 import DashboardNotificationCard from "./DashboardNotificationCard";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
-import { DashboardActivityPreview, DashboardCommunityFeed, DashboardMemberDiscovery, DashboardMembershipCard } from "./DashboardCommunitySections";
+import { DashboardActivityPreview, DashboardCommunityFeed, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardMembershipCard } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -226,6 +226,7 @@ export default function DashboardShell() {
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} />
         </div>
+        <DashboardFeaturedVideos />
         <ChristaLiveInvitation />
         <DashboardNotificationCard />
         <div className={styles.grid}>

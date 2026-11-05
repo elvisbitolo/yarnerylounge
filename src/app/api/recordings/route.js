@@ -2,7 +2,7 @@
 // recordings are a shared community artefact, not per-space content.
 
 import { NextResponse } from "next/server";
-import { listDeletedRecordings, listRecordings } from "@/lib/server/recordings";
+import { listDeletedRecordings, listRecordings, signThumbnailUrls } from "@/lib/server/recordings";
 import { serializeRecording } from "@/lib/server/recordings-core";
 import { guardJson, requireActiveMember } from "@/lib/server/authorize";
 
@@ -30,7 +30,23 @@ export async function GET(req) {
       return NextResponse.json({ ok: true, data: deleted.map(serializeRecording) });
     }
     const rows = await listRecordings({ roomId, limit, includeUnready });
-    return NextResponse.json({ ok: true, data: rows.map(serializeRecording) });
+    const data = rows.map(serializeRecording);
+    // Dashboard cards request signed poster URLs explicitly; other library
+    // consumers avoid the extra Storage round-trip unless they need thumbnails.
+    if (searchParams.get("thumbnails") === "1") {
+      try {
+        const thumbnailUrls = await signThumbnailUrls(rows);
+        data.forEach((recording) => {
+          recording.thumbnailUrl = thumbnailUrls[recording.id] || null;
+        });
+      } catch {
+        // A poster-signing failure should never hide otherwise playable videos.
+        data.forEach((recording) => {
+          recording.thumbnailUrl = null;
+        });
+      }
+    }
+    return NextResponse.json({ ok: true, data });
   } catch (error) {
     return NextResponse.json({ error: error?.message || "Failed to load recordings" }, { status: 500 });
   }
