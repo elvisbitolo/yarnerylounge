@@ -342,6 +342,16 @@ export function RecentMessages({ data }) {
   );
 }
 
+export function DashboardMemberAvatar({ name, photoURL, className = "" }) {
+  const initials = (name || "Member").trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
+  const avatarClass = [styles.dashboardMemberAvatar, className].filter(Boolean).join(" ");
+  const fallbackClass = [styles.dashboardMemberAvatarFallback, className].filter(Boolean).join(" ");
+  return photoURL ? (
+    <img className={avatarClass} src={photoURL} alt="" loading="lazy" />
+  ) : (
+    <span className={fallbackClass} aria-hidden="true">{initials}</span>
+  );
+}
 export function ContentPerformance({ data }) {
   const t = useTranslations("dashboard");
   return (
@@ -352,19 +362,28 @@ export function ContentPerformance({ data }) {
         <ul className={styles.list}>
           {data.items.map((item) => (
             <li key={item.id}>
-              <Link className={styles.item} href={item.href}>
-                <span className={styles.itemSplit}>
-                  <span className={styles.itemTitle} style={{ maxWidth: "70%" }}>
-                    {item.title}
+              <div className={styles.dashboardContentItem}>
+                {item.authorId ? (
+                  <Link className={styles.dashboardContentAuthor} href={`/members/${encodeURIComponent(item.authorId)}`}>
+                    <DashboardMemberAvatar name={item.authorName} photoURL={item.authorPhotoUrl} />
+                    <span className={styles.itemTitle}>{item.authorName || "Member"}</span>
+                  </Link>
+                ) : (
+                  <span className={styles.dashboardContentAuthor}>
+                    <DashboardMemberAvatar name={item.authorName} photoURL={null} />
+                    <span className={styles.itemTitle}>{item.authorName || "Member"}</span>
                   </span>
-                  <span className={`${styles.tag} ${styles.tagRsvp}`}>
-                    {item.score} eng.
+                )}
+                <Link className={styles.dashboardContentBody} href={item.href}>
+                  <span className={styles.itemSplit}>
+                    <span className={styles.itemTitle} style={{ maxWidth: "70%" }}>{item.title}</span>
+                    <span className={`${styles.tag} ${styles.tagRsvp}`}>{item.score} eng.</span>
                   </span>
-                </span>
-                <span className={styles.itemMeta}>
-                  {t("byAuthor", { name: item.authorName })} · {t("likesAndComments", { likes: item.likeCount, comments: item.commentCount })}
-                </span>
-              </Link>
+                  <span className={styles.itemMeta}>
+                    {t("likesAndComments", { likes: item.likeCount, comments: item.commentCount })}
+                  </span>
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
