@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listGroups, getGroupMembers, isGroupMember } from "@/lib/server/groups";
+import { getCapabilities, canBuildNeighborhoods } from "@/lib/server/capabilities";
 import GroupsBoard from "./GroupsBoard";
 import styles from "./groups.module.css";
 
@@ -13,7 +14,12 @@ export default async function GroupsPage() {
 
   const userDoc = await getUserDoc(user.uid);
 
-  const groups = await listGroups();
+  const [groups, capabilities] = await Promise.all([
+    listGroups(),
+    getCapabilities(user.uid),
+  ]);
+  const canCreateCircles = canBuildNeighborhoods(capabilities);
+  const groupNames = new Map(groups.map((group) => [group.id, group.name]));
   const withCounts = [];
   for (const group of groups) {
     if (group.status !== "active") continue;
@@ -31,6 +37,8 @@ export default async function GroupsPage() {
       color: group.color || "",
       memberCount: members.length,
       joined: !!membership,
+      parentGroupId: group.parentGroupId || "",
+      parentGroupName: group.parentGroupId ? groupNames.get(group.parentGroupId) || "Main circle" : "",
     });
   }
 
@@ -38,12 +46,15 @@ export default async function GroupsPage() {
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>Groups</h1>
+          {canCreateCircles && (
+            <Link className={styles.adminLink} href="/groups/create">Create a circle</Link>
+          )}
           {userDoc?.role === "owner" && (
             <Link className={styles.adminLink} href="/admin/groups">Manage groups</Link>
           )}
         </div>
         <p className={styles.subtitle}>
-          Sub-communities inside the network. Join the ones that fit.
+          Find your people, build around a shared passion, and join the circles that feel like home.
         </p>
 
         {withCounts.length === 0 ? (
