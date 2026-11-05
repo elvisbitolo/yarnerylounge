@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getGroupBySlug, getGroupMembers, isGroupMember } from "@/lib/server/groups";
+import { getGroupBySlug, getGroupMembers, getChildGroups, getGroup, isGroupMember } from "@/lib/server/groups";
 import { listRoomsForGroup } from "@/lib/server/rooms";
 import { nextEventForRoom } from "@/lib/server/events";
 import { formatClock, formatDay } from "@/lib/calendar-core";
@@ -36,8 +36,12 @@ export default async function GroupPage({ params }) {
     );
   }
 
-  const members = await getGroupMembers(group.id);
-  const membership = await isGroupMember(group.id, user.uid);
+  const [members, membership, childGroups, parentGroup] = await Promise.all([
+    getGroupMembers(group.id),
+    isGroupMember(group.id, user.uid),
+    getChildGroups(group.id),
+    group.parentGroupId ? getGroup(group.parentGroupId) : Promise.resolve(null),
+  ]);
   const isMember = !!membership || userDoc?.role === "owner";
   const memberNames = members.slice(0, 8).map((m) => m.name);
   const groupRooms = await listRoomsForGroup(group.id);
@@ -54,12 +58,21 @@ export default async function GroupPage({ params }) {
   const canBuildTopics =
     canBuildNeighborhoods(caps) &&
     (groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
+  const canLaunchSubgroup =
+    canBuildNeighborhoods(caps) &&
+    (isMember || groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
 
   return (
       <div className={styles.container}>
         <BackButton fallback="/groups" label="All groups" />
         <p className={styles.breadcrumb}>
           <Link className={styles.link} href="/groups">Groups</Link>
+          {parentGroup && (
+            <>
+              <span className={styles.breadcrumbSep}>/</span>
+              <Link className={styles.link} href={`/groups/${parentGroup.slug}`}>{parentGroup.name}</Link>
+            </>
+          )}
           <span className={styles.breadcrumbSep}>/</span>
           <span>{group.name}</span>
         </p>
@@ -161,6 +174,38 @@ export default async function GroupPage({ params }) {
             >
               Join lounge
             </Link>
+          </div>
+        )}
+
+        {childGroups.length > 0 && (
+          <section className={styles.subgroupSection} aria-labelledby="subgroups-title">
+            <div className={styles.subgroupHeading}>
+              <div>
+                <h2 id="subgroups-title" className={styles.sectionTitle}>Subgroups in this circle</h2>
+                <p className={styles.subgroupIntro}>Smaller communities growing from this shared interest.</p>
+              </div>
+              {canLaunchSubgroup && (
+                <Link className={styles.createSubgroupLink} href={`/groups/create?parent=${group.id}`}>＋ Launch a subgroup</Link>
+              )}
+            </div>
+            <div className={styles.subgroupGrid}>
+              {childGroups.map((child) => (
+                <Link key={child.id} href={`/groups/${child.slug}`} className={styles.subgroupCard}>
+                  <strong>{child.emoji ? `${child.emoji} ` : ""}{child.name}</strong>
+                  {child.description && <span>{child.description}</span>}
+                  <small>Explore subgroup →</small>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+        {childGroups.length === 0 && canLaunchSubgroup && !group.parentGroupId && (
+          <div className={styles.subgroupInvite}>
+            <div>
+              <strong>Make room for more ideas</strong>
+              <span>Launch a smaller subgroup for a technique, project or shared goal.</span>
+            </div>
+            <Link className={styles.createSubgroupLink} href={`/groups/create?parent=${group.id}`}>＋ Launch a subgroup</Link>
           </div>
         )}
 

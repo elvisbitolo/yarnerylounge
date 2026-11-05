@@ -2523,6 +2523,17 @@ a.activityActor:hover .itemTitle {
   background: rgba(255,255,255,.055);
   color: #ffe5f0;
 }
+.communityBuilderExplore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 2px;
+  color: rgba(255,255,255,.76);
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.communityBuilderExplore:hover { color: #fff; }
 .communityBuilderFooter {
   display: flex;
   align-items: center;

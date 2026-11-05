@@ -598,8 +598,12 @@ model Group {
   posts    Post[]
   avatar   String?
   imageUrl String?
+  parentGroupId String?
+  parentGroup Group?  @relation("GroupSubgroups", fields: [parentGroupId], references: [id], onDelete: SetNull)
+  subgroups Group[]   @relation("GroupSubgroups")
 
   @@index([createdBy])
+  @@index([parentGroupId])
 }
 
 model GroupMember {
