@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Download, Maximize, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Download, Expand, Maximize, Minimize2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import ParticipantStack from "./ParticipantStack";
 import styles from "./recordings.module.css";
 
@@ -19,6 +19,7 @@ export default function RecordingPlayer({ recording, media, onClose }) {
   const [speed, setSpeed] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [cinemaMode, setCinemaMode] = useState(false);
   const storageKey = `yarnery-recording-pos:${recording.id}`;
 
   const togglePlay = useCallback(() => {
@@ -34,6 +35,21 @@ export default function RecordingPlayer({ recording, media, onClose }) {
     if (document.fullscreenElement) document.exitFullscreen?.();
     else stage.requestFullscreen?.().catch(() => {});
   }, []);
+
+  // Cinema mode uses the full viewport and prevents the page behind it scrolling.
+  useEffect(() => {
+    if (!cinemaMode) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function handleEscape(event) {
+      if (event.key === "Escape") setCinemaMode(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [cinemaMode]);
 
   // Keep the rate in sync when the member changes it mid-play.
   useEffect(() => {
@@ -111,7 +127,7 @@ export default function RecordingPlayer({ recording, media, onClose }) {
   }
 
   return (
-    <section className={styles.playerPanel} aria-label={t("playerLabel")}>
+    <section className={`${styles.playerPanel} ${cinemaMode ? styles.playerPanelCinema : ""}`} aria-label={t("playerLabel")} aria-modal={cinemaMode || undefined} role={cinemaMode ? "dialog" : undefined}>
       <div className={styles.playerHead}>
         <div className={styles.playerHeading}>
           <h2 className={styles.playerTitle}>{recording.title}</h2>
@@ -130,7 +146,7 @@ export default function RecordingPlayer({ recording, media, onClose }) {
       {media?.url ? (
         <>
           <div
-            className={styles.playerStage}
+            className={`${styles.playerStage} ${cinemaMode ? styles.playerStageCinema : ""}`}
             ref={stageRef}
             tabIndex={0}
             onKeyDown={handleKeyDown}
@@ -139,7 +155,7 @@ export default function RecordingPlayer({ recording, media, onClose }) {
           >
             <video
               ref={videoRef}
-              className={styles.video}
+              className={`${styles.video} ${cinemaMode ? styles.videoCinema : ""}`}
               src={media.url}
               controls
               autoPlay
@@ -192,6 +208,17 @@ export default function RecordingPlayer({ recording, media, onClose }) {
               aria-label={t("fullscreen")}
             >
               <Maximize size={16} />
+              <span>{t("fullscreen")}</span>
+            </button>
+            <button
+              type="button"
+              className={styles.controlButton}
+              onClick={() => setCinemaMode((value) => !value)}
+              aria-pressed={cinemaMode}
+              aria-label={cinemaMode ? t("exitTheatre") : t("theatreMode")}
+            >
+              {cinemaMode ? <Minimize2 size={16} /> : <Expand size={16} />}
+              <span>{cinemaMode ? t("exitTheatre") : t("theatreMode")}</span>
             </button>
             {media.downloadUrl && (
               <a className={styles.controlButton} href={media.downloadUrl} download>
@@ -209,6 +236,12 @@ export default function RecordingPlayer({ recording, media, onClose }) {
               </a>
             )}
           </div>
+          <dl className={styles.playerDetails}>
+            {recording.roomName && <div><dt>{t("lounge")}</dt><dd>{recording.roomName}</dd></div>}
+            {recording.startedAt && <div><dt>{t("recorded")}</dt><dd>{new Date(recording.startedAt).toLocaleString()}</dd></div>}
+            {recording.durationSec > 0 && <div><dt>{t("duration")}</dt><dd>{Math.floor(recording.durationSec / 60)}:{String(Math.floor(recording.durationSec % 60)).padStart(2, "0")}</dd></div>}
+            <div><dt>{t("participants")}</dt><dd>{recording.participants?.length || 0}</dd></div>
+          </dl>
         </>
       ) : media?.error ? (
         <p className={styles.error}>{t("unavailable")}</p>
