@@ -54,7 +54,7 @@ export async function GET() {
         createdAt: user.createdAt,
         role: user.role || "member",
         roleLabel: user.roleLabel || "",
-        plan: ["owner", "moderator", "host"].includes(String(user.role || "").toLowerCase())
+        plan: ["owner", "moderator"].includes(String(user.role || "").toLowerCase())
           ? "moving-in"
           : sub
             ? active ? sub.tier || "flirting" : "flirting"
