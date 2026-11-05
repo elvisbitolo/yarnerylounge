@@ -70,49 +70,50 @@ export async function PATCH(req, { params }) {
       }, { status: 400 });
     }
     update.plan = plan;
-    update.tier = plan;
   }
 
   try {
-    await prisma.user.update({ where: { id }, data: update });
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id }, data: update });
+
+      if (plan !== undefined) {
+        await tx.subscription.upsert({
+          where: { id },
+          create: {
+            id,
+            userId: id,
+            provider: "admin",
+            status: "active",
+            plan,
+            tier: plan,
+            planName: plan,
+            role: existing.role,
+            shopifyCustomerId: existing.shopifyCustomerId || "",
+            shopifyOrderId: existing.shopifyOrderId || "",
+            currentPeriodEnd: null,
+            canceledAt: null,
+            cancelAtPeriodEnd: false,
+            updatedAt: new Date(),
+          },
+          update: {
+            plan,
+            tier: plan,
+            planName: plan,
+            status: "active",
+            currentPeriodEnd: null,
+            canceledAt: null,
+            cancelAtPeriodEnd: false,
+            updatedAt: new Date(),
+          },
+        });
+      }
+    });
   } catch (err) {
-    logError("admin.members.update_prisma_failed", { error: err.message, uid: id });
+    logError("admin.members.update_failed", { error: err.message, uid: id });
     return NextResponse.json({ error: "Could not update member" }, { status: 500 });
   }
 
   if (plan !== undefined) {
-    try {
-      await prisma.subscription.upsert({
-        where: { id },
-        create: {
-          id,
-          userId: id,
-          provider: "admin",
-          status: "active",
-          plan,
-          tier: plan,
-          planName: plan,
-          role: existing.role,
-          shopifyCustomerId: existing.shopifyCustomerId || "",
-          shopifyOrderId: existing.shopifyOrderId || "",
-          currentPeriodEnd: null,
-          canceledAt: null,
-          cancelAtPeriodEnd: false,
-          updatedAt: new Date(),
-        },
-        update: {
-          plan,
-          tier: plan,
-          planName: plan,
-          status: "active",
-          updatedAt: new Date(),
-        },
-      });
-    } catch (err) {
-      logError("admin.members.subscription_update_failed", { error: err.message, uid: id });
-      return NextResponse.json({ error: "Member plan was updated, but subscription details could not be saved" }, { status: 500 });
-    }
-
     await logAudit({
       actorId: auth.user.uid,
       actorName: auth.userDoc?.name || auth.user.email || "",
