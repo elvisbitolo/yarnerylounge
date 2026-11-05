@@ -40,7 +40,10 @@ export default function ConsentForm() {
       // Full reload so every server-rendered page re-reads the now-accepted
       // row; getCurrentUser() refuses this member until it does.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components re-read the consent row
-      window.location.assign("/dashboard");
+      const memberResponse = await fetch("/api/me", { cache: "no-store" });
+      const member = memberResponse.ok ? await memberResponse.json() : null;
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so server components re-read the consent row
+      window.location.assign(member?.welcomeJourneyPending ? "/welcome" : "/dashboard");
     } catch (err) {
       setError(err.message || t("consentFailed"));
       setBusy(false);
