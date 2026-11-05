@@ -81,7 +81,7 @@ export async function POST(req) {
             name: memberName || prepaid?.name || "Member",
             email: identity.email || prepaid?.email || null,
             photoURL: identity.photoURL || prepaid?.photoURL || null,
-            extra: { welcomeJourneyPending: true },
+            extra: { ...(prepaid?.extra && typeof prepaid.extra === "object" ? prepaid.extra : {}), welcomeJourneyPending: true },
             role: prepaid?.role || "member",
             plan: prepaid?.plan || (openAccess ? OPEN_ACCESS_PLAN : "flirting"),
             paymentStatus: prepaid?.paymentStatus || (openAccess ? "paid" : "unpaid"),
