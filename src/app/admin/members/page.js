@@ -255,7 +255,7 @@ export default function AdminMembersPage() {
                       ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
                     </td>
                     <td>
-                      {role === "owner" && member.role !== "owner" ? (
+                      {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
                         <select className={styles.tableSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
                           <option value="member">Member</option><option value="moderator">Moderator</option>
                         </select>
@@ -308,8 +308,8 @@ export default function AdminMembersPage() {
 
                 <dl className={styles.mobileMemberDetails}>
                   <div><dt>Plan</dt><dd>
-                    {role === "owner" && member.role !== "owner" ? (
-                      <select className={styles.mobileMemberSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
+                    {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
+                      <select className={styles.mobileMemberSelect} value={memberPlan} onChange={(event) => requestPlanChange(member, event.target.value)} aria-label={`Plan for ${member.name || member.email}`}>
                         {PLAN_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
@@ -317,7 +317,7 @@ export default function AdminMembersPage() {
                     ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
                   </dd></div>
                   <div><dt>Role</dt><dd>
-                    {role === "owner" && member.role !== "owner" ? (
+                    {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
                       <select className={styles.mobileMemberSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
                         <option value="member">Member</option><option value="moderator">Moderator</option>
                       </select>
