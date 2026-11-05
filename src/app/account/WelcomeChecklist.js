@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import styles from "./account.module.css";
 
 const DEFAULT_STEPS = [
-  { key: "profile", label: "Complete your profile", href: "/account/profile", cta: "Edit profile" },
+  { key: "profile", label: "Add a photo, username and tell your story", href: "/account/profile", cta: "Complete profile" },
   { key: "preferences", label: "Choose your craft interests", href: "/onboarding", cta: "Set interests" },
   { key: "room", label: "Join your first live room", href: "/rooms", cta: "Browse rooms" },
   { key: "post", label: "Make your first post", href: "/feed", cta: "Open the feed" },
