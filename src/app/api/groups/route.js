@@ -52,8 +52,8 @@ export async function POST(req) {
   if (name.length > 80 || description.length > 1200) {
     return NextResponse.json({ error: "Keep the name under 80 characters and description under 1,200 characters." }, { status: 400 });
   }
-  if (imageUrl && imageUrl.length > 2000) {
-    return NextResponse.json({ error: "Circle photo URL is too long." }, { status: 400 });
+  if (imageUrl && imageUrl.length > 12_000_000) {
+    return NextResponse.json({ error: "Circle photo is too large. Please choose a smaller image." }, { status: 400 });
   }
   if (imageUrl && !/^https:\/\//i.test(imageUrl) && !/^data:image\/(png|jpeg|webp|gif|avif);base64,/i.test(imageUrl)) {
     return NextResponse.json({ error: "Circle photo must be uploaded as an image." }, { status: 400 });
