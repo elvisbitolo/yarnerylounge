@@ -488,9 +488,9 @@
   gap: 13px;
   padding: 18px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--badge-accent) 20%, #e6e6ef);
+  border: 1px solid color-mix(in srgb, var(--badge-accent) 38%, #e6e6ef);
   border-radius: 16px;
-  background: linear-gradient(145deg, #ffffff 0%, var(--badge-soft) 145%);
+  background: linear-gradient(145deg, var(--badge-soft) 0%, #ffffff 100%);
   box-shadow: 0 4px 14px rgba(35, 24, 42, 0.045);
 }
 
@@ -523,10 +523,11 @@
   height: 46px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--badge-accent) 18%, transparent);
+  border: 1px solid var(--badge-accent);
   border-radius: 13px;
-  background: var(--badge-soft);
-  color: var(--badge-accent);
+  background: var(--badge-accent);
+  color: #ffffff;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--badge-accent) 24%, transparent);
 }
 
 .badgeCopy {
