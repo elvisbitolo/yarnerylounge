@@ -2184,3 +2184,76 @@ a.activityActor:hover .itemTitle {
 .welcomeTitle {
   line-height: 1.25;
 }
+
+
+.activeMemberGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 14px 10px;
+}
+
+.activeMember {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  text-align: center;
+  text-decoration: none;
+  padding: 6px 3px;
+  border-radius: 10px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.activeMember:hover {
+  background: var(--dash-bg, #f7f1e9);
+  transform: translateY(-1px);
+}
+
+.activeMemberAvatarWrap {
+  position: relative;
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+}
+
+.activeMemberAvatar,
+.activeMemberAvatarFallback {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--card-bg, #fff);
+}
+
+.activeMemberAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 46, 121, 0.12);
+  color: var(--dash-accent, #f42e79);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.activeMemberOnlineDot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--card-bg, #fff);
+  border-radius: 50%;
+  background: #16a34a;
+}
+
+.activeMemberName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--card-text, var(--dash-text, #0a0e2a));
+}
