@@ -31,13 +31,18 @@ export async function GET() {
       take: 1000,
       select: {
         id: true,
+        userId: true,
         tier: true,
         status: true,
         currentPeriodEnd: true,
         trialEnd: true,
       },
     });
-    const subMap = new Map(subs.map((sub) => [sub.id, sub]));
+    const subMap = new Map();
+    for (const sub of subs) {
+      subMap.set(sub.userId || sub.id, sub);
+      if (sub.id) subMap.set(sub.id, sub);
+    }
     const members = users.map((user) => {
       const sub = subMap.get(user.id) || null;
       const active = isActiveSub(sub);
@@ -49,7 +54,11 @@ export async function GET() {
         createdAt: user.createdAt,
         role: user.role || "member",
         roleLabel: user.roleLabel || "",
-        plan: (sub && active ? sub.tier : null) || user.plan || "flirting",
+        plan: ["owner", "moderator"].includes(String(user.role || "").toLowerCase())
+          ? "moving-in"
+          : sub
+            ? active ? sub.tier || "flirting" : "flirting"
+            : user.plan || "flirting",
         suspended: user.suspended || false,
         foundingMember: !!user.foundingMember,
         tier: sub && active ? sub.tier || "lounge" : "",

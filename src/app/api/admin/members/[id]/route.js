@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
-import { mayWriteTier } from "@/lib/server/shopify";
 import { isActiveSub } from "@/lib/server/billing";
+import { tierRank } from "@/lib/server/plans";
 import { logError, logInfo } from "@/lib/server/log";
 import { deleteMemberData } from "@/lib/server/delete-member-data";
 
@@ -27,6 +27,10 @@ export async function PATCH(req, { params }) {
   const existingSub = plan !== undefined
     ? await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } })
     : null;
+
+  const previousEffectivePlan = existingSub
+    ? isActiveSub(existingSub) ? existingSub.tier || "flirting" : "flirting"
+    : String(existing.role || "").toLowerCase() === "host" ? "moving-in" : existing.plan || "flirting";
 
   if (role !== undefined) {
     if (!["member", "moderator"].includes(role)) {
@@ -58,19 +62,15 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
     if (auth.userDoc.role !== "owner") {
-      return NextResponse.json({ error: "Only the owner can upgrade plans" }, { status: 403 });
+      return NextResponse.json({ error: "Only the owner can change membership plans" }, { status: 403 });
     }
-    const isActive = existingSub ? isActiveSub(existingSub) : false;
-    if (!mayWriteTier({
-      currentTier: existingSub?.tier,
-      currentIsActive: isActive,
-      incomingTier: plan,
-    })) {
-      return NextResponse.json({ 
-        error: "Cannot downgrade tier. Current tier must be maintained or upgraded." 
-      }, { status: 400 });
+    if (["owner", "moderator"].includes(String(existing.role || "").toLowerCase())) {
+      return NextResponse.json({ error: "Staff membership access is controlled by their role" }, { status: 400 });
     }
     update.plan = plan;
+    if (String(existing.role || "").toLowerCase() === "host" && plan !== "moving-in") {
+      update.role = "member";
+    }
   }
 
   try {
@@ -78,35 +78,42 @@ export async function PATCH(req, { params }) {
       await tx.user.update({ where: { id }, data: update });
 
       if (plan !== undefined) {
-        await tx.subscription.upsert({
-          where: { id },
-          create: {
-            id,
-            userId: id,
-            provider: "admin",
-            status: "active",
-            plan,
-            tier: plan,
-            planName: plan,
-            role: existing.role,
-            shopifyCustomerId: existing.shopifyCustomerId || "",
-            shopifyOrderId: existing.shopifyOrderId || "",
-            currentPeriodEnd: null,
-            canceledAt: null,
-            cancelAtPeriodEnd: false,
-            updatedAt: new Date(),
-          },
-          update: {
-            plan,
-            tier: plan,
-            planName: plan,
-            status: "active",
-            currentPeriodEnd: null,
-            canceledAt: null,
-            cancelAtPeriodEnd: false,
-            updatedAt: new Date(),
-          },
-        });
+        if (existingSub) {
+          await tx.subscription.update({
+            where: { id: existingSub.id },
+            data: {
+              status: "active",
+              plan,
+              tier: plan,
+              planName: plan,
+              role: update.role || existing.role,
+              currentPeriodEnd: null,
+              trialEnd: null,
+              canceledAt: null,
+              cancelAtPeriodEnd: false,
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          await tx.subscription.create({
+            data: {
+              id,
+              userId: id,
+              provider: "admin",
+              status: "active",
+              plan,
+              tier: plan,
+              planName: plan,
+              role: update.role || existing.role,
+              shopifyCustomerId: existing.shopifyCustomerId || "",
+              shopifyOrderId: existing.shopifyOrderId || "",
+              currentPeriodEnd: null,
+              canceledAt: null,
+              cancelAtPeriodEnd: false,
+              updatedAt: new Date(),
+            },
+          });
+        }
       }
     });
   } catch (err) {
@@ -118,9 +125,15 @@ export async function PATCH(req, { params }) {
     await logAudit({
       actorId: auth.user.uid,
       actorName: auth.userDoc?.name || auth.user.email || "",
-      action: "member.plan_upgraded",
+      action: "member.plan_changed",
       targetId: id,
-      metadata: { plan, prevPlan: existing.plan, role: existing.role },
+      metadata: {
+        plan,
+        prevPlan: previousEffectivePlan,
+        changeType: tierRank(plan) < tierRank(previousEffectivePlan) ? "downgrade" : "upgrade_or_assignment",
+        role: existing.role,
+        immediate: true,
+      },
     });
   }
 

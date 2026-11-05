@@ -38,6 +38,8 @@ export default function AdminMembersPage() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
   const [delBusy, setDelBusy] = useState(false);
+  const [planChange, setPlanChange] = useState(null);
+  const [planBusy, setPlanBusy] = useState(false);
 
   const loadMembers = useCallback(async () => {
     const res = await fetch("/api/admin/members");
@@ -71,9 +73,33 @@ export default function AdminMembersPage() {
     if (!res.ok) {
       const data = await res.json();
       setError(data.error || "Update failed");
-      return;
+      return false;
     }
     await loadMembers();
+    return true;
+  }
+
+  function requestPlanChange(member, nextPlan) {
+    const current = PLAN_OPTIONS.find((option) => option.value === (member.plan || "flirting"));
+    const next = PLAN_OPTIONS.find((option) => option.value === nextPlan);
+    if (!next || nextPlan === (member.plan || "flirting")) return;
+    if (current && next.rank < current.rank) {
+      setError("");
+      setPlanChange({ member, nextPlan });
+      return;
+    }
+    updateMember(member.id, { plan: nextPlan });
+  }
+
+  async function confirmPlanChange() {
+    if (!planChange) return;
+    setPlanBusy(true);
+    try {
+      const updated = await updateMember(planChange.member.id, { plan: planChange.nextPlan });
+      if (updated) setPlanChange(null);
+    } finally {
+      setPlanBusy(false);
+    }
   }
 
   function requestDelete(member) {
@@ -220,16 +246,16 @@ export default function AdminMembersPage() {
                     </td>
                     <td className={styles.memberEmail}>{member.email || "—"}</td>
                     <td>
-                      {role === "owner" && member.role !== "owner" ? (
-                        <select className={styles.tableSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
+                      {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
+                        <select className={styles.tableSelect} value={memberPlan} onChange={(event) => requestPlanChange(member, event.target.value)} aria-label={`Plan for ${member.name || member.email}`}>
                           {[...PLAN_OPTIONS].sort((a, b) => Number(b.value === memberPlan) - Number(a.value === memberPlan)).map((option) => (
-                            <option key={option.value} value={option.value} disabled={isActive && option.rank < (PLAN_OPTIONS.find((item) => item.value === memberPlan)?.rank ?? 0)}>{option.label}</option>
+                            <option key={option.value} value={option.value} >{option.label}</option>
                           ))}
                         </select>
                       ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
                     </td>
                     <td>
-                      {role === "owner" && member.role !== "owner" ? (
+                      {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
                         <select className={styles.tableSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
                           <option value="member">Member</option><option value="moderator">Moderator</option>
                         </select>
@@ -282,16 +308,16 @@ export default function AdminMembersPage() {
 
                 <dl className={styles.mobileMemberDetails}>
                   <div><dt>Plan</dt><dd>
-                    {role === "owner" && member.role !== "owner" ? (
-                      <select className={styles.mobileMemberSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
+                    {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
+                      <select className={styles.mobileMemberSelect} value={memberPlan} onChange={(event) => requestPlanChange(member, event.target.value)} aria-label={`Plan for ${member.name || member.email}`}>
                         {PLAN_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value} disabled={isActive && option.rank < (PLAN_OPTIONS.find((item) => item.value === memberPlan)?.rank ?? 0)}>{option.label}</option>
+                          <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
                     ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
                   </dd></div>
                   <div><dt>Role</dt><dd>
-                    {role === "owner" && member.role !== "owner" ? (
+                    {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
                       <select className={styles.mobileMemberSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
                         <option value="member">Member</option><option value="moderator">Moderator</option>
                       </select>
@@ -332,6 +358,17 @@ export default function AdminMembersPage() {
           </nav>
         </div>
       </div>
+      <ConfirmModal
+        open={!!planChange}
+        title="Confirm membership downgrade"
+        message={planChange ? `Change ${planChange.member.name || planChange.member.email || "this member"} from ${PLAN_OPTIONS.find((option) => option.value === (planChange.member.plan || "flirting"))?.label} to ${PLAN_OPTIONS.find((option) => option.value === planChange.nextPlan)?.label}? This takes effect immediately and removes access to features exclusive to the previous tier.` : ""}
+        confirmLabel="Apply downgrade"
+        busy={planBusy}
+        busyLabel="Updating…"
+        danger
+        onConfirm={confirmPlanChange}
+        onCancel={() => !planBusy && setPlanChange(null)}
+      />
       <ConfirmModal
         open={!!deleting}
         title="Delete member"
