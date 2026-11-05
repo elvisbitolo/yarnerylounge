@@ -88,18 +88,29 @@ export function ReturnVisitCard({ streak = 0, points = 0 }) {
   );
 }
 
-export function WelcomeBanner({ name }) {
-  const t = useTranslations("dashboard");
+export function WelcomeBanner({ name, photoURL }) {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
+  const displayName = (name || "").trim() || "there";
+  const initials = displayName.split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "Y";
   return (
     <div className={styles.welcome}>
-      <div>
-        <h2 className={styles.welcomeTitle}>{t("welcomeBack", { name })}</h2>
-        <p className={styles.welcomeSub}>{today}</p>
+      <div className={styles.welcomeIdentity}>
+        {photoURL ? (
+          // eslint-disable-next-line @next/next/no-img-element -- member avatar from profile
+          <img className={styles.welcomeAvatar} src={photoURL} alt="" />
+        ) : (
+          <span className={styles.welcomeAvatarFallback} aria-hidden="true">{initials}</span>
+        )}
+        <div>
+          <h2 className={styles.welcomeTitle}>{greeting}, {displayName}</h2>
+          <p className={styles.welcomeSub}>{today}</p>
+        </div>
       </div>
       <div className={styles.welcomeActions}>
         <Link className={styles.welcomeLink} href="/rooms">
