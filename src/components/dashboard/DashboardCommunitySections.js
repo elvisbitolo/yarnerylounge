@@ -22,6 +22,55 @@ function useDashboardResource(url, key) {
   return { value, loading };
 }
 
+
+export function DashboardProfileCompletion({ photoURL, username }) {
+  const missingPhoto = !String(photoURL || "").trim();
+  const missingUsername = !String(username || "").trim();
+  const missingCount = Number(missingPhoto) + Number(missingUsername);
+
+  if (!missingCount) return null;
+
+  return (
+    <section className={styles.profileCompletionCard} aria-labelledby="profile-completion-title">
+      <div className={styles.profileCompletionHeader}>
+        <div>
+          <p className={styles.profileCompletionEyebrow}>MAKE YOUR PROFILE COUNT</p>
+          <h2 id="profile-completion-title">Help the community recognise you</h2>
+          <p className={styles.profileCompletionDescription}>
+            A profile photo helps members recognise you, while a username makes you easier to find and mention.
+          </p>
+        </div>
+        <span className={styles.profileCompletionCount}>
+          {missingCount} {missingCount === 1 ? "step" : "steps"} left
+        </span>
+      </div>
+
+      <div className={styles.profileCompletionItems}>
+        {missingPhoto ? (
+          <div className={styles.profileCompletionItem}>
+            <span className={styles.profileCompletionIcon} aria-hidden="true">01</span>
+            <div className={styles.profileCompletionCopy}>
+              <strong>Add a profile photo</strong>
+              <span>Put a face to your name so people know who they are connecting with.</span>
+            </div>
+            <Link className={styles.profileCompletionAction} href="/account/profile#profile">Add photo <span aria-hidden="true">→</span></Link>
+          </div>
+        ) : null}
+        {missingUsername ? (
+          <div className={styles.profileCompletionItem}>
+            <span className={styles.profileCompletionIcon} aria-hidden="true">02</span>
+            <div className={styles.profileCompletionCopy}>
+              <strong>Choose your username</strong>
+              <span>Give your profile a memorable handle members can search for and mention.</span>
+            </div>
+            <Link className={styles.profileCompletionAction} href="/account/settings">Choose username <span aria-hidden="true">→</span></Link>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 export function DashboardActiveMembers() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
