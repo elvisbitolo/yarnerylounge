@@ -36,6 +36,7 @@ export async function GET(request) {
       select: {
         id: true,
         type: true,
+        actorId: true,
         actorName: true,
         text: true,
         href: true,
@@ -44,8 +45,18 @@ export async function GET(request) {
       },
     });
 
+    const actorIds = [...new Set(rows.map((row) => row.actorId).filter(Boolean))];
+    const actors = actorIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, photoURL: true },
+        })
+      : [];
+    const actorPhotos = new Map(actors.map((actor) => [actor.id, actor.photoURL || ""]));
+
     const notifications = rows.map((row) => ({
       ...row,
+      actorPhotoUrl: row.actorId ? actorPhotos.get(row.actorId) || "" : "",
       createdAt: row.createdAt.toISOString(),
     }));
     return NextResponse.json({ unread, notifications });
