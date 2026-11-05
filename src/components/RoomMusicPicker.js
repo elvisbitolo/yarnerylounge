@@ -15,6 +15,65 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
   const [error, setError] = useState("");
   const panelRef = useRef(null);
   const fileRef = useRef(null);
+  const dragRef = useRef(null);
+  const suppressClickRef = useRef(false);
+  const [position, setPosition] = useState({ left: 82, bottom: 24 });
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("room-music-control-position");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Number.isFinite(parsed.left) && Number.isFinite(parsed.bottom)) {
+          setPosition({
+            left: Math.max(8, Math.min(parsed.left, window.innerWidth - 56)),
+            bottom: Math.max(8, Math.min(parsed.bottom, window.innerHeight - 56)),
+          });
+        }
+      }
+    } catch {
+      // Ignore unavailable storage or invalid saved coordinates.
+    }
+  }, []);
+
+  function startDrag(e) {
+    if (e.button !== 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: rect.left,
+      startBottom: window.innerHeight - rect.bottom,
+      moved: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function moveDrag(e) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) drag.moved = true;
+    if (!drag.moved) return;
+
+    setPosition({
+      left: Math.max(8, Math.min(drag.startLeft + dx, window.innerWidth - 56)),
+      bottom: Math.max(8, Math.min(drag.startBottom - dy, window.innerHeight - 56)),
+    });
+  }
+
+  function endDrag(e) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    if (drag.moved) {
+      suppressClickRef.current = true;
+      window.localStorage.setItem("room-music-control-position", JSON.stringify(position));
+      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+    }
+  }
 
   useEffect(() => {
     if (!isStaff) return;
@@ -129,12 +188,20 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
   return (
     <>
       <button
-        onClick={() => setOpen((v) => !v)}
-        title="Manage lounge music"
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClick={() => {
+          if (suppressClickRef.current) return;
+          setOpen((v) => !v);
+        }}
+        aria-label="Manage lounge music"
+        title="Drag to move · Click to manage lounge music"
         style={{
           position: "fixed",
-          bottom: 24,
-          left: 82,
+          bottom: position.bottom,
+          left: position.left,
           zIndex: 999,
           width: 48,
           height: 48,
@@ -144,7 +211,9 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
             ? "linear-gradient(135deg, rgba(109,93,246,0.85), rgba(167,139,250,0.75))"
             : "rgba(30,30,38,0.9)",
           color: "#fff",
-          cursor: "pointer",
+          cursor: dragRef.current ? "grabbing" : "grab",
+          touchAction: "none",
+          userSelect: "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -163,8 +232,8 @@ export default function RoomMusicPicker({ isStaff, roomSlug }) {
           ref={panelRef}
           style={{
             position: "fixed",
-            bottom: 82,
-            left: 24,
+            bottom: position.bottom + 58,
+            left: position.left,
             zIndex: 1000,
             width: 340,
             maxWidth: "calc(100vw - 32px)",
