@@ -152,6 +152,28 @@ export default async function GroupPage({ params }) {
           </div>
         </div>
 
+        {group.createdBy === user.uid && (
+          <section className={styles.subgroupInvite} aria-labelledby="circle-creator-welcome">
+            <div>
+              <strong id="circle-creator-welcome">You brought this circle to life. Here’s what happens next.</strong>
+              <span>
+                Your circle now has its own community page. Members can join, share updates and project photos,
+                take part in discussions, chat with neighbours and discover any subgroups you launch.
+              </span>
+              <span>
+                Start by welcoming people, sharing the first post and giving members a reason to come back.
+              </span>
+            </div>
+            <div className={styles.groupActions}>
+              <Link className={styles.createSubgroupLink} href="#group-feed">Share your first update</Link>
+              {!group.parentGroupId && (
+                <Link className={styles.createSubgroupLink} href={`/groups/create?parent=${group.id}`}>Launch a subgroup</Link>
+              )}
+              <Link className={styles.createSubgroupLink} href="/host/rooms?audience=community">Create a live lounge</Link>
+            </div>
+          </section>
+        )}
+
         {nextHangout && (
           <div className={styles.nextHangout}>
             <div className={styles.nextHangoutMain}>
