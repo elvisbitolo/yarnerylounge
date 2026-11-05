@@ -46,6 +46,9 @@ export default function GroupsBoard({ groups, uid }) {
                   {group.emoji ? `${group.emoji} ` : ""}{group.name}
                 </h2>
               </Link>
+              {group.parentGroupName && (
+                <p className={styles.subgroupLabel}>Subgroup · {group.parentGroupName}</p>
+              )}
               {group.description && <p className={styles.cardDesc}>{group.description}</p>}
               <p className={styles.cardMeta}>
                 {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
