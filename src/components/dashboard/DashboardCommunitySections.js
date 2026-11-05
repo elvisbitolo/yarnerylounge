@@ -22,6 +22,73 @@ function useDashboardResource(url, key) {
   return { value, loading };
 }
 
+export function DashboardActiveMembers() {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [available, setAvailable] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    let inFlight = false;
+    const load = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const response = await fetch("/api/presence?online=1", { cache: "no-store" });
+        if (!response.ok) throw new Error("Presence unavailable");
+        const data = await response.json();
+        if (active) {
+          setMembers(Array.isArray(data.members) ? data.members : []);
+          setAvailable(true);
+        }
+      } catch {
+        if (active) setAvailable(false);
+      } finally {
+        inFlight = false;
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  return (
+    <DashboardCard title="Active members" href="/members" linkLabel="Meet the community">
+      {loading ? (
+        <p className={styles.itemBody}>Checking who is around…</p>
+      ) : !available ? (
+        <p className={styles.itemBody}>Live member presence is temporarily unavailable.</p>
+      ) : members.length ? (
+        <div className={styles.activeMemberGrid}>
+          {members.slice(0, 12).map((member) => {
+            const name = (member.name || "Member").trim();
+            const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
+            return (
+              <Link className={styles.activeMember} href={`/members/${encodeURIComponent(member.uid)}`} key={member.uid}>
+                <span className={styles.activeMemberAvatarWrap}>
+                  {member.photoURL ? (
+                    <img className={styles.activeMemberAvatar} src={member.photoURL} alt="" loading="lazy" />
+                  ) : (
+                    <span className={styles.activeMemberAvatarFallback} aria-hidden="true">{initials}</span>
+                  )}
+                  <span className={styles.activeMemberOnlineDot} aria-label="Online" />
+                </span>
+                <span className={styles.activeMemberName}>{name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <p className={styles.itemBody}>No other members are online right now. Check back soon.</p>
+      )}
+    </DashboardCard>
+  );
+}
+
 function DashboardCard({ title, href, linkLabel, children }) {
   return (
     <section className={styles.card}>
