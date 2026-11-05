@@ -42,7 +42,7 @@ export default function WelcomeChecklist({ initialProfile, steps }) {
     };
   }, []);
 
-  const profileDone = !!(profile.bio || profile.headline || profile.location);
+  const profileDone = !!(profile.username && profile.photoURL && profile.bio && (profile.headline || profile.location));
   const preferencesDone = !!(profile.skillLevel && profile.yarnPreference && profile.hookSize && Array.isArray(profile.craftInterests) && profile.craftInterests.length > 0);
   const doneMap = { profile: profileDone, preferences: preferencesDone, room: hasRoomEvent, post: hasPost, rsvp: hasRsvp };
   const doneCount = STEPS.filter((step) => doneMap[step.key]).length;
