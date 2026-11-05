@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import styles from "./welcome.module.css";
 
 const CRAFTS = ["crochet", "knitting", "weaving", "spinning", "dyeing", "embroidery", "macrame"];
@@ -204,10 +205,10 @@ export default function WelcomeJourney({ initial }) {
           <h2 className={styles.communityTitle}>You’re part of the Yarnery community.</h2>
           <p className={styles.communityIntro}>Your profile is taking shape. Here are a few easy ways to meet people, find inspiration and feel at home.</p>
           <div className={styles.exploreLinks}>
-            <a href="/rooms"><strong>Join a live lounge</strong><span>Say hello and craft alongside other members.</span></a>
-            <a href="/members"><strong>Meet other Yarnies</strong><span>Discover members who share your interests.</span></a>
-            <a href="/feed"><strong>Share your first post</strong><span>Show what you’re making or ask the community.</span></a>
-            <a href="/events"><strong>Find an event</strong><span>See what’s happening and join in.</span></a>
+            <Link href="/rooms"><strong>Join a live lounge</strong><span>Say hello and craft alongside other members.</span></Link>
+            <Link href="/members"><strong>Meet other Yarnies</strong><span>Discover members who share your interests.</span></Link>
+            <Link href="/feed"><strong>Share your first post</strong><span>Show what you’re making or ask the community.</span></Link>
+            <Link href="/events"><strong>Find an event</strong><span>See what’s happening and join in.</span></Link>
           </div>
           <p className={styles.hint}>You can do these whenever you’re ready. Your welcome checklist will help you keep track.</p>
         </div>
