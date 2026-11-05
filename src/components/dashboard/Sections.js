@@ -89,6 +89,7 @@ export function ReturnVisitCard({ streak = 0, points = 0 }) {
 }
 
 export function WelcomeBanner({ name, photoURL }) {
+  const t = useTranslations("dashboard");
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const today = new Date().toLocaleDateString(undefined, {
@@ -97,7 +98,7 @@ export function WelcomeBanner({ name, photoURL }) {
     day: "numeric",
   });
   const displayName = (name || "").trim() || "there";
-  const initials = displayName.split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "Y";
+  const initials = displayName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "Y";
   return (
     <div className={styles.welcome}>
       <div className={styles.welcomeIdentity}>
