@@ -225,7 +225,7 @@ export default function DashboardShell() {
         </div>
 
         <div data-tour="tour-welcome">
-          <WelcomeBanner name={user.name} />
+          <WelcomeBanner name={user.name} photoURL={user.photoURL} />
         </div>
         <DashboardFeaturedVideos />
         <ChristaLiveInvitation />
