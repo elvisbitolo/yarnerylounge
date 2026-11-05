@@ -45,13 +45,24 @@ export default function WelcomeJourney({ initial }) {
   }
 
   async function uploadPhoto(event) {
+    // Normalise phone photos before upload so the no-Blob fallback also stays
+    // comfortably below the profile URL storage limit.
     const file = event.target.files?.[0];
     if (!file) return;
     setError("");
     setUploading(true);
     try {
+      const bitmap = await createImageBitmap(file);
+      const side = Math.min(bitmap.width, bitmap.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 512;
+      const context = canvas.getContext("2d");
+      context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 512, 512);
+      bitmap.close();
+      const compressed = await new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not process that photo")), "image/jpeg", 0.84));
       const body = new FormData();
-      body.append("file", file);
+      body.append("file", compressed, "profile.jpg");
       const upload = await fetch("/api/upload?kind=avatar", { method: "POST", body });
       const uploaded = await upload.json().catch(() => ({}));
       if (!upload.ok || (!uploaded.url && !uploaded.dataUrl)) throw new Error(uploaded.error || "Could not upload that photo");
