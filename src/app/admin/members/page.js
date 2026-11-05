@@ -7,6 +7,12 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { roleBadgeLabel } from "@/lib/profile/roles";
 import styles from "../rooms/admin.module.css";
 
+const PLAN_OPTIONS = [
+  { value: "flirting", label: "Flirting (Free)", rank: 0 },
+  { value: "hooking-up", label: "Hooking Up", rank: 1 },
+  { value: "moving-in", label: "Moving In", rank: 2 },
+];
+
 export default function AdminMembersPage() {
   const router = useRouter();
   const [members, setMembers] = useState([]);
@@ -157,15 +163,22 @@ export default function AdminMembersPage() {
                         className={styles.input}
                         style={{ width: 130, height: 36, padding: "0 8px" }}
                         value={member.plan || "flirting"}
-                        onChange={(e) => updateMember(member.id, { plan: e.target.value }) }
+                        onChange={(e) => updateMember(member.id, { plan: e.target.value })}
                       >
-                        {member.plan === "moving-in" && (
-                          <option value="moving-in">Moving In</option>
-                        )}
-                        {member.plan === "hooking-up" && (
-                          <option value="hooking-up">Hooking Up</option>
-                        )}
-                        <option value="flirting">Flirting (Free)</option>
+                        {[...PLAN_OPTIONS]
+                          .sort((a, b) => Number(b.value === member.plan) - Number(a.value === member.plan))
+                          .map((option) => (
+                            <option
+                              key={option.value}
+                              value={option.value}
+                              disabled={
+                                ["active", "trial"].includes(member.subStatus) &&
+                                option.rank < (PLAN_OPTIONS.find((item) => item.value === member.plan)?.rank ?? 0)
+                              }
+                            >
+                              {option.label}
+                            </option>
+                          ))}
                       </select>
                     )}
                     <a
