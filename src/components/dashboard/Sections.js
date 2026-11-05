@@ -264,7 +264,7 @@ export function RecentActivity({ data }) {
         <ul className={styles.list}>
           {data.map((item) => {
             const actorName = item.actor || "Member";
-            const initials = actorName.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
+            const initials = actorName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
             const profileHref = item.actorId ? `/members/${encodeURIComponent(item.actorId)}` : null;
             const avatar = item.actorPhotoUrl ? (
               <img className={styles.dashboardActivityAvatar} src={item.actorPhotoUrl} alt="" loading="lazy" />
