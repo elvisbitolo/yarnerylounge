@@ -142,19 +142,33 @@ export function DashboardCommunityFeed() {
     <DashboardCard title="Latest from your community" href="/feed" linkLabel="Open feed">
       {loading ? <p className={styles.itemBody}>Loading recent posts…</p> : posts.length ? (
         <ul className={styles.list}>
-          {posts.map((post) => (
-            <li key={post.id}>
-              <Link className={styles.item} href="/feed">
-                <span className={styles.itemSplit}>
-                  <span className={styles.itemTitle}>{post.authorName || "Community member"}</span>
-                  <span className={styles.itemMeta}>{relativeTime(post.createdAt)}</span>
-                </span>
-                {post.title ? <strong className={styles.itemTitle}>{post.title}</strong> : null}
-                <span className={styles.itemBody}>{(post.text || post.excerpt || "Shared a community update").slice(0, 180)}</span>
-                <span className={styles.itemMeta}>{Object.keys(post.likes || {}).length} likes · {post.commentCount || 0} comments</span>
-              </Link>
-            </li>
-          ))}
+          {posts.map((post) => {
+            const authorName = post.authorName || "Community member";
+            const initials = authorName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
+            const profileHref = post.authorId ? `/members/${encodeURIComponent(post.authorId)}` : "/members";
+            return (
+              <li key={post.id}>
+                <div className={styles.item}>
+                  <div className={styles.communityPostHeader}>
+                    <Link className={styles.communityPostAuthor} href={profileHref} aria-label={`View ${authorName}'s profile`}>
+                      {post.authorPhotoUrl ? (
+                        <img className={styles.communityPostAvatar} src={post.authorPhotoUrl} alt="" loading="lazy" />
+                      ) : (
+                        <span className={styles.communityPostAvatarFallback} aria-hidden="true">{initials}</span>
+                      )}
+                      <span className={styles.itemTitle}>{authorName}</span>
+                    </Link>
+                    <span className={styles.itemMeta}>{relativeTime(post.createdAt)}</span>
+                  </div>
+                  <Link className={styles.communityPostContent} href="/feed">
+                    {post.title ? <strong className={styles.itemTitle}>{post.title}</strong> : null}
+                    <span className={styles.itemBody}>{(post.text || post.excerpt || "Shared a community update").slice(0, 180)}</span>
+                    <span className={styles.itemMeta}>{Object.keys(post.likes || {}).length} likes · {post.commentCount || 0} comments</span>
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : <p className={styles.itemBody}>No recent posts to show yet. Be the first to start a conversation.</p>}
     </DashboardCard>
