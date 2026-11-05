@@ -79,7 +79,7 @@ export function MembershipProvider({ children }) {
         cache: "no-store",
       });
       const data = await res.json().catch(() => null);
-      if (data?.ok && data.membership) {
+      if (data?.membership) {
         writeCache(uid, data.membership);
         setMembership(data.membership);
       } else if (!cached) {
