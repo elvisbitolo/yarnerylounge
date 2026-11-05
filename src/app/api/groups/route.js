@@ -55,7 +55,7 @@ export async function POST(req) {
   if (imageUrl && imageUrl.length > 12_000_000) {
     return NextResponse.json({ error: "Circle photo is too large. Please choose a smaller image." }, { status: 400 });
   }
-  if (imageUrl && !/^https:\/\//i.test(imageUrl) && !/^data:image\/(png|jpeg|webp|gif|avif);base64,/i.test(imageUrl)) {
+  if (imageUrl && !/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(imageUrl) && !/^data:image\/(png|jpeg|webp|gif|avif);base64,/i.test(imageUrl)) {
     return NextResponse.json({ error: "Circle photo must be uploaded as an image." }, { status: 400 });
   }
 
