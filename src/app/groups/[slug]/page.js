@@ -58,6 +58,9 @@ export default async function GroupPage({ params }) {
   const canBuildTopics =
     canBuildNeighborhoods(caps) &&
     (groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
+  const canLaunchSubgroup =
+    canBuildNeighborhoods(caps) &&
+    (group.createdBy === user.uid || groupRights.isStaff || groupRights.isHost || groupRights.isCoHost);
 
   return (
       <div className={styles.container}>
@@ -181,7 +184,7 @@ export default async function GroupPage({ params }) {
                 <h2 id="subgroups-title" className={styles.sectionTitle}>Subgroups in this circle</h2>
                 <p className={styles.subgroupIntro}>Smaller communities growing from this shared interest.</p>
               </div>
-              {canBuildTopics && (
+              {canLaunchSubgroup && (
                 <Link className={styles.createSubgroupLink} href={`/groups/create?parent=${group.id}`}>＋ Launch a subgroup</Link>
               )}
             </div>
@@ -196,7 +199,7 @@ export default async function GroupPage({ params }) {
             </div>
           </section>
         )}
-        {childGroups.length === 0 && canBuildTopics && !group.parentGroupId && (
+        {childGroups.length === 0 && canLaunchSubgroup && !group.parentGroupId && (
           <div className={styles.subgroupInvite}>
             <div>
               <strong>Make room for more ideas</strong>
