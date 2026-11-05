@@ -28,6 +28,10 @@ export async function PATCH(req, { params }) {
     ? await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } })
     : null;
 
+  const previousEffectivePlan = existingSub
+    ? isActiveSub(existingSub) ? existingSub.tier || "flirting" : "flirting"
+    : String(existing.role || "").toLowerCase() === "host" ? "moving-in" : existing.plan || "flirting";
+
   if (role !== undefined) {
     if (!["member", "moderator"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
@@ -125,8 +129,8 @@ export async function PATCH(req, { params }) {
       targetId: id,
       metadata: {
         plan,
-        prevPlan: existingSub && isActiveSub(existingSub) ? existingSub.tier : existing.role === "host" ? "moving-in" : existing.plan || "flirting",
-        changeType: tierRank(plan) < tierRank(existingSub && isActiveSub(existingSub) ? existingSub.tier : existing.role === "host" ? "moving-in" : existing.plan || "flirting") ? "downgrade" : "upgrade_or_assignment",
+        prevPlan: previousEffectivePlan,
+        changeType: tierRank(plan) < tierRank(previousEffectivePlan) ? "downgrade" : "upgrade_or_assignment",
         role: existing.role,
         immediate: true,
       },
