@@ -21,7 +21,7 @@ import {
 import EventsSpotlight from "./EventsSpotlight";
 import DashboardNotificationCard from "./DashboardNotificationCard";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
-import { DashboardActivityPreview, DashboardCommunityFeed, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardMembershipCard } from "./DashboardCommunitySections";
+import { DashboardActivityPreview, DashboardActiveMembers, DashboardCommunityFeed, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardMembershipCard } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -237,6 +237,7 @@ export default function DashboardShell() {
             <DashboardMembershipCard />
           </div>
           <div className={styles.col}>
+            <DashboardActiveMembers />
             <DashboardActivityPreview />
             <DashboardMemberDiscovery />
           </div>

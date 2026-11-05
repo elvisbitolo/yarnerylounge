@@ -247,6 +247,11 @@ function resolveActivityMemberName(profile, fallback = "") {
     .trim();
   if (fullName) return fullName;
 
+  const extra = profile?.extra && typeof profile.extra === "object" ? profile.extra : {};
+  const profileName = [profile?.displayName, extra.displayName, profile?.username, extra.username]
+    .find((value) => typeof value === "string" && value.trim());
+  if (profileName) return profileName.trim().replace(/^@/, "");
+
   const emailPrefix = typeof profile?.email === "string" ? profile.email.split("@")[0] : "";
   const readableEmailName = emailPrefix.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (letter) => letter.toUpperCase());
   return readableEmailName || fallback || "Member";
@@ -340,7 +345,7 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
         prisma.user.findMany({
           orderBy: { createdAt: "desc" },
           take: 10,
-          select: { id: true, name: true, firstName: true, lastName: true, email: true, createdAt: true },
+          select: { id: true, name: true, username: true, firstName: true, lastName: true, email: true, extra: true, createdAt: true },
         }),
         prisma.rsvp.findMany({
           orderBy: { createdAt: "desc" },
@@ -356,7 +361,7 @@ export async function getDashboardActivity(uid, role, memberships, limit = 8) {
       const actorProfiles = actorIds.length
         ? await prisma.user.findMany({
             where: { id: { in: actorIds } },
-            select: { id: true, name: true, firstName: true, lastName: true, email: true, photoURL: true },
+            select: { id: true, name: true, username: true, firstName: true, lastName: true, email: true, extra: true, photoURL: true },
           })
         : [];
       const photoByUserId = new Map(actorProfiles.map((member) => [member.id, member.photoURL || null]));
