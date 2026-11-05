@@ -23,6 +23,8 @@ export default function HostRoomsPage() {
   const [hostScopes, setHostScopes] = useState([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState(20);
   const [kind, setKind] = useState("standard");
   const [opensAt, setOpensAt] = useState("");
@@ -66,6 +68,56 @@ export default function HostRoomsPage() {
   const scopeOptions = creatable.filter((scope) => scope.scopeType === scopeType);
   const hasSelectedScope = scopeType === "community" || !!scopeId;
 
+  async function handleImageUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError("");
+    if (!file.type.startsWith("image/")) {
+      setError("Choose an image file for the lounge cover.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Lounge cover images must be 8 MB or smaller.");
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload?kind=cover", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Could not upload the lounge cover. Please try again.");
+        return;
+      }
+      setImageUrl(data.url || data.dataUrl || "");
+    } catch {
+      setError("Could not upload the lounge cover. Please try again.");
+    } finally {
+      setImageUploading(false);
+    }
+  }
+
+  async function handleRemoveImage() {
+    const previousUrl = imageUrl;
+    setImageUrl("");
+    if (!previousUrl || previousUrl.startsWith("data:")) return;
+    try {
+      await fetch("/api/upload?kind=cover", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: previousUrl }),
+      });
+    } catch {
+      // The image is removed from this form even if storage cleanup must be retried.
+    }
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     setError("");
@@ -81,6 +133,7 @@ export default function HostRoomsPage() {
         body: JSON.stringify({
           name,
           description,
+          imageUrl,
           maxParticipants: Number(maxParticipants),
           spaceId: scopeType === "space" ? scopeId : "",
           groupId: scopeType === "group" ? scopeId : "",
@@ -156,6 +209,38 @@ export default function HostRoomsPage() {
           <textarea id="description" className={styles.textarea} rows={3} maxLength={5000} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <div className={styles.field}>
+          <label className={styles.label} htmlFor="lounge-cover">Cover photo</label>
+          <div className={styles.coverRow}>
+            <div
+              className={styles.coverPreview}
+              role="img"
+              aria-label={imageUrl ? "Lounge cover preview" : "No lounge cover selected"}
+              style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
+            >
+              {!imageUrl && <span className={styles.coverPlaceholder}>No cover selected</span>}
+            </div>
+            <div className={styles.coverActions}>
+              <input
+                id="lounge-cover"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={imageUploading || busy}
+                style={{ display: "none" }}
+              />
+              <label className={styles.uploadButton} htmlFor="lounge-cover">
+                {imageUploading ? "Uploading…" : imageUrl ? "Change cover photo" : "Upload cover photo"}
+              </label>
+              <small className={styles.help}>Add a landscape image to give your lounge its own identity. JPG, PNG, WebP or GIF · max 8 MB.</small>
+              {imageUrl && (
+                <button className={styles.delete} type="button" onClick={handleRemoveImage} disabled={imageUploading || busy}>
+                  Remove photo
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className={styles.field}>
           <label className={styles.label} htmlFor="max">Maximum participants</label>
           <input id="max" className={styles.input} type="number" min={2} max={100} value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} />
         </div>
@@ -177,7 +262,7 @@ export default function HostRoomsPage() {
             <span className={styles.checkText}><strong>Show on the public explore page</strong></span>
           </label>
         </div>
-        <button className={styles.submit} type="submit" disabled={busy || !hasSelectedScope}>
+        <button className={styles.submit} type="submit" disabled={busy || imageUploading || !hasSelectedScope}>
           {busy ? "Creating…" : "Create lounge"}
         </button>
       </form>
