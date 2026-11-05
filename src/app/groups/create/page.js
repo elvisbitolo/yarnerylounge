@@ -17,6 +17,8 @@ export default function CreateCirclePage() {
   const [parentGroupId, setParentGroupId] = useState(requestedParent);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -47,6 +49,36 @@ export default function CreateCirclePage() {
     return () => { active = false; };
   }, [requestedParent, wantsSubgroup]);
 
+  async function handleImageChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError("");
+    if (!file.type.startsWith("image/")) {
+      setError("Choose an image file for your circle photo.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Circle photos must be 8 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload?kind=cover", { method: "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not upload this photo.");
+      setImageUrl(data.url || data.dataUrl || "");
+    } catch (err) {
+      setError(err.message || "Could not upload this photo. Please try again.");
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
@@ -56,7 +88,7 @@ export default function CreateCirclePage() {
       const response = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, parentGroupId }),
+        body: JSON.stringify({ name, description, imageUrl, parentGroupId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not create your crochet circle.");
@@ -92,6 +124,25 @@ export default function CreateCirclePage() {
         {error && <p className={styles.error} role="alert">{error}</p>}
         {success && <p className={styles.createCircleSuccess} role="status">{success}</p>}
         <form className={styles.createCircleForm} onSubmit={handleSubmit}>
+          <div className={styles.createCircleField}>
+            <span>Circle photo</span>
+            <label className={styles.createCirclePhotoPicker}>
+              {imageUrl ? (
+                <img src={imageUrl} alt="Circle photo preview" className={styles.createCirclePhotoPreview} />
+              ) : (
+                <span className={styles.createCirclePhotoPlaceholder} aria-hidden="true">＋</span>
+              )}
+              <span>
+                <strong>{imageUrl ? "Change circle photo" : "Add a cover photo"}</strong>
+                <small>Choose an image that represents your circle · JPG, PNG or WebP · up to 8 MB</small>
+              </span>
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" onChange={handleImageChange} disabled={uploadingImage} />
+            </label>
+            {uploadingImage && <small className={styles.createCircleUploadStatus}>Uploading photo…</small>}
+            {imageUrl && (
+              <button type="button" className={styles.createCircleRemovePhoto} onClick={() => setImageUrl("")}>Remove photo</button>
+            )}
+          </div>
           <label className={styles.createCircleField}>
             <span>{isSubgroup ? "Main crochet circle" : "Make this a subgroup (optional)"}</span>
             <select value={parentGroupId} onChange={(event) => setParentGroupId(event.target.value)}>
@@ -121,8 +172,8 @@ export default function CreateCirclePage() {
               {" "}<Link className={styles.link} href="/groups">Explore circles</Link>
             </p>
           )}
-          <button className={styles.createCircleSubmit} type="submit" disabled={busy || !name.trim() || needsParent}>
-            {busy ? "Creating…" : isSubgroup ? "Launch subgroup" : "Create crochet circle"}
+          <button className={styles.createCircleSubmit} type="submit" disabled={busy || uploadingImage || !name.trim() || needsParent}>
+            {busy ? "Creating…" : uploadingImage ? "Uploading photo…" : isSubgroup ? "Launch subgroup" : "Create crochet circle"}
           </button>
         </form>
       </section>
