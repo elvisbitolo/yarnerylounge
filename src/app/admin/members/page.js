@@ -152,6 +152,18 @@ export default function AdminMembersPage() {
                         <option value="moderator">Moderator</option>
                       </select>
                     )}
+                    {role === "owner" && (
+                      <select
+                        className={styles.input}
+                        style={{ width: 130, height: 36, padding: "0 8px" }}
+                        value={member.plan || "flirting"}
+                        onChange={(e) => updateMember(member.id, { plan: e.target.value }) }
+                      >
+                        <option value="flirting">Flirting (Free)</option>
+                        <option value="hooking-up">Hooking Up</option>
+                        <option value="moving-in">Moving In</option>
+                      </select>
+                    )}
                     <a
                       className={styles.toggle}
                       style={{ display: "inline-block", height: 36, padding: "8px 14px", fontSize: 13 }}

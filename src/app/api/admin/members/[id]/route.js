@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
-import { deleteMemberData } from "@/lib/server/delete-member-data";
+import { mayWriteTier } from "@/lib/server/shopify";
+import { isActiveSub } from "@/lib/server/billing";
 import { logError, logInfo } from "@/lib/server/log";
 
 const SUPABASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -13,7 +14,7 @@ export async function PATCH(req, { params }) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const { role, suspended, foundingMember } = await req.json();
+  const { role, suspended, foundingMember, plan } = await req.json();
 
   const prisma = getPrisma();
   const existing = await prisma.user.findUnique({ where: { id } });
@@ -46,6 +47,30 @@ export async function PATCH(req, { params }) {
     }
     update.foundingMember = Boolean(foundingMember);
   }
+  if (plan !== undefined) {
+    const validPlans = ["flirting", "hooking-up", "moving-in"];
+    if (!validPlans.includes(plan)) {
+      return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+    }
+    if (auth.userDoc.role !== "owner") {
+      return NextResponse.json({ error: "Only the owner can upgrade plans" }, { status: 403 });
+    }
+    const existingSub = await prisma.subscription.findFirst({
+      where: { OR: [{ id: id }, { userId: id }] },
+    });
+    const isActive = existingSub ? isActiveSub(existingSub) : false;
+    if (!mayWriteTier({
+      currentTier: existingSub?.tier,
+      currentIsActive: isActive,
+      incomingTier: plan,
+    })) {
+      return NextResponse.json({ 
+        error: "Cannot downgrade tier. Current tier must be maintained or upgraded." 
+      }, { status: 400 });
+    }
+    update.plan = plan;
+    update.tier = plan;
+  }
 
   try {
     await prisma.user.update({ where: { id }, data: update });
@@ -54,17 +79,39 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Could not update member" }, { status: 500 });
   }
 
+  await prisma.subscription.upsert({
+    where: { id: id },
+    create: {
+      id: id,
+      userId: id,
+      provider: "admin",
+      status: "active",
+      plan: plan || existing.plan || "flirting",
+      tier: plan || existingSub?.tier || "flirting",
+      planName: plan || existing.plan || "Flirting",
+      role: existing.role,
+      shopifyCustomerId: existing.shopifyCustomerId || "",
+      shopifyOrderId: existing.shopifyOrderId || "",
+      currentPeriodEnd: null,
+      canceledAt: null,
+      cancelAtPeriodEnd: false,
+      updatedAt: new Date(),
+    },
+    update: {
+      plan: update.plan,
+      tier: update.tier,
+      planName: update.plan,
+      status: "active",
+      updatedAt: new Date(),
+    },
+  });
+
   await logAudit({
     actorId: auth.user.uid,
     actorName: auth.userDoc?.name || auth.user.email || "",
-    action:
-      role !== undefined
-        ? "member.role_changed"
-        : foundingMember !== undefined
-          ? "member.founding_changed"
-          : "member.suspended",
+    action: "member.plan_upgraded",
     targetId: id,
-    metadata: { role, suspended, foundingMember, prevRole: existing.role },
+    metadata: { plan: update.plan, prevPlan: existing.plan, role: existing.role },
   });
 
   return NextResponse.json({ ok: true });
