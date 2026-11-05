@@ -5,6 +5,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { mayWriteTier } from "@/lib/server/shopify";
 import { isActiveSub } from "@/lib/server/billing";
 import { logError, logInfo } from "@/lib/server/log";
+import { deleteMemberData } from "@/lib/server/delete-member-data";
 
 const SUPABASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
