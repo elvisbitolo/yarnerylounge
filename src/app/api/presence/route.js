@@ -71,7 +71,10 @@ export async function GET(req) {
       // Members who chose "online visibility: nobody" don't appear on the member
       // directory's online strip, nor in any live-presence list.
       const visibleRows = rows.filter(
-        (row) => row.id !== user.uid && row.extra?.chatSettings?.onlineVisibility !== "nobody"
+        (row) =>
+          row.id !== user.uid &&
+          row.extra?.chatSettings?.onlineVisibility !== "nobody" &&
+          row.extra?.profileVisibility !== "private"
       );
       const uids = visibleRows
         .filter((row) => isOnlineRow(row, now))
