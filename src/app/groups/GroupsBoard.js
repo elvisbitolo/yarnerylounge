@@ -35,6 +35,11 @@ export default function GroupsBoard({ groups, uid }) {
         {groups.map((group) => (
           <div key={group.id} className={styles.card}>
             <div className={styles.cardBody}>
+              {group.imageUrl ? (
+                <Link className={styles.groupCardImageLink} href={`/groups/${group.slug}`} tabIndex={-1} aria-hidden="true">
+                  <img className={styles.groupCardImage} src={group.imageUrl} alt="" loading="lazy" />
+                </Link>
+              ) : null}
               {group.hangoutTag && (
                 <span className={styles.hangoutTag} style={{ color: group.color || undefined }}>
                   <span className={styles.hangoutDot} style={{ background: group.color || undefined }} />
