@@ -1543,7 +1543,8 @@
 .videoFeaturedMedia {
   position: relative;
   display: block;
-  min-height: 245px;
+  height: 260px;
+  min-height: 0;
   overflow: hidden;
   background: #17131a;
   text-decoration: none;
@@ -1562,7 +1563,7 @@
   display: grid;
   width: 100%;
   height: 100%;
-  min-height: 245px;
+  min-height: 0;
   place-items: center;
   color: rgba(255,255,255,.75);
   background: radial-gradient(circle at 50% 40%, #51404c, #17131a 70%);
@@ -1726,8 +1727,8 @@
 @media (max-width: 700px) {
   .videoSection { padding: 16px; }
   .videoFeatured { grid-template-columns: 1fr; }
-  .videoFeaturedMedia { min-height: 205px; }
-  .videoPosterFallback { min-height: 205px; }
+  .videoFeaturedMedia { height: 205px; }
+  .videoPosterFallback { min-height: 0; }
   .videoFeaturedCopy { padding: 17px; }
   .videoWatchButton { width: 100%; justify-content: center; }
   .videoRail { grid-auto-columns: minmax(155px, 68%); }
@@ -1735,6 +1736,6 @@
 @media (max-width: 480px) {
   .videoSectionHeader { align-items: flex-start; flex-direction: column; gap: 8px; }
   .videoSectionTitle { font-size: 19px; }
-  .videoFeaturedMedia { min-height: 180px; }
-  .videoPosterFallback { min-height: 180px; }
+  .videoFeaturedMedia { height: 180px; }
+  .videoPosterFallback { min-height: 0; }
 }
