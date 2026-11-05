@@ -1,7 +1,9 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { canModerate } from "@/lib/server/auth";
 import { getSettings } from "@/lib/server/settings";
-import { listRooms } from "@/lib/server/rooms";
+import { listVisibleCommunityRooms } from "@/lib/server/rooms";
+import { isRoomLive } from "@/lib/server/rooms-core";
+import { activeRoomMemberCounts } from "@/lib/server/room-presence";
 import { listEvents, expandEvents, listRsvps, getEvent } from "@/lib/server/events";
 import { getCourse } from "@/lib/server/courses";
 import { getSpace } from "@/lib/server/spaces";
@@ -533,9 +535,17 @@ export async function getDashboardSpotlight(uid, limit = 5) {
   return { events, myBlocks, pinnedBlocks, recent };
 }
 
-export async function getDashboardUpcomingRooms(limit = 4) {
+export async function getDashboardUpcomingRooms(uid, userDoc, limit = 6) {
   const now = Date.now();
-  const [rooms, events] = await Promise.all([listRooms(), listEvents()]);
+  const [rooms, events] = await Promise.all([listVisibleCommunityRooms(uid, userDoc), listEvents()]);
+  const activeRooms = rooms.filter((room) => room.status === "active");
+  const liveRooms = activeRooms.filter((room) => isRoomLive(room, now));
+  const scheduledRooms = activeRooms
+    .filter((room) => !isRoomLive(room, now) && toMillis(room.opensAt) > now)
+    .sort((a, b) => toMillis(a.opensAt) - toMillis(b.opensAt));
+  const roomBySlug = new Map(rooms.map((room) => [room.slug, room]));
+  const viewerCounts = await activeRoomMemberCounts(liveRooms.map((room) => room.id));
+
   const upcomingEvents = expandEvents(events)
     .filter((event) => toMillis(event.startTime) > now)
     .sort((a, b) => toMillis(a.startTime) - toMillis(b.startTime))
@@ -549,35 +559,57 @@ export async function getDashboardUpcomingRooms(limit = 4) {
     });
   }
 
-  const items = [];
+  const liveItems = liveRooms.map((room) => ({
+    id: `live-${room.id}`,
+    kind: "live",
+    title: room.name || room.slug,
+    description: room.description || "",
+    slug: room.slug,
+    imageUrl: room.imageUrl || "",
+    color: room.color || "",
+    vibe: room.vibe || "",
+    viewerCount: viewerCounts.get(room.id) || 0,
+    startTime: null,
+    rsvpCount: 0,
+    href: `/rooms/${room.slug}`,
+  }));
 
-  for (const room of rooms) {
-    if (room.status === "active") {
-      items.push({
-        id: `live-${room.id}`,
-        kind: "live",
-        title: room.name || room.slug,
-        slug: room.slug,
-        startTime: null,
-        rsvpCount: 0,
-        href: `/rooms/${room.slug}`,
-      });
-    }
-  }
+  const scheduledRoomItems = scheduledRooms.map((room) => ({
+    id: `scheduled-room-${room.id}`,
+    kind: "upcoming",
+    title: room.name || room.slug,
+    description: room.description || "",
+    slug: room.slug,
+    imageUrl: room.imageUrl || "",
+    color: room.color || "",
+    vibe: room.vibe || "",
+    viewerCount: 0,
+    startTime: toMillis(room.opensAt),
+    rsvpCount: 0,
+    href: `/rooms/${room.slug}`,
+  }));
 
-  for (const event of upcomingEvents) {
-    items.push({
+  const eventItems = upcomingEvents.map((event) => {
+    const room = event.roomSlug ? roomBySlug.get(event.roomSlug) : null;
+    return {
       id: `event-${event.id}`,
       kind: "upcoming",
       title: event.title || "Upcoming event",
+      description: event.description || room?.description || "",
       slug: event.roomSlug || "",
+      imageUrl: room?.imageUrl || "",
+      color: room?.color || "",
+      vibe: room?.vibe || "",
+      viewerCount: 0,
       startTime: toMillis(event.startTime),
       rsvpCount: eventRsvpCounts[event.id] || 0,
       href: event.roomSlug ? `/rooms/${event.roomSlug}` : "/events",
-    });
-  }
+    };
+  });
 
-  return items.slice(0, limit);
+  const upcomingItems = [...scheduledRoomItems, ...eventItems]
+    .sort((a, b) => (a.startTime || 0) - (b.startTime || 0));
+  return [...liveItems, ...upcomingItems].slice(0, limit);
 }
 
 export async function getDashboardMessages(uid, limit = 5) {
@@ -782,7 +814,7 @@ export async function getDashboardCommandData(uid, userDoc) {
     await Promise.all([
       attempt(() => getDashboardStats(uid, userDoc)),
       attempt(() => getDashboardActivity(uid, role, memberships)),
-      attempt(() => getDashboardUpcomingRooms()),
+      attempt(() => getDashboardUpcomingRooms(uid, userDoc)),
       attempt(() => getDashboardSpotlight(uid)),
       attempt(() => getDashboardMessages(uid)),
       attempt(() => getDashboardContent()),

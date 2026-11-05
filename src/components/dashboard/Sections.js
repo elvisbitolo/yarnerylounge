@@ -288,31 +288,46 @@ export function UpcomingRooms({ data }) {
       {data.length === 0 ? (
         <EmptyState text={t("noRooms")} />
       ) : (
-        <ul className={styles.list}>
-          {data.map((item) => (
-            <li key={item.id}>
-              <Link className={`${styles.item} ${styles.itemRow}`} href={item.href}>
-                <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                  <span className={item.kind === "live" ? `${styles.dot} ${styles.dotLive}` : styles.dot} />
-                  <span style={{ minWidth: 0 }}>
-                    <span className={styles.itemTitle} style={{ display: "block" }}>
-                      {item.title}
+        <div className={styles.dashboardRoomGrid}>
+          {data.map((item) => {
+            const hasPeople = item.kind === "live" && item.viewerCount > 0;
+            const statusLabel = item.kind === "live"
+              ? (hasPeople ? "LIVE NOW" : "OPEN NOW")
+              : "UPCOMING";
+            return (
+              <Link
+                key={item.id}
+                className={styles.dashboardRoomCard}
+                href={item.href}
+                style={{ "--dashboard-room-accent": item.color || "var(--dash-accent, #f6077a)" }}
+              >
+                <span className={styles.dashboardRoomCover}>
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt="" loading="lazy" />
+                  ) : (
+                    <span className={styles.dashboardRoomCoverFallback} aria-hidden="true">
+                      {(item.title || "L").trim().slice(0, 1).toUpperCase()}
                     </span>
-                    <span className={styles.itemMeta}>
-                      {item.kind === "live" ? t("liveNow") : formatTime(item.startTime)}
-                    </span>
+                  )}
+                  <span className={`${styles.dashboardRoomStatus} ${item.kind === "live" ? styles.dashboardRoomStatusLive : styles.dashboardRoomStatusUpcoming}`}>
+                    {statusLabel}
                   </span>
                 </span>
-                {item.kind === "upcoming" && item.rsvpCount > 0 && (
-                  <span className={`${styles.tag} ${styles.tagRsvp}`}>{t("rsvps", { count: item.rsvpCount })}</span>
-                )}
-                {item.kind === "live" && (
-                  <span className={`${styles.tag} ${styles.tagLive}`}>{t("live")}</span>
-                )}
+                <span className={styles.dashboardRoomInfo}>
+                  <strong className={styles.dashboardRoomTitle}>{item.title}</strong>
+                  {item.description ? <span className={styles.dashboardRoomDescription}>{item.description}</span> : null}
+                  <span className={styles.dashboardRoomMeta}>
+                    {item.kind === "live"
+                      ? (hasPeople ? `${item.viewerCount} ${item.viewerCount === 1 ? "person" : "people"} inside` : "Ready when you are")
+                      : formatTime(item.startTime)}
+                    {item.kind === "upcoming" && item.rsvpCount > 0 ? ` · ${item.rsvpCount} going` : ""}
+                  </span>
+                  <span className={styles.dashboardRoomCta}>{item.kind === "live" ? "Enter lounge" : "View session"} <span aria-hidden="true">→</span></span>
+                </span>
               </Link>
-            </li>
-          ))}
-        </ul>
+            );
+          })}
+        </div>
       )}
     </Card>
   );
