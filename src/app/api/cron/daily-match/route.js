@@ -144,22 +144,7 @@ export async function GET(req) {
       }
       processed += 1;
 
-      const existing = await prisma.notification.findFirst({
-        where: { userId: uid, type: "daily_match", targetId: `${uid}:${pick.date}` },
-        select: { id: true },
-      });
-      if (existing) continue;
-      const created = await createNotification({
-        userId: uid,
-        type: "daily_match",
-        targetId: `${uid}:${pick.date}`,
-        href: "/match",
-        text: "Your new fiber match is ready. Explore their profile and say hello within 24 hours.",
-      });
-      if (created) {
-        notified += 1;
-
-      }
+      
     } catch (err) {
       failed += 1;
       logError("cron.daily_match.user_failed", { error: err.message, uid });
