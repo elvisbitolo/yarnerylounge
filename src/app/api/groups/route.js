@@ -38,12 +38,19 @@ export async function POST(req) {
   const body = await req.json().catch(() => ({}));
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
+  const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl.trim() : "";
   const parentGroupId = typeof body.parentGroupId === "string" ? body.parentGroupId.trim() : "";
   if (!name) {
     return NextResponse.json({ error: "Circle name required" }, { status: 400 });
   }
   if (name.length > 80 || description.length > 1200) {
     return NextResponse.json({ error: "Keep the name under 80 characters and description under 1,200 characters." }, { status: 400 });
+  }
+  if (imageUrl && imageUrl.length > 2000) {
+    return NextResponse.json({ error: "Circle photo URL is too long." }, { status: 400 });
+  }
+  if (imageUrl && !/^https:\/\//i.test(imageUrl) && !/^data:image\/(png|jpeg|webp|gif|avif);base64,/i.test(imageUrl)) {
+    return NextResponse.json({ error: "Circle photo must be uploaded as an image." }, { status: 400 });
   }
 
   const slug = `${name
@@ -80,6 +87,7 @@ export async function POST(req) {
           name,
           slug,
           description,
+          imageUrl: imageUrl || null,
           status: "active",
           createdBy: auth.user.uid,
           parentGroupId: parentGroupId || null,
