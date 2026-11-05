@@ -187,6 +187,7 @@ export default function AdminMembersPage() {
           <button type="button" className={styles.exportButton} onClick={exportMembers}>Export CSV ↓</button>
         </div>
 
+        <div className={styles.membersDesktopTable}>
         <div className={styles.membersTableWrap}>
           <table className={styles.membersTable}>
             <thead>
@@ -255,6 +256,66 @@ export default function AdminMembersPage() {
               {pageMembers.length === 0 && <tr><td colSpan={8} className={styles.membersEmpty}>No members match these filters.</td></tr>}
             </tbody>
           </table>
+        </div>
+
+        </div>
+
+        <div className={styles.membersMobileList}>
+          {pageMembers.map((member, index) => {
+            const memberPlan = member.plan || "flirting";
+            const isActive = ["active", "trial"].includes(member.subStatus);
+            const statusLabel = member.suspended ? "Suspended" : isActive ? (member.subStatus === "trial" ? "Trial" : "Active") : "Inactive";
+            return (
+              <article className={styles.mobileMemberCard} key={member.id}>
+                <div className={styles.mobileMemberTop}>
+                  <a className={styles.memberIdentity} href={`/members/${member.id}`}>
+                    <span className={styles.memberAvatar + " " + styles.mobileMemberAvatar} style={member.photoURL ? { backgroundImage: `url("${member.photoURL}")` } : undefined}>
+                      {!member.photoURL && (member.name || "U").trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className={styles.mobileMemberIdentityText}>
+                      <strong className={styles.mobileMemberName}>{member.name || "Unnamed"}</strong>
+                      <span className={styles.mobileMemberEmail}>{member.email || "No email"}</span>
+                    </span>
+                  </a>
+                  <span className={member.suspended ? styles.statusSuspended : isActive ? styles.statusActive : styles.statusInactive}>{statusLabel}</span>
+                </div>
+
+                <dl className={styles.mobileMemberDetails}>
+                  <div><dt>Plan</dt><dd>
+                    {role === "owner" && member.role !== "owner" ? (
+                      <select className={styles.mobileMemberSelect} value={memberPlan} onChange={(event) => updateMember(member.id, { plan: event.target.value })} aria-label={`Plan for ${member.name || member.email}`}>
+                        {PLAN_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value} disabled={isActive && option.rank < (PLAN_OPTIONS.find((item) => item.value === memberPlan)?.rank ?? 0)}>{option.label}</option>
+                        ))}
+                      </select>
+                    ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
+                  </dd></div>
+                  <div><dt>Role</dt><dd>
+                    {role === "owner" && member.role !== "owner" ? (
+                      <select className={styles.mobileMemberSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
+                        <option value="member">Member</option><option value="moderator">Moderator</option>
+                      </select>
+                    ) : <span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span>}
+                  </dd></div>
+                  <div><dt>Joined</dt><dd>{formatDate(member.createdAt)}</dd></div>
+                  <div><dt>Member #</dt><dd>{start + index}</dd></div>
+                </dl>
+
+                <div className={styles.mobileMemberActions}>
+                  <a className={styles.actionLink} href={`/members/${member.id}`}>View profile</a>
+                  {member.role !== "owner" && <>
+                    <a className={styles.actionLink} href={`/admin/hosts?userId=${member.id}`}>Host</a>
+                    {role === "owner" && <>
+                      <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}>{member.foundingMember ? "Unmark founding" : "Mark founding"}</button>
+                      <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { suspended: !member.suspended })}>{member.suspended ? "Unsuspend" : "Suspend"}</button>
+                      <button type="button" className={styles.actionDelete} onClick={() => requestDelete(member)}>Delete</button>
+                    </>}
+                  </>}
+                </div>
+              </article>
+            );
+          })}
+          {pageMembers.length === 0 && <p className={styles.mobileMembersEmpty}>No members match these filters.</p>}
         </div>
 
         <div className={styles.paginationFooter}>
