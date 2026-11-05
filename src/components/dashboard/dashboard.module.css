@@ -1739,3 +1739,72 @@
   .videoFeaturedMedia { height: 180px; }
   .videoPosterFallback { min-height: 0; }
 }
+
+
+/* Author identity in the dashboard's latest community feed. */
+.communityPostHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.communityPostAuthor {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.communityPostAuthor:hover .itemTitle {
+  color: var(--card-accent, var(--dash-accent, #f42e79));
+}
+.communityPostAvatar,
+.communityPostAvatarFallback {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 50%;
+}
+.communityPostAvatar {
+  display: block;
+  object-fit: cover;
+  background: var(--card-border, var(--dash-border, #eadfd2));
+}
+.communityPostAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-border, var(--dash-border, #eadfd2));
+  color: var(--card-text, var(--dash-text, #f5f5f5));
+  font-size: 12px;
+  font-weight: 800;
+}
+.communityPostAuthor .itemTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.communityPostContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-left: 48px;
+  color: inherit;
+  text-decoration: none;
+}
+.communityPostContent:hover .itemTitle {
+  color: var(--card-accent, var(--dash-accent, #f42e79));
+}
+@media (max-width: 560px) {
+  .communityPostHeader { gap: 6px; }
+  .communityPostAvatar,
+  .communityPostAvatarFallback {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  .communityPostContent { padding-left: 46px; }
+}
