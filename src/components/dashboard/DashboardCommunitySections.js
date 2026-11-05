@@ -45,6 +45,96 @@ function relativeTime(value) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+
+function formatVideoDuration(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  const remainder = value % 60;
+  return hours
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
+    : `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
+export function DashboardFeaturedVideos() {
+  const { value, loading } = useDashboardResource("/api/recordings?limit=5&thumbnails=1", "data");
+  const videos = Array.isArray(value)
+    ? value.filter((recording) => recording.status === "ready").slice(0, 4)
+    : [];
+  const featured = videos[0];
+  const recent = videos.slice(1);
+
+  return (
+    <section className={styles.videoSection} aria-labelledby="dashboard-videos-title">
+      <div className={styles.videoSectionHeader}>
+        <div>
+          <p className={styles.videoEyebrow}>WATCH · DISCOVER · RECONNECT</p>
+          <h2 className={styles.videoSectionTitle} id="dashboard-videos-title">Videos from the lounge</h2>
+          <p className={styles.videoSectionDescription}>Catch up on moments and conversations shared by the community.</p>
+        </div>
+        <Link className={styles.videoViewAll} href="/recordings">View all videos <span aria-hidden="true">→</span></Link>
+      </div>
+
+      {loading ? (
+        <div className={styles.videoLoading} aria-live="polite">Loading community videos…</div>
+      ) : featured ? (
+        <>
+          <div className={styles.videoFeatured}>
+            <Link className={styles.videoFeaturedMedia} href={`/recordings?rec=${encodeURIComponent(featured.id)}`} aria-label={`Watch ${featured.title || "featured recording"}`}>
+              {featured.thumbnailUrl ? (
+                <img src={featured.thumbnailUrl} alt="" loading="lazy" />
+              ) : (
+                <span className={styles.videoPosterFallback} aria-hidden="true">
+                  <svg viewBox="0 0 48 48" fill="none"><rect x="5" y="9" width="38" height="30" rx="7" stroke="currentColor" strokeWidth="1.8"/><path d="m21 17 11 7-11 7V17Z" fill="currentColor"/></svg>
+                </span>
+              )}
+              <span className={styles.videoPlayButton} aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.8c0-.8.9-1.3 1.6-.9l10 6.2a1 1 0 0 1 0 1.7l-10 6.2c-.7.4-1.6-.1-1.6-.9V5.8Z"/></svg>
+              </span>
+              {featured.durationSec ? <span className={styles.videoDuration}>{formatVideoDuration(featured.durationSec)}</span> : null}
+            </Link>
+            <div className={styles.videoFeaturedCopy}>
+              <span className={styles.videoFeaturedLabel}>LATEST RECORDING</span>
+              <h3>{featured.title || "A moment from the lounge"}</h3>
+              <p>{featured.roomName || "Christa’s Speakeasy"}{featured.startedAt ? ` · ${relativeTime(featured.startedAt)}` : ""}</p>
+              <Link className={styles.videoWatchButton} href={`/recordings?rec=${encodeURIComponent(featured.id)}`}>
+                <span aria-hidden="true">▶</span> Watch video
+              </Link>
+            </div>
+          </div>
+
+          {recent.length > 0 ? (
+            <div className={styles.videoRecentBlock}>
+              <h3 className={styles.videoRecentTitle}>Recently added</h3>
+              <div className={styles.videoRail}>
+                {recent.map((recording) => (
+                  <Link className={styles.videoTile} href={`/recordings?rec=${encodeURIComponent(recording.id)}`} key={recording.id}>
+                    <span className={styles.videoTileMedia}>
+                      {recording.thumbnailUrl ? <img src={recording.thumbnailUrl} alt="" loading="lazy" /> : <span className={styles.videoTileFallback} aria-hidden="true">▶</span>}
+                      {recording.durationSec ? <span className={styles.videoDuration}>{formatVideoDuration(recording.durationSec)}</span> : null}
+                    </span>
+                    <strong>{recording.title || "Lounge recording"}</strong>
+                    <span>{recording.roomName || "Community recording"}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className={styles.videoEmpty}>
+          <span className={styles.videoEmptyIcon} aria-hidden="true">▶</span>
+          <div>
+            <strong>The next community moment will appear here.</strong>
+            <p>Explore the recordings library to see what has already been shared.</p>
+          </div>
+          <Link href="/recordings">Explore recordings →</Link>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function DashboardCommunityFeed() {
   const { value, loading } = useDashboardResource("/api/posts?limit=5", "posts");
   const posts = Array.isArray(value) ? value.slice(0, 5) : [];
