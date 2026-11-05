@@ -607,7 +607,11 @@ export default function RoomClient({
     const api = apiRef.current;
     if (!api || phaseRef.current !== "connected" || !videoDesiredRef.current) return;
     try {
-      api.executeCommand("setBlurredBackground", effect);
+      if (effect === "none" || effect === "slight-blur" || effect === "moderate-blur" || effect === "blur") {
+        api.executeCommand("setBlurredBackground", effect);
+      } else {
+        api.executeCommand("setBackgroundColor", effect);
+      }
       setBackgroundEffect(effect);
       setEffectsOpen(false);
       setCameraMsg("");
@@ -1478,7 +1482,11 @@ export default function RoomClient({
                       {[
                         { value: "none", label: "Natural" },
                         { value: "slight-blur", label: "Soft blur" },
+                        { value: "moderate-blur", label: "Medium blur" },
                         { value: "blur", label: "Blur" },
+                        { value: "brand-navy", label: "Navy" },
+                        { value: "brand-purple", label: "Purple" },
+                        { value: "brand-black", label: "Black" },
                       ].map((effect) => (
                         <button
                           key={effect.value}
@@ -1626,70 +1634,6 @@ export default function RoomClient({
             )}
           </div>
 
-          <div className={styles.roomActionBar}>
-            <button
-              type="button"
-              className={`${styles.roomActionBtn} ${peopleOpen ? styles.roomActionBtnOn : ""}`}
-              onClick={() => (peopleOpen ? setPeopleOpen(false) : openPeople())}
-            >
-              <Users size={18} />
-              <span>{t("people")}</span>
-            </button>
-            <button type="button" className={`${styles.roomActionBtn} ${styles.roomActionLeave}`} onClick={handleLeave}>
-              <LogOut size={18} />
-              <span>{t("leave")}</span>
-            </button>
-          </div>
-
-          {peopleOpen && (
-            <div className={styles.controlsSheet} role="dialog" aria-label={t("people")}>
-              <div className={styles.controlsSheetHeader}>
-                <span className={styles.controlsSheetTitle}>
-                  <Users size={15} />
-                  {t("people")}
-                </span>
-                <button
-                  type="button"
-                  className={styles.controlsSheetClose}
-                  onClick={() => setPeopleOpen(false)}
-                  aria-label={t("close")}
-                >
-                  ×
-                </button>
-              </div>
-              <div className={styles.controlsSheetBody}>
-                {controlsNotice && <p className={styles.controlsNotice}>{controlsNotice}</p>}
-                <div className={styles.controlsMuteAllRow}>
-                  <span className={styles.controlsCount}>
-                    {t("peopleInRoom", { count: remoteParticipants.length })}
-                  </span>
-                  {canRecord && (
-                    <button type="button" className={styles.controlsMuteAll} onClick={muteAllRemote}>
-                      <VolumeX size={14} />
-                      {t("muteAll")}
-                    </button>
-                  )}
-                </div>
-
-                {remoteParticipants.length === 0 ? (
-                  <p className={styles.controlsEmpty}>{t("noParticipants")}</p>
-                ) : (
-                  <ul className={styles.controlsList}>
-                    {remoteParticipants.map((p) => {
-                      const localMuted = (participantVolumes[p.participantId] ?? 100) === 0;
-                      const isBlocked = Boolean(p.email) && blockedEmails.has(p.email);
-                      return (
-                        <li key={p.participantId} className={styles.controlsRow}>
-                          <span className={styles.controlsAvatar} aria-hidden="true">
-                            {p.avatarUrl ? (
-                              <img
-                                className={styles.controlsAvatarImg}
-                                src={p.avatarUrl}
-                                alt=""
-                              />
-                            ) : (
-                              String(p.displayName || "?").charAt(0).toUpperCase()
-                            )}
                           </span>
                           <span className={styles.controlsName} title={p.displayName}>
                             {p.displayName || t("member")}

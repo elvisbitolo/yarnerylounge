@@ -2,10 +2,17 @@ import { NextResponse } from "next/server";
 import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
-import { isActiveSub } from "@/lib/server/billing";
+import { mayWriteTier, isActiveSub } from "@/lib/server/shopify";
 import { tierRank } from "@/lib/server/plans";
 import { logError, logInfo } from "@/lib/server/log";
 import { deleteMemberData } from "@/lib/server/delete-member-data";
+
+// Plan duration mapping (days) - based on SHOPIFY_VARIANTS in shopify.js
+const PLAN_DURATION_DAYS = {
+  flirting: 0,    // Free tier - never expires
+  "hooking-up": 30, // Monthly by default
+  "moving-in": 30, // Monthly by default
+};
 
 const SUPABASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -67,10 +74,24 @@ export async function PATCH(req, { params }) {
     if (["owner", "moderator"].includes(String(existing.role || "").toLowerCase())) {
       return NextResponse.json({ error: "Staff membership access is controlled by their role" }, { status: 400 });
     }
-    update.plan = plan;
-    if (String(existing.role || "").toLowerCase() === "host" && plan !== "moving-in") {
-      update.role = "member";
+    // Calculate currentPeriodEnd based on plan duration
+    const durationDays = PLAN_DURATION_DAYS[plan] || 0;
+    const periodEnd = durationDays > 0
+      ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
+      : null;
+    // Validate tier change using existing subscription status
+    if (!mayWriteTier({
+      currentTier: existingSub?.tier,
+      currentIsActive: existingSub ? isActiveSub(existingSub) : false,
+      incomingTier: plan,
+    })) {
+      return NextResponse.json({ 
+        error: "Cannot downgrade tier. Current tier must be maintained or upgraded." 
+      }, { status: 400 });
     }
+    update.plan = plan;
+    update.tier = plan;
+    update.currentPeriodEnd = periodEnd;
   }
 
   try {
@@ -87,7 +108,7 @@ export async function PATCH(req, { params }) {
               tier: plan,
               planName: plan,
               role: update.role || existing.role,
-              currentPeriodEnd: null,
+              currentPeriodEnd: periodEnd,
               trialEnd: null,
               canceledAt: null,
               cancelAtPeriodEnd: false,
@@ -107,7 +128,7 @@ export async function PATCH(req, { params }) {
               role: update.role || existing.role,
               shopifyCustomerId: existing.shopifyCustomerId || "",
               shopifyOrderId: existing.shopifyOrderId || "",
-              currentPeriodEnd: null,
+              currentPeriodEnd: periodEnd,
               canceledAt: null,
               cancelAtPeriodEnd: false,
               updatedAt: new Date(),

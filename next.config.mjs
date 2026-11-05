@@ -17,6 +17,11 @@ const nextConfig = {
         hostname: "**.public.blob.vercel-storage.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "vercel.live",
+        pathname: "/**",
+      },
     ],
   },
   async headers() {
@@ -33,6 +38,10 @@ const nextConfig = {
           {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "script-src 'self' 'unsafe-inline' https://8x8.vc https://*.8x8.vc https://vercel.live; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.bigdatacloud.net https://api-bdc.io https://*.christasspeakeasy.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.googleapis.com; frame-src 'self'",
           },
         ],
       },
