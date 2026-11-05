@@ -145,7 +145,7 @@ export default function WelcomeJourney({ initial }) {
         <div className={styles.content}>
           <div className={styles.identityPreview}>
             <div className={styles.avatar}>
-              {photoURL ? <img src={photoURL} alt="Your profile preview" /> : <span>{(name || "?").trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span>}
+              {photoURL ? <>{/* eslint-disable-next-line @next/next/no-img-element -- user-supplied profile photo preview */}<img src={photoURL} alt="Your profile preview" /></> : <span>{(name || "?").trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span>}
             </div>
             <div><strong>{name || "Your name"}</strong><p>@{username || "your-username"}</p></div>
           </div>
