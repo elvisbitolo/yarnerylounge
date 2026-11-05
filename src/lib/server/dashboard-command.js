@@ -248,7 +248,7 @@ function resolveActivityMemberName(profile, fallback = "") {
   if (fullName) return fullName;
 
   const emailPrefix = typeof profile?.email === "string" ? profile.email.split("@")[0] : "";
-  const readableEmailName = emailPrefix.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
+  const readableEmailName = emailPrefix.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (letter) => letter.toUpperCase());
   return readableEmailName || fallback || "Member";
 }
 
