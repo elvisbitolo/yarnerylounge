@@ -21,7 +21,7 @@ import {
 import EventsSpotlight from "./EventsSpotlight";
 import DashboardNotificationCard from "./DashboardNotificationCard";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
-import { DashboardActivityPreview, DashboardActiveMembers, DashboardCommunityFeed, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardMembershipCard } from "./DashboardCommunitySections";
+import { DashboardActivityPreview, DashboardActiveMembers, DashboardCommunityFeed, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardMembershipCard, DashboardProfileCompletion } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -227,6 +227,7 @@ export default function DashboardShell() {
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} photoURL={user.photoURL} />
         </div>
+        <DashboardProfileCompletion photoURL={user.photoURL} username={user.username} />
         <DashboardFeaturedVideos />
         <ChristaLiveInvitation />
         <DashboardNotificationCard />
