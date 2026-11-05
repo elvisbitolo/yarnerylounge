@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/server/audit";
 import { serialize } from "@/lib/server/serialize";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { getCapabilities, canBuildNeighborhoods } from "@/lib/server/capabilities";
 
 export async function GET() {
   const auth = await requireUser();
@@ -27,7 +28,12 @@ export async function GET() {
       joined: !!membership,
     });
   }
-  return NextResponse.json({ groups: serialize(withMembership) });
+  const capabilities = await getCapabilities(auth.user.uid);
+  return NextResponse.json({
+    groups: serialize(withMembership),
+    uid: auth.user.uid,
+    canCreate: canBuildNeighborhoods(capabilities),
+  });
 }
 
 export async function POST(req) {
