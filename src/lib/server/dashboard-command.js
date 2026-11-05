@@ -600,7 +600,7 @@ export async function getDashboardNotifications(uid, limit = 6) {
   }));
 }
 
-function buildDashboardContent(posts, comments) {
+function buildDashboardContent(posts, comments, photoByAuthorId = new Map()) {
   const commentCountByPost = {};
   comments.forEach((comment) => {
     if (comment.postId) {
@@ -617,7 +617,9 @@ function buildDashboardContent(posts, comments) {
     items: top.slice(0, 5).map((post) => ({
       id: post.id,
       title: post.text,
-      authorName: post.authorName,
+      authorId: post.authorId || null,
+      authorName: post.authorName || "Member",
+      authorPhotoUrl: post.authorId ? photoByAuthorId.get(post.authorId) || null : null,
       likeCount: post.likeCount,
       commentCount: post.commentCount,
       score: post.score,
@@ -646,7 +648,15 @@ export async function getDashboardContent() {
         }),
         prisma.postComment.findMany({ take: 3000, select: { postId: true } }),
       ]);
-      return buildDashboardContent(posts, comments);
+      const authorIds = [...new Set(posts.map((post) => post.authorId).filter(Boolean))];
+      const authors = authorIds.length
+        ? await prisma.user.findMany({
+            where: { id: { in: authorIds } },
+            select: { id: true, photoURL: true },
+          })
+        : [];
+      const photoByAuthorId = new Map(authors.map((author) => [author.id, author.photoURL || null]));
+      return buildDashboardContent(posts, comments, photoByAuthorId);
     } catch (err) {
       logError("dashboard-command.prisma_content_failed", { error: err.message });
     }
@@ -779,7 +789,21 @@ export async function getDashboardCommandData(uid, userDoc) {
       attempt(() => getDashboardNotifications(uid)),
       attempt(() => getDashboardNeedsAttention(userDoc)),
       attempt(() => getDashboardOnboarding(uid)),
-      isStaff ? attempt(() => getLeaderboard(5)) : Promise.resolve({ ok: true, value: [] }),
+      isStaff ? attempt(async () => {
+        const entries = await getLeaderboard(5);
+        const userIds = [...new Set(entries.map((entry) => entry.userId).filter(Boolean))];
+        const prisma = getPrisma();
+        if (!prisma || !userIds.length) return entries;
+        const users = await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, photoURL: true },
+        });
+        const photoByUserId = new Map(users.map((member) => [member.id, member.photoURL || null]));
+        return entries.map((entry) => ({
+          ...entry,
+          photoURL: photoByUserId.get(entry.userId) || null,
+        }));
+      }) : Promise.resolve({ ok: true, value: [] }),
     ]);
 
   return {
