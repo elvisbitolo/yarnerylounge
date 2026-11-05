@@ -420,14 +420,23 @@ export function DashboardCommunityBuilderCard() {
           You’re not just here to join in. Bring people together around the crafts, projects and conversations you love — and help shape what this community becomes.
         </p>
         <div className={styles.communityBuilderActions}>
-          <Link className={styles.communityBuilderPrimary} href="/admin/groups">
+          <Link className={styles.communityBuilderPrimary} href="/groups/create">
             <span className={styles.communityBuilderActionIcon} aria-hidden="true">＋</span>
             Create a crochet circle
             <span aria-hidden="true">→</span>
           </Link>
-          <Link className={styles.communityBuilderSecondary} href="/neighbourhoods">
-            Explore neighbourhoods
+          <Link className={styles.communityBuilderSecondary} href="/groups/create?type=subgroup">
+            <span aria-hidden="true">⌘</span>
+            Launch a subgroup
             <span aria-hidden="true">↗</span>
+          </Link>
+          <Link className={styles.communityBuilderSecondary} href="/host/rooms?audience=community">
+            <span aria-hidden="true">◉</span>
+            Create a lounge
+            <span aria-hidden="true">↗</span>
+          </Link>
+          <Link className={styles.communityBuilderExplore} href="/neighbourhoods">
+            Explore neighbourhoods <span aria-hidden="true">→</span>
           </Link>
         </div>
         <div className={styles.communityBuilderFooter}>
