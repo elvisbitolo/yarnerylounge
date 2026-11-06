@@ -1,117 +1,224 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getGamification, getLeaderboard, BADGES } from "@/lib/server/gamification";
+import {
+  getGamification,
+  getLeaderboard,
+  getWeeklyLeaderboard,
+  BADGES,
+} from "@/lib/server/gamification";
 import { getRecognitionLeaderboard } from "@/lib/server/recognition";
 import styles from "./leaderboard.module.css";
-import { Flame, PartyPopper, Lock } from "lucide-react";
+import { Flame, PartyPopper, Lock, Trophy, Sparkles, Medal, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+function MemberIdentity({ entry }) {
+  return (
+    <span className={styles.memberIdentity}>
+      {entry.photoURL ? (
+        <Image
+          src={entry.photoURL}
+          alt=""
+          width={42}
+          height={42}
+          unoptimized
+          className={styles.avatar}
+        />
+      ) : (
+        <span className={styles.avatarFallback}>
+          {(entry.name || "M").trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span className={styles.memberText}>
+        <span className={styles.memberName}>{entry.name}</span>
+        {entry.username && <span className={styles.username}>@{entry.username}</span>}
+      </span>
+    </span>
+  );
+}
+
+function Podium({ entries }) {
+  if (!entries.length) return null;
+  const order = [entries[1], entries[0], entries[2]].filter(Boolean);
+  return (
+    <div className={styles.podium}>
+      {order.map((entry) => (
+        <Link
+          href={`/members/${entry.userId}`}
+          key={entry.userId}
+          className={`${styles.podiumCard} ${entry.rank === 1 ? styles.firstPlace : ""}`}
+        >
+          <span className={styles.podiumMedal}>
+            {entry.rank === 1 ? <Trophy size={20} /> : <Medal size={18} />}
+          </span>
+          <MemberIdentity entry={entry} />
+          <strong className={styles.podiumPoints}>{entry.points.toLocaleString()} pts</strong>
+          <span className={styles.podiumRank}>#{entry.rank}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function RankingRows({ entries, currentUserId, mode = "points" }) {
+  if (!entries.length) {
+    return <p className={styles.empty}>No rankings yet. Start contributing to appear here.</p>;
+  }
+  return (
+    <div className={styles.rows}>
+      {entries.map((entry) => (
+        <div
+          key={entry.userId}
+          className={entry.userId === currentUserId ? `${styles.row} ${styles.rowMine}` : styles.row}
+        >
+          <span className={styles.rank}>#{entry.rank}</span>
+          <Link className={styles.memberLink} href={`/members/${entry.userId}`}>
+            <MemberIdentity entry={entry} />
+          </Link>
+          {mode === "allTime" && (
+            <span className={styles.meta}><Flame size={14} /> {entry.streak} day streak</span>
+          )}
+          {mode === "allTime" && <span className={styles.meta}>{entry.badgeCount} badges</span>}
+          <strong className={styles.points}>
+            {entry.points.toLocaleString()} <small>pts</small>
+          </strong>
+          {entry.userId === currentUserId && <span className={styles.youTag}>YOU</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default async function LeaderboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const userDoc = await getUserDoc(user.uid);
-
   const name = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
-  const [rawMine, leaderboard, recognized] = await Promise.all([
+  const [rawMine, leaderboard, weekly, recognized] = await Promise.all([
     getGamification(user.uid, name),
     getLeaderboard(20),
+    getWeeklyLeaderboard(20),
     getRecognitionLeaderboard(20),
   ]);
   const mine = rawMine ?? { points: 0, streak: 0, bestStreak: 0, badges: {} };
-
   const myRank = leaderboard.find((entry) => entry.userId === user.uid)?.rank || null;
   const earnedCodes = Object.keys(mine.badges || {});
-  const unearned = Object.entries(BADGES).filter(([code]) => !earnedCodes.includes(code));
+  const earnedCount = earnedCodes.length;
+  const nextBadge = Object.entries(BADGES).find(([code]) => !earnedCodes.includes(code));
+  const nextBadgeName = nextBadge?.[1]?.name || "All badges earned";
+  const topThree = leaderboard.slice(0, 3);
+  const pointsToNextRank = myRank && myRank > 1
+    ? Math.max(0, (leaderboard[myRank - 2]?.points || mine.points) - mine.points + 1)
+    : null;
 
   return (
-      <div className={styles.container}>
-        <h1 className={styles.title}>Leaderboard</h1>
+    <main className={styles.container}>
+      <header className={styles.hero}>
+        <span className={styles.eyebrow}><Sparkles size={14} /> COMMUNITY RECOGNITION</span>
+        <h1 className={styles.title}>Celebrate the people who make this community.</h1>
         <p className={styles.subtitle}>
-          Earn points by posting, commenting, attending events and finishing lessons.
+          Every post, helpful comment, lesson, event and daily visit moves the community forward.
+          Show up, share what you know and recognise one another.
         </p>
+      </header>
 
-        <div className={styles.statsCard}>
-          <div className={styles.stat}>
-            <p className={styles.statValue}>{mine.points}</p>
-            <p className={styles.statLabel}>Points</p>
-          </div>
-          <div className={styles.stat}>
-            <p className={styles.statValue}>{mine.streak} {mine.streak === 1 ? "day" : "days"}</p>
-            <p className={styles.statLabel}>Current streak</p>
-          </div>
-          <div className={styles.stat}>
-            <p className={styles.statValue}>{mine.bestStreak} {mine.bestStreak === 1 ? "day" : "days"}</p>
-            <p className={styles.statLabel}>Best streak</p>
-          </div>
-          <div className={styles.stat}>
-            <p className={styles.statValue}>{myRank ? `#${myRank}` : "—"}</p>
-            <p className={styles.statLabel}>Your rank</p>
-          </div>
-          <div className={styles.stat}>
-            <p className={styles.statValue}>{earnedCodes.length}</p>
-            <p className={styles.statLabel}>Badges</p>
-          </div>
+      <section className={styles.statsCard} aria-label="Your community progress">
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>Your points</span>
+          <strong className={styles.statValue}>{mine.points.toLocaleString()}</strong>
         </div>
-
-        <h2 className={styles.sectionTitle}>Top 20 members</h2>
-        <p className={styles.subtitle}>Ranked by all-time points.</p>
-        <div className={styles.rows}>
-          {leaderboard.map((entry) => (
-            <div
-              key={entry.userId}
-              className={entry.userId === user.uid ? `${styles.row} ${styles.rowMine}` : styles.row}
-            >
-              <p className={styles.rank}>#{entry.rank}</p>
-              <Link className={styles.nameLink} href={`/members/${entry.userId}`}>
-                {entry.name}
-              </Link>
-              <p className={styles.streak}>{entry.streak} <Flame size={14} /></p>
-              <p className={styles.badges}>{entry.badgeCount} badges</p>
-              <p className={styles.points}>{entry.points} pts</p>
-            </div>
-          ))}
-          {leaderboard.length === 0 && <p className={styles.empty}>No points yet — be the first!</p>}
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>Current streak</span>
+          <strong className={styles.statValue}>{mine.streak} <small>{mine.streak === 1 ? "day" : "days"}</small></strong>
         </div>
-
-        <h2 className={styles.sectionTitle}>Most recognized</h2>
-        <p className={styles.subtitle}>Members who received the most peer recognitions.</p>
-        <div className={styles.rows}>
-          {recognized.map((entry) => (
-            <div
-              key={entry.userId}
-              className={entry.userId === user.uid ? `${styles.row} ${styles.rowMine}` : styles.row}
-            >
-              <p className={styles.rank}>#{entry.rank}</p>
-              <Link className={styles.nameLink} href={`/members/${entry.userId}`}>
-                {entry.name}
-              </Link>
-              <p className={styles.badges}>
-                {entry.count === 1 ? "1 recognition" : `${entry.count} recognitions`}
-              </p>
-              <p className={styles.points}>{entry.count} <PartyPopper size={14} /></p>
-            </div>
-          ))}
-          {recognized.length === 0 && (
-            <p className={styles.empty}>No recognitions yet — recognize a member on their profile!</p>
-          )}
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>Best streak</span>
+          <strong className={styles.statValue}>{mine.bestStreak} <small>{mine.bestStreak === 1 ? "day" : "days"}</small></strong>
         </div>
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>All-time rank</span>
+          <strong className={styles.statValue}>{myRank ? `#${myRank}` : "—"}</strong>
+        </div>
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>Badges earned</span>
+          <strong className={styles.statValue}>{earnedCount}<small> / {Object.keys(BADGES).length}</small></strong>
+        </div>
+      </section>
 
-        <h2 className={styles.sectionTitle}>Badges</h2>
-        <div className={styles.badges}>
-          {Object.entries(BADGES).map(([code, badge]) => {
-            const earned = mine.badges[code];
-            return (
-              <div key={code} className={earned ? styles.badge : `${styles.badge} ${styles.badgeLocked}`}>
-                <p className={styles.badgeName}>{earned ? "✓" : <Lock size={13} />} {badge.name}</p>
-                <p className={styles.badgeDesc}>{badge.description}</p>
+      {myRank && pointsToNextRank !== null && (
+        <aside className={styles.progressCallout}>
+          <TrendingUp size={18} />
+          <span>You’re <strong>{pointsToNextRank} points</strong> away from moving up one place.</span>
+        </aside>
+      )}
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeading}>
+          <div><span className={styles.eyebrow}>THE COMMUNITY'S TOP CONTRIBUTORS</span><h2>All-time leaders</h2></div>
+          <span className={styles.sectionNote}>Ranked by lifetime points</span>
+        </div>
+        <Podium entries={topThree} />
+        <RankingRows entries={leaderboard} currentUserId={user.uid} mode="allTime" />
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeading}>
+          <div><span className={styles.eyebrow}>A FRESH START EVERY WEEK</span><h2>Weekly leaders</h2></div>
+          <span className={styles.sectionNote}>Points earned since Monday (UTC)</span>
+        </div>
+        <RankingRows entries={weekly} currentUserId={user.uid} />
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeading}>
+          <div><span className={styles.eyebrow}>COMMUNITY APPRECIATION</span><h2>Most recognized</h2></div>
+          <span className={styles.sectionNote}>Peer recognitions received</span>
+        </div>
+        {recognized.length ? (
+          <div className={styles.rows}>
+            {recognized.map((entry) => (
+              <div key={entry.userId} className={entry.userId === user.uid ? `${styles.row} ${styles.rowMine}` : styles.row}>
+                <span className={styles.rank}>#{entry.rank}</span>
+                <Link className={styles.memberLink} href={`/members/${entry.userId}`}>
+                  <MemberIdentity entry={entry} />
+                </Link>
+                <span className={styles.recognitionCount}>{entry.count} <small>{entry.count === 1 ? "recognition" : "recognitions"}</small></span>
+                {entry.userId === user.uid && <span className={styles.youTag}>YOU</span>}
               </div>
+            ))}
+          </div>
+        ) : <p className={styles.empty}>No recognitions yet. Visit a member profile to appreciate someone in the community.</p>}
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeading}>
+          <div><span className={styles.eyebrow}>MILESTONES & ACHIEVEMENTS</span><h2>Your badges</h2></div>
+          <span className={styles.sectionNote}>{earnedCount} of {Object.keys(BADGES).length} unlocked</span>
+        </div>
+        {nextBadge && (
+          <div className={styles.nextBadge}>
+            <Sparkles size={18} />
+            <span>Next achievement to unlock: <strong>{nextBadgeName}</strong> — {nextBadge[1].description}.</span>
+          </div>
+        )}
+        <div className={styles.badgeGrid}>
+          {Object.entries(BADGES).map(([code, badge]) => {
+            const earned = Boolean(mine.badges?.[code]);
+            const earnedAt = mine.badges?.[code]?.earnedAt;
+            const earnedDate = earnedAt ? new Date(earnedAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }) : null;
+            return (
+              <article key={code} className={earned ? styles.badge : `${styles.badge} ${styles.badgeLocked}`}>
+                <span className={styles.badgeIcon}>{earned ? <Medal size={21} /> : <Lock size={18} />}</span>
+                <div><h3 className={styles.badgeName}>{badge.name}</h3><p className={styles.badgeDesc}>{badge.description}</p></div>
+                <span className={styles.badgeStatus}>{earned ? (earnedDate ? `Earned ${earnedDate}` : "Earned") : "Not yet unlocked"}</span>
+              </article>
             );
           })}
-          {unearned.length === 0 && <p className={styles.empty}>All badges earned!</p>}
         </div>
-      </div>
+      </section>
+    </main>
   );
 }
