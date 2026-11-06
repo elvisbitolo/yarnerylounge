@@ -41,11 +41,12 @@ export async function POST(req) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const limited = rateLimitGuard(`upload:${auth.user.uid}`, { limit: 20 });
-  if (limited) return limited;
-
   const url = new URL(req.url);
   const kind = url.searchParams.get("kind");
+  // Batch portfolio/feed galleries upload one image per request. Keep the
+  // stricter limit for profile and chat uploads, while allowing larger galleries.
+  const limited = rateLimitGuard(`upload:${auth.user.uid}`, { limit: kind === "project" || kind === "post" ? 100 : 20 });
+  if (limited) return limited;
   const isAvatar = kind === "avatar";
   const isCover = kind === "cover";
   const isProject = kind === "project";
