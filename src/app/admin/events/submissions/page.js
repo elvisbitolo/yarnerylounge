@@ -13,10 +13,16 @@ export default function EventSubmissionsPage() {
     const response = await fetch("/api/event-submissions");
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Could not load submissions");
-    setItems(data.submissions || []);
+    return data.submissions || [];
   }, []);
 
-  useEffect(() => { load().catch((err) => setError(err.message)); }, [load]);
+  useEffect(() => {
+    let active = true;
+    load()
+      .then((submissions) => { if (active) setItems(submissions); })
+      .catch((err) => { if (active) setError(err.message); });
+    return () => { active = false; };
+  }, [load]);
 
   async function review(item, decision) {
     setBusyId(item.id);
