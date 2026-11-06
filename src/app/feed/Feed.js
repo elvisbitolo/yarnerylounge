@@ -1033,8 +1033,12 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("video") === "1") setShowVideoInput(true);
     if (params.get("compose") === "1" || params.get("video") === "1") {
+      if (params.get("video") === "1") {
+        // Open the video composer from the initial URL without a synchronous
+        // state update inside this effect.
+        window.setTimeout(() => setShowVideoInput(true), 0);
+      }
       window.setTimeout(() => {
         document.querySelector("[data-feed-composer]")?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 150);
