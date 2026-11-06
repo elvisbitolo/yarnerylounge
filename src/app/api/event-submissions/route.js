@@ -25,7 +25,7 @@ export async function POST(req) {
   const auth = await requireActiveMember();
   const denied = guardJson(auth);
   if (denied) return denied;
-  const limited = rateLimitGuard(`event-submission:${auth.user.uid}`, { limit: 5 });
+  if (auth.userDoc?.plan !== "hooking-up") return NextResponse.json({ error: "Event proposals are available to Hooking Up members. Moving In members can publish from the host tools." }, { status: 403 });\n  const limited = rateLimitGuard(`event-submission:${auth.user.uid}`, { limit: 5 });
   if (limited) return limited;
   const body = await req.json().catch(() => ({}));
   const title = clean(body.title, 140);
@@ -60,28 +60,40 @@ export async function PATCH(req) {
   if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   const submission = await prisma.eventSubmission.findUnique({ where: { id } });
   if (!submission || submission.status !== "pending") return NextResponse.json({ error: "Pending submission not found" }, { status: 404 });
-  let eventId = null;
-  if (decision === "approved") {
-    const event = await prisma.event.create({
-      data: {
-        title: submission.title,
-        description: submission.description,
-        startTime: submission.startTime,
-        endTime: submission.endTime,
-        roomSlug: null,
-        capacity: 0,
-        spaceId: null,
-        purchasePriceCents: 0,
-        publicPreview: false,
-        createdBy: submission.userId,
-      },
+  const result = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.eventSubmission.updateMany({
+      where: { id, status: "pending" },
+      data: { status: "processing" },
     });
-    eventId = event.id;
-  }
-  const updated = await prisma.eventSubmission.update({
-    where: { id },
-    data: { status: decision, eventId, reviewedBy: auth.user.uid, reviewedAt: new Date() },
+    if (claimed.count !== 1) throw new Error("This proposal has already been reviewed");
+    let eventId = null;
+    if (decision === "approved") {
+      const event = await tx.event.create({
+        data: {
+          title: submission.title,
+          description: submission.description,
+          startTime: submission.startTime,
+          endTime: submission.endTime,
+          roomSlug: null,
+          capacity: 0,
+          spaceId: null,
+          purchasePriceCents: 0,
+          publicPreview: false,
+          createdBy: submission.userId,
+        },
+      });
+      eventId = event.id;
+    }
+    const updated = await tx.eventSubmission.update({
+      where: { id },
+      data: { status: decision, eventId, reviewedBy: auth.user.uid, reviewedAt: new Date() },
+    });
+    return { submission: updated, eventId };
+  }).catch((error) => {
+    if (error.message === "This proposal has already been reviewed") throw error;
+    throw new Error("Could not complete event review");
   });
+  const { submission: updated, eventId } = result;
   await logAudit({
     actorId: auth.user.uid,
     actorName: auth.userDoc?.name || auth.user.email || "",
