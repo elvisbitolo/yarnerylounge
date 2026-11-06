@@ -2410,7 +2410,8 @@ a.activityActor:hover .itemTitle {
   z-index: 1;
   display: block;
   width: min(76%, 176px);
-  aspect-ratio: 1;
+  height: 148px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   border: 1px solid rgba(255,255,255,.32);
   border-radius: 16px;
@@ -2516,7 +2517,8 @@ a.activityActor:hover .itemTitle {
 .communityBuilderFooter span { color: #ff82b8; }
 @media (max-width: 680px) {
   .communityBuilderCard { grid-template-columns: 1fr; }
-  .communityBuilderArtwork { min-height: 116px; }
+  .communityBuilderArtwork { min-height: 108px; }
+  .communityBuilderImage { width: min(58%, 148px); height: 96px; }
   .communityBuilderContent { padding: 19px 17px 17px; gap: 10px; }
   .communityBuilderContent h2 { font-size: 22px; }
   .communityBuilderActions { align-items: stretch; flex-direction: column; }
