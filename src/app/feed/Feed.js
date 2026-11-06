@@ -1023,11 +1023,23 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [quoteOf, setQuoteOf] = useState("");
   const [quotePreview, setQuotePreview] = useState("");
   const fileInputRef = useRef(null);
+  const videoFileInputRef = useRef(null);
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
   const focusRef = useRef("");
   const feedRequestRef = useRef(0);
   const loadingMoreRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("video") === "1") setShowVideoInput(true);
+    if (params.get("compose") === "1" || params.get("video") === "1") {
+      window.setTimeout(() => {
+        document.querySelector("[data-feed-composer]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, []);
 
   // Track the current sort in a ref so URL/cache/sort helpers stay stable
   // across renders. Must be declared before sortFeedPosts below, which reads
@@ -1477,6 +1489,35 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
     }
   }
 
+  async function handleVideoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || uploading) return;
+    if (!["video/mp4", "video/webm"].includes(file.type)) {
+      alert("Choose an MP4 or WebM video.");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert("Video must be 50 MB or smaller.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/upload?kind=post", { method: "POST", body: form });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.url) throw new Error(data.error || "Video upload failed");
+      setImageUrl("");
+      setVideoUrl(data.url);
+      setShowVideoInput(true);
+    } catch (error) {
+      alert(error.message || "Video upload failed");
+    } finally {
+      setUploading(false);
+      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+    }
+  }
+
   const handlePost = useCallback(
     async (e) => {
       e.preventDefault();
@@ -1499,6 +1540,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
       // Hoisted so the catch can clean up a blob this attempt created.
       let uploadedBlobUrl = "";
       try {
+        if (videoUrl.includes("/uploads/post/")) uploadedBlobUrl = videoUrl;
         // Store the image in object storage rather than inline in the post row.
         // Falls back to the data URL if storage is unavailable, so posting still works.
         const { url: storedImageUrl, isNewBlob } = imageUrl.startsWith("data:")
@@ -2381,7 +2423,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
           </a>
         </div>
       ) : (
-      <form className={styles.composer} onSubmit={handlePost}>
+      <form className={styles.composer} data-feed-composer onSubmit={handlePost}>
         <div className={styles.kindTabs}>
           {[
             { key: "post", icon: <PenSquare size={14} />, label: t("tabPost") },
@@ -2474,6 +2516,10 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
         )}
         {kind !== "poll" && showVideoInput && (
           <div className={styles.videoComposer}>
+            <button type="button" className={styles.uploadBtn} onClick={() => videoFileInputRef.current?.click()} disabled={uploading || Boolean(imageUrl)}>
+              {uploading ? t("uploading") : "Upload video"}
+            </button>
+            <input ref={videoFileInputRef} type="file" accept="video/mp4,video/webm" hidden onChange={handleVideoUpload} />
             <input
               className={styles.videoUrlInput}
               type="url"

@@ -194,6 +194,36 @@ function ActionIcon({ icon }) {
   }
 }
 
+export function CreatorHub({ isMovingIn = false }) {
+  const actions = [
+    { title: "Create a post", detail: "Share an update with the community.", href: "/feed?compose=1", label: "Post now", icon: "✍" },
+    { title: "Add a project", detail: "Show what you are making.", href: "/portfolio", label: "Add project", icon: "✳" },
+    { title: isMovingIn ? "Create an event" : "Suggest an event", detail: isMovingIn ? "Schedule a session for the community." : "Send your event idea to the team for review.", href: isMovingIn ? "/host/events" : "/events/suggest", label: isMovingIn ? "Create event" : "Suggest event", icon: "◷" },
+    { title: "Share a video", detail: "Upload a video as a community post.", href: "/feed?compose=1&video=1", label: "Share video", icon: "▷" },
+  ];
+  return (
+    <Card title="Your community. Your ideas. Your space." theme="violet">
+      <p className={styles.itemBody} style={{ marginBottom: 14 }}>
+        Make something, share what you are working on, and bring members together.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
+        {actions.map((action) => (
+          <Link key={action.title} href={action.href} className={styles.kpi}
+            style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, padding: 16, textDecoration: "none", minHeight: 132 }}>
+            <span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 11, background: "rgba(246,7,122,.10)", color: "#d70a70", fontSize: 20, fontWeight: 700 }}>{action.icon}</span>
+            <strong style={{ color: "#10152f", fontSize: 14 }}>{action.title}</strong>
+            <span className={styles.itemBody}>{action.detail}</span>
+            <span style={{ marginTop: "auto", color: "#d70a70", fontSize: 12, fontWeight: 700 }}>{action.label} →</span>
+          </Link>
+        ))}
+      </div>
+      <Link href="/feed?compose=1" className={styles.spotCta} style={{ display: "inline-flex", marginTop: 16 }}>
+        + Post something to the feed
+      </Link>
+    </Card>
+  );
+}
+
 export function QuickActions() {
   const t = useTranslations("dashboard");
   const actions = [

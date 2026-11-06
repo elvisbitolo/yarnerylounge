@@ -12,6 +12,7 @@ import {
   CommunityNextSteps,
   ReturnVisitCard,
   QuickActions,
+  CreatorHub,
   CommunityHub,
   RecentActivity,
   UpcomingRooms,
@@ -230,6 +231,7 @@ export default function DashboardShell() {
         <DashboardProfileCompletion photoURL={user.photoURL} username={user.username} />
         <DashboardCommunityBuilderCard />
         <DashboardYourCommunity />
+        <CreatorHub isMovingIn={user.plan === "moving-in"} />
         <DashboardEngagementProgress />
         <DashboardFeaturedVideos />
         <ChristaLiveInvitation />

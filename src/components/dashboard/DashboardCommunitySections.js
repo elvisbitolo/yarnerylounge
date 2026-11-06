@@ -12,8 +12,6 @@ function useDashboardResource(url, key) {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError("");
 
     fetch(url, { cache: "no-store" })
       .then(async (response) => {
@@ -40,6 +38,8 @@ function useDashboardResource(url, key) {
   }, [url, key, requestVersion]);
 
   function retry() {
+    setLoading(true);
+    setError("");
     setRequestVersion((version) => version + 1);
   }
 

@@ -1042,7 +1042,6 @@ export default function RoomClient({
     const api = apiRef.current;
     if (!api) return;
     setRecordNotice("");
-    setControlsNotice("");
     setRecordingPending(true);
     try {
       api.executeCommand("startRecording", { mode: "file", shouldShare: true });
@@ -1058,7 +1057,6 @@ export default function RoomClient({
     const api = apiRef.current;
     if (!api) return;
     setRecordNotice("");
-    setControlsNotice("");
     setRecordingPending(true);
     try {
       api.executeCommand("stopRecording", "file");
@@ -1653,7 +1651,7 @@ export default function RoomClient({
                 )}
               </div>
             </div>
-            <p className={styles.participantFootnote}>Meeting controls depend on the participant's connection and your Jitsi permissions.</p>
+            <p className={styles.participantFootnote}>Meeting controls depend on the participant&apos;s connection and your Jitsi permissions.</p>
           </section>
         </div>
       )}

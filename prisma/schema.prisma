@@ -125,6 +125,7 @@ model User {
   spaceCollectionsCreate SpaceCollection[]
   roomsCreated           Room[]
   eventsCreated          Event[]
+  eventSubmissions       EventSubmission[]
   coursesCreated         Course[]
   questionsCreated       Question[]
   communityQuestions     CommunityQuestion[] @relation("CommunityQuestionsAsked")
@@ -1027,6 +1028,26 @@ model Event {
 
   @@index([startTime])
   @@index([spaceId])
+}
+
+
+model EventSubmission {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  description String    @default("")
+  startTime   DateTime  @db.Timestamptz(3)
+  endTime     DateTime? @db.Timestamptz(3)
+  status      String    @default("pending")
+  eventId     String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId])
 }
 
 model Rsvp {
