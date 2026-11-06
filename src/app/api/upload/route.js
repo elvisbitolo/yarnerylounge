@@ -15,7 +15,7 @@ const POST_MAX_BYTES = 2 * 1024 * 1024;
 
 // Upload kinds a user may delete their own blob for. Each maps to the
 // uploads/<kind>/<uid>/ path written by POST below.
-const DELETABLE_KINDS = new Set(["avatar", "cover", "post"]);
+const DELETABLE_KINDS = new Set(["avatar", "cover", "post", "project"]);
 
 const CHAT_FILE_MIME = new Set([
   "application/octet-stream",
