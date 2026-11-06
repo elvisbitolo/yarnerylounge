@@ -177,6 +177,10 @@ export default function RoomClient({
   const [inlineError, setInlineError] = useState("");
   const [connStatus, setConnStatus] = useState("connecting"); // connecting | connected | reconnecting | lost
   const [participantCount, setParticipantCount] = useState(0);
+  const [roomParticipants, setRoomParticipants] = useState([]);
+  const [participantsOpen, setParticipantsOpen] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState(null);
+  const [participantActionNotice, setParticipantActionNotice] = useState("");
   // True while JaaS reports an active recording, for the consent indicator.
   const [recording, setRecording] = useState(false);
   // True between pressing Record and JaaS confirming it via
@@ -696,6 +700,62 @@ export default function RoomClient({
     }
   }
 
+  // ---- Jitsi participant interactions ----
+
+  async function refreshRoomParticipants(api = apiRef.current) {
+    if (!api) return;
+    try {
+      let participants = [];
+      if (typeof api.getParticipantsInfo === "function") {
+        participants = await api.getParticipantsInfo();
+      }
+      if (!Array.isArray(participants) || participants.length === 0) {
+        const info = await api.getRoomsInfo();
+        const rooms = Array.isArray(info) ? info : info?.rooms || [];
+        participants = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
+      }
+      if (apiRef.current !== api) return;
+      const normalized = participants.map((participant) => ({
+        id: String(participant.participantId || participant.id || ""),
+        name: String(participant.displayName || participant.formattedDisplayName || "Guest"),
+        avatar: participant.avatarURL || participant.avatarUrl || "",
+        role: String(participant.role || "participant"),
+      })).filter((participant) => participant.id);
+      setRoomParticipants(normalized);
+      setParticipantCount(normalized.length);
+      setSelectedParticipant((current) => current
+        ? normalized.find((participant) => participant.id === current.id) || null
+        : null);
+    } catch {
+      // Participant discovery must never interrupt the live conference.
+    }
+  }
+
+  function pinRoomParticipant(participant) {
+    const api = apiRef.current;
+    if (!api || !participant?.id) return;
+    try {
+      api.executeCommand("pinParticipant", participant.id);
+      setParticipantActionNotice(`Pinned ${participant.name}'s video when supported by this Jitsi client.`);
+    } catch {
+      setParticipantActionNotice("This participant cannot be pinned from this device.");
+    }
+  }
+
+  function removeRoomParticipant(participant) {
+    const api = apiRef.current;
+    if (!api || !participant?.id || !isStaff) return;
+    if (!window.confirm(`Remove ${participant.name} from this lounge?`)) return;
+    try {
+      api.executeCommand("kickParticipant", participant.id);
+      setSelectedParticipant(null);
+      setParticipantActionNotice(`${participant.name} was asked to leave the lounge.`);
+      window.setTimeout(() => refreshRoomParticipants(api), 700);
+    } catch {
+      setParticipantActionNotice("Jitsi could not remove this participant. Check your moderator permissions.");
+    }
+  }
+
   // ---- Jitsi event wiring ----
 
   function armCameraWatchdog() {
@@ -730,19 +790,7 @@ export default function RoomClient({
     if (!api) return;
     apiRef.current = api;
     apiReadyRef.current = true;
-    const readParticipants = async () => {
-      const info = await api.getRoomsInfo();
-      const rooms = Array.isArray(info) ? info : info?.rooms || [];
-      return rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
-    };
-    const syncCount = async () => {
-      try {
-        const participants = await readParticipants();
-        if (apiRef.current === api) setParticipantCount(participants.length);
-      } catch {
-        /* not ready yet */
-      }
-    };
+    const syncCount = () => refreshRoomParticipants(api);
     api.addEventListener("participantJoined", syncCount);
     api.addEventListener("participantLeft", syncCount);
     // Consent: surface a recording the moment it starts, for every participant
@@ -1333,6 +1381,21 @@ export default function RoomClient({
               </p>
             </div>
             <div className={styles.roomHeaderMeta}>
+              <button
+                type="button"
+                className={styles.participantsTrigger}
+                onClick={() => {
+                  setParticipantsOpen((open) => !open);
+                  setSelectedParticipant(null);
+                  refreshRoomParticipants();
+                  setParticipantActionNotice("");
+                }}
+                aria-expanded={participantsOpen}
+                aria-controls="room-participant-panel"
+              >
+                <span aria-hidden="true">◎</span>
+                Participants · {participantCount}
+              </button>
               <span className={styles.liveViewers}>
                 <span className={styles.liveDot} aria-hidden="true" />
                 {t("live")} · {participantCount}
@@ -1517,6 +1580,83 @@ export default function RoomClient({
 
         </div>
       </div>
+
+      {participantsOpen && (
+        <div className={styles.participantOverlay} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            setParticipantsOpen(false);
+            setSelectedParticipant(null);
+          }
+        }}>
+          <section
+            id="room-participant-panel"
+            className={styles.participantPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Lounge participants"
+          >
+            <div className={styles.participantPanelHeader}>
+              <div>
+                <p className={styles.participantEyebrow}>LIVE LOUNGE</p>
+                <h2>Participants <span>{roomParticipants.length}</span></h2>
+              </div>
+              <button type="button" className={styles.participantClose} onClick={() => {
+                setParticipantsOpen(false);
+                setSelectedParticipant(null);
+              }} aria-label="Close participants">×</button>
+            </div>
+            {participantActionNotice && <p className={styles.participantNotice} role="status">{participantActionNotice}</p>}
+            <div className={styles.participantContent}>
+              <div className={styles.participantList} aria-label="People in this lounge">
+                {roomParticipants.map((participant) => (
+                  <button
+                    type="button"
+                    key={participant.id}
+                    className={selectedParticipant?.id === participant.id ? styles.participantRowActive : styles.participantRow}
+                    onClick={() => setSelectedParticipant(participant)}
+                  >
+                    <span className={styles.participantAvatar}>
+                      {participant.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={participant.avatar} alt="" />
+                      ) : participant.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className={styles.participantIdentity}>
+                      <strong>{participant.name}</strong>
+                      <small>{participant.role === "moderator" ? "Moderator" : participant.role === "owner" ? "Host" : "In this lounge"}</small>
+                    </span>
+                    <span className={styles.participantChevron} aria-hidden="true">›</span>
+                  </button>
+                ))}
+                {roomParticipants.length === 0 && <p className={styles.participantEmpty}>Participant list is loading. Try refreshing in a moment.</p>}
+              </div>
+              <div className={styles.participantDetails}>
+                {selectedParticipant ? (
+                  <>
+                    <div className={styles.participantDetailAvatar}>
+                      {selectedParticipant.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={selectedParticipant.avatar} alt="" />
+                      ) : selectedParticipant.name.charAt(0).toUpperCase()}
+                    </div>
+                    <h3>{selectedParticipant.name}</h3>
+                    <p>{selectedParticipant.role === "moderator" ? "Lounge moderator" : selectedParticipant.role === "owner" ? "Lounge host" : "Lounge participant"}</p>
+                    <div className={styles.participantActions}>
+                      <button type="button" onClick={() => pinRoomParticipant(selectedParticipant)}>Pin video</button>
+                      {isStaff && selectedParticipant.role !== "moderator" && selectedParticipant.role !== "owner" && (
+                        <button type="button" className={styles.participantRemove} onClick={() => removeRoomParticipant(selectedParticipant)}>Remove from lounge</button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className={styles.participantHint}>Select someone to see their available meeting actions.</p>
+                )}
+              </div>
+            </div>
+            <p className={styles.participantFootnote}>Meeting controls depend on the participant's connection and your Jitsi permissions.</p>
+          </section>
+        </div>
+      )}
 
       {phase === "error" && roomError && (
         <div className={styles.errorOverlay}>
