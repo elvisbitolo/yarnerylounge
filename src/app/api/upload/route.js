@@ -50,7 +50,8 @@ export async function POST(req) {
   const isCover = kind === "cover";
   const isProject = kind === "project";
   const isChat = kind === "chat";
-  const isPost = kind === "post";\n
+  const isPost = kind === "post";
+
   if (!isAvatar && !isCover && !isProject && !isChat && !isPost) {
     return NextResponse.json({ error: "Unknown upload kind" }, { status: 400 });
   }
