@@ -11,7 +11,7 @@ import {
   WelcomeBanner,
   CommunityNextSteps,
   ReturnVisitCard,
-  QuickActions,
+  QuickActions,\n  CreatorHub,
   CommunityHub,
   RecentActivity,
   UpcomingRooms,
@@ -229,7 +229,7 @@ export default function DashboardShell() {
         </div>
         <DashboardProfileCompletion photoURL={user.photoURL} username={user.username} />
         <DashboardCommunityBuilderCard />
-        <DashboardYourCommunity />
+        <DashboardYourCommunity />\n        <CreatorHub />
         <DashboardEngagementProgress />
         <DashboardFeaturedVideos />
         <ChristaLiveInvitation />
