@@ -59,6 +59,25 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
     if (response.ok) setProjects((prev) => prev.filter((project) => project.id !== projectId));
   }
 
+  async function removePhoto(project, photoUrl) {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: (project.imageUrls || []).filter((url) => url !== photoUrl) }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Could not remove photo");
+      setProjects((prev) => prev.map((item) => item.id === project.id ? result.project : item));
+    } catch (err) {
+      setError(err.message || "Could not remove photo");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addPhotos(project, selectedFiles) {
     if (!selectedFiles.length) return;
     setBusy(true);
@@ -165,8 +184,11 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
                 {project.imageUrls?.length > 0 && (
                   <div className={styles.imageGallery}>
                     {project.imageUrls.map((url, index) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={url} src={url} alt={`${project.title} · photo ${index + 1}`} className={styles.image} loading="lazy" />
+                      <div className={styles.imageTile} key={`${url}-${index}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`${project.title} · photo ${index + 1}`} className={styles.image} loading="lazy" />
+                        <button type="button" className={styles.removePhoto} onClick={() => removePhoto(project, url)} disabled={busy} aria-label={`Remove photo ${index + 1} from ${project.title}`}>×</button>
+                      </div>
                     ))}
                   </div>
                 )}
