@@ -1022,7 +1022,8 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [composerAlt, setComposerAlt] = useState("");
   const [quoteOf, setQuoteOf] = useState("");
   const [quotePreview, setQuotePreview] = useState("");
-  const fileInputRef = useRef(null);\n  const videoFileInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const videoFileInputRef = useRef(null);
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
   const focusRef = useRef("");
@@ -1858,7 +1859,9 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
 
   function copyPostText(post) {
     const url = `${window.location.origin}/feed?focus=${post.id}`;
-    const body = `${post.text || ""}${post.text ? "\n\n" : ""}${url}`;
+    const body = `${post.text || ""}${post.text ? "
+
+" : ""}${url}`;
     try {
       if (navigator.clipboard?.writeText) navigator.clipboard.writeText(body);
     } catch {
