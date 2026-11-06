@@ -1022,7 +1022,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [composerAlt, setComposerAlt] = useState("");
   const [quoteOf, setQuoteOf] = useState("");
   const [quotePreview, setQuotePreview] = useState("");
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef(null);\n  const videoFileInputRef = useRef(null);
   const sentinelRef = useRef(null);
   const scrollKeyRef = useRef(null);
   const focusRef = useRef("");
@@ -1474,6 +1474,35 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleVideoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || uploading) return;
+    if (!["video/mp4", "video/webm"].includes(file.type)) {
+      alert("Choose an MP4 or WebM video.");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert("Video must be 50 MB or smaller.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/upload?kind=post", { method: "POST", body: form });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.url) throw new Error(data.error || "Video upload failed");
+      setImageUrl("");
+      setVideoUrl(data.url);
+      setShowVideoInput(true);
+    } catch (error) {
+      alert(error.message || "Video upload failed");
+    } finally {
+      setUploading(false);
+      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
     }
   }
 
