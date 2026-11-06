@@ -2711,6 +2711,45 @@ a.activityActor:hover .itemTitle {
 
 
 /* Personal community ownership overview for Moving In members. */
+
+.yourCommunityError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--dash-accent, #f42e79) 24%, var(--card-border, #eadfd2));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dash-accent, #f42e79) 5%, var(--card-bg, #fff));
+}
+.yourCommunityError p {
+  margin: 0;
+  color: var(--card-muted, var(--dash-muted, #8b8b9b));
+  font-size: 12px;
+  line-height: 1.5;
+}
+.yourCommunityRetry {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--dash-accent, #f42e79);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.yourCommunityRetry:focus-visible {
+  outline: 2px solid var(--card-text, #0a0e2a);
+  outline-offset: 3px;
+}
+@media (max-width: 420px) {
+  .yourCommunityError { align-items: flex-start; flex-direction: column; }
+}
+
 .yourCommunityCard {
   margin: 0 0 22px;
   padding: 21px 22px;
