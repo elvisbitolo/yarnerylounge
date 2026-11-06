@@ -466,38 +466,35 @@ export function DashboardCommunityBuilderCard() {
   return (
     <section className={styles.communityBuilderCard} aria-labelledby="community-builder-title">
       <div className={styles.communityBuilderArtwork} aria-hidden="true">
-        <img
-          className={styles.communityBuilderImage}
-          src="/images/community-builder-crochet.webp"
-          alt=""
-          width="360"
-          height="360"
-          loading="lazy"
-        />
+        <svg viewBox="0 0 220 180" width="190" height="156" fill="none">
+          <circle cx="110" cy="90" r="66" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.18)" />
+          <path d="M62 94 106 54 158 94 110 132 62 94Z" fill="rgba(246,7,122,.22)" stroke="#ffabd0" strokeWidth="2" />
+          <circle cx="62" cy="94" r="17" fill="#f6077a" stroke="#ffd5e7" strokeWidth="2" />
+          <circle cx="106" cy="54" r="17" fill="#ff75ad" stroke="#fff" strokeWidth="2" />
+          <circle cx="158" cy="94" r="17" fill="#f6077a" stroke="#ffd5e7" strokeWidth="2" />
+          <circle cx="110" cy="132" r="17" fill="#ff75ad" stroke="#fff" strokeWidth="2" />
+          <path d="M62 94 106 54M106 54 158 94M158 94 110 132M110 132 62 94" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+          <path d="M110 24v-9M179 90h10M110 156v9M31 90H21" stroke="#ffabd0" strokeWidth="3" strokeLinecap="round" />
+        </svg>
       </div>
       <div className={styles.communityBuilderContent}>
         <div className={styles.communityBuilderTopline}>
           <span className={styles.communityBuilderPill}>MOVING IN · YOUR BUILDER PRIVILEGE</span>
           <span className={styles.communityBuilderSparkle} aria-hidden="true">✦</span>
         </div>
-        <h2 id="community-builder-title">Your ideas deserve a community of their own.</h2>
+        <h2 id="community-builder-title">Create your own space.</h2>
         <p className={styles.communityBuilderDescription}>
-          You’re not just here to join in. Bring people together around the crafts, projects and conversations you love — and help shape what this community becomes.
+          Bring your people together. Start a live Video Lounge or create a friend group around the conversations, interests and experiences you want to share.
         </p>
         <div className={styles.communityBuilderActions}>
-          <Link className={styles.communityBuilderPrimary} href="/groups/create">
-            <span className={styles.communityBuilderActionIcon} aria-hidden="true">＋</span>
-            Create a crochet circle
+          <Link className={styles.communityBuilderPrimary} href="/host/rooms?audience=community">
+            <span className={styles.communityBuilderActionIcon} aria-hidden="true">◉</span>
+            Launch a Video Lounge
             <span aria-hidden="true">→</span>
           </Link>
-          <Link className={styles.communityBuilderSecondary} href="/groups/create?type=subgroup">
-            <span aria-hidden="true">⌘</span>
-            Launch a subgroup
-            <span aria-hidden="true">↗</span>
-          </Link>
-          <Link className={styles.communityBuilderSecondary} href="/host/rooms?audience=community">
-            <span aria-hidden="true">◉</span>
-            Create a lounge
+          <Link className={styles.communityBuilderSecondary} href="/groups/create">
+            <span aria-hidden="true">＋</span>
+            Create a Friend Group
             <span aria-hidden="true">↗</span>
           </Link>
           <Link className={styles.communityBuilderExplore} href="/neighbourhoods">

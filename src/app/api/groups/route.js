@@ -74,7 +74,7 @@ export async function POST(req) {
         select: { id: true, name: true, createdBy: true, parentGroupId: true, status: true },
       });
       if (!parent || parent.status !== "active" || parent.parentGroupId) {
-        return NextResponse.json({ error: "Choose an active main crochet circle. Subgroups can only be one level deep." }, { status: 400 });
+        return NextResponse.json({ error: "Choose an active main group. Subgroups can only be one level deep." }, { status: 400 });
       }
       if (parent.createdBy !== auth.user.uid && auth.userDoc?.role !== "owner") {
         const membership = await prisma.groupMember.findUnique({
@@ -82,7 +82,7 @@ export async function POST(req) {
           select: { id: true },
         });
         if (!membership) {
-          return NextResponse.json({ error: "Join this crochet circle before launching a subgroup inside it." }, { status: 403 });
+          return NextResponse.json({ error: "Join this group before launching a subgroup inside it." }, { status: 403 });
         }
       }
     }
