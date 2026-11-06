@@ -10,7 +10,7 @@ import {
 } from "@/lib/server/gamification";
 import { getRecognitionLeaderboard } from "@/lib/server/recognition";
 import styles from "./leaderboard.module.css";
-import { Flame, PartyPopper, Lock, Trophy, Sparkles, Medal, TrendingUp } from "lucide-react";
+import { Flame, Lock, Trophy, Sparkles, Medal, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -99,7 +99,7 @@ export default async function LeaderboardPage() {
   const name = userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
   const [rawMine, leaderboard, weekly, recognized] = await Promise.all([
     getGamification(user.uid, name),
-    getLeaderboard(20),
+    getLeaderboard(20, user.uid),
     getWeeklyLeaderboard(20),
     getRecognitionLeaderboard(20),
   ]);
@@ -110,7 +110,7 @@ export default async function LeaderboardPage() {
   const nextBadge = Object.entries(BADGES).find(([code]) => !earnedCodes.includes(code));
   const nextBadgeName = nextBadge?.[1]?.name || "All badges earned";
   const topThree = leaderboard.slice(0, 3);
-  const pointsToNextRank = myRank && myRank > 1
+  const pointsToNextRank = myRank && myRank > 1 && myRank <= 20
     ? Math.max(0, (leaderboard[myRank - 2]?.points || mine.points) - mine.points + 1)
     : null;
 
