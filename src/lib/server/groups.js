@@ -38,7 +38,8 @@ function mapMemberRow(row) {
     id: row.id,
     groupId: row.groupId,
     userId: row.userId,
-    name: row.name || "",
+    name: row.name || row.user?.name || "",
+    photoURL: row.user?.photoURL || "",
     role: row.role || "",
     joinedAt: toMillisValue(row.joinedAt) || null,
   };
@@ -102,7 +103,10 @@ export async function getGroupMembers(groupId) {
   try {
     const prisma = getPrisma();
     if (!prisma) return [];
-    const rows = await prisma.groupMember.findMany({ where: { groupId } });
+    const rows = await prisma.groupMember.findMany({
+      where: { groupId },
+      include: { user: { select: { name: true, photoURL: true } } },
+    });
     return rows
       .map(mapMemberRow)
       .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
