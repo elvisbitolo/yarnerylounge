@@ -68,7 +68,7 @@ async function recordPointEvent(userId, amount, reason) {
   }
 }
 
-export async function getLeaderboard(limit = 20) {
+export async function getLeaderboard(limit = 20, currentUserId = null) {
   try {
     const prisma = getPrisma();
     if (!prisma) return [];
@@ -78,7 +78,26 @@ export async function getLeaderboard(limit = 20) {
       take: limit,
       include: { user: { select: { photoURL: true, username: true } } },
     });
-    return rows.map(mapLeaderboardRow);
+    const ranked = rows.map(mapLeaderboardRow);
+    if (currentUserId && !ranked.some((entry) => entry.userId === currentUserId)) {
+      const mine = await prisma.gamification.findFirst({
+        where: { userId: currentUserId, user: { is: { suspended: { not: true } } } },
+        include: { user: { select: { photoURL: true, username: true } } },
+      });
+      if (mine) {
+        const ahead = await prisma.gamification.count({
+          where: {
+            user: { is: { suspended: { not: true } } },
+            OR: [
+              { points: { gt: mine.points || 0 } },
+              { points: mine.points || 0, id: { lt: mine.id } },
+            ],
+          },
+        });
+        ranked.push({ ...mapLeaderboardRow(mine, ahead), rank: ahead + 1 });
+      }
+    }
+    return ranked;
   } catch (err) {
     logError("gamification.prisma_leaderboard_failed", { error: err.message });
     return [];
