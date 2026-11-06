@@ -88,6 +88,35 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
     }
   }
 
+  async function addPhotos(project, selectedFiles) {
+    if (!selectedFiles.length) return;
+    setBusy(true);
+    setError("");
+    try {
+      const uploaded = [];
+      for (const file of selectedFiles) {
+        const data = new FormData();
+        data.append("file", file);
+        const response = await fetch("/api/upload?kind=project", { method: "POST", body: data });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Photo upload failed");
+        uploaded.push(result.url || result.dataUrl);
+      }
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: [...(project.imageUrls || []), ...uploaded] }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Could not update project photos");
+      setProjects((prev) => prev.map((item) => item.id === project.id ? result.project : item));
+    } catch (err) {
+      setError(err.message || "Could not upload photos");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function changeStatus(project, status) {
     const response = await fetch(`/api/projects/${project.id}`, {
       method: "PATCH",
@@ -119,6 +148,7 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
           </div>
           <label>Description<textarea rows={4} maxLength={2000} value={form.description} onChange={(e) => update("description", e.target.value)} /></label>
           <label>Project photos<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={(e) => setFiles((prev) => [...prev, ...e.target.files])} /></label>
+          {files.length > 0 && <p className={styles.photoCount}>{files.length} photo{files.length === 1 ? "" : "s"} selected</p>}
           {files.length > 0 && <p className={styles.photoCount}>{files.length} photo{files.length === 1 ? "" : "s"} selected</p>}
           <label className={styles.checkbox}><input type="checkbox" checked={form.featured} onChange={(e) => update("featured", e.target.checked)} /> Feature this project on my profile</label>
           {error && <p className={styles.error} role="alert">{error}</p>}
