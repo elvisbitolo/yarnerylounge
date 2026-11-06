@@ -7,19 +7,43 @@ import styles from "./dashboard.module.css";
 function useDashboardResource(url, key) {
   const [value, setValue] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [requestVersion, setRequestVersion] = useState(0);
+
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setError("");
+
     fetch(url, { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) throw new Error("Request failed");
-        return response.json();
+      .then(async (response) => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || "Could not load this section.");
+        }
+        return data;
       })
-      .then((data) => { if (active) setValue(data?.[key] ?? data); })
-      .catch(() => { if (active) setValue(null); })
-      .finally(() => { if (active) setLoading(false); });
+      .then((data) => {
+        if (active) setValue(data?.[key] ?? data);
+      })
+      .catch((requestError) => {
+        if (active) {
+          setValue(null);
+          setError(requestError.message || "Could not load this section.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
     return () => { active = false; };
-  }, [url, key]);
-  return { value, loading };
+  }, [url, key, requestVersion]);
+
+  function retry() {
+    setRequestVersion((version) => version + 1);
+  }
+
+  return { value, loading, error, retry };
 }
 
 
@@ -507,12 +531,11 @@ export function DashboardCommunityBuilderCard() {
 }
 
 export function DashboardYourCommunity() {
-  const { value, loading } = useDashboardResource("/api/dashboard/my-community", null);
+  const { value, loading, error, retry } = useDashboardResource("/api/dashboard/my-community", null);
   const groups = Array.isArray(value?.groups) ? value.groups : [];
   const lounges = Array.isArray(value?.lounges) ? value.lounges : [];
   const totals = value?.totals || { groups: 0, lounges: 0, liveAttendees: 0 };
 
-  if (!loading && !value) return null;
 
   return (
     <section className={styles.yourCommunityCard} aria-labelledby="your-community-title">
@@ -529,6 +552,15 @@ export function DashboardYourCommunity() {
         </Link>
       </div>
 
+      {error && !loading ? (
+        <div className={styles.yourCommunityError} role="alert">
+          <p>{error}</p>
+          <button className={styles.yourCommunityRetry} type="button" onClick={retry}>
+            Try again
+          </button>
+        </div>
+      ) : (
+      <>
       <div className={styles.yourCommunityStats} aria-label="Your community totals">
         <div className={styles.yourCommunityStat}>
           <strong>{loading ? "—" : totals.groups}</strong>
@@ -608,6 +640,8 @@ export function DashboardYourCommunity() {
             )}
           </div>
         </div>
+      )}
+      </>
       )}
     </section>
   );
