@@ -2506,6 +2506,10 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
         )}
         {kind !== "poll" && showVideoInput && (
           <div className={styles.videoComposer}>
+            <button type="button" className={styles.uploadBtn} onClick={() => videoFileInputRef.current?.click()} disabled={uploading || Boolean(imageUrl)}>
+              {uploading ? t("uploading") : "Upload video"}
+            </button>
+            <input ref={videoFileInputRef} type="file" accept="video/mp4,video/webm" hidden onChange={handleVideoUpload} />
             <input
               className={styles.videoUrlInput}
               type="url"
