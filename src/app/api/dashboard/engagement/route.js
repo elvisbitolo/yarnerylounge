@@ -11,7 +11,7 @@ export async function GET() {
   if (!prisma) return NextResponse.json({ error: "Engagement progress is unavailable" }, { status: 503 });
 
   try {
-    const [profile, post, comment, rsvp, loungeVisit, circle] = await Promise.all([
+    const [profile, post, comment, rsvp, loungeVisit, connection] = await Promise.all([
       prisma.user.findUnique({
         where: { id: user.uid },
         select: { photoURL: true, username: true },
@@ -32,8 +32,8 @@ export async function GET() {
         where: { userId: user.uid },
         select: { id: true },
       }),
-      prisma.group.findFirst({
-        where: { createdBy: user.uid, status: "active" },
+      prisma.follow.findFirst({
+        where: { followerId: user.uid },
         select: { id: true },
       }),
     ]);
@@ -44,7 +44,7 @@ export async function GET() {
       { id: "comment", label: "Join a conversation", detail: "Leave a comment on a community discussion.", href: "/feed", done: Boolean(comment) },
       { id: "lounge", label: "Visit a live lounge", detail: "Drop into a lounge and meet members in real time.", href: "/rooms", done: Boolean(loungeVisit) },
       { id: "event", label: "Join a community event", detail: "RSVP to an event that interests you.", href: "/events", done: Boolean(rsvp) },
-      { id: "circle", label: "Create a crochet circle", detail: "Bring members together around something you love.", href: "/groups/create", done: Boolean(circle) },
+      { id: "connection", label: "Connect with a member", detail: "Follow someone whose interests inspire you.", href: "/members", done: Boolean(connection) },
     ];
     const completed = steps.filter((step) => step.done).length;
 
