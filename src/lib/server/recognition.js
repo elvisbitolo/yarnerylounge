@@ -126,11 +126,13 @@ export async function getRecognitionLeaderboard(limit = 20) {
         where: withNotSuspended({ recognitionCount: { gt: 0 } }),
         orderBy: { recognitionCount: "desc" },
         take: safeLimit,
-        select: { id: true, name: true, recognitionCount: true },
+        select: { id: true, name: true, username: true, photoURL: true, recognitionCount: true },
       });
       return rows.map((row, i) => ({
         userId: row.id,
         name: row.name || "Member",
+        username: row.username || null,
+        photoURL: row.photoURL || null,
         count: Number(row.recognitionCount) || 0,
         rank: i + 1,
       }));

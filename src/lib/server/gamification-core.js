@@ -22,6 +22,8 @@ export function mapLeaderboardRow(row, index) {
     streak: row.streak || 0,
     badgeCount:
       row.badges && typeof row.badges === "object" ? Object.keys(row.badges).length : 0,
+    photoURL: row.user?.photoURL || null,
+    username: row.user?.username || null,
     rank: index + 1,
   };
 }

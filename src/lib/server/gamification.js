@@ -48,17 +48,93 @@ export async function getGamification(uid) {
   }
 }
 
-export async function getLeaderboard(limit = 20) {
+function startOfUtcWeek(date = new Date()) {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = start.getUTCDay();
+  start.setUTCDate(start.getUTCDate() - ((day + 6) % 7));
+  return start;
+}
+
+async function recordPointEvent(userId, amount, reason) {
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) return;
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+    await prisma.gamificationPointEvent.create({
+      data: { userId, amount: Math.round(Number(amount)), reason },
+    });
+  } catch (err) {
+    logError("gamification.point_event_write_failed", { error: err.message });
+  }
+}
+
+export async function getLeaderboard(limit = 20, currentUserId = null) {
   try {
     const prisma = getPrisma();
     if (!prisma) return [];
     const rows = await prisma.gamification.findMany({
-      orderBy: { points: "desc" },
+      where: { user: { is: { suspended: { not: true } } } },
+      orderBy: [{ points: "desc" }, { id: "asc" }],
       take: limit,
+      include: { user: { select: { photoURL: true, username: true } } },
     });
-    return rows.map(mapLeaderboardRow);
+    const ranked = rows.map(mapLeaderboardRow);
+    if (currentUserId && !ranked.some((entry) => entry.userId === currentUserId)) {
+      const mine = await prisma.gamification.findFirst({
+        where: { userId: currentUserId, user: { is: { suspended: { not: true } } } },
+        include: { user: { select: { photoURL: true, username: true } } },
+      });
+      if (mine) {
+        const ahead = await prisma.gamification.count({
+          where: {
+            user: { is: { suspended: { not: true } } },
+            OR: [
+              { points: { gt: mine.points || 0 } },
+              { points: mine.points || 0, id: { lt: mine.id } },
+            ],
+          },
+        });
+        ranked.push({ ...mapLeaderboardRow(mine, ahead), rank: ahead + 1 });
+      }
+    }
+    return ranked;
   } catch (err) {
     logError("gamification.prisma_leaderboard_failed", { error: err.message });
+    return [];
+  }
+}
+
+export async function getWeeklyLeaderboard(limit = 20) {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return [];
+    const start = startOfUtcWeek();
+    const totals = await prisma.gamificationPointEvent.groupBy({
+      by: ["userId"],
+      where: { createdAt: { gte: start }, amount: { gt: 0 } },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: "desc" } },
+      take: limit,
+    });
+    if (!totals.length) return [];
+    const ids = totals.map((entry) => entry.userId);
+    const rows = await prisma.gamification.findMany({
+      where: { userId: { in: ids }, user: { is: { suspended: { not: true } } } },
+      include: { user: { select: { photoURL: true, username: true } } },
+    });
+    const byUser = new Map(rows.map((row) => [row.userId, row]));
+    return totals
+      .filter((total) => byUser.has(total.userId))
+      .map((total, index) => {
+        const row = byUser.get(total.userId);
+        return {
+          ...mapLeaderboardRow(row, index),
+          points: Number(total._sum.amount) || 0,
+          rank: index + 1,
+        };
+      });
+  } catch (err) {
+    logError("gamification.prisma_weekly_leaderboard_failed", { error: err.message });
     return [];
   }
 }
@@ -84,12 +160,14 @@ export async function awardPoints(uid, amount, name) {
           name: name || "Member",
         },
       });
+      await recordPointEvent(uid, amount, "engagement");
       return;
     }
     await prisma.gamification.update({
       where: { id: row.id },
       data: { points: Math.max(0, (row.points || 0) + amount) },
     });
+    await recordPointEvent(uid, amount, "engagement");
   } catch (err) {
     logError("gamification.award_points_failed", { error: err.message });
   }
@@ -118,6 +196,7 @@ export async function awardBadge(uid, code, name) {
           name: name || "Member",
         },
       });
+      await recordPointEvent(uid, POINTS.BADGE_BONUS, "badge");
       return;
     }
     const badges =
@@ -131,6 +210,7 @@ export async function awardBadge(uid, code, name) {
         points: (row.points || 0) + POINTS.BADGE_BONUS,
       },
     });
+    await recordPointEvent(uid, POINTS.BADGE_BONUS, "badge");
   } catch (err) {
     logError("gamification.award_badge_failed", { error: err.message });
   }
@@ -158,6 +238,7 @@ export async function recordDailyVisit(uid, name) {
           name: name || "Member",
         },
       });
+      await recordPointEvent(uid, POINTS.DAILY_VISIT, "daily_visit");
       return;
     }
     if (row.lastVisitDate === now) return;
@@ -200,6 +281,11 @@ export async function recordDailyVisit(uid, name) {
         name: name || row.name || "Member",
       },
     });
+    await recordPointEvent(
+      uid,
+      POINTS.DAILY_VISIT + Object.keys(newBadges).length * POINTS.BADGE_BONUS,
+      "daily_visit",
+    );
   } catch (err) {
     logError("gamification.record_daily_visit_failed", { error: err.message });
   }

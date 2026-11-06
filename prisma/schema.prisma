@@ -1253,6 +1253,17 @@ model Certificate {
 // Gamification
 // ---------------------------------------------------------------------------
 
+model GamificationPointEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt])
+}
+
 model Gamification {
   id            String    @id
   userId        String
