@@ -63,7 +63,8 @@ export async function POST(req) {
   }
 
   const isChatImage = isChat && file.type.startsWith("image/");
-  const maxBytes = isProject
+  const isPostVideo = isPost && ["video/mp4", "video/webm"].includes(file.type);
+  const maxBytes = isPostVideo ? 50 * 1024 * 1024 : isProject
     ? PROJECT_MAX_BYTES
     : isCover
       ? COVER_MAX_BYTES
@@ -86,8 +87,8 @@ export async function POST(req) {
     if (file.size > CHAT_FILE_MAX_BYTES) {
       return NextResponse.json({ error: `File too large (max 10 MB)` }, { status: 400 });
     }
-  } else if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
+  } else if (!isPostVideo && !file.type.startsWith("image/")) {
+    return NextResponse.json({ error: "Only image files or MP4/WebM post videos are allowed" }, { status: 400 });
   }
   if (file.size > maxBytes) {
     return NextResponse.json({ error: `File too large (max ${maxBytes / 1024 / 1024} MB)` }, { status: 400 });
@@ -98,6 +99,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Image file could not be verified" }, { status: 400 });
   }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    if (isPostVideo) return NextResponse.json({ error: "Video storage is not configured. Please try again later." }, { status: 503 });
     const mime = file.type || "application/octet-stream";
     const dataUrl = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
     return NextResponse.json({ dataUrl });
