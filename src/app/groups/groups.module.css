@@ -986,3 +986,65 @@
 .groupCardImageLink { display: block; margin: -24px -24px 16px; overflow: hidden; border-radius: 13px 13px 0 0; }
 .groupCardImage { display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover; transition: transform .2s ease; }
 .card:hover .groupCardImage { transform: scale(1.025); }
+
+
+/* Member portraits sit directly beneath the group cover. */
+.memberPhotoSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: -8px 0 24px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 14px;
+  background: linear-gradient(110deg, rgba(233, 30, 99, .08), rgba(32, 32, 39, .72));
+}
+.memberPhotoRow { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.memberPhotoItem { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.memberPhoto, .memberPhotoFallback {
+  display: block;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border: 2px solid #3b2632;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #30232b;
+}
+.memberPhotoFallback {
+  display: grid;
+  place-items: center;
+  color: #ffabd0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.memberPhotoName {
+  max-width: 100px;
+  overflow: hidden;
+  color: #e7e2e7;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.memberPhotoMore {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 126, 181, .3);
+  border-radius: 50%;
+  background: rgba(233, 30, 99, .12);
+  color: #ffabd0;
+  font-size: 12px;
+  font-weight: 800;
+}
+.memberPhotoCount { color: #a9a9bd; font-size: 12px; font-weight: 650; }
+@media (max-width: 560px) {
+  .memberPhotoSection { align-items: flex-start; padding: 12px; }
+  .memberPhotoRow { gap: 10px; }
+  .memberPhotoItem { gap: 6px; }
+  .memberPhotoName { max-width: 74px; font-size: 11px; }
+}

@@ -43,7 +43,6 @@ export default async function GroupPage({ params }) {
     group.parentGroupId ? getGroup(group.parentGroupId) : Promise.resolve(null),
   ]);
   const isMember = !!membership || userDoc?.role === "owner";
-  const memberNames = members.slice(0, 8).map((m) => m.name);
   const groupRooms = await listRoomsForGroup(group.id);
   const activeGroupRooms = groupRooms.filter((room) => room.status === "active");
   const nextHangout = await nextEventForRoom(group.hangoutRoomSlug);
@@ -102,6 +101,36 @@ export default async function GroupPage({ params }) {
               <span className={styles.groupFallbackEmoji}>{group.emoji || "🧶"}</span>
             </div>
           )}
+          {members.length > 0 && (
+            <section className={styles.memberPhotoSection} aria-label="Group members">
+              <div className={styles.memberPhotoRow}>
+                {members.slice(0, 12).map((member) => (
+                  <div className={styles.memberPhotoItem} key={member.id}>
+                    {member.photoURL ? (
+                      <Image
+                        src={member.photoURL}
+                        alt={member.name ? member.name + "'s profile photo" : "Group member"}
+                        width={52}
+                        height={52}
+                        className={styles.memberPhoto}
+                      />
+                    ) : (
+                      <span className={styles.memberPhotoFallback} aria-hidden="true">
+                        {(member.name || "?").trim().slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <span className={styles.memberPhotoName}>{member.name || "Member"}</span>
+                  </div>
+                ))}
+                {members.length > 12 && (
+                  <span className={styles.memberPhotoMore}>+{members.length - 12}</span>
+                )}
+              </div>
+              <span className={styles.memberPhotoCount}>
+                {members.length} {members.length === 1 ? "member" : "members"} in this circle
+              </span>
+            </section>
+          )}
           <h1 className={styles.title}>
             {group.emoji ? `${group.emoji} ` : ""}{group.name}
           </h1>
@@ -120,21 +149,6 @@ export default async function GroupPage({ params }) {
               </Link>
             </p>
           )}
-          <p className={styles.headerMeta}>
-            {members.length > 0 && (
-              <span className={styles.memberStack} aria-hidden="true">
-                {members.slice(0, 5).map((m) => (
-                  <span key={m.id} className={styles.memberStackAvatar}>
-                    {(m.name || "?").slice(0, 1).toUpperCase()}
-                  </span>
-                ))}
-              </span>
-            )}
-            {members.length} {members.length === 1 ? "member" : "members"}
-            {memberNames.length > 0 && (
-              <span className={styles.headerMemberNames}> — {memberNames.join(", ")}</span>
-            )}
-          </p>
           <div className={styles.groupActions}>
             <GroupJoinButton groupId={group.id} initialJoined={isMember} />
             {isMember && (
