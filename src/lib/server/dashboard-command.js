@@ -846,6 +846,7 @@ export async function getDashboardCommandData(uid, userDoc) {
     name: resolveActivityMemberName(userDoc, userDoc?.displayName || "Member"),
     email: userDoc?.email || "",
     role,
+    plan: userDoc?.plan || perkTier.tier || "",
     photoURL: userDoc?.photoURL || "",
     username: userDoc?.username || "",
     points: Number(gamification?.points) || 0,
