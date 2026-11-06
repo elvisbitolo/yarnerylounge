@@ -71,6 +71,13 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Could not remove photo");
       setProjects((prev) => prev.map((item) => item.id === project.id ? result.project : item));
+      if (photoUrl.includes("/uploads/project/")) {
+        fetch("/api/upload?kind=project", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: photoUrl }),
+        }).catch(() => {});
+      }
     } catch (err) {
       setError(err.message || "Could not remove photo");
     } finally {
