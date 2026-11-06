@@ -1540,6 +1540,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
       // Hoisted so the catch can clean up a blob this attempt created.
       let uploadedBlobUrl = "";
       try {
+        if (videoUrl.includes("/uploads/post/")) uploadedBlobUrl = videoUrl;
         // Store the image in object storage rather than inline in the post row.
         // Falls back to the data URL if storage is unavailable, so posting still works.
         const { url: storedImageUrl, isNewBlob } = imageUrl.startsWith("data:")
