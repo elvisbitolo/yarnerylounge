@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
-import { mayWriteTier, isActiveSub } from "@/lib/server/shopify";
+import { mayWriteTier } from "@/lib/server/shopify";
+import { isActiveSub } from "@/lib/server/billing";
 import { tierRank } from "@/lib/server/plans";
 import { logError, logInfo } from "@/lib/server/log";
 import { deleteMemberData } from "@/lib/server/delete-member-data";
@@ -31,6 +32,7 @@ export async function PATCH(req, { params }) {
   }
 
   const update = {};
+  let periodEnd = null;
   const existingSub = plan !== undefined
     ? await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } })
     : null;
@@ -76,7 +78,7 @@ export async function PATCH(req, { params }) {
     }
     // Calculate currentPeriodEnd based on plan duration
     const durationDays = PLAN_DURATION_DAYS[plan] || 0;
-    const periodEnd = durationDays > 0
+    periodEnd = durationDays > 0
       ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
       : null;
     // Validate tier change using existing subscription status
