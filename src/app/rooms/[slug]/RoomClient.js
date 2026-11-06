@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Camera, CameraOff, SwitchCamera, SlidersHorizontal, Mic, MicOff, RefreshCcw, WifiOff, Hand, Users, Ban, Volume2, VolumeX } from "lucide-react";
+import { LogOut, Camera, CameraOff, SwitchCamera, SlidersHorizontal, Mic, MicOff, RefreshCcw, WifiOff, Hand } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import AmbientAudio from "@/components/AmbientAudio";
 import RoomMusicPicker from "@/components/RoomMusicPicker";
@@ -186,13 +186,6 @@ export default function RoomClient({
   const [connectAt, setConnectAt] = useState(0);
   const [connStalled, setConnStalled] = useState(false);
 
-  // ---- People panel (per-participant volume for all; moderator mute + block) ----
-  const [peopleOpen, setPeopleOpen] = useState(false);
-  const [remoteParticipants, setRemoteParticipants] = useState([]);
-  const [participantVolumes, setParticipantVolumes] = useState({});
-  const [blockedEmails, setBlockedEmails] = useState(() => new Set());
-  const [controlsNotice, setControlsNotice] = useState("");
-
   // ---- Background music (played by AmbientAudio; this header only asks) ----
   const [musicOn, setMusicOn] = useState(false);
   const [sharedMusic, setSharedMusic] = useState({ musicUrl: musicUrl || "", musicFileId: musicFileId || "", musicName: musicName || "", musicPlaying: !!musicPlaying });
@@ -218,7 +211,6 @@ export default function RoomClient({
   const mediaRequestRef = useRef(0);
   const mediaInitApiRef = useRef(null);
   const mountKeyRef = useRef(0);
-  const participantMutedRef = useRef({});
   const recordingPendingTimerRef = useRef(null);
   const recordNoticeTimerRef = useRef(null);
   const networkStatsTimerRef = useRef(null);
@@ -748,8 +740,6 @@ export default function RoomClient({
     };
     api.addEventListener("participantJoined", syncCount);
     api.addEventListener("participantLeft", syncCount);
-    api.addEventListener("participantJoined", refreshRemoteParticipants);
-    api.addEventListener("participantLeft", refreshRemoteParticipants);
     // Consent: surface a recording the moment it starts, for every participant
     // (hosts and viewers alike), not just the member who started it.
     api.addEventListener("recordingStatusChanged", (payload = {}) => {
@@ -806,14 +796,6 @@ export default function RoomClient({
         api.executeCommand("toggleTileView");
       }
     });
-    api.addEventListener("displayNameChange", () => refreshRemoteParticipants());
-    api.addEventListener("participantMuted", ({ participantId, isMuted, mediaType } = {}) => {
-      if (!participantId) return;
-      if (mediaType === "video") return;
-      participantMutedRef.current[participantId] = !!isMuted;
-      refreshRemoteParticipants();
-    });
-
     const markConnected = ({ conferenceJoined = false } = {}) => {
       syncCount();
       setConnStalled(false);
@@ -958,119 +940,6 @@ export default function RoomClient({
     setConnectAt(0);
     setConnStalled(false);
     router.push("/rooms");
-  }
-
-  async function muteRemoteParticipant(userId, displayName) {
-    const api = apiRef.current;
-    if (!api || !displayName) return;
-    try {
-      const info = await api.getRoomsInfo();
-      const rooms = Array.isArray(info) ? info : info?.rooms || [];
-      const participants = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
-      const participant = participants.find((item) =>
-        item.displayName === displayName || item.id === userId || item.userContext?.id === userId
-      );
-      if (participant?.id) api.executeCommand("setParticipantVolume", participant.id, 0);
-    } catch {
-      /* The preference is still stored server-side when the remote API is unavailable. */
-    }
-  }
-
-  // ---- Host controls: moderator mute + per-participant volume ----
-
-  // Use the current IFrame API rooms/participants shape. The JWT identity is
-  // stored in userContext.id, which lets us exclude our own local participant.
-  async function refreshRemoteParticipants() {
-    const api = apiRef.current;
-    if (!api) return;
-    try {
-      const info = await api.getRoomsInfo();
-      const rooms = Array.isArray(info) ? info : info?.rooms || [];
-      const list = rooms.flatMap((room) => Array.isArray(room?.participants) ? room.participants : []);
-      const remote = list
-        .filter((p) => p.isLocal !== true && (!userId || p.userContext?.id !== userId))
-        .map((p) => ({
-          participantId: p.id || "",
-          displayName: p.displayName || "",
-          email: p.userContext?.email || "",
-          avatarUrl: p.userContext?.avatar || "",
-          muted: !!participantMutedRef.current[p.id || ""],
-        }));
-      if (apiRef.current === api) setRemoteParticipants(remote);
-    } catch {
-      if (apiRef.current === api) setRemoteParticipants([]);
-    }
-  }
-
-  function muteAllRemote() {
-    const api = apiRef.current;
-    if (!api) return;
-    try {
-      api.executeCommand("muteEveryone");
-      setControlsNotice(t("muteAllDone"));
-    } catch {
-      setControlsNotice(t("muteFail"));
-    }
-    refreshRemoteParticipants();
-  }
-
-  function muteRemote(participantId) {
-    const api = apiRef.current;
-    if (!api || !participantId) return;
-    try {
-      api.executeCommand("muteRemoteParticipant", participantId, "audio");
-    } catch {
-      setControlsNotice(t("muteFail"));
-    }
-    refreshRemoteParticipants();
-  }
-
-  function setRemoteVolume(participantId, volume) {
-    const api = apiRef.current;
-    if (!api || !participantId) return;
-    setParticipantVolumes((v) => ({ ...v, [participantId]: volume }));
-    try {
-      api.executeCommand("setParticipantVolume", participantId, volume / 100);
-    } catch {
-      /* volume is best-effort; the muted flag still holds server-side */
-    }
-  }
-
-  async function toggleBlock(participant) {
-    const email = participant?.email;
-    if (!email) {
-      setControlsNotice(t("blockNoEmail"));
-      return;
-    }
-    const wasBlocked = blockedEmails.has(email);
-    try {
-      const res = await fetch("/api/members/safety", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, action: wasBlocked ? "unblock" : "block" }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t("blockFail"));
-      setBlockedEmails((prev) => {
-        const next = new Set(prev);
-        if (data.iBlocked) next.add(email);
-        else next.delete(email);
-        return next;
-      });
-      setControlsNotice(
-        data.iBlocked
-          ? t("blockDone", { name: participant.displayName || t("member") })
-          : t("unblockDone", { name: participant.displayName || t("member") })
-      );
-    } catch (err) {
-      setControlsNotice(err?.message || t("blockFail"));
-    }
-  }
-
-  function openPeople() {
-    setPeopleOpen(true);
-    setControlsNotice("");
-    refreshRemoteParticipants();
   }
 
   // ---- Recording control (staff / host / co-host) ----
@@ -1635,129 +1504,12 @@ export default function RoomClient({
           </div>
 
           <div className={styles.roomActionBar}>
-            <button
-              type="button"
-              className={`${styles.roomActionBtn} ${peopleOpen ? styles.roomActionBtnOn : ""}`}
-              onClick={() => (peopleOpen ? setPeopleOpen(false) : openPeople())}
-            >
-              <Users size={18} />
-              <span>{t("people")}</span>
-            </button>
             <button type="button" className={`${styles.roomActionBtn} ${styles.roomActionLeave}`} onClick={handleLeave}>
               <LogOut size={18} />
               <span>{t("leave")}</span>
             </button>
           </div>
 
-          {peopleOpen && (
-            <div className={styles.controlsSheet} role="dialog" aria-label={t("people")}>
-              <div className={styles.controlsSheetHeader}>
-                <span className={styles.controlsSheetTitle}>
-                  <Users size={15} />
-                  {t("people")}
-                </span>
-                <button
-                  type="button"
-                  className={styles.controlsSheetClose}
-                  onClick={() => setPeopleOpen(false)}
-                  aria-label={t("close")}
-                >
-                  ×
-                </button>
-              </div>
-              <div className={styles.controlsSheetBody}>
-                {controlsNotice && <p className={styles.controlsNotice}>{controlsNotice}</p>}
-                <div className={styles.controlsMuteAllRow}>
-                  <span className={styles.controlsCount}>
-                    {t("peopleInRoom", { count: remoteParticipants.length })}
-                  </span>
-                  {canRecord && (
-                    <button type="button" className={styles.controlsMuteAll} onClick={muteAllRemote}>
-                      <VolumeX size={14} />
-                      {t("muteAll")}
-                    </button>
-                  )}
-                </div>
-
-                {remoteParticipants.length === 0 ? (
-                  <p className={styles.controlsEmpty}>{t("noParticipants")}</p>
-                ) : (
-                  <ul className={styles.controlsList}>
-                    {remoteParticipants.map((p) => {
-                      const localMuted = (participantVolumes[p.participantId] ?? 100) === 0;
-                      const isBlocked = Boolean(p.email) && blockedEmails.has(p.email);
-                      return (
-                        <li key={p.participantId} className={styles.controlsRow}>
-                          <span className={styles.controlsAvatar} aria-hidden="true">
-                            {p.avatarUrl ? (
-                              <img
-                                className={styles.controlsAvatarImg}
-                                src={p.avatarUrl}
-                                alt=""
-                              />
-                            ) : (
-                              String(p.displayName || "?").charAt(0).toUpperCase()
-                            )}
-                          </span>
-                          <span className={styles.controlsName} title={p.displayName}>
-                            {p.displayName || t("member")}
-                            {p.muted && (
-                              <span className={styles.controlsMutedBadge}>
-                                <MicOff size={11} />
-                                {t("muted")}
-                              </span>
-                            )}
-                          </span>
-                          <div className={styles.controlsActions}>
-                            {canRecord && (
-                              <button
-                                type="button"
-                                className={styles.controlsMuteBtn}
-                                title={t("muteParticipant")}
-                                onClick={() => muteRemote(p.participantId)}
-                              >
-                                <MicOff size={13} />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className={styles.controlsMuteBtn}
-                              title={localMuted ? t("unmuteLocally") : t("muteLocally")}
-                              disabled={!p.participantId}
-                              onClick={() => setRemoteVolume(p.participantId, localMuted ? 100 : 0)}
-                            >
-                              {localMuted ? <Volume2 size={13} /> : <VolumeX size={13} />}
-                            </button>
-                            <span className={styles.controlsVolume}>
-                              <Volume2 size={12} />
-                              <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                value={participantVolumes[p.participantId] ?? 100}
-                                onChange={(e) => setRemoteVolume(p.participantId, Number(e.target.value))}
-                                aria-label={`${t("volume")} ${p.displayName}`}
-                              />
-                            </span>
-                            {p.email && (
-                              <button
-                                type="button"
-                                className={`${styles.controlsMuteBtn} ${isBlocked ? styles.controlsBlockOn : ""}`}
-                                title={isBlocked ? t("unblockMember") : t("blockMember")}
-                                onClick={() => toggleBlock(p)}
-                              >
-                                <Ban size={13} />
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
