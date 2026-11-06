@@ -133,7 +133,7 @@ export default function CreateCirclePage() {
               )}
               <span>
                 <strong>{imageUrl ? "Change group photo" : "Add a cover photo"}</strong>
-                <small>Choose an image that represents your circle · JPG, PNG or WebP · up to 8 MB</small>
+                <small>Choose an image that represents your group · JPG, PNG or WebP · up to 8 MB</small>
               </span>
               <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" onChange={handleImageChange} disabled={uploadingImage} />
             </label>
@@ -145,16 +145,16 @@ export default function CreateCirclePage() {
           <label className={styles.createCircleField}>
             <span>{isSubgroup ? "Main group" : "Make this a subgroup (optional)"}</span>
             <select value={parentGroupId} onChange={(event) => setParentGroupId(event.target.value)}>
-              <option value="">{wantsSubgroup ? "Choose a main circle you belong to" : "Start a new group"}</option>
+              <option value="">{wantsSubgroup ? "Choose a main group you belong to" : "Start a new group"}</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>{group.emoji ? group.emoji + " " : ""}{group.name}</option>
               ))}
             </select>
-            <small>Subgroups sit one level beneath a main group. Only circles you have joined or created are listed.</small>
+            <small>Subgroups sit one level beneath a main group. Only groups you have joined or created are listed.</small>
           </label>
           <label className={styles.createCircleField}>
             <span>{isSubgroup ? "Subgroup name" : "Group name"}</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required placeholder={isSubgroup ? "e.g. Amigurumi Makers" : "e.g. The Sunday Catch-Up"} />
+            <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required placeholder={isSubgroup ? "e.g. Weekend Catch-Up Crew" : "e.g. The Sunday Catch-Up"} />
           </label>
           <label className={styles.createCircleField}>
             <span>What is this community about?</span>
@@ -167,7 +167,7 @@ export default function CreateCirclePage() {
             <p className={styles.createCircleParentNote}>
               {groups.length
                 ? "Choose a main group above before launching your subgroup."
-                : "Join a main group first. You can explore available circles from the groups page."}
+                : "Join a main group first. You can explore available groups from the groups page."}
               {" "}<Link className={styles.link} href="/groups">Explore groups</Link>
             </p>
           )}
