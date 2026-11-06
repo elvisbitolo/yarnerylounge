@@ -194,11 +194,11 @@ function ActionIcon({ icon }) {
   }
 }
 
-export function CreatorHub() {
+export function CreatorHub({ isMovingIn = false }) {
   const actions = [
     { title: "Create a post", detail: "Share an update with the community.", href: "/feed?compose=1", label: "Post now", icon: "✍" },
     { title: "Add a project", detail: "Show what you are making.", href: "/portfolio", label: "Add project", icon: "✳" },
-    { title: "Create an event", detail: "Moving In hosts can publish; Hooking Up members can explore events and connect with a host.", href: "/host/events", label: "Open events", icon: "◷" },
+    { title: isMovingIn ? "Create an event" : "Suggest an event", detail: isMovingIn ? "Schedule a session for the community." : "Send your event idea to the team for review.", href: isMovingIn ? "/host/events" : "/events/suggest", label: isMovingIn ? "Create event" : "Suggest event", icon: "◷" },
     { title: "Share a video", detail: "Upload a video as a community post.", href: "/feed?compose=1&video=1", label: "Share video", icon: "▷" },
   ];
   return (
