@@ -95,7 +95,10 @@ export async function POST(req) {
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (isPostVideo && !isSafeVideo(file.type, bytes)) {\n    return NextResponse.json({ error: "Video file could not be verified" }, { status: 400 });\n  }\n  if (file.type.startsWith("image/") && !isSafeImage(file.type, bytes)) {
+  if (isPostVideo && !isSafeVideo(file.type, bytes)) {
+    return NextResponse.json({ error: "Video file could not be verified" }, { status: 400 });
+  }
+  if (file.type.startsWith("image/") && !isSafeImage(file.type, bytes)) {
     return NextResponse.json({ error: "Image file could not be verified" }, { status: 400 });
   }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
