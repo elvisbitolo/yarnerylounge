@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
-import { mayWriteTier } from "@/lib/server/shopify";
 import { isActiveSub } from "@/lib/server/billing";
 import { tierRank } from "@/lib/server/plans";
 import { logError, logInfo } from "@/lib/server/log";
@@ -81,16 +80,9 @@ export async function PATCH(req, { params }) {
     periodEnd = durationDays > 0
       ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
       : null;
-    // Validate tier change using existing subscription status
-    if (!mayWriteTier({
-      currentTier: existingSub?.tier,
-      currentIsActive: existingSub ? isActiveSub(existingSub) : false,
-      incomingTier: plan,
-    })) {
-      return NextResponse.json({ 
-        error: "Cannot downgrade tier. Current tier must be maintained or upgraded." 
-      }, { status: 400 });
-    }
+    // Owner-initiated admin changes may downgrade membership tiers.
+    // Keep the user's host privilege synchronized with the selected plan.
+    update.role = plan === "moving-in" ? "host" : "member";
     update.plan = plan;
     update.tier = plan;
     update.currentPeriodEnd = periodEnd;
