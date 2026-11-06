@@ -1030,6 +1030,17 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const feedRequestRef = useRef(0);
   const loadingMoreRef = useRef(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("video") === "1") setShowVideoInput(true);
+    if (params.get("compose") === "1" || params.get("video") === "1") {
+      window.setTimeout(() => {
+        document.querySelector("[data-feed-composer]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, []);
+
   // Track the current sort in a ref so URL/cache/sort helpers stay stable
   // across renders. Must be declared before sortFeedPosts below, which reads
   // it (the react-compiler flags a forward reference into a ref).
@@ -2413,7 +2424,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
           </a>
         </div>
       ) : (
-      <form className={styles.composer} onSubmit={handlePost}>
+      <form className={styles.composer} data-feed-composer onSubmit={handlePost}>
         <div className={styles.kindTabs}>
           {[
             { key: "post", icon: <PenSquare size={14} />, label: t("tabPost") },
