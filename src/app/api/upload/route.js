@@ -95,7 +95,7 @@ export async function POST(req) {
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (file.type.startsWith("image/") && !isSafeImage(file.type, bytes)) {
+  if (isPostVideo && !isSafeVideo(file.type, bytes)) {\n    return NextResponse.json({ error: "Video file could not be verified" }, { status: 400 });\n  }\n  if (file.type.startsWith("image/") && !isSafeImage(file.type, bytes)) {
     return NextResponse.json({ error: "Image file could not be verified" }, { status: 400 });
   }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -188,5 +188,13 @@ function isSafeImage(mime, bytes) {
     );
   }
   // All other image/* types (including SVG, which can carry scripts) are rejected.
+  return false;
+}
+
+function isSafeVideo(mime, bytes) {
+  const sig = (expected, offset = 0) =>
+    expected.every((b, i) => bytes.length > offset + i && bytes[offset + i] === b);
+  if (mime === "video/mp4") return sig([0x66, 0x74, 0x79, 0x70], 4);
+  if (mime === "video/webm") return sig([0x1a, 0x45, 0xdf, 0xa3]);
   return false;
 }
