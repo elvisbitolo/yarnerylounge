@@ -133,6 +133,7 @@ export async function PATCH(req, { params }) {
         );
       }
       data.imageUrl = null;
+      data.imageUrls = [];
       data.videoUrl = null;
       data.altText = "";
     }
