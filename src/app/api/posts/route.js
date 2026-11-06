@@ -618,14 +618,6 @@ export async function POST(req) {
     return NextResponse.json({ error: "One or more image URLs are invalid" }, { status: 400 });
   }
   const primaryImageUrl = cleanImageUrls[0] || "";
-  const cleanImageUrls = Array.isArray(requestedImageUrls)
-    ? [...new Set(requestedImageUrls.filter((url) => typeof url === "string" && url.trim()).map((url) => url.trim()))]
-    : [];
-  if (!cleanImageUrls.length && typeof imageUrl === "string" && imageUrl) cleanImageUrls.push(imageUrl);
-  if (cleanImageUrls.some((url) => !validateMediaPair(url, "").ok)) {
-    return NextResponse.json({ error: "One or more image URLs are invalid" }, { status: 400 });
-  }
-  const primaryImageUrl = cleanImageUrls[0] || "";
   const reshareId = (typeof quoteOfId === "string" && quoteOfId) || (typeof repostOfId === "string" && repostOfId) || "";
   const reshareKind = quoteOfId ? "quote" : repostOfId ? "repost" : "";
 
