@@ -10,7 +10,7 @@ function clean(value, max) {
 
 function imageUrls(value) {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter((url) => typeof url === "string" && /^(https?:\/\/|data:image\/)/i.test(url.trim())).map((url) => url.trim()))].slice(0, 6);
+  return [...new Set(value.filter((url) => typeof url === "string" && /^(https?:\/\/|data:image\/)/i.test(url.trim())).map((url) => url.trim()))].filter(Boolean);
 }
 
 export async function PATCH(req, { params }) {
