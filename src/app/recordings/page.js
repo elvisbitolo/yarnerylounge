@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { canModerate, getCurrentUser, getUserDoc } from "@/lib/server/auth";
+import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import {
   getRecordingsStorageUsage,
   listRecordings,
