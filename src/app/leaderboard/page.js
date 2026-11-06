@@ -157,7 +157,7 @@ export default async function LeaderboardPage() {
 
       <section className={styles.section}>
         <div className={styles.sectionHeading}>
-          <div><span className={styles.eyebrow}>THE COMMUNITY'S TOP CONTRIBUTORS</span><h2>All-time leaders</h2></div>
+          <div><span className={styles.eyebrow}>THE COMMUNITY&apos;S TOP CONTRIBUTORS</span><h2>All-time leaders</h2></div>
           <span className={styles.sectionNote}>Ranked by lifetime points</span>
         </div>
         <Podium entries={topThree} />
