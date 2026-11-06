@@ -104,15 +104,16 @@ export async function getWeeklyLeaderboard(limit = 20) {
       include: { user: { select: { photoURL: true, username: true } } },
     });
     const byUser = new Map(rows.map((row) => [row.userId, row]));
-    return totals.flatMap((total) => {
-      const row = byUser.get(total.userId);
-      if (!row) return [];
-      return [{
-        ...mapLeaderboardRow(row, 0),
-        points: Number(total._sum.amount) || 0,
-        rank: totals.findIndex((item) => item.userId === total.userId) + 1,
-      }];
-    });
+    return totals
+      .filter((total) => byUser.has(total.userId))
+      .map((total, index) => {
+        const row = byUser.get(total.userId);
+        return {
+          ...mapLeaderboardRow(row, index),
+          points: Number(total._sum.amount) || 0,
+          rank: index + 1,
+        };
+      });
   } catch (err) {
     logError("gamification.prisma_weekly_leaderboard_failed", { error: err.message });
     return [];
