@@ -10,7 +10,7 @@ function clean(value, max) {
 
 function imageUrls(value) {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter((url) => typeof url === "string" && /^(https?:\/\/|data:image\/)/i.test(url.trim())).map((url) => url.trim()))].slice(0, 6);
+  return [...new Set(value.filter((url) => typeof url === "string" && /^(https?:\/\/|data:image\/)/i.test(url.trim())).map((url) => url.trim()))].filter(Boolean);
 }
 
 export async function GET(req) {
@@ -33,7 +33,6 @@ export async function POST(req) {
   if (!title) return NextResponse.json({ error: "Project title is required" }, { status: 400 });
   const status = PROJECT_STATUSES.includes(body.status) ? body.status : "active";
   const urls = imageUrls(body.imageUrls);
-  if (urls.length > 6) return NextResponse.json({ error: "A project can have up to six images" }, { status: 400 });
 
   const prisma = getPrisma();
   try {
