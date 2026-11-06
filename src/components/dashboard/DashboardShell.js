@@ -230,7 +230,7 @@ export default function DashboardShell() {
         </div>
         <DashboardProfileCompletion photoURL={user.photoURL} username={user.username} />
         <DashboardCommunityBuilderCard />
-        <DashboardYourCommunity />
+        {user.plan === "moving-in" && <DashboardYourCommunity />}
         <CreatorHub isMovingIn={user.plan === "moving-in"} />
         <DashboardEngagementProgress />
         <DashboardFeaturedVideos />
