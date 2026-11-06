@@ -596,6 +596,7 @@ export async function POST(req) {
   const {
     text,
     imageUrl = "",
+    imageUrls: requestedImageUrls = [],
     videoUrl = "",
     groupId = "",
     spaceId = "",
@@ -609,6 +610,14 @@ export async function POST(req) {
     repostOfId = "",
   } = await req.json();
 
+  const cleanImageUrls = Array.isArray(requestedImageUrls)
+    ? [...new Set(requestedImageUrls.filter((url) => typeof url === "string" && url.trim()).map((url) => url.trim()))]
+    : [];
+  if (!cleanImageUrls.length && typeof imageUrl === "string" && imageUrl) cleanImageUrls.push(imageUrl);
+  if (cleanImageUrls.some((url) => !validateMediaPair(url, "").ok)) {
+    return NextResponse.json({ error: "One or more image URLs are invalid" }, { status: 400 });
+  }
+  const primaryImageUrl = cleanImageUrls[0] || "";
   const reshareId = (typeof quoteOfId === "string" && quoteOfId) || (typeof repostOfId === "string" && repostOfId) || "";
   const reshareKind = quoteOfId ? "quote" : repostOfId ? "repost" : "";
 
@@ -630,7 +639,7 @@ export async function POST(req) {
   } else {
     // A repost is a bare reference and carries no text of its own; a quote is
     // required to say something, like X's quote post.
-    if (!cleanText && !imageUrl && !videoUrl && !reshareId) {
+    if (!cleanText && !primaryImageUrl && !videoUrl && !reshareId) {
       return NextResponse.json({ error: "Post text required" }, { status: 400 });
     }
     if (cleanText) {
@@ -668,7 +677,7 @@ export async function POST(req) {
     );
   }
 
-  const media = validateMediaPair(imageUrl, videoUrl);
+  const media = validateMediaPair(primaryImageUrl, videoUrl);
   if (!media.ok) {
     return NextResponse.json({ error: media.error }, { status: 400 });
   }
@@ -751,8 +760,9 @@ export async function POST(req) {
       commentCount: 0,
       lastActivityAt: new Date(),
     };
-    if (imageUrl && typeof imageUrl === "string") {
-      prismaData.imageUrl = imageUrl;
+    if (primaryImageUrl) {
+      prismaData.imageUrl = primaryImageUrl;
+      prismaData.imageUrls = cleanImageUrls;
     }
     if (videoUrl && typeof videoUrl === "string") {
       prismaData.videoUrl = videoUrl;
