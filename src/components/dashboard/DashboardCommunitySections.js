@@ -71,6 +71,67 @@ export function DashboardProfileCompletion({ photoURL, username }) {
   );
 }
 
+export function DashboardEngagementProgress() {
+  const { value, loading } = useDashboardResource("/api/dashboard/engagement", "engagement");
+  const steps = Array.isArray(value?.steps) ? value.steps : [];
+  const completed = Number(value?.completed) || 0;
+  const total = Number(value?.total) || steps.length;
+
+  return (
+    <section className={styles.engagementProgressCard} aria-labelledby="engagement-progress-title">
+      <div className={styles.engagementProgressHeader}>
+        <div>
+          <p className={styles.engagementProgressEyebrow}>YOUR COMMUNITY JOURNEY</p>
+          <h2 id="engagement-progress-title">Make your mark at the Speakeasy</h2>
+          <p className={styles.engagementProgressDescription}>
+            Small moments of participation build a stronger community. Here’s what you’ve done so far.
+          </p>
+        </div>
+        {!loading && total > 0 ? (
+          <span className={styles.engagementProgressCount}>{completed}/{total} completed</span>
+        ) : null}
+      </div>
+      {loading ? (
+        <p className={styles.itemBody}>Loading your community progress…</p>
+      ) : steps.length ? (
+        <>
+          <div
+            className={styles.engagementProgressTrack}
+            role="progressbar"
+            aria-label="Community engagement progress"
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={completed}
+          >
+            <span style={{ width: `${Number(value?.percentage) || 0}%` }} />
+          </div>
+          <div className={styles.engagementProgressSteps}>
+            {steps.map((step) => (
+              <Link
+                className={`${styles.engagementProgressStep} ${step.done ? styles.engagementProgressStepDone : ""}`}
+                href={step.href}
+                key={step.id}
+              >
+                <span className={styles.engagementProgressCheck} aria-hidden="true">{step.done ? "✓" : "＋"}</span>
+                <span className={styles.engagementProgressStepCopy}>
+                  <strong>{step.label}</strong>
+                  <span>{step.detail}</span>
+                </span>
+                <span className={styles.engagementProgressStepState}>{step.done ? "Done" : "Explore"}</span>
+              </Link>
+            ))}
+          </div>
+          {completed === total ? (
+            <p className={styles.engagementProgressComplete}>You’re making the most of the community. Keep connecting and creating.</p>
+          ) : null}
+        </>
+      ) : (
+        <p className={styles.itemBody}>Your community progress is temporarily unavailable. Please try again shortly.</p>
+      )}
+    </section>
+  );
+}
+
 export function DashboardActiveMembers() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
