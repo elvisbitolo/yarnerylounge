@@ -25,7 +25,8 @@ export async function POST(req) {
   const auth = await requireActiveMember();
   const denied = guardJson(auth);
   if (denied) return denied;
-  if (auth.userDoc?.plan !== "hooking-up") return NextResponse.json({ error: "Event proposals are available to Hooking Up members. Moving In members can publish from the host tools." }, { status: 403 });\n  const limited = rateLimitGuard(`event-submission:${auth.user.uid}`, { limit: 5 });
+  if (auth.userDoc?.plan !== "hooking-up") return NextResponse.json({ error: "Event proposals are available to Hooking Up members. Moving In members can publish from the host tools." }, { status: 403 });
+  const limited = rateLimitGuard(`event-submission:${auth.user.uid}`, { limit: 5 });
   if (limited) return limited;
   const body = await req.json().catch(() => ({}));
   const title = clean(body.title, 140);
