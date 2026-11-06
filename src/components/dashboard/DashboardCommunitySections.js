@@ -466,16 +466,12 @@ export function DashboardCommunityBuilderCard() {
   return (
     <section className={styles.communityBuilderCard} aria-labelledby="community-builder-title">
       <div className={styles.communityBuilderArtwork} aria-hidden="true">
-        <svg viewBox="0 0 220 180" width="190" height="156" fill="none">
-          <circle cx="110" cy="90" r="66" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.18)" />
-          <path d="M62 94 106 54 158 94 110 132 62 94Z" fill="rgba(246,7,122,.22)" stroke="#ffabd0" strokeWidth="2" />
-          <circle cx="62" cy="94" r="17" fill="#f6077a" stroke="#ffd5e7" strokeWidth="2" />
-          <circle cx="106" cy="54" r="17" fill="#ff75ad" stroke="#fff" strokeWidth="2" />
-          <circle cx="158" cy="94" r="17" fill="#f6077a" stroke="#ffd5e7" strokeWidth="2" />
-          <circle cx="110" cy="132" r="17" fill="#ff75ad" stroke="#fff" strokeWidth="2" />
-          <path d="M62 94 106 54M106 54 158 94M158 94 110 132M110 132 62 94" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-          <path d="M110 24v-9M179 90h10M110 156v9M31 90H21" stroke="#ffabd0" strokeWidth="3" strokeLinecap="round" />
-        </svg>
+        <img
+          className={styles.communityBuilderImage}
+          src="/images/community-builder-crochet.webp"
+          alt=""
+          loading="lazy"
+        />
       </div>
       <div className={styles.communityBuilderContent}>
         <div className={styles.communityBuilderTopline}>
