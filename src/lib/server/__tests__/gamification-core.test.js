@@ -48,3 +48,16 @@ test("mapLeaderboardRow: maps with rank", () => {
   assert.equal(entry.points, 200);
   assert.equal(entry.badgeCount, 2);
 });
+test("mapLeaderboardRow: includes public member identity", () => {
+  const entry = mapLeaderboardRow({
+    id: "u2",
+    name: "Amina",
+    points: 75,
+    streak: 2,
+    badges: {},
+    user: { photoURL: "https://cdn.example/avatar.jpg", username: "amina" },
+  }, 1);
+  assert.equal(entry.rank, 2);
+  assert.equal(entry.photoURL, "https://cdn.example/avatar.jpg");
+  assert.equal(entry.username, "amina");
+});
