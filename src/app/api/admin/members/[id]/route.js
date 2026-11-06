@@ -84,8 +84,7 @@ export async function PATCH(req, { params }) {
     // Keep the user's host privilege synchronized with the selected plan.
     update.role = plan === "moving-in" ? "host" : "member";
     update.plan = plan;
-    update.tier = plan;
-    update.currentPeriodEnd = periodEnd;
+    update.expiresAt = periodEnd;
   }
 
   try {
@@ -122,6 +121,9 @@ export async function PATCH(req, { params }) {
               role: update.role || existing.role,
               shopifyCustomerId: existing.shopifyCustomerId || "",
               shopifyOrderId: existing.shopifyOrderId || "",
+              providerCustomerId: "",
+              providerSubscriptionId: "",
+              priceId: "",
               currentPeriodEnd: periodEnd,
               canceledAt: null,
               cancelAtPeriodEnd: false,
