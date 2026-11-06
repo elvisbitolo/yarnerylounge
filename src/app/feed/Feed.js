@@ -987,7 +987,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [showVideoInput, setShowVideoInput] = useState(false);
+  const [showVideoInput, setShowVideoInput] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("video") === "1");
   const [draftRestored, setDraftRestored] = useState(false);
   const [kind, setKind] = useState(
     initialKind === "poll" || initialKind === "question" || initialKind === "win"
@@ -1033,7 +1033,6 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("video") === "1") setShowVideoInput(true);
     if (params.get("compose") === "1" || params.get("video") === "1") {
       window.setTimeout(() => {
         document.querySelector("[data-feed-composer]")?.scrollIntoView({ behavior: "smooth", block: "center" });
