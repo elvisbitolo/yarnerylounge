@@ -169,7 +169,11 @@ export default async function LeaderboardPage() {
           <div><span className={styles.eyebrow}>A FRESH START EVERY WEEK</span><h2>Weekly leaders</h2></div>
           <span className={styles.sectionNote}>Points earned since Monday (UTC)</span>
         </div>
-        <RankingRows entries={weekly} currentUserId={user.uid} />
+        {weekly.length ? (
+          <RankingRows entries={weekly} currentUserId={user.uid} />
+        ) : (
+          <p className={styles.empty}>Weekly rankings start collecting points after the point-tracking update goes live. Your new activity will count here.</p>
+        )}
       </section>
 
       <section className={styles.section}>
