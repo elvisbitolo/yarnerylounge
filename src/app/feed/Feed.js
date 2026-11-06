@@ -1871,9 +1871,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
 
   function copyPostText(post) {
     const url = `${window.location.origin}/feed?focus=${post.id}`;
-    const body = `${post.text || ""}${post.text ? "
-
-" : ""}${url}`;
+    const body = `${post.text || ""}${post.text ? "\n\n" : ""}${url}`;
     try {
       if (navigator.clipboard?.writeText) navigator.clipboard.writeText(body);
     } catch {
