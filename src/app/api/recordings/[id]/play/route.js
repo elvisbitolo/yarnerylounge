@@ -7,7 +7,6 @@
 import { NextResponse } from "next/server";
 import { getRecording, signPlaybackUrl, signTranscriptUrl } from "@/lib/server/recordings";
 import { guardJson, requireActiveMember } from "@/lib/server/authorize";
-import { canModerate } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +29,10 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: "Recording unavailable" }, { status: 503 });
   }
 
-  // Owners and moderators may also take the file away with them.
-  const manager = auth.userDoc?.role === "owner" || canModerate(auth.userDoc);
-  const downloadUrl = manager
-    ? await signPlaybackUrl(recording, undefined, { download: true })
-    : null;
+  // Every active member may download recordings shared with the community.
+  // requireActiveMember above enforces membership on the server; the signed
+  // attachment URL is only issued after that check succeeds.
+  const downloadUrl = await signPlaybackUrl(recording, undefined, { download: true });
 
   return NextResponse.json({
     ok: true,
