@@ -25,7 +25,7 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
     setError("");
     try {
       const imageUrls = [];
-      for (const file of files.slice(0, 6)) {
+      for (const file of files) {
         const data = new FormData();
         data.append("file", file);
         const upload = await fetch("/api/upload?kind=project", { method: "POST", body: data });
@@ -59,6 +59,90 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
     if (response.ok) setProjects((prev) => prev.filter((project) => project.id !== projectId));
   }
 
+  async function removePhoto(project, photoUrl) {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: (project.imageUrls || []).filter((url) => url !== photoUrl) }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Could not remove photo");
+      setProjects((prev) => prev.map((item) => item.id === project.id ? result.project : item));
+      if (photoUrl.includes("/uploads/project/")) {
+        fetch("/api/upload?kind=project", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: photoUrl }),
+        }).catch(() => {});
+      }
+    } catch (err) {
+      setError(err.message || "Could not remove photo");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addPhotos(project, selectedFiles) {
+    if (!selectedFiles.length) return;
+    setBusy(true);
+    setError("");
+    try {
+      const uploaded = [];
+      for (const file of selectedFiles) {
+        const data = new FormData();
+        data.append("file", file);
+        const response = await fetch("/api/upload?kind=project", { method: "POST", body: data });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Photo upload failed");
+        uploaded.push(result.url || result.dataUrl);
+      }
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: [...(project.imageUrls || []), ...uploaded] }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Could not update project photos");
+      setProjects((prev) => prev.map((item) => item.id === project.id ? result.project : item));
+    } catch (err) {
+      setError(err.message || "Could not upload photos");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addPhotos(project, selectedFiles) {
+    if (!selectedFiles.length) return;
+    setBusy(true);
+    setError("");
+    try {
+      const uploaded = [];
+      for (const file of selectedFiles) {
+        const data = new FormData();
+        data.append("file", file);
+        const response = await fetch("/api/upload?kind=project", { method: "POST", body: data });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Photo upload failed");
+        uploaded.push(result.url || result.dataUrl);
+      }
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: [...(project.imageUrls || []), ...uploaded] }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Could not update project photos");
+      setProjects((prev) => prev.map((item) => item.id === project.id ? result.project : item));
+    } catch (err) {
+      setError(err.message || "Could not upload photos");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function changeStatus(project, status) {
     const response = await fetch(`/api/projects/${project.id}`, {
       method: "PATCH",
@@ -89,7 +173,9 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
             <label>Status<select value={form.status} onChange={(e) => update("status", e.target.value)}><option value="active">In progress</option><option value="completed">Completed</option><option value="archived">Archived</option></select></label>
           </div>
           <label>Description<textarea rows={4} maxLength={2000} value={form.description} onChange={(e) => update("description", e.target.value)} /></label>
-          <label>Project photos<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={(e) => setFiles([...e.target.files].slice(0, 6))} /></label>
+          <label>Project photos<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={(e) => setFiles((prev) => [...prev, ...e.target.files])} /></label>
+          {files.length > 0 && <p className={styles.photoCount}>{files.length} photo{files.length === 1 ? "" : "s"} selected</p>}
+          {files.length > 0 && <p className={styles.photoCount}>{files.length} photo{files.length === 1 ? "" : "s"} selected</p>}
           <label className={styles.checkbox}><input type="checkbox" checked={form.featured} onChange={(e) => update("featured", e.target.checked)} /> Feature this project on my profile</label>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <button className={styles.submit} disabled={busy}>{busy ? "Saving…" : "Add project"}</button>
@@ -102,9 +188,16 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
           <div className={styles.grid}>
             {projects.map((project) => (
               <article key={project.id} className={styles.card}>
-                {project.imageUrls?.[0] && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={project.imageUrls[0]} alt="" className={styles.image} />
+                {project.imageUrls?.length > 0 && (
+                  <div className={styles.imageGallery}>
+                    {project.imageUrls.map((url, index) => (
+                      <div className={styles.imageTile} key={`${url}-${index}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`${project.title} · photo ${index + 1}`} className={styles.image} loading="lazy" />
+                        <button type="button" className={styles.removePhoto} onClick={() => removePhoto(project, url)} disabled={busy} aria-label={`Remove photo ${index + 1} from ${project.title}`}>×</button>
+                      </div>
+                    ))}
+                  </div>
                 )}
                 <div className={styles.cardBody}>
                   <div className={styles.cardTitleRow}><h3>{project.title}</h3>{project.featured && <span className={styles.featured}>Featured</span>}</div>
@@ -112,6 +205,7 @@ export default function ProjectPortfolio({ initialProjects = [] }) {
                   {project.description && <p className={styles.description}>{project.description}</p>}
                   <div className={styles.cardActions}>
                     <select aria-label={`Status for ${project.title}`} value={project.status} onChange={(e) => changeStatus(project, e.target.value)}><option value="active">In progress</option><option value="completed">Completed</option><option value="archived">Archived</option></select>
+                    <label className={styles.addPhotos}>Add photos<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={(e) => addPhotos(project, [...e.target.files])} /></label>
                     <button type="button" onClick={() => setDeleting(project.id)}>Delete</button>
                   </div>
                 </div>

@@ -15,7 +15,7 @@ const POST_MAX_BYTES = 2 * 1024 * 1024;
 
 // Upload kinds a user may delete their own blob for. Each maps to the
 // uploads/<kind>/<uid>/ path written by POST below.
-const DELETABLE_KINDS = new Set(["avatar", "cover", "post"]);
+const DELETABLE_KINDS = new Set(["avatar", "cover", "post", "project"]);
 
 const CHAT_FILE_MIME = new Set([
   "application/octet-stream",
@@ -41,11 +41,12 @@ export async function POST(req) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const limited = rateLimitGuard(`upload:${auth.user.uid}`, { limit: 20 });
-  if (limited) return limited;
-
   const url = new URL(req.url);
   const kind = url.searchParams.get("kind");
+  // Batch portfolio/feed galleries upload one image per request. Keep the
+  // stricter limit for profile and chat uploads, while allowing larger galleries.
+  const limited = rateLimitGuard(`upload:${auth.user.uid}`, { limit: kind === "project" || kind === "post" ? 100 : 20 });
+  if (limited) return limited;
   const isAvatar = kind === "avatar";
   const isCover = kind === "cover";
   const isProject = kind === "project";

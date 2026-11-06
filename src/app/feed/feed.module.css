@@ -305,15 +305,18 @@
   cursor: not-allowed;
 }
 
+.postImageGallery, .imagePreviewGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 .postImage {
   display: block;
   width: 100%;
   max-height: 420px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: 12px;
-  margin-bottom: 12px;
   background: #f0f0f5;
 }
+.imagePreviewGrid .imagePreview { min-width: 0; margin-top: 12px; }
+.imagePreviewGrid .imagePreviewImg { height: 150px; }
 
 .pinnedBadge {
   margin-left: 8px;

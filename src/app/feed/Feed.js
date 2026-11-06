@@ -986,6 +986,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+  const [imageUrls, setImageUrls] = useState([]);
   const [videoUrl, setVideoUrl] = useState("");
   const [showVideoInput, setShowVideoInput] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("video") === "1");
   const [draftRestored, setDraftRestored] = useState(false);
@@ -1464,24 +1465,24 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   }, [text, kind, pollOptions, pollDeadline, videoUrl, uid, groupId, spaceId]);
 
   async function handleImageUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file || uploading) return;
-    if (!file.type.startsWith("image/")) return;
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Image must be under 10 MB.");
-      return;
-    }
+    const selected = [...(e.target.files || [])];
+    if (!selected.length || uploading) return;
+    const valid = selected.filter((file) => file.type.startsWith("image/") && file.size <= 10 * 1024 * 1024);
+    if (valid.length !== selected.length) alert("Choose image files under 10 MB each. Valid images will still be added.");
+    if (!valid.length) return;
     setUploading(true);
     try {
-      const dataUrl = await resizeImage(file);
-      if (dataUrl.length > 2_800_000) {
-        alert("That image is too large to attach yet — try a smaller one.");
-        return;
+      const processed = [];
+      for (const file of valid) {
+        const dataUrl = await resizeImage(file);
+        if (dataUrl.length > 2_800_000) throw new Error("One image is too large to attach. Try a smaller image.");
+        processed.push(dataUrl);
       }
-      setImageUrl(dataUrl);
+      setImageUrls((prev) => [...prev, ...processed]);
+      setImageUrl((prev) => prev || processed[0] || "");
     } catch (err) {
       console.error(err);
-      alert("Couldn't process that image. Try a different one.");
+      alert(err.message || "Couldn't process those images. Try again.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1507,6 +1508,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.url) throw new Error(data.error || "Video upload failed");
       setImageUrl("");
+      setImageUrls([]);
       setVideoUrl(data.url);
       setShowVideoInput(true);
     } catch (error) {
@@ -1521,7 +1523,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
     async (e) => {
       e.preventDefault();
       const trimmed = text.trim();
-      if (imageUrl && videoUrl) {
+      if (imageUrls.length && videoUrl) {
         alert("A post can have an image or a video, not both.");
         return;
       }
@@ -1532,32 +1534,33 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
         .filter((opt) => opt.length > 0);
       if (kind === "poll") {
         if (cleanPoll.length < 2 || busy || uploading) return;
-      } else if ((!trimmed && !imageUrl && !videoUrl) || busy || uploading) {
+      } else if ((!trimmed && !imageUrls.length && !imageUrl && !videoUrl) || busy || uploading) {
         return;
       }
       setBusy(true);
       // Hoisted so the catch can clean up a blob this attempt created.
-      let uploadedBlobUrl = "";
+      const uploadedBlobUrls = [];
       try {
-        if (videoUrl.includes("/uploads/post/")) uploadedBlobUrl = videoUrl;
-        // Store the image in object storage rather than inline in the post row.
-        // Falls back to the data URL if storage is unavailable, so posting still works.
-        const { url: storedImageUrl, isNewBlob } = imageUrl.startsWith("data:")
-          ? await uploadPostImage(imageUrl)
-          : { url: imageUrl, isNewBlob: false };
-        if (isNewBlob) uploadedBlobUrl = storedImageUrl;
-        // The composer accepts images up to 2.8MB but /api/posts rejects inline
-        // data URLs over IMAGE_DATA_URL_MAX. Without this the fallback path would
-        // post, get rejected, and lose the user's text with only "Post failed".
-        if (storedImageUrl.startsWith("data:") && storedImageUrl.length > IMAGE_DATA_URL_MAX) {
-          throw new Error("That image is too large to post here. Try a smaller one.");
+        if (videoUrl.includes("/uploads/post/")) uploadedBlobUrls.push(videoUrl);
+        const storedImageUrls = [];
+        for (const sourceUrl of imageUrls.length ? imageUrls : (imageUrl ? [imageUrl] : [])) {
+          const uploaded = sourceUrl.startsWith("data:")
+            ? await uploadPostImage(sourceUrl)
+            : { url: sourceUrl, isNewBlob: false };
+          if (uploaded.isNewBlob) uploadedBlobUrls.push(uploaded.url);
+          if (uploaded.url.startsWith("data:") && uploaded.url.length > IMAGE_DATA_URL_MAX) {
+            throw new Error("One image is too large to post here. Try a smaller one.");
+          }
+          storedImageUrls.push(uploaded.url);
         }
+        const storedImageUrl = storedImageUrls[0] || "";
         const res = await fetch("/api/posts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text: payloadText,
             imageUrl: storedImageUrl,
+            imageUrls: storedImageUrls,
             videoUrl: videoUrl || "",
             groupId: groupId || "",
             spaceId: spaceId || "",
@@ -1580,6 +1583,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
           text: payloadText,
           kind,
           imageUrl: storedImageUrl || "",
+          imageUrls: storedImageUrls,
           videoUrl: videoUrl || "",
           altText: composerAlt || "",
           sensitive: composerSensitive,
@@ -1605,6 +1609,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
         setPosts((prev) => sortFeedPosts([optimisticPost, ...prev]));
         setText("");
         setImageUrl("");
+        setImageUrls([]);
         setVideoUrl("");
         setShowVideoInput(false);
         setKind("post");
@@ -1621,14 +1626,14 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
         } catch {}
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
-        if (uploadedBlobUrl) await deleteUploadedBlob(uploadedBlobUrl);
+        for (const url of uploadedBlobUrls) await deleteUploadedBlob(url);
         console.error(err);
         alert(err.message || "Post failed. Try again.");
       } finally {
         setBusy(false);
       }
     },
-    [text, imageUrl, videoUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, composerSchedule, composerSensitive, composerAlt, quoteOf, uid, userName, role, sortFeedPosts]
+    [text, imageUrl, imageUrls, videoUrl, busy, uploading, groupId, spaceId, kind, pollOptions, pollDeadline, composerSchedule, composerSensitive, composerAlt, quoteOf, uid, userName, role, sortFeedPosts]
   );
 
   function setPollOption(index, value) {
@@ -2315,8 +2320,13 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
         {post.kind === "poll" && (
           <PollBlock postId={post.id} post={post} uid={uid} disabled={disabledActions} />
         )}
-        {post.imageUrl && (
-          <img src={post.imageUrl} alt={post.altText || ""} className={styles.postImage} loading="lazy" decoding="async" />
+        {(post.imageUrls?.length ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : [])).length > 0 && (
+          <div className={styles.postImageGallery}>
+            {(post.imageUrls?.length ? post.imageUrls : [post.imageUrl]).map((url, index) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={url} src={url} alt={post.altText || `Post photo ${index + 1}`} className={styles.postImage} loading="lazy" decoding="async" />
+            ))}
+          </div>
         )}
         {post.videoUrl && <VideoEmbed post={post} />}
         {isSystemPost(post) ? (
@@ -2501,21 +2511,23 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
             </div>
           </div>
         )}
-        {imageUrl && (
-          <div className={styles.imagePreview}>
-            <img src={imageUrl} alt="Attached" className={styles.imagePreviewImg} />
-            <button
-              type="button"
-              className={styles.removeImage}
-              onClick={() => setImageUrl("")}
-            >
-              {t("remove")}
-            </button>
+        {imageUrls.length > 0 && (
+          <div className={styles.imagePreviewGrid}>
+            {imageUrls.map((url, index) => (
+              <div className={styles.imagePreview} key={`${url}-${index}`}>
+                <img src={url} alt={`Attached photo ${index + 1}`} className={styles.imagePreviewImg} />
+                <button type="button" className={styles.removeImage} onClick={() => {
+                  const remaining = imageUrls.filter((_, itemIndex) => itemIndex !== index);
+                  setImageUrls(remaining);
+                  setImageUrl(remaining[0] || "");
+                }}>{t("remove")}</button>
+              </div>
+            ))}
           </div>
         )}
         {kind !== "poll" && showVideoInput && (
           <div className={styles.videoComposer}>
-            <button type="button" className={styles.uploadBtn} onClick={() => videoFileInputRef.current?.click()} disabled={uploading || Boolean(imageUrl)}>
+            <button type="button" className={styles.uploadBtn} onClick={() => videoFileInputRef.current?.click()} disabled={uploading || imageUrls.length > 0}>
               {uploading ? t("uploading") : "Upload video"}
             </button>
             <input ref={videoFileInputRef} type="file" accept="video/mp4,video/webm" hidden onChange={handleVideoUpload} />
@@ -2527,10 +2539,10 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
               maxLength={2048}
               onChange={(e) => setVideoUrl(e.target.value.trim())}
             />
-            {videoUrl && imageUrl && (
+            {videoUrl && imageUrls.length > 0 && (
               <p className={styles.videoComposerWarn}>{t("noImageAndVideo")}</p>
             )}
-            {videoUrl && !imageUrl && (
+            {videoUrl && !imageUrls.length && (
               <p className={styles.videoDetected}>
                 {t("videoDetected")} {embedInfoForUrl(videoUrl).host || t("videoDetectedUnknown")}
               </p>
@@ -2564,7 +2576,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
             </button>
           </div>
         )}
-        {imageUrl && (
+        {imageUrls.length > 0 && (
           <div style={{ marginTop: 8 }}>
             <input
               className={styles.videoUrlInput}
@@ -2590,6 +2602,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               hidden
               onChange={handleImageUpload}
             />
@@ -2598,7 +2611,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
                 type="button"
                 className={`${showVideoInput ? styles.videoBtnActive : styles.uploadBtn}`}
                 onClick={() => setShowVideoInput((v) => !v)}
-                disabled={Boolean(imageUrl)}
+                disabled={imageUrls.length > 0}
               >
                 <Video size={14} /> {t("addVideo")}
               </button>
