@@ -124,7 +124,8 @@ model User {
   spacesCreated          Space[]
   spaceCollectionsCreate SpaceCollection[]
   roomsCreated           Room[]
-  eventsCreated          Event[]\n  eventSubmissions       EventSubmission[]
+  eventsCreated          Event[]
+  eventSubmissions       EventSubmission[]
   coursesCreated         Course[]
   questionsCreated       Question[]
   communityQuestions     CommunityQuestion[] @relation("CommunityQuestionsAsked")
