@@ -14,11 +14,13 @@ export async function getRoomPresence(roomId, now = Date.now()) {
     const rows = await prisma.roomPresence.findMany({
       where: { roomId, leftAt: null, lastSeenAt: { gt: cutoffDate(now) } },
       orderBy: { joinedAt: "asc" },
-      include: { user: { select: { id: true, name: true, photoURL: true, country: true, location: true } } },
+      include: { user: { select: { id: true, name: true, photoURL: true, country: true, location: true, extra: true } } },
     });
     const seen = new Set();
     return rows.filter((row) => {
       if (seen.has(row.userId)) return false;
+      const extra = row.user?.extra && typeof row.user.extra === "object" ? row.user.extra : {};
+      if (extra.chatSettings?.onlineVisibility === "nobody" || extra.profileVisibility === "private") return false;
       seen.add(row.userId);
       return true;
     }).map((row) => ({
