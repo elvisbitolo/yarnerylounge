@@ -509,3 +509,110 @@ export function DashboardCommunityBuilderCard() {
     </section>
   );
 }
+
+export function DashboardYourCommunity() {
+  const { value, loading } = useDashboardResource("/api/dashboard/my-community", null);
+  const groups = Array.isArray(value?.groups) ? value.groups : [];
+  const lounges = Array.isArray(value?.lounges) ? value.lounges : [];
+  const totals = value?.totals || { groups: 0, lounges: 0, liveAttendees: 0 };
+
+  if (!loading && !value) return null;
+
+  return (
+    <section className={styles.yourCommunityCard} aria-labelledby="your-community-title">
+      <div className={styles.yourCommunityHeader}>
+        <div>
+          <p className={styles.yourCommunityEyebrow}>YOUR COMMUNITY</p>
+          <h2 id="your-community-title">What you’re building</h2>
+          <p className={styles.yourCommunityDescription}>
+            Your spaces, your people, your momentum. Keep an eye on the groups and lounges you’ve brought to life.
+          </p>
+        </div>
+        <Link className={styles.yourCommunityViewAll} href="/groups">
+          Explore groups <span aria-hidden="true">→</span>
+        </Link>
+      </div>
+
+      <div className={styles.yourCommunityStats} aria-label="Your community totals">
+        <div className={styles.yourCommunityStat}>
+          <strong>{loading ? "—" : totals.groups}</strong>
+          <span>Groups created</span>
+        </div>
+        <div className={styles.yourCommunityStat}>
+          <strong>{loading ? "—" : totals.lounges}</strong>
+          <span>Lounges launched</span>
+        </div>
+        <div className={styles.yourCommunityStat}>
+          <strong>{loading ? "—" : totals.liveAttendees}</strong>
+          <span>People in your lounges</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className={styles.itemBody}>Loading your spaces…</p>
+      ) : (
+        <div className={styles.yourCommunityColumns}>
+          <div className={styles.yourCommunityColumn}>
+            <div className={styles.yourCommunityColumnHeader}>
+              <h3>Friend groups</h3>
+              <Link href="/groups/create">＋ Create group</Link>
+            </div>
+            {groups.length ? (
+              <ul className={styles.yourCommunityList}>
+                {groups.slice(0, 4).map((group) => (
+                  <li key={group.id}>
+                    <Link className={styles.yourCommunityItem} href={"/groups/" + encodeURIComponent(group.slug)}>
+                      <span className={styles.yourCommunityGroupIcon} aria-hidden="true">
+                        {group.imageUrl ? <img src={group.imageUrl} alt="" loading="lazy" /> : "✦"}
+                      </span>
+                      <span className={styles.yourCommunityItemCopy}>
+                        <strong>{group.name}</strong>
+                        <span>{group.memberCount} {group.memberCount === 1 ? "member" : "members"} · {group.createdByMe ? "Created by you" : "Joined"}</span>
+                      </span>
+                      <span className={styles.yourCommunityArrow} aria-hidden="true">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.yourCommunityEmpty}>
+                <strong>Your first group starts with an idea.</strong>
+                <span>Create a space for people who share your interests.</span>
+                <Link href="/groups/create">Create your friend group →</Link>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.yourCommunityColumn}>
+            <div className={styles.yourCommunityColumnHeader}>
+              <h3>Video lounges</h3>
+              <Link href="/host/rooms?audience=community">＋ Launch lounge</Link>
+            </div>
+            {lounges.length ? (
+              <ul className={styles.yourCommunityList}>
+                {lounges.slice(0, 4).map((room) => (
+                  <li key={room.id}>
+                    <Link className={styles.yourCommunityItem} href={"/rooms/" + encodeURIComponent(room.slug)}>
+                      <span className={styles.yourCommunityLoungeIcon + " " + (room.isLive ? styles.yourCommunityLoungeIconLive : "")} aria-hidden="true">◉</span>
+                      <span className={styles.yourCommunityItemCopy}>
+                        <strong>{room.name}</strong>
+                        <span>{room.isLive ? "Live now · " + room.liveAttendees + (room.liveAttendees === 1 ? " person here" : " people here") : room.opensAt ? "Scheduled · " + new Date(room.opensAt).toLocaleString() : "Your lounge · Ready to open"}</span>
+                      </span>
+                      <span className={styles.yourCommunityArrow} aria-hidden="true">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.yourCommunityEmpty}>
+                <strong>Give your community a place to meet.</strong>
+                <span>Launch a live Video Lounge and bring everyone together.</span>
+                <Link href="/host/rooms?audience=community">Launch your first lounge →</Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
