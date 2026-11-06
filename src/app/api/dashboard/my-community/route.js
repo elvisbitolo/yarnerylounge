@@ -23,7 +23,7 @@ export async function GET() {
 
   try {
     const uid = auth.user.uid;
-    const [groups, lounges] = await Promise.all([
+    const [groups, lounges, groupTotal, loungeTotal] = await Promise.all([
       prisma.group.findMany({
         where: {
           status: { not: "deleted" },
@@ -58,6 +58,8 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         take: 8,
       }),
+      prisma.group.count({ where: { createdBy: uid, status: { not: "deleted" } } }),
+      prisma.room.count({ where: { createdBy: uid, status: { not: "deleted" } } }),
     ]);
 
     const roomIds = lounges.map((room) => room.id);
@@ -99,8 +101,8 @@ export async function GET() {
       groups: safeGroups,
       lounges: safeLounges,
       totals: {
-        groups: safeGroups.filter((group) => group.createdByMe).length,
-        lounges: safeLounges.length,
+        groups: groupTotal,
+        lounges: loungeTotal,
         liveAttendees: safeLounges.reduce((total, room) => total + room.liveAttendees, 0),
       },
     });
