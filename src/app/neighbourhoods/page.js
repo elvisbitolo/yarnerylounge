@@ -95,7 +95,6 @@ export default async function NeighbourhoodsPage() {
               <NeighbourhoodMembers
                 members={hood.members}
                 color={hood.color || "#e91e63"}
-                styles={styles}
               />
 
               {hood.hangoutRoomSlug && (
