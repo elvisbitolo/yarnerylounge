@@ -228,6 +228,13 @@ export default function DashboardShell() {
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} photoURL={user.photoURL} />
         </div>
+        {upcomingRooms?.ok ? (
+          <div data-tour="tour-rooms">
+            <UpcomingRooms data={roomsValue} />
+          </div>
+        ) : (
+          <SectionError message={t("roomsLoadError")} onRetry={handleRetry} />
+        )}
         <DashboardProfileCompletion photoURL={user.photoURL} username={user.username} />
         <DashboardCommunityBuilderCard />
         {user.plan === "moving-in" && <DashboardYourCommunity />}
@@ -285,13 +292,6 @@ export default function DashboardShell() {
               <SectionError message={t("activityLoadError")} onRetry={handleRetry} />
             )}
 
-            {upcomingRooms?.ok ? (
-              <div data-tour="tour-rooms">
-                <UpcomingRooms data={roomsValue} />
-              </div>
-            ) : (
-              <SectionError message={t("roomsLoadError")} onRetry={handleRetry} />
-            )}
           </div>
 
           <div className={styles.col}>
