@@ -63,7 +63,7 @@ export default async function MembershipPage() {
         <div className={styles.row}>
           <span className={styles.label}>Plan</span>
           <span className={styles.value}>
-            {tierLabel(tier)} · {sub?.plan || "Community"}
+            {tierLabel(tier)}
             {userDoc?.foundingMember && (
               <span className={`${styles.badge} ${styles.badgeFounding}`}>Founding Yarnie 🧶</span>
             )}
