@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import styles from "./neighbourhoods.module.css";
 
 function InitialAvatar({ name, className }) {
   return (
@@ -11,7 +13,7 @@ function InitialAvatar({ name, className }) {
   );
 }
 
-export default function NeighbourhoodMembers({ members = [], color, styles }) {
+export default function NeighbourhoodMembers({ members = [], color }) {
   const [expanded, setExpanded] = useState(false);
   const preview = members.slice(0, 5);
   const remaining = Math.max(0, members.length - preview.length);
@@ -33,7 +35,7 @@ export default function NeighbourhoodMembers({ members = [], color, styles }) {
               aria-label={`View ${member.name}'s profile`}
             >
               {member.photoURL ? (
-                <img src={member.photoURL} alt="" loading="lazy" />
+                <Image src={member.photoURL} alt="" width={38} height={38} className={styles.memberAvatarImage} />
               ) : (
                 <InitialAvatar name={member.name} className={styles.memberAvatarFallback} />
               )}
@@ -75,14 +77,15 @@ export default function NeighbourhoodMembers({ members = [], color, styles }) {
                 className={styles.memberDirectoryLink}
               >
                 {member.photoURL ? (
-                  <img
+                  <Image
                     src={member.photoURL}
                     alt=""
-                    loading="lazy"
+                    width={30}
+                    height={30}
                     className={styles.memberDirectoryAvatar}
                   />
                 ) : (
-                  <InitialAvatar name={member.name} className={styles.memberDirectoryAvatar} />
+                  <InitialAvatar name={member.name} className={styles.memberDirectoryAvatarFallback} />
                 )}
                 <span className={styles.memberDirectoryName}>{member.name}</span>
               </Link>
