@@ -144,6 +144,56 @@ function renderHashtags(text, onTag) {
   });
 }
 
+function SystemAnnouncementContent({ text }) {
+  const lines = (text || "").split("\n");
+  const headingIndexes = [];
+
+  lines.forEach((line, index) => {
+    const match = line.match(/^(\d+)\.\s+(.+?)\s*$/);
+    if (match) headingIndexes.push({ index, number: Number(match[1]), title: match[2] });
+  });
+
+  if (!headingIndexes.length) {
+    return <p className={styles.postText}>{text}</p>;
+  }
+
+  const introduction = lines.slice(0, headingIndexes[0].index).join("\n").trim();
+  const sections = headingIndexes.map((heading, index) => {
+    const next = headingIndexes[index + 1];
+    const body = lines.slice(heading.index + 1, next ? next.index : lines.length).join("\n").trim();
+    return { ...heading, body };
+  });
+
+  return (
+    <div className={styles.announcementContent}>
+      <p className={styles.announcementEyebrow}>COMMUNITY GUIDELINES</p>
+      {introduction && <p className={styles.announcementIntroduction}>{introduction}</p>}
+      <div className={styles.announcementSections}>
+        {sections.map((section) => (
+          <details
+            key={section.number}
+            className={styles.announcementSection}
+            open={section.number === 1}
+          >
+            <summary className={styles.announcementSummary}>
+              <span className={styles.announcementNumber}>{section.number}</span>
+              <span>{section.title}</span>
+              <ChevronDown size={17} className={styles.announcementChevron} aria-hidden="true" />
+            </summary>
+            {section.body && (
+              <div className={styles.announcementSectionBody}>
+                {section.body.split(/\n\s*\n/).filter(Boolean).map((paragraph, paragraphIndex) => (
+                  <p key={paragraphIndex}>{paragraph}</p>
+                ))}
+              </div>
+            )}
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function VideoEmbed({ post }) {
   const info = embedInfoForUrl(post.videoUrl || "");
   if (info.type === "youtube" || info.type === "vimeo") {
@@ -2310,10 +2360,14 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
           </div>
         ) : (
           post.text && (
-            <p className={styles.postText}>
-              {renderMentions(post.text, selectTag)}
-              {post.sensitive && <span className={styles.postPlace}> · {t("markedSensitive")}</span>}
-            </p>
+            isSystemPost(post) ? (
+              <SystemAnnouncementContent text={post.text} />
+            ) : (
+              <p className={styles.postText}>
+                {renderMentions(post.text, selectTag)}
+                {post.sensitive && <span className={styles.postPlace}> · {t("markedSensitive")}</span>}
+              </p>
+            )
           )
         )}
         {post.quoteOfId && <p className={styles.quoteRef}>{t("quotedPost")}</p>}

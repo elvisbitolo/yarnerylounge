@@ -1928,3 +1928,122 @@
   }
 }
 
+
+
+/* Structured layout for the pinned, read-only community guidelines. */
+.announcementContent {
+  margin: 4px 0 16px;
+  color: #f4f1f3;
+}
+
+.announcementEyebrow {
+  margin: 0 0 8px;
+  color: #fa81cd;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.announcementIntroduction {
+  margin: 0 0 16px;
+  color: #f4f1f3;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.announcementSections {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.announcementSection {
+  overflow: hidden;
+  border: 1px solid #3b3339;
+  border-radius: 12px;
+  background: #1b191b;
+}
+
+.announcementSection[open] {
+  border-color: rgba(250, 129, 205, 0.48);
+  background: #211b20;
+}
+
+.announcementSummary {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 54px;
+  padding: 12px 14px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  list-style: none;
+  cursor: pointer;
+}
+
+.announcementSummary::-webkit-details-marker {
+  display: none;
+}
+
+.announcementSummary::marker {
+  content: "";
+}
+
+.announcementNumber {
+  display: inline-flex;
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(250, 129, 205, 0.14);
+  color: #fa81cd;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.announcementChevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #c7a6b9;
+  transition: transform 0.18s ease;
+}
+
+.announcementSection[open] .announcementChevron {
+  transform: rotate(180deg);
+}
+
+.announcementSectionBody {
+  padding: 0 16px 15px 52px;
+  color: #ded8dd;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.announcementSectionBody p {
+  margin: 0 0 10px;
+  white-space: pre-line;
+}
+
+.announcementSectionBody p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .announcementSummary {
+    min-height: 52px;
+    padding: 11px 12px;
+    font-size: 12.5px;
+  }
+
+  .announcementSectionBody {
+    padding: 0 13px 14px 50px;
+    font-size: 12.5px;
+    line-height: 1.65;
+  }
+}
