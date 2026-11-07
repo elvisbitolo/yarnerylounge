@@ -1038,6 +1038,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [imageUrl, setImageUrl] = useState("");
   const [imageUrls, setImageUrls] = useState([]);
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoUrlDraft, setVideoUrlDraft] = useState("");
   const [showVideoInput, setShowVideoInput] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("video") === "1");
   const [draftRestored, setDraftRestored] = useState(false);
   const [kind, setKind] = useState(
@@ -2581,36 +2582,88 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
         )}
         {kind !== "poll" && showVideoInput && (
           <div className={styles.videoComposer}>
-            <button type="button" className={styles.uploadBtn} onClick={() => videoFileInputRef.current?.click()} disabled={uploading || imageUrls.length > 0}>
-              {uploading ? t("uploading") : "Upload video"}
-            </button>
-            <input ref={videoFileInputRef} type="file" accept="video/mp4,video/webm" hidden onChange={handleVideoUpload} />
-            <input
-              className={styles.videoUrlInput}
-              type="url"
-              placeholder={t("videoUrlPlaceholder")}
-              value={videoUrl}
-              maxLength={2048}
-              onChange={(e) => setVideoUrl(e.target.value.trim())}
-            />
+            {!videoUrl && (
+              <>
+                <button type="button" className={styles.uploadBtn} onClick={() => videoFileInputRef.current?.click()} disabled={uploading || imageUrls.length > 0}>
+                  {uploading ? t("uploading") : "Upload video"}
+                </button>
+                <input ref={videoFileInputRef} type="file" accept="video/mp4,video/webm" hidden onChange={handleVideoUpload} />
+                <div className={styles.videoLinkEntry}>
+                  <input
+                    className={styles.videoUrlInput}
+                    type="url"
+                    placeholder={t("videoUrlPlaceholder")}
+                    value={videoUrlDraft}
+                    maxLength={2048}
+                    onChange={(e) => setVideoUrlDraft(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.uploadBtn}
+                    onClick={() => {
+                      const value = videoUrlDraft.trim();
+                      if (!value) return;
+                      try {
+                        const parsed = new URL(value);
+                        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Invalid URL");
+                        setVideoUrl(value);
+                        setVideoUrlDraft("");
+                      } catch {
+                        alert("Enter a valid video URL.");
+                      }
+                    }}
+                    disabled={!videoUrlDraft.trim()}
+                  >
+                    Add video link
+                  </button>
+                </div>
+              </>
+            )}
+            {uploading && <p className={styles.videoUploadStatus} role="status">Uploading video…</p>}
             {videoUrl && imageUrls.length > 0 && (
               <p className={styles.videoComposerWarn}>{t("noImageAndVideo")}</p>
             )}
             {videoUrl && !imageUrls.length && (
-              <p className={styles.videoDetected}>
-                {t("videoDetected")} {embedInfoForUrl(videoUrl).host || t("videoDetectedUnknown")}
-              </p>
+              <div className={styles.videoPreviewCard}>
+                {videoUrl.includes("/uploads/post/") || embedInfoForUrl(videoUrl).type === "video" ? (
+                  <video
+                    className={styles.videoComposerPreview}
+                    src={videoUrl}
+                    controls
+                    preload="metadata"
+                    playsInline
+                  />
+                ) : (
+                  <p className={styles.videoUploadStatus}>Video link ready to attach</p>
+                )}
+                <span className={styles.videoReadyLabel}>Video ready</span>
+              </div>
             )}
-            <button
-              type="button"
-              className={styles.removeImage}
-              onClick={() => {
-                setVideoUrl("");
-                setShowVideoInput(false);
-              }}
-            >
-              {t("remove")}
-            </button>
+            {videoUrl && (
+              <div className={styles.videoComposerActions}>
+                <button
+                  type="button"
+                  className={styles.uploadBtn}
+                  onClick={() => videoFileInputRef.current?.click()}
+                  disabled={uploading || imageUrls.length > 0}
+                >
+                  Replace video
+                </button>
+                <button
+                  type="button"
+                  className={styles.removeImage}
+                  onClick={async () => {
+                    const uploadedUrl = videoUrl;
+                    setVideoUrl("");
+                    setVideoUrlDraft("");
+                    if (uploadedUrl.includes("/uploads/post/")) await deleteUploadedBlob(uploadedUrl);
+                  }}
+                >
+                  {t("remove")}
+                </button>
+                <input ref={videoFileInputRef} type="file" accept="video/mp4,video/webm" hidden onChange={handleVideoUpload} />
+              </div>
+            )}
           </div>
         )}
         {quoteOf && (
