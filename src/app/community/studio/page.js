@@ -7,7 +7,7 @@ import { logError } from "@/lib/server/log";
 import StudioLibrary from "./StudioLibrary";
 import styles from "./studio.module.css";
 
-// The catalogue changes whenever an admin publishes, so nothing here is static.
+// The catalogue changes whenever a member publishes, so nothing here is static.
 export const dynamic = "force-dynamic";
 
 export default async function StudioPage() {
