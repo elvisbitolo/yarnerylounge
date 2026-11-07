@@ -127,6 +127,7 @@ export function normalizeStudioVideo(raw) {
     width: clampInt(raw.width, 1, DIMENSION_MAX),
     height: clampInt(raw.height, 1, DIMENSION_MAX),
     createdBy: cleanText(raw.createdBy).slice(0, NAME_MAX),
+    createdById: cleanText(raw.createdById).slice(0, 200),
     createdByEmail: cleanText(raw.createdByEmail).slice(0, EMAIL_MAX),
     createdAt: isoOrNull(raw.createdAt),
   };
