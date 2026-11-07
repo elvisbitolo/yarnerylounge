@@ -61,6 +61,7 @@ test("normalizeStudioVideo: clamps and defaults", () => {
     width: 100000,
     height: "1280",
     sizeBytes: 1234.6,
+    createdById: "member-123",
     createdAt: "2026-01-02T03:04:05.000Z",
   });
   assert.equal(row.title, "A title");
@@ -69,6 +70,7 @@ test("normalizeStudioVideo: clamps and defaults", () => {
   assert.equal(row.width, 8192);
   assert.equal(row.height, 1280);
   assert.equal(row.sizeBytes, 1235);
+  assert.equal(row.createdById, "member-123");
   assert.equal(row.mimeType, "video/mp4");
   assert.equal(row.createdAt, "2026-01-02T03:04:05.000Z");
 });
