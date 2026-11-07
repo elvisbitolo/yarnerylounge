@@ -537,7 +537,7 @@ export function DashboardCommunityBuilderCard() {
             <ArrowUpRight size={14} aria-hidden="true" />
           </Link>
           <Link className={styles.communityBuilderExplore} href="/neighbourhoods">
-            Explore neighbourhoods <span aria-hidden="true">→</span>
+            Explore neighbourhoods <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>
         <div className={styles.communityBuilderFooter}>
@@ -567,7 +567,7 @@ export function DashboardYourCommunity() {
           </p>
         </div>
         <Link className={styles.yourCommunityViewAll} href="/groups">
-          Explore groups <span aria-hidden="true">→</span>
+          Explore groups <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </div>
 
@@ -645,7 +645,7 @@ export function DashboardYourCommunity() {
                         <strong>{room.name}</strong>
                         <span>{room.isLive ? "Live now · " + room.liveAttendees + (room.liveAttendees === 1 ? " person here" : " people here") : room.opensAt ? "Scheduled · " + new Date(room.opensAt).toLocaleString() : "Your lounge · Ready to open"}</span>
                       </span>
-                      <span className={styles.yourCommunityArrow} aria-hidden="true">→</span>
+                      <span className={styles.yourCommunityArrow} aria-hidden="true"><ArrowRight size={15} /></span>
                     </Link>
                   </li>
                 ))}
