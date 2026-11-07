@@ -1407,3 +1407,59 @@
     width: 100%;
   }
 }
+
+
+.cancelPlan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fffafa;
+}
+
+.cancelTitle {
+  margin: 0 0 6px;
+  color: #991b1b;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cancelCopy {
+  margin: 0;
+  color: #6b4b4b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cancelButton {
+  align-self: flex-start;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #b91c1c;
+  border-radius: 9px;
+  background: #b91c1c;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+.cancelButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (max-width: 480px) {
+  .cancelButton {
+    width: 100%;
+  }
+}
