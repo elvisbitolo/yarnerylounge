@@ -1421,6 +1421,25 @@ model Setting {
   createdAt        DateTime @default(now())
 }
 
+model MembershipPayment {
+  id               String   @id @default(cuid())
+  userId           String
+  provider         String   @default("shopify")
+  providerOrderId  String   @unique
+  orderNumber      String?
+  amountCents      Int
+  currency         String   @default("USD")
+  status           String   @default("paid")
+  plan             String?
+  tier             String?
+  paidAt           DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId, paidAt(sort: Desc)])
+  @@index([status, paidAt(sort: Desc)])
+}
+
 model Purchase {
   id           String    @id
   uid          String

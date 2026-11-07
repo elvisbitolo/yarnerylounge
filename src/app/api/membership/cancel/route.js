@@ -6,7 +6,7 @@ import { logError, logInfo } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(req) {
   try {
     const auth = await requireUser();
     const denied = guardJson(auth);
@@ -30,6 +30,11 @@ export async function POST() {
       return NextResponse.json({ error: "There is no paid plan to cancel." }, { status: 409 });
     }
 
+    const body = await req.json().catch(() => ({}));
+    const reason = String(body?.reason || "").trim().slice(0, 80);
+    const note = String(body?.note || "").trim().slice(0, 500);
+    const allowedReasons = new Set(["too_expensive", "not_using", "missing_features", "technical_issues", "taking_a_break", "other"]);
+    const safeReason = allowedReasons.has(reason) ? reason : "";
     const now = new Date();
     const nextRole = roleAfterRevoke(existing.role);
     await prisma.$transaction(async (tx) => {
@@ -42,6 +47,21 @@ export async function POST() {
           isPrePaid: false,
           expiresAt: now,
           updatedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: uid,
+          actorName: existing.name || existing.email || "Member",
+          action: "membership.cancelled",
+          targetId: uid,
+          metadata: {
+            previousTier: currentTier,
+            reason: safeReason || null,
+            note: note || null,
+            effectiveAt: now.toISOString(),
+          },
         },
       });
 

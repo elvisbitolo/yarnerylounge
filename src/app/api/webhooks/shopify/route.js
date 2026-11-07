@@ -237,6 +237,53 @@ async function grantAccess({ data, email, order }) {
   }
 }
 
+
+async function recordMembershipPayment({ order, email }) {
+  const prisma = getPrisma();
+  const variant = mapShopifyLineItems(order.line_items || []);
+  const orderId = order?.id?.toString?.() || "";
+  if (!variant || !orderId) return;
+
+  const member = await prisma.user.findFirst({
+    where: { email },
+    select: { id: true },
+  });
+  if (!member?.id) return;
+
+  const amount = Number(order.total_price);
+  const amountCents = Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
+  const currencyCode = String(order.currency || order.presentment_currency || "USD").toUpperCase();
+  const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : "USD";
+  const paidAtValue = order.processed_at || order.created_at;
+  const paidAt = paidAtValue ? new Date(paidAtValue) : new Date();
+
+  await prisma.membershipPayment.upsert({
+    where: { providerOrderId: orderId },
+    create: {
+      userId: member.id,
+      provider: "shopify",
+      providerOrderId: orderId,
+      orderNumber: order.name || (order.order_number != null ? String(order.order_number) : null),
+      amountCents,
+      currency,
+      status: "paid",
+      plan: variant.plan,
+      tier: variant.tier,
+      paidAt: Number.isNaN(paidAt.getTime()) ? new Date() : paidAt,
+    },
+    update: {
+      userId: member.id,
+      orderNumber: order.name || (order.order_number != null ? String(order.order_number) : null),
+      amountCents,
+      currency,
+      status: "paid",
+      plan: variant.plan,
+      tier: variant.tier,
+      paidAt: Number.isNaN(paidAt.getTime()) ? new Date() : paidAt,
+    },
+  });
+}
+
 // Revokes paid access immediately (orders/cancelled, refunds/create).
 async function revokeAccess({ email, paymentStatus }) {
   const prisma = getPrisma();
@@ -344,6 +391,12 @@ export async function POST(req) {
           break;
         }
         await grantAccess({ data, email, order: data });
+        await recordMembershipPayment({ order: data, email }).catch((ledgerError) => {
+          logError("shopify.payment_ledger_write_failed", {
+            orderId: data?.id?.toString?.() || "",
+            error: ledgerError.message,
+          });
+        });
         {
           const member = await getPrisma().user.findFirst({ where: { email }, select: { id: true, name: true } }).catch(() => null);
           if (member) await recordDeveloperEvent({
@@ -363,6 +416,18 @@ export async function POST(req) {
           email,
           paymentStatus: topic === "refunds/create" || topic === "orders/refunded" ? "refunded" : "cancelled",
         });
+        const paymentOrderId = topic === "refunds/create" ? data?.order_id : data?.id;
+        if (paymentOrderId != null) {
+          await getPrisma().membershipPayment.updateMany({
+            where: { providerOrderId: String(paymentOrderId) },
+            data: { status: topic === "refunds/create" || topic === "orders/refunded" ? "refunded" : "cancelled" },
+          }).catch((ledgerError) => {
+            logError("shopify.payment_ledger_status_update_failed", {
+              orderId: String(paymentOrderId),
+              error: ledgerError.message,
+            });
+          });
+        }
         break;
       case "customers/update":
         await updateCustomerProfile({ email, data });

@@ -162,7 +162,7 @@ export default async function MembershipPage() {
           </section>
         )}
 
-        <div className={styles.ladder}>
+        <div className={styles.ladder} id="plans">
           {SHOP_TIERS.map((tierKey) => {
             const { caps: tierCaps } = tierEntry(tierKey);
             const isCurrent = tierKey === currentTier;
