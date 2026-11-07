@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import styles from "./dashboard.module.css";
+import { Bell } from "lucide-react";
 
 export default function DashboardNotificationCard() {
   const [status, setStatus] = useState("checking");
@@ -53,10 +54,7 @@ export default function DashboardNotificationCard() {
   return (
     <section className={styles.notificationCard} aria-labelledby="dashboard-notifications-title">
       <div className={styles.notificationIcon} aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-          <path d="M10 21h4" />
-        </svg>
+        <Bell size={24} strokeWidth={1.8} aria-hidden="true" />
       </div>
       <div className={styles.notificationCopy}>
         <p className={styles.notificationEyebrow}>STAY CONNECTED</p>
