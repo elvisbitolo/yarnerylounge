@@ -252,6 +252,8 @@ async function recordMembershipPayment({ order, email }) {
 
   const amount = Number(order.total_price);
   const amountCents = Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
+  const currencyCode = String(order.currency || order.presentment_currency || "USD").toUpperCase();
+  const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : "USD";
   const paidAtValue = order.processed_at || order.created_at;
   const paidAt = paidAtValue ? new Date(paidAtValue) : new Date();
 
@@ -263,7 +265,7 @@ async function recordMembershipPayment({ order, email }) {
       providerOrderId: orderId,
       orderNumber: order.name || (order.order_number != null ? String(order.order_number) : null),
       amountCents,
-      currency: String(order.currency || order.presentment_currency || "USD").toUpperCase().slice(0, 8),
+      currency,
       status: "paid",
       plan: variant.plan,
       tier: variant.tier,
@@ -273,7 +275,7 @@ async function recordMembershipPayment({ order, email }) {
       userId: member.id,
       orderNumber: order.name || (order.order_number != null ? String(order.order_number) : null),
       amountCents,
-      currency: String(order.currency || order.presentment_currency || "USD").toUpperCase().slice(0, 8),
+      currency,
       status: "paid",
       plan: variant.plan,
       tier: variant.tier,
