@@ -149,7 +149,7 @@ function SystemAnnouncementContent({ text }) {
   const headingIndexes = [];
 
   lines.forEach((line, index) => {
-    const match = line.match(/^(\\d+)\\.\\s+(.+?)\\s*$/);
+    const match = line.match(/^(\d+)\.\s+(.+?)\s*$/);
     if (match) headingIndexes.push({ index, number: Number(match[1]), title: match[2] });
   });
 
@@ -182,7 +182,7 @@ function SystemAnnouncementContent({ text }) {
             </summary>
             {section.body && (
               <div className={styles.announcementSectionBody}>
-                {section.body.split(/\\n\\s*\\n/).filter(Boolean).map((paragraph, paragraphIndex) => (
+                {section.body.split(/\n\s*\n/).filter(Boolean).map((paragraph, paragraphIndex) => (
                   <p key={paragraphIndex}>{paragraph}</p>
                 ))}
               </div>
