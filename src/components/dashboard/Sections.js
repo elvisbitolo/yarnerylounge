@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowRight, CalendarDays, CircleHelp, Image, MapPin, Package, PenLine, Plus, Radio, Trophy, UsersRound, Video } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, CircleHelp, Image, MapPin, Package, PenLine, Plus, Radio, Trophy, UsersRound, Video } from "lucide-react";
 import styles from "./dashboard.module.css";
 import { Card, EmptyState } from "./Section";
 
@@ -407,7 +407,7 @@ export function UpcomingRooms({ data }) {
                       {item.rsvpCount > 0 ? ` · ${item.rsvpCount} going` : ""}
                     </span>
                   )}
-                  <span className={styles.dashboardRoomCta}>{item.kind === "live" ? "Enter lounge" : "View session"} <span aria-hidden="true">→</span></span>
+                  <span className={styles.dashboardRoomCta}>{item.kind === "live" ? "Enter lounge" : "View session"} <ArrowRight size={14} aria-hidden="true" /></span>
                 </span>
               </Link>
             );
@@ -561,7 +561,7 @@ export function OnboardingProgress({ data }) {
               <Link className={styles.item} href={step.href || "/account"}>
                 <span className={styles.itemSplit}>
                   <span className={styles.itemTitle}>
-                    {isDone ? "✓ " : `${i + 1}. `}
+                    {isDone ? <Check size={14} aria-hidden="true" /> : `${i + 1}. `}
                     {step.label}
                   </span>
                   {step.cta && <span className={styles.itemMeta}>{step.cta}</span>}
