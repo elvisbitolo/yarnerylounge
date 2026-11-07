@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import styles from "./dashboard.module.css";
 
 export default function ChristaLiveInvitation() {
@@ -59,7 +60,7 @@ export default function ChristaLiveInvitation() {
         className={styles.christaLiveButton}
         href={`/rooms/${encodeURIComponent(live.roomSlug)}`}
       >
-        Join Christa <span aria-hidden="true">→</span>
+        Join Christa <ArrowRight size={14} aria-hidden="true" />
       </Link>
     </section>
   );
