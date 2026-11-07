@@ -1,7 +1,7 @@
 // Studio video library: storage + persistence.
 //
-// Members watch published clips at /community/studio; only an email allowlist
-// (STUDIO_ADMIN_EMAILS, defaulting to the two founders) may publish or remove.
+// All signed-in members can publish and watch clips at /community/studio.
+// Publishers can remove their own clips; Studio admins can moderate the full library.
 //
 // Videos are large, so the browser uploads the bytes straight to Supabase
 // Storage through short-lived signed upload URLs — the bytes never pass through
@@ -23,9 +23,7 @@ import {
   STUDIO_VIDEO_MIME_TYPES,
   buildStudioPosterPath,
   buildStudioVideoPath,
-  isStudioAdminEmail,
   normalizeStudioVideo,
-  parseStudioAdminEmails,
   parseStudioManifest,
   safeStudioId,
   serializeStudioManifest,
@@ -40,10 +38,11 @@ export function studioAdminEmails() {
   return parseStudioAdminEmails(process.env.STUDIO_ADMIN_EMAILS);
 }
 
-/** May this identity publish to the Studio? */
 export function isStudioAdmin(email) {
-  return isStudioAdminEmail(email, studioAdminEmails());
+  const normalized = String(email || "").trim().toLowerCase();
+  return Boolean(normalized) && studioAdminEmails().some((allowed) => allowed.toLowerCase() === normalized);
 }
+
 
 function missingObjectError(error) {
   return /not.?found|does not exist|no such file/i.test(error?.message || "");
@@ -98,9 +97,7 @@ async function saveStudioManifest(videos) {
  * each *Upload is { path, token } for supabase-js uploadToSignedUrl().
  */
 export async function createStudioUploadTargets({ user, video, poster } = {}) {
-  if (!isStudioAdmin(user?.email)) {
-    return { ok: false, status: 403, error: "Only Studio admins can upload videos" };
-  }
+  if (!user?.uid) return { ok: false, status: 401, error: "Sign in to publish a video" };
 
   const videoType = String(video?.type || "").toLowerCase();
   if (!STUDIO_VIDEO_MIME_TYPES.includes(videoType)) {
@@ -161,9 +158,7 @@ const POSTER_NAME = /^poster\.(jpg|png|webp)$/;
  * landed in Storage. Idempotent: a re-finalize replaces the same id.
  */
 export async function finalizeStudioVideo({ user, id, title, description, durationSec, width, height, sizeBytes } = {}) {
-  if (!isStudioAdmin(user?.email)) {
-    return { ok: false, status: 403, error: "Only Studio admins can upload videos" };
-  }
+  if (!user?.uid) return { ok: false, status: 401, error: "Sign in to publish a video" };
   const safe = safeStudioId(id);
   if (!safe) return { ok: false, status: 400, error: "Missing video id" };
 
@@ -205,6 +200,7 @@ export async function finalizeStudioVideo({ user, id, title, description, durati
     width,
     height,
     createdBy: user?.name || user?.email || "",
+    createdById: user?.uid || "",
     createdByEmail: user?.email || "",
     createdAt: new Date().toISOString(),
   });
@@ -220,15 +216,19 @@ export async function finalizeStudioVideo({ user, id, title, description, durati
 
 /** Remove a published clip: storage objects first, then the manifest row. */
 export async function deleteStudioVideo({ user, id } = {}) {
-  if (!isStudioAdmin(user?.email)) {
-    return { ok: false, status: 403, error: "Only Studio admins can delete videos" };
-  }
+  if (!user?.uid) return { ok: false, status: 401, error: "Sign in to manage videos" };
   const safe = safeStudioId(id);
   if (!safe) return { ok: false, status: 400, error: "Missing video id" };
 
   const videos = await listStudioVideos();
   const target = videos.find((video) => video.id === safe);
   if (!target) return { ok: false, status: 404, error: "Video not found" };
+  const isOwner = target.createdById
+    ? target.createdById === user.uid
+    : Boolean(target.createdByEmail && target.createdByEmail.toLowerCase() === String(user.email || "").toLowerCase());
+  if (!isOwner && !isStudioAdmin(user.email)) {
+    return { ok: false, status: 403, error: "You can only delete your own videos" };
+  }
 
   const paths = [target.videoPath, target.posterPath].filter(Boolean);
   if (paths.length) {
