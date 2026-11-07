@@ -47,9 +47,12 @@ export default async function MembershipPage() {
 
   // Read the persisted subscription, not the synthetic open-access tier, so
   // this account page always reflects the member's actual purchase/cancellation.
-  const tier = sub?.tier || userDoc?.plan || "flirting";
+  // A canceled subscription must always display the free tier, even if a legacy
+  // subscription row still carries the previous paid plan in its plan fields.
+  const isCanceled = sub?.status === "canceled" || Boolean(sub?.canceledAt);
+  const tier = isCanceled ? "flirting" : sub?.tier || userDoc?.plan || "flirting";
   const isPaidTier = ["hooking-up", "moving-in"].includes(tier);
-  const status = isPaidTier ? subscriptionStatus(sub) : sub?.status === "canceled" ? "canceled" : "none";
+  const status = isCanceled ? "canceled" : isPaidTier ? subscriptionStatus(sub) : "none";
   const statusText = isPaidTier ? STATUS_TEXT[status] || "Active" : status === "canceled" ? "Canceled" : "Free tier";
   const statusTone =
     isPaidTier && (status === "active" || status === "trialing")
