@@ -43,9 +43,9 @@ export async function sendPushToUser(userId, { title, body, url = "/" } = {}) {
     process.env.VAPID_PRIVATE_KEY
   );
 
-  // The unread count rides along so the OS can put "1"/"2" on the app icon
-  // before the member opens the app. The row this push is mirroring has
-  // already been written, so the count includes it.
+  // Carry the authoritative unread count to the service worker. Android Chrome
+  // uses one replaceable notification to keep its launcher indicator active;
+  // it does not support numeric PWA app-icon badges.
   let unread = 0;
   try {
     unread = await prisma.notification.count({ where: { userId, read: false } });

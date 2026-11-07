@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v27";
+const VERSION = "v28";
 
 // API requests are left to the network by default: a cached /api/me JSON that
 // carries a uid replays long after the session cookie is gone, which makes
@@ -234,8 +234,47 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+const UNREAD_NOTIFICATION_TAG = "christa-unread-summary";
+
+// Android Chrome does not implement the numeric App Badging API. Its PWA
+// launcher indicator is derived from active notifications, so keep one silent,
+// replaceable summary notification instead of creating one per unread item.
+async function syncUnreadSummary(count, url = "/notifications") {
+  const unread = Number.isFinite(Number(count)) ? Math.max(0, Math.trunc(Number(count))) : 0;
+  const allExisting = await self.registration.getNotifications();
+  const existing = allExisting.filter((notification) => notification.tag === UNREAD_NOTIFICATION_TAG);
+
+  if (unread === 0) {
+    allExisting.forEach((notification) => notification.close());
+    return;
+  }
+
+  // Retire individual notifications created by older service-worker versions.
+  allExisting
+    .filter((notification) => notification.tag !== UNREAD_NOTIFICATION_TAG)
+    .forEach((notification) => notification.close());
+
+  // Avoid re-posting an identical summary during the bell's regular polling.
+  if (existing.some((notification) => Number(notification.data?.unread) === unread)) return;
+
+  await self.registration.showNotification("Christa’s Speakeasy", {
+    body: `You have ${unread} unread notification${unread === 1 ? "" : "s"}.`,
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: UNREAD_NOTIFICATION_TAG,
+    renotify: false,
+    silent: true,
+    data: { url, unread },
+  });
+}
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "sync-unread-notification") return;
+  event.waitUntil(syncUnreadSummary(event.data.unread, event.data.url).catch(() => {}));
+});
+
 self.addEventListener("push", (event) => {
-  let data = { title: "Community", body: "", url: "/" };
+  let data = { title: "Community", body: "", url: "/notifications" };
   if (event.data) {
     try {
       data = { ...data, ...event.data.json() };
@@ -243,41 +282,21 @@ self.addEventListener("push", (event) => {
       data.body = event.data.text();
     }
   }
-  // The unread count travels with the push so the home-screen icon can show
-  // "1"/"2" before the app is opened. Best-effort: not every browser exposes
-  // the Badging API to a service worker, and a missing badge must never stop
-  // the notification itself from being shown.
+
   const badgeCount = Number(data.badge);
-  if (
-    Number.isFinite(badgeCount) &&
-    badgeCount > 0 &&
-    typeof self.navigator?.setAppBadge === "function"
-  ) {
-    self.navigator.setAppBadge(badgeCount).catch(() => {});
-  }
   event.waitUntil(
-    self.registration
-      .showNotification(data.title, {
-        body: data.body,
-        // Served the retired /icon.png, which is a different design from the
-        // icons in layout.js, so push notifications showed stale branding.
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        data: { url: data.url },
-      })
-      // An open tab has no idea a push landed (the in-app bell polls). Hand it
-      // the count so the badge appears immediately instead of up to 20s later.
-      .then(() =>
-        self.clients.matchAll({ type: "window", includeUncontrolled: true })
-      )
-      .then((clientList) => {
-        for (const client of clientList) {
-          if (new URL(client.url).origin === self.location.origin) {
-            client.postMessage({ type: "push-badge", badge: badgeCount });
-          }
+    (async () => {
+      if (Number.isFinite(badgeCount)) {
+        await syncUnreadSummary(badgeCount, data.url || "/notifications");
+      }
+
+      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of clientList) {
+        if (new URL(client.url).origin === self.location.origin) {
+          client.postMessage({ type: "push-badge", badge: badgeCount });
         }
-      })
-      .catch(() => {})
+      }
+    })().catch(() => {})
   );
 });
 

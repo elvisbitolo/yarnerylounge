@@ -14,7 +14,9 @@ function timeAgo(iso) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-// Mirror the unread count onto the installed app's icon (Badging API).
+// Use the Badging API where available, and synchronize a single silent
+// notification for Android launchers, which derive the PWA dot from active
+// notifications rather than supporting numeric app badges.
 function syncAppBadge(count) {
   if (typeof navigator === "undefined") return;
   try {
@@ -23,8 +25,21 @@ function syncAppBadge(count) {
     } else if (typeof navigator.clearAppBadge === "function") {
       navigator.clearAppBadge().catch(() => {});
     }
+
+    const message = {
+      type: "sync-unread-notification",
+      unread: Math.max(0, Number(count) || 0),
+      url: "/notifications",
+    };
+    if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.controller.postMessage(message);
+    } else if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then((registration) => registration.active?.postMessage(message))
+        .catch(() => {});
+    }
   } catch {
-    /* badging is best-effort */
+    /* OS badges and service-worker synchronization are best-effort. */
   }
 }
 
