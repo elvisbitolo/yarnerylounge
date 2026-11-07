@@ -1897,3 +1897,34 @@
     padding: 14px;
   }
 }
+
+/* Mobile feed media: give photos the full card width and preserve their
+   original proportions so the subject remains clear and fully visible. */
+@media (max-width: 640px) {
+  .postImageGallery,
+  .imagePreviewGrid {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .postImageGallery .postImage {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    aspect-ratio: auto;
+    object-fit: contain;
+  }
+
+  .imagePreviewGrid .imagePreview {
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .imagePreviewGrid .imagePreviewImg {
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    object-fit: contain;
+  }
+}
+
