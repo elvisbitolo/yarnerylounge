@@ -173,7 +173,7 @@ function SystemAnnouncementContent({ text }) {
           <details
             key={section.number}
             className={styles.announcementSection}
-            defaultOpen={section.number === 1}
+            open={section.number === 1}
           >
             <summary className={styles.announcementSummary}>
               <span className={styles.announcementNumber}>{section.number}</span>
