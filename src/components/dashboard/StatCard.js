@@ -1,6 +1,7 @@
 "use client";
 
 import { cardThemeVars } from "@/lib/card-themes";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import styles from "./dashboard.module.css";
 
 export default function StatCard({ label, value, delta, deltaLabel, theme = "indigo" }) {
@@ -18,7 +19,7 @@ export default function StatCard({ label, value, delta, deltaLabel, theme = "ind
       <p className={styles.kpiValue}>{value}</p>
       <p className={deltaClass}>
         {delta != null && delta !== 0 && (
-          <span>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}% </span>
+          <span>{delta > 0 ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />} {Math.abs(delta)}% </span>
         )}
         {deltaLabel || ""}
       </p>

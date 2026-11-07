@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, ArrowUpRight, AtSign, Camera, Check, Play, Plus, Radio, Sparkles, UsersRound, Video } from "lucide-react";
 import styles from "./dashboard.module.css";
 
 function useDashboardResource(url, key) {
@@ -72,22 +73,22 @@ export function DashboardProfileCompletion({ photoURL, username }) {
       <div className={styles.profileCompletionItems}>
         {missingPhoto ? (
           <div className={styles.profileCompletionItem}>
-            <span className={styles.profileCompletionIcon} aria-hidden="true">01</span>
+            <span className={styles.profileCompletionIcon} aria-hidden="true"><Camera size={17} /></span>
             <div className={styles.profileCompletionCopy}>
               <strong>Add a profile photo</strong>
               <span>Put a face to your name so people know who they are connecting with.</span>
             </div>
-            <Link className={styles.profileCompletionAction} href="/account/profile#profile">Add photo <span aria-hidden="true">→</span></Link>
+            <Link className={styles.profileCompletionAction} href="/account/profile#profile">Add photo <ArrowRight size={14} aria-hidden="true" /></Link>
           </div>
         ) : null}
         {missingUsername ? (
           <div className={styles.profileCompletionItem}>
-            <span className={styles.profileCompletionIcon} aria-hidden="true">02</span>
+            <span className={styles.profileCompletionIcon} aria-hidden="true"><AtSign size={17} /></span>
             <div className={styles.profileCompletionCopy}>
               <strong>Choose your username</strong>
               <span>Give your profile a memorable handle members can search for and mention.</span>
             </div>
-            <Link className={styles.profileCompletionAction} href="/account/settings">Choose username <span aria-hidden="true">→</span></Link>
+            <Link className={styles.profileCompletionAction} href="/account/settings">Choose username <ArrowRight size={14} aria-hidden="true" /></Link>
           </div>
         ) : null}
       </div>
@@ -136,7 +137,7 @@ export function DashboardEngagementProgress() {
                 href={step.href}
                 key={step.id}
               >
-                <span className={styles.engagementProgressCheck} aria-hidden="true">{step.done ? "✓" : "＋"}</span>
+                <span className={styles.engagementProgressCheck} aria-hidden="true">{step.done ? <Check size={16} /> : <Plus size={16} />}</span>
                 <span className={styles.engagementProgressStepCopy}>
                   <strong>{step.label}</strong>
                   <span>{step.detail}</span>
@@ -228,7 +229,7 @@ function DashboardCard({ title, href, linkLabel, children }) {
     <section className={styles.card}>
       <div className={styles.cardHeader}>
         <h2 className={styles.cardTitle}>{title}</h2>
-        {href ? <Link className={styles.cardLink} href={href}>{linkLabel || "View all"} →</Link> : null}
+        {href ? <Link className={styles.cardLink} href={href}>{linkLabel || "View all"} <ArrowRight size={14} aria-hidden="true" /></Link> : null}
       </div>
       {children}
     </section>
@@ -273,7 +274,7 @@ export function DashboardFeaturedVideos() {
           <h2 className={styles.videoSectionTitle} id="dashboard-videos-title">Videos from the lounge</h2>
           <p className={styles.videoSectionDescription}>Catch up on moments and conversations shared by the community.</p>
         </div>
-        <Link className={styles.videoViewAll} href="/recordings">View all videos <span aria-hidden="true">→</span></Link>
+        <Link className={styles.videoViewAll} href="/recordings">View all videos <ArrowRight size={14} aria-hidden="true" /></Link>
       </div>
 
       {loading ? (
@@ -286,11 +287,11 @@ export function DashboardFeaturedVideos() {
                 <img src={featured.thumbnailUrl} alt="" loading="lazy" />
               ) : (
                 <span className={styles.videoPosterFallback} aria-hidden="true">
-                  <svg viewBox="0 0 48 48" fill="none"><rect x="5" y="9" width="38" height="30" rx="7" stroke="currentColor" strokeWidth="1.8"/><path d="m21 17 11 7-11 7V17Z" fill="currentColor"/></svg>
+                  <Video size={42} strokeWidth={1.6} aria-hidden="true" />
                 </span>
               )}
               <span className={styles.videoPlayButton} aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.8c0-.8.9-1.3 1.6-.9l10 6.2a1 1 0 0 1 0 1.7l-10 6.2c-.7.4-1.6-.1-1.6-.9V5.8Z"/></svg>
+                <Play size={18} fill="currentColor" aria-hidden="true" />
               </span>
               {featured.durationSec ? <span className={styles.videoDuration}>{formatVideoDuration(featured.durationSec)}</span> : null}
             </Link>
@@ -299,7 +300,7 @@ export function DashboardFeaturedVideos() {
               <h3>{featured.title || "A moment from the lounge"}</h3>
               <p>{featured.roomName || "Christa’s Speakeasy"}{featured.startedAt ? ` · ${relativeTime(featured.startedAt)}` : ""}</p>
               <Link className={styles.videoWatchButton} href={`/recordings?rec=${encodeURIComponent(featured.id)}`}>
-                <span aria-hidden="true">▶</span> Watch video
+                <Play size={14} fill="currentColor" aria-hidden="true" /> Watch video
               </Link>
             </div>
           </div>
@@ -311,7 +312,7 @@ export function DashboardFeaturedVideos() {
                 {recent.map((recording) => (
                   <Link className={styles.videoTile} href={`/recordings?rec=${encodeURIComponent(recording.id)}`} key={recording.id}>
                     <span className={styles.videoTileMedia}>
-                      {recording.thumbnailUrl ? <img src={recording.thumbnailUrl} alt="" loading="lazy" /> : <span className={styles.videoTileFallback} aria-hidden="true">▶</span>}
+                      {recording.thumbnailUrl ? <img src={recording.thumbnailUrl} alt="" loading="lazy" /> : <span className={styles.videoTileFallback} aria-hidden="true"><Video size={20} /></span>}
                       {recording.durationSec ? <span className={styles.videoDuration}>{formatVideoDuration(recording.durationSec)}</span> : null}
                     </span>
                     <strong>{recording.title || "Lounge recording"}</strong>
@@ -324,12 +325,12 @@ export function DashboardFeaturedVideos() {
         </>
       ) : (
         <div className={styles.videoEmpty}>
-          <span className={styles.videoEmptyIcon} aria-hidden="true">▶</span>
+          <span className={styles.videoEmptyIcon} aria-hidden="true"><Video size={22} /></span>
           <div>
             <strong>The next community moment will appear here.</strong>
             <p>Explore the recordings library to see what has already been shared.</p>
           </div>
-          <Link href="/recordings">Explore recordings →</Link>
+          <Link href="/recordings">Explore recordings <ArrowRight size={14} aria-hidden="true" /></Link>
         </div>
       )}
     </section>
@@ -345,13 +346,13 @@ export function DashboardStudioCard() {
           <p className={styles.videoEyebrow}>CREATE · SHARE · WATCH</p>
           <h2 className={styles.cardTitle} id="dashboard-studio-title">Community Studio</h2>
         </div>
-        <Link className={styles.cardLink} href="/studio">Open Studio →</Link>
+        <Link className={styles.cardLink} href="/studio">Open Studio <ArrowRight size={14} aria-hidden="true" /></Link>
       </div>
       <p className={styles.itemBody}>
         Share your tutorials, project videos and stitch-alongs. Discover and watch videos uploaded by other members.
       </p>
       <div style={{ marginTop: 14 }}>
-        <Link className={styles.videoWatchButton} href="/studio">Explore videos &amp; upload yours <span aria-hidden="true">→</span></Link>
+        <Link className={styles.videoWatchButton} href="/studio">Explore videos &amp; upload yours <ArrowRight size={14} aria-hidden="true" /></Link>
       </div>
     </section>
   );
@@ -415,10 +416,7 @@ export function DashboardActivityPreview() {
               <span className={styles.activityAvatarFallback} aria-hidden="true">{initials}</span>
             ) : (
               <span className={styles.activitySystemAvatar} aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M12 3.5 14 8l4.5 2-4.5 2-2 4.5L10 12l-4.5-2L10 8l2-4.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                  <path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" fill="currentColor" />
-                </svg>
+                <Sparkles size={19} strokeWidth={1.7} aria-hidden="true" />
               </span>
             );
             return (
@@ -521,7 +519,7 @@ export function DashboardCommunityBuilderCard() {
       <div className={styles.communityBuilderContent}>
         <div className={styles.communityBuilderTopline}>
           <span className={styles.communityBuilderPill}>MOVING IN · YOUR BUILDER PRIVILEGE</span>
-          <span className={styles.communityBuilderSparkle} aria-hidden="true">✦</span>
+          <span className={styles.communityBuilderSparkle} aria-hidden="true"><Sparkles size={22} /></span>
         </div>
         <h2 id="community-builder-title">Create your own space.</h2>
         <p className={styles.communityBuilderDescription}>
@@ -529,21 +527,21 @@ export function DashboardCommunityBuilderCard() {
         </p>
         <div className={styles.communityBuilderActions}>
           <Link className={styles.communityBuilderPrimary} href="/host/rooms?audience=community">
-            <span className={styles.communityBuilderActionIcon} aria-hidden="true">◉</span>
+            <span className={styles.communityBuilderActionIcon} aria-hidden="true"><Radio size={17} /></span>
             Launch a Video Lounge
-            <span aria-hidden="true">→</span>
+            <ArrowRight size={14} aria-hidden="true" />
           </Link>
           <Link className={styles.communityBuilderSecondary} href="/groups/create">
-            <span aria-hidden="true">＋</span>
+            <Plus size={16} aria-hidden="true" />
             Create a Friend Group
-            <span aria-hidden="true">↗</span>
+            <ArrowUpRight size={14} aria-hidden="true" />
           </Link>
           <Link className={styles.communityBuilderExplore} href="/neighbourhoods">
-            Explore neighbourhoods <span aria-hidden="true">→</span>
+            Explore neighbourhoods <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>
         <div className={styles.communityBuilderFooter}>
-          <span aria-hidden="true">✦</span>
+          <Sparkles size={14} aria-hidden="true" />
           Your membership gives you the tools. Your imagination brings the community to life.
         </div>
       </div>
@@ -569,7 +567,7 @@ export function DashboardYourCommunity() {
           </p>
         </div>
         <Link className={styles.yourCommunityViewAll} href="/groups">
-          Explore groups <span aria-hidden="true">→</span>
+          Explore groups <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </div>
 
@@ -604,7 +602,7 @@ export function DashboardYourCommunity() {
           <div className={styles.yourCommunityColumn}>
             <div className={styles.yourCommunityColumnHeader}>
               <h3>Friend groups</h3>
-              <Link href="/groups/create">＋ Create group</Link>
+              <Link href="/groups/create"><Plus size={13} aria-hidden="true" /> Create group</Link>
             </div>
             {groups.length ? (
               <ul className={styles.yourCommunityList}>
@@ -612,13 +610,13 @@ export function DashboardYourCommunity() {
                   <li key={group.id}>
                     <Link className={styles.yourCommunityItem} href={"/groups/" + encodeURIComponent(group.slug)}>
                       <span className={styles.yourCommunityGroupIcon} aria-hidden="true">
-                        {group.imageUrl ? <img src={group.imageUrl} alt="" loading="lazy" /> : "✦"}
+                        {group.imageUrl ? <img src={group.imageUrl} alt="" loading="lazy" /> : <UsersRound size={18} aria-hidden="true" />}
                       </span>
                       <span className={styles.yourCommunityItemCopy}>
                         <strong>{group.name}</strong>
                         <span>{group.memberCount} {group.memberCount === 1 ? "member" : "members"} · {group.createdByMe ? "Created by you" : "Joined"}</span>
                       </span>
-                      <span className={styles.yourCommunityArrow} aria-hidden="true">→</span>
+                      <span className={styles.yourCommunityArrow} aria-hidden="true"><ArrowRight size={15} /></span>
                     </Link>
                   </li>
                 ))}
@@ -627,7 +625,7 @@ export function DashboardYourCommunity() {
               <div className={styles.yourCommunityEmpty}>
                 <strong>Your first group starts with an idea.</strong>
                 <span>Create a space for people who share your interests.</span>
-                <Link href="/groups/create">Create your friend group →</Link>
+                <Link href="/groups/create">Create your friend group <ArrowRight size={13} aria-hidden="true" /></Link>
               </div>
             )}
           </div>
@@ -635,19 +633,19 @@ export function DashboardYourCommunity() {
           <div className={styles.yourCommunityColumn}>
             <div className={styles.yourCommunityColumnHeader}>
               <h3>Video lounges</h3>
-              <Link href="/host/rooms?audience=community">＋ Launch lounge</Link>
+              <Link href="/host/rooms?audience=community"><Plus size={13} aria-hidden="true" /> Launch lounge</Link>
             </div>
             {lounges.length ? (
               <ul className={styles.yourCommunityList}>
                 {lounges.slice(0, 4).map((room) => (
                   <li key={room.id}>
                     <Link className={styles.yourCommunityItem} href={"/rooms/" + encodeURIComponent(room.slug)}>
-                      <span className={styles.yourCommunityLoungeIcon + " " + (room.isLive ? styles.yourCommunityLoungeIconLive : "")} aria-hidden="true">◉</span>
+                      <span className={styles.yourCommunityLoungeIcon + " " + (room.isLive ? styles.yourCommunityLoungeIconLive : "")} aria-hidden="true"><Radio size={17} /></span>
                       <span className={styles.yourCommunityItemCopy}>
                         <strong>{room.name}</strong>
                         <span>{room.isLive ? "Live now · " + room.liveAttendees + (room.liveAttendees === 1 ? " person here" : " people here") : room.opensAt ? "Scheduled · " + new Date(room.opensAt).toLocaleString() : "Your lounge · Ready to open"}</span>
                       </span>
-                      <span className={styles.yourCommunityArrow} aria-hidden="true">→</span>
+                      <span className={styles.yourCommunityArrow} aria-hidden="true"><ArrowRight size={15} /></span>
                     </Link>
                   </li>
                 ))}
@@ -656,7 +654,7 @@ export function DashboardYourCommunity() {
               <div className={styles.yourCommunityEmpty}>
                 <strong>Give your community a place to meet.</strong>
                 <span>Launch a live Video Lounge and bring everyone together.</span>
-                <Link href="/host/rooms?audience=community">Launch your first lounge →</Link>
+                <Link href="/host/rooms?audience=community">Launch your first lounge <ArrowRight size={13} aria-hidden="true" /></Link>
               </div>
             )}
           </div>

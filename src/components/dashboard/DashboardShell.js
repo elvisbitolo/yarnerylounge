@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import StatCard from "./StatCard";
 import AudienceChart from "./AudienceChart";
@@ -208,10 +209,7 @@ export default function DashboardShell() {
             )}
             <form className={styles.search} onSubmit={handleSearch}>
               <span className={styles.searchIcon}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.5" y2="16.5" />
-                </svg>
+                <Search size={15} strokeWidth={2.2} aria-hidden="true" />
               </span>
               <input
                 className={styles.searchInput}
