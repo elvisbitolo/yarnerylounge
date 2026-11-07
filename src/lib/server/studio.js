@@ -24,6 +24,7 @@ import {
   buildStudioPosterPath,
   buildStudioVideoPath,
   normalizeStudioVideo,
+  parseStudioAdminEmails,
   parseStudioManifest,
   safeStudioId,
   serializeStudioManifest,
