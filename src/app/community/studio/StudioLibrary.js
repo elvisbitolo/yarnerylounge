@@ -111,11 +111,11 @@ export default function StudioLibrary({ videos, loadError, canUpload, currentUse
         <div className={styles.empty}>
           <h2 className={styles.emptyTitle}>The studio is quiet</h2>
           <p className={styles.emptyText}>
-            New talks, tutorials and stitch-alongs will appear here as soon as they are published.
+            Be the first to share a tutorial, project walk-through or stitch-along with the community.
           </p>
           {canUpload && (
             <button type="button" className={styles.primaryBtn} onClick={() => setUploadOpen(true)}>
-              <Plus size={16} /> Publish the first video
+              <Plus size={16} /> Upload the first video
             </button>
           )}
         </div>
@@ -154,7 +154,7 @@ export default function StudioLibrary({ videos, loadError, canUpload, currentUse
                     {video.createdAt ? ` · ${formatDate(video.createdAt)}` : ""}
                   </p>
                 </div>
-                {canUpload && (
+                {video.canDelete && (
                   <button
                     type="button"
                     className={styles.deleteBtn}

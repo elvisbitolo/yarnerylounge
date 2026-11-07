@@ -2,7 +2,7 @@
 //
 // The Studio stores its catalogue as a JSON manifest inside the existing
 // private `recordings` Storage bucket (no new Prisma model, so no schema
-// change): member-visible videos uploaded by a small allowlist of admins, each
+// change): member-visible videos uploaded by signed-in community members, each
 // with a poster/cover image. Everything here is side-effect free so it can be
 // unit tested without Supabase.
 
@@ -127,6 +127,7 @@ export function normalizeStudioVideo(raw) {
     width: clampInt(raw.width, 1, DIMENSION_MAX),
     height: clampInt(raw.height, 1, DIMENSION_MAX),
     createdBy: cleanText(raw.createdBy).slice(0, NAME_MAX),
+    createdById: cleanText(raw.createdById).slice(0, 200),
     createdByEmail: cleanText(raw.createdByEmail).slice(0, EMAIL_MAX),
     createdAt: isoOrNull(raw.createdAt),
   };

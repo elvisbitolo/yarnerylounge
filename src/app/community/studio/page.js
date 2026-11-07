@@ -7,7 +7,7 @@ import { logError } from "@/lib/server/log";
 import StudioLibrary from "./StudioLibrary";
 import styles from "./studio.module.css";
 
-// The catalogue changes whenever an admin publishes, so nothing here is static.
+// The catalogue changes whenever a member publishes, so nothing here is static.
 export const dynamic = "force-dynamic";
 
 export default async function StudioPage() {
@@ -21,7 +21,13 @@ export default async function StudioPage() {
     const rows = await listStudioVideos();
     // Sign every cover in one Storage call, then attach it by video id.
     const posters = await signStudioPosterUrls(rows);
-    videos = rows.map((row) => serializeStudioVideo(row, posters[row.id] || null));
+    videos = rows.map((row) => ({
+      ...serializeStudioVideo(row, posters[row.id] || null),
+      canDelete: isStudioAdmin(user.email) || row.createdById === user.uid || (
+        !row.createdById && row.createdByEmail &&
+        row.createdByEmail.toLowerCase() === String(user.email || "").toLowerCase()
+      ),
+    }));
   } catch (error) {
     // An empty Studio and a broken query look identical otherwise; a silent
     // empty state would be misread as "nothing published yet".
@@ -29,7 +35,7 @@ export default async function StudioPage() {
     loadError = error?.message || "Failed to load Studio videos";
   }
 
-  const canUpload = isStudioAdmin(user.email);
+  const canUpload = true;
 
   return (
     <div className={styles.page}>
@@ -43,8 +49,8 @@ export default async function StudioPage() {
         <p className={styles.eyebrow}>The Secret Yarnery</p>
         <h1 className={styles.title}>Studio</h1>
         <p className={styles.subtitle}>
-          Talks, tutorials and stitch-alongs from the founders — watch the latest from the
-          studio, whenever and wherever you are.
+          A shared video space for the whole community. Discover member tutorials, project walk-throughs
+          and stitch-alongs — or upload a video of your own for everyone to enjoy.
         </p>
       </header>
 
