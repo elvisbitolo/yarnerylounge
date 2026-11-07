@@ -175,7 +175,6 @@ export default async function MembershipPage() {
           <p className={styles.formNotice}>No payment records are available yet. New confirmed membership orders will appear here. Earlier purchases are not automatically imported into this history.</p>
         )}
       </section>
-      </section>
     </div>
   );
 }
