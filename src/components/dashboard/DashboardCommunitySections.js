@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, AtSign, Camera, Check, CirclePlus, Play, Plus, Radio, Sparkles, UsersRound, Video } from "lucide-react";
+import { ArrowRight, ArrowUpRight, AtSign, Camera, Check, Play, Plus, Radio, Sparkles, UsersRound, Video } from "lucide-react";
 import styles from "./dashboard.module.css";
 
 function useDashboardResource(url, key) {
