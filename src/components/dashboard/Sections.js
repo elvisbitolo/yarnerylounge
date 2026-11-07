@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ArrowRight, CalendarDays, CircleHelp, Image, MapPin, Package, PenLine, Plus, Radio, Trophy, UsersRound, Video } from "lucide-react";
 import styles from "./dashboard.module.css";
 import { Card, EmptyState } from "./Section";
 
@@ -49,7 +50,7 @@ export function CommunityNextSteps() {
             <Link className={styles.item} href={action.href}>
               <span className={styles.itemSplit}>
                 <span className={styles.itemTitle}>{action.title}</span>
-                <span className={styles.cardLink} aria-hidden="true">→</span>
+                <span className={styles.cardLink} aria-hidden="true"><ArrowRight size={15} /></span>
               </span>
               <span className={styles.itemBody}>{action.detail}</span>
             </Link>
@@ -126,80 +127,30 @@ export function WelcomeBanner({ name, photoURL }) {
   );
 }
 
-function ActionIcon({ icon }) {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": true,
+function ActionIcon({ icon, size = 18 }) {
+  const icons = {
+    goLive: Radio,
+    addProject: Package,
+    askQuestion: CircleHelp,
+    shareWin: Trophy,
+    neighbourhoods: MapPin,
+    members: UsersRound,
+    post: PenLine,
+    gallery: Image,
+    leaderboard: Trophy,
+    calendar: CalendarDays,
+    video: Video,
   };
-  switch (icon) {
-    case "goLive":
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
-          <path d="M7 7a8 8 0 0 0 0 10M17 7a8 8 0 0 1 0 10M4.5 4.5a12 12 0 0 0 0 15M19.5 4.5a12 12 0 0 1 0 15" />
-        </svg>
-      );
-    case "addProject":
-      return (
-        <svg {...common}>
-          <path d="M12 2l9 4.9v10.2L12 22l-9-4.9V6.9L12 2z" />
-          <path d="M12 2v20M3 6.9l9 4.9 9-4.9" />
-        </svg>
-      );
-    case "askQuestion":
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M9.6 9a2.4 2.4 0 1 1 3.9 1.9c-.9.7-1.5 1.2-1.5 2.6" />
-          <circle cx="12" cy="16.8" r="0.4" fill="currentColor" stroke="none" />
-        </svg>
-      );
-    case "shareWin":
-      return (
-        <svg {...common}>
-          <path d="M6 9H4.5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h1.5M6 9h12v10H6V9z" />
-          <path d="M6 9V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3M15 15l1.5 4-3-2-3 2 1.5-4a3.5 3.5 0 1 1 3-3.5M9.5 15a6 6 0 1 1 9 .5" />
-        </svg>
-      );
-    case "neighbourhoods":
-      return (
-        <svg {...common}>
-          <path d="M6 20c2 0 4-1.5 4.5-.5z" />
-          <path d="M14 20c2 0 4-1.5 4.5-.5z" />
-          <path d="M6 20l4-3M14 20l-2-4M4 15l2-6M10 13l3-5" />
-        </svg>
-      );
-    case "members":
-      return (
-        <svg {...common}>
-          <circle cx="9" cy="8" r="3.5" />
-          <path d="M2.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5" />
-          <circle cx="17" cy="9" r="2.5" />
-          <path d="M17.5 15c2.4.3 4 1.7 4.5 4" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...common}>
-          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-        </svg>
-      );
-  }
+  const Icon = icons[icon] || PenLine;
+  return <Icon size={size} strokeWidth={1.9} aria-hidden="true" />;
 }
 
 export function CreatorHub({ isMovingIn = false }) {
   const actions = [
-    { title: "Create a post", detail: "Share an update with the community.", href: "/feed?compose=1", label: "Post now", icon: "✍" },
-    { title: "Add a project", detail: "Show what you are making.", href: "/portfolio", label: "Add project", icon: "✳" },
-    { title: isMovingIn ? "Create an event" : "Suggest an event", detail: isMovingIn ? "Schedule a session for the community." : "Send your event idea to the team for review.", href: isMovingIn ? "/host/events" : "/events/suggest", label: isMovingIn ? "Create event" : "Suggest event", icon: "◷" },
-    { title: "Share a video", detail: "Upload a video as a community post.", href: "/feed?compose=1&video=1", label: "Share video", icon: "▷" },
+    { title: "Create a post", detail: "Share an update with the community.", href: "/feed?compose=1", label: "Post now", icon: "post" },
+    { title: "Add a project", detail: "Show what you are making.", href: "/portfolio", label: "Add project", icon: "addProject" },
+    { title: isMovingIn ? "Create an event" : "Suggest an event", detail: isMovingIn ? "Schedule a session for the community." : "Send your event idea to the team for review.", href: isMovingIn ? "/host/events" : "/events/suggest", label: isMovingIn ? "Create event" : "Suggest event", icon: "calendar" },
+    { title: "Share a video", detail: "Upload a video as a community post.", href: "/feed?compose=1&video=1", label: "Share video", icon: "video" },
   ];
   return (
     <Card title="Your community. Your ideas. Your space." theme="violet">
@@ -210,15 +161,15 @@ export function CreatorHub({ isMovingIn = false }) {
         {actions.map((action) => (
           <Link key={action.title} href={action.href} className={styles.kpi}
             style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, padding: 16, textDecoration: "none", minHeight: 132 }}>
-            <span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 11, background: "rgba(246,7,122,.10)", color: "#d70a70", fontSize: 20, fontWeight: 700 }}>{action.icon}</span>
+            <span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 11, background: "rgba(246,7,122,.10)", color: "#d70a70" }}><ActionIcon icon={action.icon} size={19} /></span>
             <strong style={{ color: "#10152f", fontSize: 14 }}>{action.title}</strong>
             <span className={styles.itemBody}>{action.detail}</span>
-            <span style={{ marginTop: "auto", color: "#d70a70", fontSize: 12, fontWeight: 700 }}>{action.label} →</span>
+            <span style={{ marginTop: "auto", color: "#d70a70", fontSize: 12, fontWeight: 700 }}>{action.label} <ArrowRight size={14} aria-hidden="true" /></span>
           </Link>
         ))}
       </div>
       <Link href="/feed?compose=1" className={styles.spotCta} style={{ display: "inline-flex", marginTop: 16 }}>
-        + Post something to the feed
+        <Plus size={15} aria-hidden="true" /> Post something to the feed
       </Link>
     </Card>
   );
