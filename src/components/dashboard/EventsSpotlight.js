@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ChevronDown } from "lucide-react";
 import { cardThemeVars } from "@/lib/card-themes";
 import { formatClock, formatDay } from "@/lib/calendar-core";
 import { recurringShortLabel } from "@/lib/server/availability-core";
@@ -26,11 +25,6 @@ function viewerZone() {
 export default function EventsSpotlight({ data }) {
   const t = useTranslations("dashboard");
   const zone = useSyncExternalStore(subscribe, viewerZone, () => "UTC");
-  // Collapsed by default: the band sits at the top of the dashboard, and a full
-  // rail of cards there pushes the rest of the page below the fold. The header
-  // keeps the count so the state is still legible at a glance.
-  const [open, setOpen] = useState(true);
-
   const events = data?.events || [];
   const pinned = data?.pinnedBlocks || [];
   const myBlocks = data?.myBlocks || [];
@@ -67,24 +61,10 @@ export default function EventsSpotlight({ data }) {
           <Link className={styles.cardLink} href="/events">
             {t("seeAllEvents")}
           </Link>
-          <button
-            type="button"
-            className={styles.spotToggle}
-            aria-expanded={open}
-            aria-controls="whats-on-body"
-            aria-label={open ? t("hideWhatsOn") : t("showWhatsOn")}
-            onClick={() => setOpen((value) => !value)}
-          >
-            <ChevronDown
-              size={16}
-              className={open ? styles.spotChevronOpen : styles.spotChevron}
-            />
-          </button>
         </div>
       </div>
 
-      {open && (
-        <div id="whats-on-body">
+      <div id="whats-on-body">
           {empty ? (
             <div className={styles.spotEmpty}>
               <p className={styles.spotEmptyText}>{t("noEventsYet")}</p>
@@ -190,8 +170,7 @@ export default function EventsSpotlight({ data }) {
               </div>
             </>
           )}
-        </div>
-      )}
+      </div>
     </section>
   );
 }
