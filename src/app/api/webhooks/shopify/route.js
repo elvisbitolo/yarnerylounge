@@ -411,9 +411,10 @@ export async function POST(req) {
           email,
           paymentStatus: topic === "refunds/create" || topic === "orders/refunded" ? "refunded" : "cancelled",
         });
-        if (data?.id != null) {
+        const paymentOrderId = topic === "refunds/create" ? data?.order_id : data?.id;
+        if (paymentOrderId != null) {
           await getPrisma().membershipPayment.updateMany({
-            where: { providerOrderId: String(data.id) },
+            where: { providerOrderId: String(paymentOrderId) },
             data: { status: topic === "refunds/create" || topic === "orders/refunded" ? "refunded" : "cancelled" },
           });
         }
