@@ -55,10 +55,16 @@ export const getAccessSub = cache(async function getAccessSub(uid) {
     return { status: "active", tier: "moving-in", planName: "moving-in", isStaffAccess: true };
   }
 
+  // An explicit member cancellation takes precedence over the global
+  // open-access override: the member chose to end paid access immediately.
+  const storedSub = effectiveSubscription(await getSubscription(uid));
+  if (storedSub?.status === "canceled" || storedSub?.canceledAt) {
+    return FREE_ACCESS_SUB;
+  }
+
   // Open-access mode: everyone is admitted until there are enough paying
-  // members to flip the gate on. This takes precedence over even an existing
-  // subscription row so NO member is demoted to a paid/flirting tier while the
-  // community is still ramping up — "tiers do not apply" until flipped off.
+  // members to flip the gate on. It applies to members who have not explicitly
+  // canceled their paid plan.
   if (isOpenAccess()) {
     const openPlan = openAccessPlan();
     return {
@@ -74,7 +80,7 @@ export const getAccessSub = cache(async function getAccessSub(uid) {
   // A row left behind by the open-access override is not a purchase, so it
   // must not decide access once the override is off; effectiveSubscription
   // drops it and the member falls back to Flirting.
-  const sub = effectiveSubscription(await getSubscription(uid));
+  const sub = storedSub;
   if (sub && isActiveSubLogic(sub)) {
     return sub;
   }
