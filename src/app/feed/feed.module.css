@@ -1946,6 +1946,10 @@
 
 .announcementIntroduction {
   margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid #302b30;
+  border-radius: 12px;
+  background: #000000;
   color: #f4f1f3;
   font-size: 14px;
   line-height: 1.7;
