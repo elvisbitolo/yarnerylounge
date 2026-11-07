@@ -336,6 +336,27 @@ export function DashboardFeaturedVideos() {
   );
 }
 
+
+export function DashboardStudioCard() {
+  return (
+    <section className={styles.card} aria-labelledby="dashboard-studio-title">
+      <div className={styles.cardHeader}>
+        <div>
+          <p className={styles.videoEyebrow}>CREATE · SHARE · WATCH</p>
+          <h2 className={styles.cardTitle} id="dashboard-studio-title">Community Studio</h2>
+        </div>
+        <Link className={styles.cardLink} href="/studio">Open Studio →</Link>
+      </div>
+      <p className={styles.itemBody}>
+        Share your tutorials, project videos and stitch-alongs. Discover and watch videos uploaded by other members.
+      </p>
+      <div style={{ marginTop: 14 }}>
+        <Link className={styles.videoWatchButton} href="/studio">Explore videos &amp; upload yours <span aria-hidden="true">→</span></Link>
+      </div>
+    </section>
+  );
+}
+
 export function DashboardCommunityFeed() {
   const { value, loading } = useDashboardResource("/api/posts?limit=5", "posts");
   const posts = Array.isArray(value) ? value.slice(0, 5) : [];
