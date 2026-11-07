@@ -29,7 +29,7 @@ export default function EventsSpotlight({ data }) {
   // Collapsed by default: the band sits at the top of the dashboard, and a full
   // rail of cards there pushes the rest of the page below the fold. The header
   // keeps the count so the state is still legible at a glance.
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   const events = data?.events || [];
   const pinned = data?.pinnedBlocks || [];

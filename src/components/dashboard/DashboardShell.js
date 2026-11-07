@@ -228,6 +228,15 @@ export default function DashboardShell() {
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} photoURL={user.photoURL} />
         </div>
+        {/* What's On is a first-screen dashboard feature: keep it immediately
+            below the welcome banner so members can see community activity. */}
+        {spotlight && (
+          spotlight.ok ? (
+            <EventsSpotlight data={spotlight.value} />
+          ) : (
+            <SectionError message={t("spotlightLoadError")} onRetry={handleRetry} />
+          )
+        )}
         {upcomingRooms?.ok ? (
           <div data-tour="tour-rooms">
             <UpcomingRooms data={roomsValue} />
@@ -255,16 +264,6 @@ export default function DashboardShell() {
             <DashboardMemberDiscovery />
           </div>
         </div>
-        {/* Option A: the full-width What's On band sits directly under the
-            welcome banner so events are impossible to miss, and above the
-            quick actions so they keep their grid lead. */}
-        {spotlight && (
-          spotlight.ok ? (
-            <EventsSpotlight data={spotlight.value} />
-          ) : (
-            <SectionError message={t("spotlightLoadError")} onRetry={handleRetry} />
-          )
-        )}
         <div data-tour="tour-actions">
           <QuickActions isStaff={isStaff} />
         </div>
