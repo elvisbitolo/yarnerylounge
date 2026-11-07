@@ -1,15 +1,14 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getAccessSub } from "@/lib/server/subscription";
+import { getSubscription } from "@/lib/server/subscription";
 import { subscriptionStatus } from "@/lib/server/billing";
 import { tierLabel } from "@/lib/server/plans";
 import AccountTabs from "../AccountTabs";
+import CancelPlan from "./CancelPlan";
 import styles from "../account.module.css";
 
 export const dynamic = "force-dynamic";
 
-// The status was hardcoded to "Active", so a canceled or expired member was
-// still told their plan was active. Read it from the subscription instead.
 const STATUS_TEXT = {
   active: "Active",
   trialing: "Trial",
@@ -27,7 +26,7 @@ export default async function MembershipPage() {
 
   const [userDoc, sub] = await Promise.all([
     getUserDoc(user.uid).catch(() => null),
-    getAccessSub(user.uid).catch(() => null),
+    getSubscription(user.uid).catch(() => null),
   ]);
 
   const memberSince = userDoc?.createdAt
@@ -36,46 +35,61 @@ export default async function MembershipPage() {
       : new Date(userDoc.createdAt).getTime()
     : null;
 
-  // getAccessSub hands back an active-shaped free tier for members with no
-  // paid subscription, so "Active" is only meaningful once a plan is paid for.
-  const tier = sub?.tier || "flirting";
-  const isPaidTier = tier === "hooking-up" || tier === "moving-in";
-  const status = isPaidTier ? subscriptionStatus(sub) : "none";
-  const statusText = isPaidTier ? STATUS_TEXT[status] || "Active" : "Free tier";
+  // Read the persisted subscription, not the synthetic open-access tier, so
+  // this account page always reflects the member's actual purchase/cancellation.
+  const tier = sub?.tier || userDoc?.plan || "flirting";
+  const isPaidTier = ["hooking-up", "moving-in"].includes(tier);
+  const status = isPaidTier ? subscriptionStatus(sub) : sub?.status === "canceled" ? "canceled" : "none";
+  const statusText = isPaidTier ? STATUS_TEXT[status] || "Active" : status === "canceled" ? "Canceled" : "Free tier";
   const statusTone =
     isPaidTier && (status === "active" || status === "trialing")
       ? `${styles.badge} ${styles.badgeActive}`
-      : styles.badge;
+      : status === "canceled" || status === "inactive"
+        ? `${styles.badge} ${styles.badgeInactive}`
+        : styles.badge;
+  const canCancel = isPaidTier && ["active", "trialing", "past_due", "cancel_at_period_end"].includes(status);
 
   return (
-      <div className={styles.container}>
-        <AccountTabs />
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>My membership</h2>
+    <div className={styles.container}>
+      <AccountTabs />
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>My membership</h2>
+        <div className={styles.row}>
+          <span className={styles.label}>Status</span>
+          <span className={styles.value}>
+            <span className={statusTone}>{statusText}</span>
+          </span>
+        </div>
+        <div className={styles.row}>
+          <span className={styles.label}>Plan</span>
+          <span className={styles.value}>
+            {tierLabel(tier)} · {sub?.plan || "Community"}
+            {userDoc?.foundingMember && (
+              <span className={`${styles.badge} ${styles.badgeFounding}`}>Founding Yarnie 🧶</span>
+            )}
+          </span>
+        </div>
+        {sub?.canceledAt && (
           <div className={styles.row}>
-            <span className={styles.label}>Status</span>
+            <span className={styles.label}>Canceled on</span>
             <span className={styles.value}>
-              <span className={statusTone}>{statusText}</span>
+              {new Date(sub.canceledAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
             </span>
           </div>
+        )}
+        {memberSince && (
           <div className={styles.row}>
-            <span className={styles.label}>Plan</span>
+            <span className={styles.label}>Member since</span>
             <span className={styles.value}>
-              {tierLabel(sub ? sub.tier : "free")} · {sub ? sub.plan : "Community"}
-              {userDoc?.foundingMember && (
-                <span className={`${styles.badge} ${styles.badgeFounding}`}>Founding Yarnie 🧶</span>
-              )}
+              {new Date(memberSince).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
             </span>
           </div>
-          {memberSince && (
-            <div className={styles.row}>
-              <span className={styles.label}>Member since</span>
-              <span className={styles.value}>
-                {new Date(memberSince).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-              </span>
-            </div>
-          )}
-        </section>
-      </div>
+        )}
+        {canCancel && <CancelPlan planLabel={tierLabel(tier)} />}
+        {!isPaidTier && (
+          <p className={styles.formNotice}>You are on the free Flirting tier. You can choose a paid plan again whenever you are ready.</p>
+        )}
+      </section>
+    </div>
   );
 }
