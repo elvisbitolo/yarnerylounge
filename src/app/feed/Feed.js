@@ -1038,6 +1038,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [imageUrl, setImageUrl] = useState("");
   const [imageUrls, setImageUrls] = useState([]);
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoUrlDraft, setVideoUrlDraft] = useState("");
   const [showVideoInput, setShowVideoInput] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("video") === "1");
   const [draftRestored, setDraftRestored] = useState(false);
   const [kind, setKind] = useState(
@@ -2587,13 +2588,35 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
                   {uploading ? t("uploading") : "Upload video"}
                 </button>
                 <input ref={videoFileInputRef} type="file" accept="video/mp4,video/webm" hidden onChange={handleVideoUpload} />
-                <input
-                  className={styles.videoUrlInput}
-                  type="url"
-                  placeholder={t("videoUrlPlaceholder")}
-                  maxLength={2048}
-                  onChange={(e) => setVideoUrl(e.target.value.trim())}
-                />
+                <div className={styles.videoLinkEntry}>
+                  <input
+                    className={styles.videoUrlInput}
+                    type="url"
+                    placeholder={t("videoUrlPlaceholder")}
+                    value={videoUrlDraft}
+                    maxLength={2048}
+                    onChange={(e) => setVideoUrlDraft(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.uploadBtn}
+                    onClick={() => {
+                      const value = videoUrlDraft.trim();
+                      if (!value) return;
+                      try {
+                        const parsed = new URL(value);
+                        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Invalid URL");
+                        setVideoUrl(value);
+                        setVideoUrlDraft("");
+                      } catch {
+                        alert("Enter a valid video URL.");
+                      }
+                    }}
+                    disabled={!videoUrlDraft.trim()}
+                  >
+                    Add video link
+                  </button>
+                </div>
               </>
             )}
             {uploading && <p className={styles.videoUploadStatus} role="status">Uploading video…</p>}
@@ -2632,6 +2655,7 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
                   onClick={async () => {
                     const uploadedUrl = videoUrl;
                     setVideoUrl("");
+                    setVideoUrlDraft("");
                     if (uploadedUrl.includes("/uploads/post/")) await deleteUploadedBlob(uploadedUrl);
                   }}
                 >
