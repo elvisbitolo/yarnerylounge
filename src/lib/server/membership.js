@@ -18,6 +18,7 @@ export function deriveMembership(userDoc, now = Date.now()) {
   const expiresAtMs = toMillis(userDoc?.expiresAt);
   const paidPlan = PAID_PLANS.has(plan);
   const expired = paidPlan && expiresAtMs > 0 && expiresAtMs < now;
+  const explicitlyCanceled = userDoc?.paymentStatus === "cancelled";
 
   let planKey = "flirting";
   // A top-tier role wins over the plan string, so a manually granted host shows
@@ -29,9 +30,9 @@ export function deriveMembership(userDoc, now = Date.now()) {
   // Open-access mode: every signed-in member is admitted at the top tier until
   // the gate is flipped on — mirrors getAccessSub so badges/CTAs match the
   // server capability grants (no upgrade prompts while the community ramps up).
-  else if (userDoc && isOpenAccess()) planKey = openAccessPlan();
-  else if (!expired && plan === "moving-in") planKey = "moving-in";
-  else if (!expired && plan === "hooking-up") planKey = "hooking-up";
+  else if (!explicitlyCanceled && userDoc && isOpenAccess()) planKey = openAccessPlan();
+  else if (!explicitlyCanceled && !expired && plan === "moving-in") planKey = "moving-in";
+  else if (!explicitlyCanceled && !expired && plan === "hooking-up") planKey = "hooking-up";
 
   const caps =
     planKey === "moving-in"
