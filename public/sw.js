@@ -241,12 +241,18 @@ const UNREAD_NOTIFICATION_TAG = "christa-unread-summary";
 // replaceable summary notification instead of creating one per unread item.
 async function syncUnreadSummary(count, url = "/notifications") {
   const unread = Number.isFinite(Number(count)) ? Math.max(0, Math.trunc(Number(count))) : 0;
-  const existing = await self.registration.getNotifications({ tag: UNREAD_NOTIFICATION_TAG });
+  const allExisting = await self.registration.getNotifications();
+  const existing = allExisting.filter((notification) => notification.tag === UNREAD_NOTIFICATION_TAG);
 
   if (unread === 0) {
-    existing.forEach((notification) => notification.close());
+    allExisting.forEach((notification) => notification.close());
     return;
   }
+
+  // Retire individual notifications created by older service-worker versions.
+  allExisting
+    .filter((notification) => notification.tag !== UNREAD_NOTIFICATION_TAG)
+    .forEach((notification) => notification.close());
 
   // Avoid re-posting an identical summary during the bell's regular polling.
   if (existing.some((notification) => Number(notification.data?.unread) === unread)) return;
