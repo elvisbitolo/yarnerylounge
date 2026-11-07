@@ -391,7 +391,12 @@ export async function POST(req) {
           break;
         }
         await grantAccess({ data, email, order: data });
-        await recordMembershipPayment({ order: data, email });
+        await recordMembershipPayment({ order: data, email }).catch((ledgerError) => {
+          logError("shopify.payment_ledger_write_failed", {
+            orderId: data?.id?.toString?.() || "",
+            error: ledgerError.message,
+          });
+        });
         {
           const member = await getPrisma().user.findFirst({ where: { email }, select: { id: true, name: true } }).catch(() => null);
           if (member) await recordDeveloperEvent({
@@ -416,6 +421,11 @@ export async function POST(req) {
           await getPrisma().membershipPayment.updateMany({
             where: { providerOrderId: String(paymentOrderId) },
             data: { status: topic === "refunds/create" || topic === "orders/refunded" ? "refunded" : "cancelled" },
+          }).catch((ledgerError) => {
+            logError("shopify.payment_ledger_status_update_failed", {
+              orderId: String(paymentOrderId),
+              error: ledgerError.message,
+            });
           });
         }
         break;
