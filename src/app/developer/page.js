@@ -95,6 +95,12 @@ async function loadSystemSnapshot() {
       select: { id: true, email: true, action: true, provider: true, errorCode: true, errorMessage: true, source: true, createdAt: true },
     });
     snapshot.authAttempts = rows;
+    snapshot.noAccountAttempts = rows.filter((row) => {
+      const code = String(row.errorCode || "").toLowerCase();
+      const message = String(row.errorMessage || "").toLowerCase();
+      return ["not_prepaid", "user_not_found", "no_account", "account_not_found"].includes(code)
+        || /no (?:member )?account (?:was )?found|account does not exist|user not found|not registered as a member/.test(message);
+    });
   } catch {
     snapshot.authAttempts = null;
   }
@@ -272,6 +278,38 @@ export default async function DeveloperPage() {
                       <td>{attempt.provider}</td>
                       <td><span className={styles.eventError}>{attempt.errorCode || "auth_error"}</span></td>
                       <td className={styles.authErrorDetails}>{attempt.errorMessage || "Authentication was unsuccessful"}</td>
+                      <td>{attempt.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <div><p className={styles.eyebrow}>Prospective members</p><h2>Sign-in attempts without a member account</h2></div>
+          <span className={styles.muted}>Confirmed no-account signals · latest 100 auth attempts scanned</span>
+        </div>
+        <div className={styles.networkPanel}>
+          <p className={styles.networkIntro}>People who reached sign-in but were not recognized as an eligible Secret Yarnery member. This list uses explicit no-account signals only; generic “invalid login credentials” errors are excluded because Supabase intentionally does not reveal whether an email exists or the password is wrong.</p>
+          {snapshot.authAttempts === null ? (
+            <p className={styles.networkEmpty}>Authentication logs are unavailable. Confirm the AuthAttempt database migration has been applied.</p>
+          ) : snapshot.noAccountAttempts.length === 0 ? (
+            <p className={styles.networkEmpty}>No confirmed no-account sign-in attempts have been recorded yet.</p>
+          ) : (
+            <div className={styles.networkTableWrap}>
+              <table className={styles.networkTable}>
+                <thead><tr><th>Time</th><th>Email submitted</th><th>Provider</th><th>Reason</th><th>Source</th></tr></thead>
+                <tbody>
+                  {snapshot.noAccountAttempts.map((attempt) => (
+                    <tr key={attempt.id}>
+                      <td>{new Date(attempt.createdAt).toLocaleString()}</td>
+                      <td>{attempt.email || "Not supplied by provider"}</td>
+                      <td>{attempt.provider}</td>
+                      <td className={styles.authErrorDetails}>{attempt.errorMessage || attempt.errorCode || "No member account found"}</td>
                       <td>{attempt.source}</td>
                     </tr>
                   ))}
