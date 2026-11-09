@@ -96,6 +96,9 @@ export async function POST(request) {
         where: { authorId: user.uid },
         data: { authorName: "Former member", reactions: null, createdById: null },
       });
+      await tx.postVersion.updateMany({ where: { editorId: user.uid }, data: { editorId: null, editorName: "Former member" } });
+      await tx.postModerationLog.updateMany({ where: { actorId: user.uid }, data: { actorId: null, actorName: "Former member" } });
+      await tx.report.updateMany({ where: { reporterId: user.uid }, data: { reporterName: "Former member" } });
       await tx.announcement.updateMany({ where: { authorId: user.uid }, data: { authorName: "Former member" } });
       await tx.auditLog.updateMany({ where: { actorId: user.uid }, data: { actorName: "Former member", metadata: null } });
       await tx.article.updateMany({
@@ -142,6 +145,10 @@ export async function POST(request) {
       await tx.follow.deleteMany({ where: { OR: [{ followerId: user.uid }, { followingId: user.uid }] } });
       await tx.memberWatch.deleteMany({ where: { OR: [{ watcherId: user.uid }, { targetId: user.uid }] } });
       await tx.invitation.deleteMany({ where: { inviterUid: user.uid } });
+      await tx.invitation.updateMany({ where: { acceptedUid: user.uid }, data: { acceptedUid: null, recipientEmail: null, recipientName: "Former member" } });
+      await tx.matchDecision.deleteMany({ where: { OR: [{ userId: user.uid }, { targetUserId: user.uid }] } });
+      await tx.hostAssignment.deleteMany({ where: { OR: [{ userId: user.uid }, { grantedBy: user.uid }] } });
+      await tx.postSubscription.deleteMany({ where: { userId: user.uid } });
       await tx.pollVote.deleteMany({ where: { userId: user.uid } });
       await tx.groupMember.deleteMany({ where: { userId: user.uid } });
       await tx.spaceMember.deleteMany({ where: { userId: user.uid } });
