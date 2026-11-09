@@ -105,7 +105,7 @@ export default function CourseManager({ hostOnly = false }) {
 
   return (
     <Nav role={role}>
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.courseManager}`}>
         <h1 className={styles.title}>Manage courses</h1>
 
         {hostOnly && hostScopes.spaces.length === 0 ? (
