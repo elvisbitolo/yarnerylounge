@@ -163,7 +163,7 @@ export default function CourseEditor({ basePath = "/admin" }) {
 
   return (
     <Nav role={role}>
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.courseEditor}`}>
         <p className={styles.listTitle}>
           <Link className={styles.itemMeta} href={`${basePath}/courses`}>← All courses</Link>
         </p>
@@ -359,9 +359,9 @@ export default function CourseEditor({ basePath = "/admin" }) {
         ) : (
           modules.map((module) => (
             <div key={module.id} className={styles.form}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div className={styles.moduleHeader}>
                 <h2 className={styles.formTitle} style={{ margin: 0 }}>{module.title}</h2>
-                <div style={{ display: "flex", gap: 12 }}>
+                <div className={styles.moduleActions}>
                   <button
                     className={styles.toggle}
                     onClick={() =>
