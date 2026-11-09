@@ -89,7 +89,7 @@ export default function ChangePasswordForm() {
             id="settings-new-password"
             className={styles.input}
             type="password"
-            minLength={5}
+            minLength={6}
             required
             autoComplete="new-password"
             value={next}
