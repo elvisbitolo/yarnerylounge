@@ -62,7 +62,6 @@ function SearchForm({ className, inputRef }) {
 function getAdministrationLinks(role) {
   if (role === "owner") {
     return [
-      { href: "/admin/whatsapp-inbox", label: "WhatsApp inbox" },
       { href: "/admin/analytics", key: "analytics" },
       { href: "/admin/rooms", key: "manageRooms" },
       { href: "/admin/courses", key: "manageCourses" },
@@ -78,7 +77,6 @@ function getAdministrationLinks(role) {
     return [
       { href: "/admin/hosts", key: "scopedHosts" },
       { href: "/admin/moderation", key: "moderation" },
-      { href: "/admin/whatsapp-inbox", label: "WhatsApp inbox" },
     ];
   }
   return [];
