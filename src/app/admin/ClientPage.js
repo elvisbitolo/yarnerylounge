@@ -127,17 +127,46 @@ export default function AdminOverviewPage() {
               <p className={styles.empty}>No posts yet.</p>
             ) : (
               <div className={styles.list}>
-                {data.recentPosts.map((post) => (
-                  <div key={post.id} className={styles.item}>
-                    <div>
-                      <p className={styles.itemName}>{post.text || "(no text)"}</p>
-                      <p className={styles.itemMeta}>
-                        by {post.authorName} ·{" "}
-                        {new Date(post.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {data.recentPosts.map((post) => {
+                  const initials = (post.authorName || "M")
+                    .trim()
+                    .split(/\\s+/)
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join("")
+                    .toUpperCase();
+                  return (
+                    <article key={post.id} className={`${styles.item} ${styles.recentPostItem}`}>
+                      <div className={styles.recentPostAvatar}>
+                        {post.photoURL ? (
+                          <img src={post.photoURL} alt={`${post.authorName}'s profile`} />
+                        ) : (
+                          <span>{initials || "M"}</span>
+                        )}
+                      </div>
+                      <div className={styles.recentPostContent}>
+                        <div className={styles.recentPostHeader}>
+                          <div className={styles.recentPostAuthor}>
+                            <p className={styles.itemName}>{post.authorName}</p>
+                            {post.username ? <span className={styles.recentPostUsername}>@{post.username}</span> : null}
+                          </div>
+                          <time className={styles.recentPostTime} dateTime={new Date(post.createdAt).toISOString()}>
+                            {post.createdAt ? new Date(post.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Date unavailable"}
+                          </time>
+                        </div>
+                        <p className={styles.recentPostText}>{post.text || "(No text content)"}</p>
+                        <div className={styles.recentPostFooter}>
+                          <span>{post.kind === "question" ? "Question" : post.kind === "poll" ? "Poll" : post.kind === "win" ? "Community win" : "Post"}</span>
+                          {post.hasImage ? <span>Photo</span> : null}
+                          {post.hasVideo ? <span>Video</span> : null}
+                          {post.edited ? <span>Edited</span> : null}
+                          <span>{post.commentCount} comments</span>
+                          <span>{post.likeCount} likes</span>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </>
