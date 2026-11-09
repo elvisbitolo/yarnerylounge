@@ -921,3 +921,44 @@ a.statCard:hover {
     overflow-wrap: anywhere;
   }
 }
+
+/* Final admin course workspace sizing: override the legacy 720px card. */
+.container.courseManager,
+.container.courseEditor {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: calc(100vh - 24px);
+  margin: 0;
+  padding: 28px clamp(14px, 3vw, 36px) 48px;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+.courseManager .form,
+.courseEditor .form {
+  width: 100%;
+  max-width: 1040px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.courseManager > .title,
+.courseEditor > .title,
+.courseManager > .listTitle,
+.courseEditor > .listTitle,
+.courseManager > .list,
+.courseEditor > .list {
+  width: 100%;
+  max-width: 1040px;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (max-width: 640px) {
+  .container.courseManager,
+  .container.courseEditor {
+    min-height: 100dvh;
+    padding: 22px 14px 36px;
+  }
+}
