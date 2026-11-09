@@ -63,6 +63,16 @@ test("csp: 8x8 is still embeddable in an iframe", () => {
   assert.ok(frame.includes("https://*.8x8.vc"));
 });
 
+test("csp: Vercel toolbar and 8x8 media connections remain allowed", () => {
+  const script = directive(prod, "script-src");
+  const connect = directive(prod, "connect-src");
+  assert.ok(script.includes("https://vercel.live"));
+  assert.ok(connect.includes("https://vercel.live"));
+  assert.ok(connect.includes("wss://vercel.live"));
+  assert.ok(connect.includes("https://*.8x8.vc"));
+  assert.ok(connect.includes("wss://*.8x8.vc"));
+});
+
 test("csp: realtime websocket still allowed", () => {
   const connect = directive(prod, "connect-src");
   assert.ok(connect.includes("wss://*.supabase.co"));
