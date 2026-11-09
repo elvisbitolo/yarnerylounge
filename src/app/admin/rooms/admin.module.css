@@ -1002,3 +1002,70 @@ a.statCard:hover {
     padding: 22px 14px 36px;
   }
 }
+
+
+/* Shared admin workspaces for moderation, groups and host assignments. */
+.adminWorkspace {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 100vh;
+  margin: 0;
+  padding: 32px clamp(16px, 3vw, 40px) 56px;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.adminWorkspace .form {
+  width: 100%;
+  max-width: 900px;
+}
+
+.adminWorkspace .list {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.adminWorkspace .item {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .adminWorkspace {
+    min-height: auto;
+    padding: 24px 14px calc(36px + env(safe-area-inset-bottom));
+  }
+
+  .adminWorkspace .form {
+    padding: 18px 14px;
+  }
+
+  .adminWorkspace .fieldRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adminWorkspace .fieldRow > * {
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  .adminWorkspace .item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .adminWorkspace .itemActions {
+    width: 100%;
+  }
+
+  .adminWorkspace .itemActions > button {
+    flex: 1 1 120px;
+    min-height: 42px;
+  }
+}
