@@ -1,10 +1,10 @@
 // Creates the two test accounts used to compare the tiers side by side.
 //
-//   node scripts/create-test-accounts.mjs --dry-run
 //   node scripts/create-test-accounts.mjs
+//   TEST_ACCOUNT_PASSWORD='<unique password>' node scripts/create-test-accounts.mjs --apply
 //
-//   flirting@gmail.com   / 12345678   -> Flirting   (free, $0)
-//   hookingup@gmail.com  / 12345678   -> Hooking Up (paid)
+// The default is a read-only dry run. Mutations require the explicit --apply
+// flag and a strong TEST_ACCOUNT_PASSWORD supplied through the environment.
 //
 // Both accounts get a confirmed Supabase Auth user, so sign-in never stops at
 // a verification link, and a User row with the tier written on it, which is
@@ -27,7 +27,6 @@
 import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
 
-const TEMP_PASSWORD = "12345678";
 const TOS_VERSION = "2026-10-06";
 
 const ACCOUNTS = [
@@ -63,12 +62,17 @@ for (const line of env.split("\n")) {
   }
 }
 
-const dryRun = process.argv.includes("--dry-run");
+const dryRun = !process.argv.includes("--apply") || process.argv.includes("--dry-run");
+const tempPassword = process.env.TEST_ACCOUNT_PASSWORD || "";
 
 const url = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceRoleKey) {
   console.error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in .env.local");
+  process.exit(1);
+}
+if (!dryRun && tempPassword.length < 16) {
+  console.error("Set TEST_ACCOUNT_PASSWORD to a unique password of at least 16 characters before using --apply.");
   process.exit(1);
 }
 
@@ -168,7 +172,7 @@ for (const account of ACCOUNTS) {
       } else {
         const { data, error } = await supabase.auth.admin.createUser({
           email,
-          password: TEMP_PASSWORD,
+          password: tempPassword,
           user_metadata: { name: account.name },
           email_confirm: true,
         });
@@ -239,7 +243,7 @@ console.log(
   `\n${dryRun ? "[dry-run] would have " : ""}created ${created}, updated ${updated}, failed ${failed}`
 );
 if (!dryRun) {
-  console.log("Sign in with either email and the password 12345678.");
+  console.log("Sign in with either email and the TEST_ACCOUNT_PASSWORD value you supplied.");
 }
 
 await pool.end();
