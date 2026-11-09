@@ -3,7 +3,7 @@ import { requireOwner, guardJson } from "@/lib/server/authorize";
 import { seedCommunityGroups, COMMUNITY_GROUPS } from "@/lib/server/community-groups";
 import { ensureTopicsForAllGroups } from "@/lib/server/group-topics";
 
-export async function GET() {
+export async function POST() {
   const auth = await requireOwner();
   const denied = guardJson(auth);
   if (denied) return denied;
