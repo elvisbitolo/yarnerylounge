@@ -116,7 +116,7 @@ export async function POST(request) {
       });
       await tx.roomMessage.updateMany({
         where: { userId: user.uid },
-        data: { userName: "Former member", userAvatar: null, createdById: null },
+        data: { userName: "Former member", userAvatar: null, imageData: null, createdById: null },
       });
       await tx.communityQuestion.updateMany({
         where: { authorId: user.uid },
@@ -175,6 +175,7 @@ export async function POST(request) {
           headline: null,
           location: null,
           country: null,
+          timezone: null,
           bio: null,
           role: "member",
           roleLabel: null,
