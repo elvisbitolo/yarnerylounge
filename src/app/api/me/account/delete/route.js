@@ -6,6 +6,7 @@ import { AUTH_COOKIE } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
+import { sendEmail } from "@/lib/server/email";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,26 @@ export async function POST(request) {
   if (limited) return limited;
 
   const body = await request.json().catch(() => ({}));
+  if (body.action === "send-code") {
+    if (!user.email) return NextResponse.json({ error: "This account has no email address for verification." }, { status: 400 });
+    try {
+      const { default: supabaseAdmin } = await import("@/lib/supabase/service");
+      const { data, error } = await supabaseAdmin.auth.admin.generateLink({ type: "magiclink", email: user.email });
+      if (error || !data?.properties?.email_otp) throw new Error(error?.message || "Could not generate an email verification code.");
+      const code = data.properties.email_otp;
+      const sent = await sendEmail({
+        to: user.email,
+        subject: "Your Secret Yarnery account deletion code",
+        text: `Use this one-time code to confirm account deletion: ${code}. It can only be used once. If you did not request this, ignore this email.`,
+        html: `<p>Use this one-time code to confirm account deletion:</p><p style="font-size:28px;font-weight:700;letter-spacing:8px;color:#f6077a;">${code}</p><p>This code can only be used once. If you did not request this, ignore this email.</p>`,
+      });
+      if (sent?.skipped) return NextResponse.json({ error: "Email delivery is not configured. Please contact Secret Yarnery support." }, { status: 503 });
+      return NextResponse.json({ ok: true });
+    } catch (error) {
+      logError("account.delete_code_send_failed", { uid: user.uid, error: error?.message });
+      return NextResponse.json({ error: "Could not send the verification code. Please try again." }, { status: 502 });
+    }
+  }
   const emailCode = String(body.emailCode || "").trim();
   const accessToken = String(body.accessToken || "");
   const confirmation = String(body.confirmation || "");
@@ -62,7 +83,7 @@ export async function POST(request) {
       if (!error) verifiedUser = data?.user || null;
     } else {
       const verifier = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data, error } = await verifier.auth.verifyOtp({ email: user.email, token: emailCode, type: "email" });
+      const { data, error } = await verifier.auth.verifyOtp({ email: user.email, token: emailCode, type: "magiclink" });
       if (!error) verifiedUser = data?.user || null;
     }
     if (verifiedUser?.id !== user.uid || String(verifiedUser.email || "").toLowerCase() !== user.email.toLowerCase()) {
