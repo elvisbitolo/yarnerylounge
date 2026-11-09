@@ -191,6 +191,10 @@ export async function POST(request) {
       await tx.session.deleteMany({ where: { userId: user.uid } });
       await tx.pushSubscription.deleteMany({ where: { userId: user.uid } });
       await tx.socialLink.deleteMany({ where: { userId: user.uid } });
+      await tx.subscription.updateMany({
+        where: { OR: [{ id: user.uid }, { userId: user.uid }] },
+        data: { userId: null, shopifyCustomerId: null, providerCustomerId: null, providerSubscriptionId: null },
+      });
       await tx.whatsAppMessage.deleteMany({ where: { userId: user.uid } });
       await tx.authAttempt.deleteMany({ where: { email: { equals: user.email, mode: "insensitive" } } });
       await tx.musicFile.deleteMany({ where: { uploadedBy: user.uid } });
