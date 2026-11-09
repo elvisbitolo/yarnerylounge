@@ -179,3 +179,74 @@
     margin-left: 4px;
   }
 }
+
+
+/* Admin rail: wrap navigation into readable rows on compact screens. */
+@media (max-width: 900px) {
+  .railScroll {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px;
+    overflow: visible;
+    padding: 8px 14px 4px;
+  }
+
+  .railScroll > div {
+    min-width: 0;
+  }
+
+  .group {
+    display: block;
+    margin: 0 0 5px;
+    padding: 0 2px;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .group::after {
+    content: none;
+  }
+
+  .link {
+    width: 100%;
+    min-height: 42px;
+    box-sizing: border-box;
+    justify-content: flex-start;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 8px;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .newTag {
+    flex: none;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .railScroll {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding-inline: 12px;
+  }
+
+  .who {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .whoName {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 380px) {
+  .railScroll {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
