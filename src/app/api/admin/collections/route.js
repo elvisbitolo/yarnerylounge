@@ -8,8 +8,16 @@ export async function GET() {
   const auth = await requireOwner();
   const denied = guardJson(auth);
   if (denied) return denied;
-  const collections = await listCollections();
-  return NextResponse.json({ collections: serialize(collections) });
+  try {
+    const collections = await listCollections();
+    return NextResponse.json({ collections: serialize(collections) });
+  } catch (err) {
+    const status = httpStatusFor(err);
+    return NextResponse.json(
+      { error: status === 500 ? "Could not load collections" : err.message },
+      { status }
+    );
+  }
 }
 
 export async function POST(req) {
