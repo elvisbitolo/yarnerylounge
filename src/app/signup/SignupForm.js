@@ -8,6 +8,7 @@ import {
   completeOAuthReturn,
   signupWithOAuthProvider,
   signupWithSupabaseEmail,
+  reportAuthFailure,
   reconcileSessionCookie,
   refreshSession,
   resendSignupVerification,
@@ -279,6 +280,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
         window.location.assign("/signing-in");
       }
     } catch (err) {
+      reportAuthFailure({ email, action: "signup", provider: "email", error: err });
       if (err.code === "not_prepaid" || err.code === "expired") {
         // Explain why instead of silently dumping the visitor on the checkout:
         // they fill the form once, learn the sequence, and decide where to go.
