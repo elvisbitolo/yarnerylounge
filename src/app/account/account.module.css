@@ -1564,3 +1564,73 @@
     text-align: right;
   }
 }
+
+
+/* Account deletion */
+.deleteAccount {
+  margin-top: 28px;
+  padding: 24px;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  background: #fffafa;
+}
+.deleteTitle {
+  margin: 0 0 10px;
+  color: #991b1b;
+  font-size: 18px;
+  font-weight: 700;
+}
+.deleteCopy,
+.deleteWarning {
+  margin: 0 0 12px;
+  color: #6b4b4b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.deleteWarning {
+  padding: 12px;
+  border-radius: 9px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  font-weight: 600;
+}
+.deleteButton {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #b91c1c;
+  border-radius: 9px;
+  background: #b91c1c;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.deleteButton:hover:not(:disabled) { background: #991b1b; }
+.deleteButton:disabled { opacity: 0.55; cursor: not-allowed; }
+.deleteActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.deleteCancel {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #d8d8e3;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #34344a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.deleteCancel:hover { border-color: #9b9bab; }
+@media (max-width: 560px) {
+  .deleteAccount { padding: 18px; }
+  .deleteActions { align-items: stretch; flex-direction: column-reverse; }
+  .deleteActions button, .deleteAccount > button { width: 100%; }
+}
