@@ -28,10 +28,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "Sign in directly to your own account before requesting account deletion." }, { status: 403 });
   }
 
-  const limited = rateLimitGuard(`account-delete:${user.uid}`, { limit: 3, windowMs: 60 * 60_000 });
-  if (limited) return limited;
-
   const body = await request.json().catch(() => ({}));
+  const limitKey = body.action === "send-code" ? `account-delete-code:${user.uid}` : `account-delete:${user.uid}`;
+  const limited = rateLimitGuard(limitKey, { limit: body.action === "send-code" ? 3 : 5, windowMs: 60 * 60_000 });
+  if (limited) return limited;
   if (body.action === "send-code") {
     if (!user.email) return NextResponse.json({ error: "This account has no email address for verification." }, { status: 400 });
     try {
