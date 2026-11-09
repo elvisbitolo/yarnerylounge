@@ -47,7 +47,7 @@ export default async function AccountSettingsPage() {
           )}
         </section>
 
-        <DeleteAccountSection />
+        <DeleteAccountSection email={user.email || ""} />
 
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>Session</h2>
