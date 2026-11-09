@@ -13,6 +13,7 @@ export default function PasswordInput({
   onChange,
   required = true,
   autoComplete = "new-password",
+  placeholder = "At least 6 characters",
   showRules = true,
 }) {
   const [visible, setVisible] = useState(false);
@@ -43,6 +44,7 @@ export default function PasswordInput({
             required={required}
             minLength={6}
             autoComplete={autoComplete}
+            placeholder={placeholder}
             value={value}
             onChange={onChange}
             onFocus={() => setFocused(true)}
