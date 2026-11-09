@@ -180,7 +180,7 @@ export default function AdminCollectionsPage() {
         </form>
 
         <h2 className={styles.listTitle}>Collections</h2>
-        {!loading && collections.length === 0 ? (
+        {loading ? null : collections.length === 0 ? (
           <p className={styles.empty}>No collections yet.</p>
         ) : (
           <div className={styles.list}>
@@ -200,16 +200,19 @@ export default function AdminCollectionsPage() {
                   </div>
                   <div className={styles.itemActions}>
                     <button
+                      type="button"
                       className={styles.toggle}
                       onClick={() => startEdit(collection)}
                     >
                       Edit
                     </button>
                     <button
+                      type="button"
                       className={styles.delete}
                       onClick={() => handleDelete(collection.id)}
+                      disabled={deletingId === collection.id}
                     >
-                      Delete
+                      {deletingId === collection.id ? "Deleting…" : "Delete"}
                     </button>
                   </div>
                 </div>
