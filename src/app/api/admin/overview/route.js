@@ -26,15 +26,38 @@ export async function GET() {
       ]);
 
     const recentPostsRows = await prisma.post.findMany({
+      where: { deletedAt: null, scheduledAt: null },
       orderBy: { createdAt: "desc" },
       take: 8,
-      select: { id: true, authorName: true, text: true, createdAt: true },
+      select: {
+        id: true,
+        authorId: true,
+        authorName: true,
+        text: true,
+        kind: true,
+        imageUrl: true,
+        videoUrl: true,
+        editedAt: true,
+        createdAt: true,
+        commentCount: true,
+        likes: true,
+        author: { select: { name: true, username: true, photoURL: true } },
+      },
     });
     const recentPosts = recentPostsRows.map((p) => ({
       id: p.id,
-      authorName: p.authorName || "",
-      text: (p.text || "").slice(0, 140),
+      authorId: p.authorId || "",
+      authorName: p.author?.name || p.authorName || "Community member",
+      username: p.author?.username || "",
+      photoURL: p.author?.photoURL || "",
+      text: (p.text || "").slice(0, 180),
+      kind: p.kind || "post",
+      hasImage: !!p.imageUrl,
+      hasVideo: !!p.videoUrl,
+      edited: !!p.editedAt,
       createdAt: p.createdAt ? p.createdAt.getTime() : 0,
+      commentCount: p.commentCount || 0,
+      likeCount: p.likes && typeof p.likes === "object" ? Object.keys(p.likes).length : 0,
     }));
 
     const leaderboard = await getLeaderboard(5);
