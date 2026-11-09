@@ -3,6 +3,7 @@ import AccountTabs from "../AccountTabs";
 import UsernameForm from "../UsernameForm";
 import ChangePasswordForm from "./ChangePasswordForm";
 import LogoutButton from "../LogoutButton";
+import DeleteAccountSection from "./DeleteAccountSection";
 import styles from "../account.module.css";
 import { loadAccount } from "../account-data";
 
@@ -45,6 +46,8 @@ export default async function AccountSettingsPage() {
             </div>
           )}
         </section>
+
+        <DeleteAccountSection />
 
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>Session</h2>
