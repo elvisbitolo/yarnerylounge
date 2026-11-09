@@ -6,6 +6,27 @@ import { useRouter } from "next/navigation";
 import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import styles from "./rooms/admin.module.css";
 
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return "Date unavailable";
+
+  const seconds = Math.round((timestamp - Date.now()) / 1000);
+  if (Math.abs(seconds) < 45) return "just now";
+
+  const units = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["week", 604800],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+  const [unit, unitSeconds] = units.find(([, size]) => Math.abs(seconds) >= size) || units[units.length - 1];
+  return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
+    Math.round(seconds / unitSeconds),
+    unit
+  );
+}
+
 export default function AdminOverviewPage() {
   const router = useRouter();
   const [role, setRole] = useState("member");
@@ -150,8 +171,12 @@ export default function AdminOverviewPage() {
                             <p className={styles.itemName}>{post.authorName}</p>
                             {post.username ? <span className={styles.recentPostUsername}>@{post.username}</span> : null}
                           </div>
-                          <time className={styles.recentPostTime} dateTime={new Date(post.createdAt).toISOString()}>
-                            {post.createdAt ? new Date(post.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Date unavailable"}
+                          <time
+                            className={styles.recentPostTime}
+                            dateTime={post.createdAt ? new Date(post.createdAt).toISOString() : undefined}
+                            title={post.createdAt ? new Date(post.createdAt).toLocaleString() : "Date unavailable"}
+                          >
+                            {formatRelativeTime(post.createdAt)}
                           </time>
                         </div>
                         <p className={styles.recentPostText}>{post.text || "(No text content)"}</p>
