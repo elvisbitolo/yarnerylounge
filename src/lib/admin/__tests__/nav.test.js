@@ -23,6 +23,14 @@ test("moderators never see an owner-guarded item", () => {
   }
 });
 
+test("groups and spaces management are owner-only", () => {
+  for (const href of ["/admin/groups", "/admin/spaces"]) {
+    assert.equal(guardFor(href), "owner");
+    assert.equal(canSee(href, "moderator"), false);
+    assert.equal(canSee(href, "owner"), true);
+  }
+});
+
 test("owners see every item", () => {
   const seen = sectionsForRole("owner")
     .flatMap((s) => s.items)
