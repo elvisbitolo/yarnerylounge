@@ -54,7 +54,7 @@ export default function AdminOverviewPage() {
   const forbidden = error === "Forbidden";
 
   return (
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.overviewContainer}`}>
         <h1 className={styles.title}>Admin overview</h1>
         {forbidden ? (
           <div className={styles.form}>
