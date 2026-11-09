@@ -12,6 +12,8 @@ export default function AdminCollectionsPage() {
   const [spaces, setSpaces] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
@@ -19,8 +21,10 @@ export default function AdminCollectionsPage() {
   const [selected, setSelected] = useState([]);
 
   const loadCollections = useCallback(async () => {
-    const res = await fetch("/api/admin/collections");
-    if (res.ok) setCollections((await res.json()).collections);
+    const res = await fetch("/api/admin/collections", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Could not load collections");
+    setCollections(Array.isArray(data.collections) ? data.collections : []);
   }, []);
 
   useEffect(() => {
@@ -29,10 +33,16 @@ export default function AdminCollectionsPage() {
         router.push("/login");
         return;
       }
-      loadCollections();
-      fetch("/api/spaces?admin=1")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => data && setSpaces(data.spaces));
+      Promise.all([
+        loadCollections(),
+        fetch("/api/spaces?admin=1", { cache: "no-store" }).then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "Could not load spaces");
+          setSpaces(Array.isArray(data.spaces) ? data.spaces : []);
+        }),
+      ])
+        .catch((err) => setError(err.message || "Could not load collection data"))
+        .finally(() => setLoading(false));
     });
     return unsub;
   }, [router, loadCollections]);
@@ -88,26 +98,33 @@ export default function AdminCollectionsPage() {
   }
 
   async function handleDelete(id) {
+    const collection = collections.find((item) => item.id === id);
+    if (!collection || !window.confirm(`Delete "${collection.name}"? Spaces will not be deleted.`)) return;
     setError("");
+    setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/collections/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Could not delete collection");
+      const res = await fetch(`/api/admin/collections/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not delete collection");
       await loadCollections();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not delete collection");
+    } finally {
+      setDeletingId(null);
     }
   }
 
   return (
-      <div className={styles.container}>
+      <div className={`${styles.page} ${styles.container}`}>
         <h1 className={styles.title}>Collections</h1>
         <p className={styles.subtitle}>
           Group spaces together, like Mighty Network collections. Collections
           appear at the top of the sidebar so members can find their content.
         </p>
-        {error && <p className={styles.error}>{error}</p>}
+        {error && <p className={styles.error} role="alert">{error}</p>}
+        {loading && <p className={styles.subtitle} role="status">Loading collections and spaces…</p>}
 
-        <form className={styles.form} onSubmit={handleSave}>
+        <form className={styles.form} onSubmit={handleSave} aria-busy={busy}>
           <h2 className={styles.formTitle}>
             {editingId ? "Edit collection" : "New collection"}
           </h2>
@@ -163,7 +180,7 @@ export default function AdminCollectionsPage() {
         </form>
 
         <h2 className={styles.listTitle}>Collections</h2>
-        {collections.length === 0 ? (
+        {!loading && collections.length === 0 ? (
           <p className={styles.empty}>No collections yet.</p>
         ) : (
           <div className={styles.list}>
