@@ -47,6 +47,7 @@ export async function POST(request) {
   if (!prisma) return NextResponse.json({ error: "Account services are temporarily unavailable." }, { status: 503 });
 
   let blobUrls = [];
+  let authDeleted = false;
   try {
     // Verify a one-time email code. This works for password and Google/Facebook
     // accounts alike, unlike asking every member to have a local password.
@@ -111,6 +112,8 @@ export async function POST(request) {
       logError("account.delete_auth_failed", { uid: user.uid, error: authDeleteError.message });
       return NextResponse.json({ error: "We could not securely close your sign-in account. No profile changes were made." }, { status: 502 });
     }
+
+    authDeleted = true;
 
     await prisma.$transaction(async (tx) => {
       // Keep public contributions and thread structure, but remove their
@@ -274,12 +277,14 @@ export async function POST(request) {
   } catch (error) {
     // If Auth deletion succeeded but a later database operation failed, make
     // a best-effort attempt to revoke the app sessions and lock the tombstone.
-    try {
-      await prisma.session.deleteMany({ where: { userId: user.uid } });
-      await prisma.user.update({ where: { id: user.uid }, data: { suspended: true } });
-      (await cookies()).delete(AUTH_COOKIE);
-    } catch (cleanupError) {
-      logError("account.delete_emergency_lock_failed", { uid: user.uid, error: cleanupError?.message });
+    if (authDeleted) {
+      try {
+        await prisma.session.deleteMany({ where: { userId: user.uid } });
+        await prisma.user.update({ where: { id: user.uid }, data: { suspended: true } });
+        (await cookies()).delete(AUTH_COOKIE);
+      } catch (cleanupError) {
+        logError("account.delete_emergency_lock_failed", { uid: user.uid, error: cleanupError?.message });
+      }
     }
     logError("account.delete_failed", { uid: user.uid, error: error?.message || "Unknown error" });
     return NextResponse.json({
