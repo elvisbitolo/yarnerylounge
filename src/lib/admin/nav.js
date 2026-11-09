@@ -12,9 +12,9 @@ export const ADMIN_SECTIONS = [
   { label: "Community", items: [
     { href: "/admin/members", label: "Members", guard: "moderator", basis: "/api/admin/members -> requireModerator()" },
     { href: "/admin/moderation", label: "Moderation", guard: "moderator", basis: "/api/admin/reports -> canModerate()" },
-    { href: "/admin/groups", label: "Groups", guard: "moderator", basis: "UNVERIFIED - see audit note" },
+    { href: "/admin/groups", label: "Groups", guard: "owner", basis: "/api/groups/[id] PATCH/DELETE -> requireOwner(); admin group management is owner-only" },
     { href: "/admin/hosts", label: "Hosts", guard: "moderator", basis: "/api/admin/host-assignments -> requireModerator()" },
-    { href: "/admin/spaces", label: "Spaces", guard: "moderator", basis: "UNVERIFIED - space CRUD is requireOwner()" },
+    { href: "/admin/spaces", label: "Spaces", guard: "owner", basis: "/api/spaces POST and admin listing -> requireOwner()" },
   ] },
   { label: "Editorial", items: [
     { href: "/admin/announcements", label: "Announcements", guard: "moderator", basis: "/api/admin/announcements -> requireModerator()" },
@@ -22,11 +22,11 @@ export const ADMIN_SECTIONS = [
     { href: "/admin/collections", label: "Collections", guard: "owner", basis: "/api/admin/collections -> requireOwner()" },
   ] },
   { label: "Live", items: [
-    { href: "/admin/rooms", label: "Lounges", guard: "moderator", basis: "UNVERIFIED - /api/rooms POST is requireUser()" },
-    { href: "/admin/events", label: "Events", guard: "moderator", basis: "UNVERIFIED - /api/events POST is requireUser()" },
+    { href: "/admin/rooms", label: "Lounges", guard: "moderator", basis: "/api/rooms POST -> staff or scoped host/Moving In capability; admin member data -> requireModerator()" },
+    { href: "/admin/events", label: "Events", guard: "moderator", basis: "/api/events POST -> canModerate() or scoped host rights" },
   ] },
   { label: "Learning", items: [
-    { href: "/admin/courses", label: "Courses", guard: "moderator", basis: "UNVERIFIED - /api/courses POST is requireUser()" },
+    { href: "/admin/courses", label: "Courses", guard: "moderator", basis: "/api/courses POST -> canModerate() or scoped host rights" },
     { href: "/admin/questions", label: "Questions", guard: "owner", basis: "/api/admin/questions -> requireOwner()" },
   ] },
   { label: "System", items: [
