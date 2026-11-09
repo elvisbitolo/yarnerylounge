@@ -15,6 +15,10 @@ async function loadSystemSnapshot() {
     recordings: null,
     storage: null,
     authAttempts: null,
+    recentMembers: null,
+    memberCount: null,
+    notificationActivity: null,
+    whatsappDeliveryActivity: null,
     checkedAt: new Date().toISOString(),
   };
 
@@ -93,6 +97,50 @@ async function loadSystemSnapshot() {
     snapshot.authAttempts = rows;
   } catch {
     snapshot.authAttempts = null;
+  }
+
+  try {
+    const prisma = getPrisma();
+    const [members, memberCount] = await Promise.all([
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        select: { id: true, name: true, email: true, plan: true, paymentStatus: true, role: true, createdAt: true },
+      }),
+      prisma.user.count(),
+    ]);
+    snapshot.recentMembers = members;
+    snapshot.memberCount = memberCount;
+  } catch {
+    snapshot.recentMembers = null;
+    snapshot.memberCount = null;
+  }
+
+  try {
+    const prisma = getPrisma();
+    snapshot.notificationActivity = await prisma.notification.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: {
+        id: true, userId: true, type: true, actorName: true, text: true,
+        read: true, href: true, createdAt: true,
+        user: { select: { name: true, email: true } },
+      },
+    });
+  } catch {
+    snapshot.notificationActivity = null;
+  }
+
+  try {
+    const prisma = getPrisma();
+    snapshot.whatsappDeliveryActivity = await prisma.whatsAppMessage.findMany({
+      where: { direction: "outbound" },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+      select: { id: true, userId: true, toPhone: true, text: true, status: true, providerMessageId: true, createdAt: true },
+    });
+  } catch {
+    snapshot.whatsappDeliveryActivity = null;
   }
 
   return snapshot;
@@ -225,6 +273,107 @@ export default async function DeveloperPage() {
                       <td><span className={styles.eventError}>{attempt.errorCode || "auth_error"}</span></td>
                       <td className={styles.authErrorDetails}>{attempt.errorMessage || "Authentication was unsuccessful"}</td>
                       <td>{attempt.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <div><p className={styles.eyebrow}>Member directory</p><h2>Successful registrations</h2></div>
+          <span className={styles.muted}>{snapshot.memberCount == null ? "Total unavailable" : `${snapshot.memberCount.toLocaleString()} accounts · latest 100 shown`}</span>
+        </div>
+        <div className={styles.networkPanel}>
+          <p className={styles.networkIntro}>Accounts successfully provisioned in the application database, including email/password and OAuth registrations. This reflects persisted member records, not attempted signups.</p>
+          {snapshot.recentMembers === null ? (
+            <p className={styles.networkEmpty}>Registered member records are currently unavailable.</p>
+          ) : snapshot.recentMembers.length === 0 ? (
+            <p className={styles.networkEmpty}>No member accounts have been registered yet.</p>
+          ) : (
+            <div className={styles.networkTableWrap}>
+              <table className={styles.networkTable}>
+                <thead><tr><th>Registered</th><th>Name</th><th>Email</th><th>Plan</th><th>Payment status</th><th>Role</th><th>Account ID</th></tr></thead>
+                <tbody>
+                  {snapshot.recentMembers.map((member) => (
+                    <tr key={member.id}>
+                      <td>{member.createdAt ? new Date(member.createdAt).toLocaleString() : "—"}</td>
+                      <td>{member.name || "—"}</td>
+                      <td>{member.email || "—"}</td>
+                      <td>{member.plan || "Not assigned"}</td>
+                      <td>{member.paymentStatus || "—"}</td>
+                      <td>{member.role || "member"}</td>
+                      <td>{member.id}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <div><p className={styles.eyebrow}>Notification monitoring</p><h2>In-app notification activity</h2></div>
+          <span className={styles.muted}>Latest 100 · newest first</span>
+        </div>
+        <div className={styles.networkPanel}>
+          <p className={styles.networkIntro}>Persisted notification records with recipient, category, message, read state and timestamp. These rows confirm in-app notification creation; they do not prove browser push or email delivery.</p>
+          {snapshot.notificationActivity === null ? (
+            <p className={styles.networkEmpty}>Notification records are currently unavailable.</p>
+          ) : snapshot.notificationActivity.length === 0 ? (
+            <p className={styles.networkEmpty}>No in-app notifications have been recorded yet.</p>
+          ) : (
+            <div className={styles.networkTableWrap}>
+              <table className={styles.networkTable}>
+                <thead><tr><th>Created</th><th>Recipient</th><th>Email</th><th>Type</th><th>Message</th><th>Read</th><th>Destination</th></tr></thead>
+                <tbody>
+                  {snapshot.notificationActivity.map((notification) => (
+                    <tr key={notification.id}>
+                      <td>{new Date(notification.createdAt).toLocaleString()}</td>
+                      <td>{notification.user?.name || notification.userId}</td>
+                      <td>{notification.user?.email || "—"}</td>
+                      <td>{notification.type}</td>
+                      <td className={styles.authErrorDetails}>{notification.text}</td>
+                      <td><span className={notification.read ? styles.eventInfo : styles.eventWarning}>{notification.read ? "Read" : "Unread"}</span></td>
+                      <td>{notification.href || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <div><p className={styles.eyebrow}>WhatsApp delivery</p><h2>Outbound WhatsApp messages</h2></div>
+          <span className={styles.muted}>Latest 60 · newest first</span>
+        </div>
+        <div className={styles.networkPanel}>
+          <p className={styles.networkIntro}>Outbound WhatsApp messages recorded after the provider accepts a message. Delivery and read states depend on incoming Meta receipts; a status of sent does not mean delivered or read.</p>
+          {snapshot.whatsappDeliveryActivity === null ? (
+            <p className={styles.networkEmpty}>WhatsApp delivery records are currently unavailable.</p>
+          ) : snapshot.whatsappDeliveryActivity.length === 0 ? (
+            <p className={styles.networkEmpty}>No outbound WhatsApp messages have been recorded yet.</p>
+          ) : (
+            <div className={styles.networkTableWrap}>
+              <table className={styles.networkTable}>
+                <thead><tr><th>Created</th><th>Recipient account</th><th>Phone</th><th>Message</th><th>Provider status</th><th>Provider ID</th></tr></thead>
+                <tbody>
+                  {snapshot.whatsappDeliveryActivity.map((message) => (
+                    <tr key={message.id}>
+                      <td>{new Date(message.createdAt).toLocaleString()}</td>
+                      <td>{message.userId}</td>
+                      <td>{message.toPhone || "—"}</td>
+                      <td className={styles.authErrorDetails}>{message.text || "—"}</td>
+                      <td><span className={message.status === "failed" ? styles.eventError : message.status === "delivered" || message.status === "read" ? styles.eventInfo : styles.eventWarning}>{message.status || "unknown"}</span></td>
+                      <td>{message.providerMessageId || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
