@@ -60,7 +60,7 @@ export default function ChangePasswordForm() {
     <section className={styles.card}>
       <h2 className={styles.cardTitle}>Change password</h2>
       <p className={styles.fieldHint} style={{ marginTop: -6, marginBottom: 14 }}>
-        Choose a password with at least 5 characters. Letters, numbers, and symbols are all optional.
+        Choose a password with at least 6 characters. Letters, numbers, and symbols are all optional.
       </p>
       {saved && <p className={styles.formSaved}>Password changed. Use it the next time you sign in.</p>}
       {error && <p className={styles.formError}>{error}</p>}
