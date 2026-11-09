@@ -28,19 +28,6 @@
 const OAUTH_AUTHORIZE = {
   google: { scopes: "profile email openid", prompt: "select_account" },
   facebook: {},
-  // Key MUST be `linkedin_oidc`, not `linkedin`. GoTrue resolves the id against
-  // a config map (internal/api/provider_constants.go): "linkedin" is the legacy
-  // provider, "linkedin_oidc" is the one Supabase's "LinkedIn (OIDC)" toggle
-  // populates. Sending `linkedin` reaches an empty disabled config and returns
-  // 400 "Unsupported provider: provider is not enabled" — no credentials can
-  // fix that, because they are attached to the other id.
-  //
-  // The UI label stays "Continue with LinkedIn"; only the id sent upstream
-  // changes. No scopes, deliberately: GoTrue hardcodes exactly openid/email/
-  // profile (provider/linkedin_oidc.go) and those are the only three LinkedIn
-  // supports. The previous space-scoped override was worse than redundant —
-  // GoTrue appends custom scopes with strings.Split(s, ","), so it arrived as
-  // ONE bogus token with literal spaces and the authorize call was rejected.
 };
 
 // Failure copy for the return leg, keyed off the `?provider=` marker. Without
