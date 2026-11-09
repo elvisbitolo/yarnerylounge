@@ -793,3 +793,69 @@ a.statCard:hover {
     width: 100%;
   }
 }
+
+
+/* Admin overview: richer recent-post attribution */
+.overviewContainer .recentPostItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 16px;
+}
+.recentPostAvatar {
+  display: flex;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #fce7f1;
+  color: #b51e60;
+  font-size: 13px;
+  font-weight: 800;
+}
+.recentPostAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.recentPostContent { flex: 1; min-width: 0; }
+.recentPostHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.recentPostAuthor { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
+.recentPostUsername { color: #8a8994; font-size: 12px; overflow-wrap: anywhere; }
+.recentPostTime { flex: 0 0 auto; color: #8a8994; font-size: 11px; text-align: right; }
+.recentPostText {
+  margin: 7px 0 10px;
+  color: #34343d;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.recentPostFooter { display: flex; flex-wrap: wrap; gap: 6px; }
+.recentPostFooter span {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f7f5f7;
+  color: #77727c;
+  font-size: 10px;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .overviewContainer .recentPostItem { gap: 10px; padding: 13px; }
+  .recentPostAvatar { flex-basis: 38px; width: 38px; height: 38px; }
+  .recentPostHeader { flex-direction: column; gap: 3px; }
+  .recentPostTime { text-align: left; }
+  .recentPostText { font-size: 13px; }
+}
