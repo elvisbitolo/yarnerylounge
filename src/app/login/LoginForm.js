@@ -211,6 +211,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
             // while the fresh session cookie is read server-side.
             window.location.assign("/signing-in");
           } else {
+            reportAuthFailure({ action: "oauth_login", provider: params.get("provider") || "unknown", error: new Error("OAuth return did not produce a usable session") });
             // OAuth finished on a different origin and 308'd us here without a
             // recoverable session (stale host flow). Release the stuck param so
             // the form is usable again.
@@ -220,6 +221,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
           }
         } catch (err) {
           if (!cancelled) {
+            reportAuthFailure({ action: "oauth_login", provider: params.get("provider") || "unknown", error: err });
             if (err.code === "not_prepaid" && err.redirect) {
               window.location.assign(err.redirect);
             } else if (err.code === "not_prepaid") {
@@ -272,6 +274,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
       // completeOAuthReturn() finalizer exchanges the session on return.
       await loginWithOAuthProvider(provider);
     } catch (err) {
+      reportAuthFailure({ email, action: "oauth_login", provider, error: err });
       setError(err.message || t(oauthFailedKey(provider)));
       setBusy("");
     }
