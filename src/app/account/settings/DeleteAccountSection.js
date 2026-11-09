@@ -19,11 +19,14 @@ export default function DeleteAccountSection({ email }) {
     setError("");
     setSendingCode(true);
     try {
-      const { error: sendError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false },
+      const response = await fetch("/api/me/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "send-code" }),
       });
-      if (sendError) throw sendError;
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Could not send the verification email.");
       setCodeSent(true);
     } catch (err) {
       setError(err.message || "Could not send the verification email. Try again.");
@@ -31,7 +34,6 @@ export default function DeleteAccountSection({ email }) {
       setSendingCode(false);
     }
   }
-
   async function handleDelete(event) {
     event.preventDefault();
     setError("");
