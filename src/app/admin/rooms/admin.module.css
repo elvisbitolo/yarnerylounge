@@ -962,3 +962,43 @@ a.statCard:hover {
     padding: 22px 14px 36px;
   }
 }
+
+
+/* Ensure admin course routes fill the entire admin content column. */
+:global(body):has(.courseManager),
+:global(body):has(.courseEditor) {
+  background: #ffffff;
+}
+
+.courseManager,
+.courseEditor {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 100vh;
+  margin: 0;
+  padding: 28px clamp(14px, 3vw, 36px) 48px;
+  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+@media (min-width: 901px) {
+  .courseManager,
+  .courseEditor {
+    width: 100%;
+    min-height: 100vh;
+  }
+}
+
+@media (max-width: 900px) {
+  .courseManager,
+  .courseEditor {
+    width: 100%;
+    min-height: auto;
+    padding: 22px 14px 36px;
+  }
+}
