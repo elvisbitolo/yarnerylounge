@@ -23,6 +23,9 @@ export async function POST(request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  if (user.actorUid && user.actorUid !== user.uid) {
+    return NextResponse.json({ error: "Sign in directly to your own account before requesting account deletion." }, { status: 403 });
+  }
 
   const limited = rateLimitGuard(`account-delete:${user.uid}`, { limit: 3, windowMs: 60 * 60_000 });
   if (limited) return limited;
@@ -59,6 +62,14 @@ export async function POST(request) {
     });
     if (verifyError || verified?.user?.id !== user.uid) {
       return NextResponse.json({ error: "That verification code is invalid or expired. Your account has not been changed." }, { status: 400 });
+    }
+
+    const accountRole = await prisma.user.findUnique({ where: { id: user.uid }, select: { role: true } });
+    if (accountRole?.role === "owner") {
+      const otherOwners = await prisma.user.count({ where: { id: { not: user.uid }, role: "owner", suspended: false } });
+      if (otherOwners === 0) {
+        return NextResponse.json({ error: "Transfer ownership to another active owner before deleting this account. Secret Yarnery must retain an active owner." }, { status: 409 });
+      }
     }
 
     const storedSub = await prisma.subscription.findFirst({
