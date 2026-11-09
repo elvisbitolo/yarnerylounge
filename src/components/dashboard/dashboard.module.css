@@ -2932,3 +2932,29 @@ a.activityActor:hover .itemTitle {
   .yourCommunityStat span { font-size: 9px; }
   .yourCommunityColumns { grid-template-columns: 1fr; }
 }
+
+
+/* Keep dashboard content readable on large and ultrawide displays. */
+.page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1760px;
+  margin-inline: auto;
+  padding: clamp(18px, 2vw, 32px);
+}
+
+.grid {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 901px) {
+  .pageWrap {
+    min-width: 0;
+  }
+}
