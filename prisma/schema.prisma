@@ -1485,6 +1485,22 @@ model AutomationHistory {
   @@index([automationId, ranAt(sort: Desc)])
 }
 
+// Failed authentication attempts reported by the sign-in/sign-up client.
+// Deliberately has no User relation: failed attempts often have no account yet.
+model AuthAttempt {
+  id           String   @id @default(cuid())
+  email        String?
+  action       String
+  provider     String
+  errorCode    String?
+  errorMessage String?  @db.VarChar(500)
+  source       String   @default("client_reported")
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([email, createdAt(sort: Desc)])
+}
+
 model AuditLog {
   id        String    @id @default(cuid())
   actorId   String

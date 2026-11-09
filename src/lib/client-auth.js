@@ -13,6 +13,28 @@ import { oauthAuthorizeOptions } from "@/lib/oauth-providers";
 // this guard a placeholder flows straight into `redirectTo`, and the member is
 // handed to an address that does not exist — the Google sign-in appears to do
 // nothing at all.
+
+// Best-effort reporting for failed auth actions. Never send passwords, tokens,
+// or provider response payloads; the server stores only the submitted email and
+// a bounded error code/message for the private developer monitor.
+export function reportAuthFailure({ email, action, provider = "email", error } = {}) {
+  if (typeof window === "undefined") return;
+  const payload = {
+    email: String(email || "").trim().slice(0, 254),
+    action,
+    provider,
+    errorCode: String(error?.code || "auth_error").slice(0, 100),
+    errorMessage: String(error?.message || "Authentication was unsuccessful").slice(0, 500),
+  };
+  fetch("/api/auth/attempt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    keepalive: true,
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
 const CONFIGURED_APP_URL = process.env.NEXT_PUBLIC_APP_URL || "";
 const APP_URL = /^https?:\/\/[^\s"']+$/i.test(CONFIGURED_APP_URL)
   ? CONFIGURED_APP_URL.replace(/\/+$/, "")
@@ -113,16 +135,16 @@ export async function loginWithSupabaseEmail(email, password) {
     password,
   });
   if (error) {
-    if (error.code === "invalid_credentials") {
-      throw new Error("That email and password combination does not match our records.");
+    let message = error.message || "Could not sign in. Please try again.";
+    if (error.code === "invalid_credentials" || error.code === "user_not_found") {
+      message = "That email and password combination does not match our records.";
+    } else if (error.code === "email_not_confirmed") {
+      message = "Please verify your email first — check your inbox for the confirmation link.";
     }
-    if (error.code === "user_not_found") {
-      throw new Error("That email and password combination does not match our records.");
-    }
-    if (error.code === "email_not_confirmed") {
-      throw new Error("Please verify your email first — check your inbox for the confirmation link.");
-    }
-    throw new Error(error.message || "Could not sign in. Please try again.");
+    const authError = new Error(message);
+    authError.code = error.code || "auth_error";
+    authError.status = error.status || null;
+    throw authError;
   }
   const session = data?.session;
   if (session?.access_token) {
