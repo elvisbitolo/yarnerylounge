@@ -226,6 +226,9 @@ export default function DashboardShell() {
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} photoURL={user.photoURL} />
         </div>
+        <div data-tour="tour-membership">
+          <DashboardMembershipCard />
+        </div>
         {/* What's On is a first-screen dashboard feature: keep it immediately
             below the welcome banner so members can see community activity. */}
         {spotlight && (
@@ -255,7 +258,6 @@ export default function DashboardShell() {
           <div className={styles.col}>
             <CommunityNextSteps />
             <ReturnVisitCard streak={user.streak} points={user.points} />
-            <DashboardMembershipCard />
           </div>
           <div className={styles.col}>
             <DashboardActiveMembers />
