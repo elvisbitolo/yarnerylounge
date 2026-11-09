@@ -475,7 +475,7 @@ export function DashboardMembershipCard() {
   const { value, loading } = useDashboardResource("/api/membership/me", "membership");
   const membership = value && typeof value === "object" ? value : null;
   return (
-    <DashboardCard title="Your membership" href="/membership" linkLabel="View benefits">
+    <DashboardCard title="Manage membership" href="/membership" linkLabel="View benefits">
       {loading ? <p className={styles.itemBody}>Loading membership…</p> : membership ? (
         <>
           <div className={styles.membershipSummary}>
