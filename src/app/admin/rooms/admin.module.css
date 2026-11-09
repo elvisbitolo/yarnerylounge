@@ -859,3 +859,65 @@ a.statCard:hover {
   .recentPostTime { text-align: left; }
   .recentPostText { font-size: 13px; }
 }
+
+
+/* Admin course pages live inside the admin shell, not the community Nav. */
+.courseManager,
+.courseEditor {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 36px clamp(16px, 4vw, 48px) 56px;
+  box-sizing: border-box;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.courseManager .form,
+.courseEditor .form {
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+}
+
+.courseManager > .title,
+.courseEditor > .title,
+.courseManager > .listTitle,
+.courseEditor > .listTitle,
+.courseManager > .list,
+.courseEditor > .list,
+.courseManager > .empty,
+.courseEditor > .empty {
+  width: 100%;
+  max-width: 1040px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 900px) {
+  .courseManager,
+  .courseEditor {
+    min-height: calc(100vh - 150px);
+    padding: 28px 18px 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .courseManager,
+  .courseEditor {
+    padding: 24px 14px 36px;
+  }
+
+  .courseManager .form,
+  .courseEditor .form {
+    padding: 18px 14px;
+  }
+
+  .courseManager .title,
+  .courseEditor .title {
+    font-size: clamp(24px, 7vw, 30px);
+    overflow-wrap: anywhere;
+  }
+}
