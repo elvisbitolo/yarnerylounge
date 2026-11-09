@@ -414,6 +414,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
                 required
                 autoComplete="name"
                 value={name}
+                placeholder="Enter your full name"
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
@@ -426,6 +427,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
                 required
                 autoComplete="email"
                 value={email}
+                placeholder="Enter your email address"
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
