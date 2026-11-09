@@ -245,6 +245,11 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
   const administrationLinks = getAdministrationLinks(role);
   const close = () => setMobileOpen(false);
 
+  // Admin has a dedicated console shell and navigation. Do not render the
+  // community topbar, sidebar, or fixed bottom navigation around it.
+  if (pathname?.startsWith("/admin")) return children;
+
+
   useEffect(() => {
     if (!mobileSearch) return undefined;
     const frame = requestAnimationFrame(() => mobileSearchInputRef.current?.focus());
