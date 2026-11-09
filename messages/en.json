@@ -403,7 +403,7 @@
     "recoveryDesc": "Set a new password for your account.",
     "updatePassword": "Update password",
     "passwordsMismatch": "Passwords don't match",
-    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordTooShort": "Password must be at least 6 characters",
     "recoveryInvalid": "This reset link is invalid or has expired. Request a new one.",
     "backToSignIn": "Back to sign in",
     "backToLanding": "Back to the site",
