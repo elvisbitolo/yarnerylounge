@@ -191,6 +191,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
           window.location.assign("/signing-in");
         } else {
+          reportAuthFailure({ action: "oauth_signup", provider: params.get("provider") || "unknown", error: new Error("OAuth return did not produce a usable session") });
           // OAuth finished on a different origin and 308'd us here without a
           // recoverable session (stale host flow). Release the stuck param so
           // the form is usable again.
@@ -200,6 +201,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
         }
       } catch (err) {
         if (!cancelled) {
+          reportAuthFailure({ action: "oauth_signup", provider: params.get("provider") || "unknown", error: err });
           if (err.code === "not_prepaid" || err.code === "expired") {
             // The provider account isn't a paid member — stop the spinner and
             // show the explained membership-required box with the plan CTA
@@ -233,6 +235,7 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
       // completeOAuthReturn() finalizer exchanges the session on return.
       await signupWithOAuthProvider(provider);
     } catch (err) {
+      reportAuthFailure({ email, action: "oauth_signup", provider, error: err });
       setError(err.message || t(oauthFailedKey(provider)));
       setBusy("");
     }
