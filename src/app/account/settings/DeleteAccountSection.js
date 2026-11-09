@@ -5,13 +5,32 @@ import { useRouter } from "next/navigation";
 import styles from "../account.module.css";
 import { supabase } from "@/lib/supabase";
 
-export default function DeleteAccountSection() {
+export default function DeleteAccountSection({ email }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  async function sendVerificationCode() {
+    setError("");
+    setSendingCode(true);
+    try {
+      const { error: sendError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+      if (sendError) throw sendError;
+      setCodeSent(true);
+    } catch (err) {
+      setError(err.message || "Could not send the verification email. Try again.");
+    } finally {
+      setSendingCode(false);
+    }
+  }
 
   async function handleDelete(event) {
     event.preventDefault();
@@ -27,7 +46,7 @@ export default function DeleteAccountSection() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ currentPassword: password, confirmation }),
+        body: JSON.stringify({ emailCode, confirmation }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Account deletion could not be completed.");
@@ -63,18 +82,27 @@ export default function DeleteAccountSection() {
         <form onSubmit={handleDelete}>
           {error && <p className={styles.formError} role="alert">{error}</p>}
           <div className={styles.field}>
-            <label className={styles.fieldLabel} htmlFor="delete-current-password">Current password</label>
-            <input
-              id="delete-current-password"
-              className={styles.input}
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={1}
-            />
+            <p className={styles.fieldHint}>We will send a one-time verification code to {email}. This confirms that you control the account email.</p>
+            <button type="button" className={styles.deleteCancel} onClick={sendVerificationCode} disabled={sendingCode || !email}>
+              {sendingCode ? "Sending code…" : codeSent ? "Resend verification code" : "Send verification code"}
+            </button>
           </div>
+          {codeSent && (
+            <div className={styles.field}>
+              <label className={styles.fieldLabel} htmlFor="delete-email-code">Email verification code</label>
+              <input
+                id="delete-email-code"
+                className={styles.input}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={8}
+                value={emailCode}
+                onChange={(event) => setEmailCode(event.target.value.replace(/\\D/g, "").slice(0, 8))}
+                required
+              />
+            </div>
+          )}
           <div className={styles.field}>
             <label className={styles.fieldLabel} htmlFor="delete-confirmation">
               Type DELETE to confirm
@@ -93,7 +121,7 @@ export default function DeleteAccountSection() {
             <button type="button" className={styles.deleteCancel} onClick={() => { setOpen(false); setError(""); }}>
               Keep my account
             </button>
-            <button type="submit" className={styles.deleteButton} disabled={busy || confirmation !== "DELETE" || !password}>
+            <button type="submit" className={styles.deleteButton} disabled={busy || confirmation !== "DELETE" || !/^\\d{6,8}$/.test(emailCode)}>
               {busy ? "Deleting account…" : "Permanently delete account"}
             </button>
           </div>
