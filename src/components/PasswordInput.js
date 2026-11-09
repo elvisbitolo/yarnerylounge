@@ -3,10 +3,7 @@
 import { useState } from "react";
 
 const RULES = [
-  { key: "length", test: (v) => v.length >= 8, label: "At least 8 characters" },
-  { key: "upper", test: (v) => /[A-Z]/.test(v), label: "One uppercase letter" },
-  { key: "lower", test: (v) => /[a-z]/.test(v), label: "One lowercase letter" },
-  { key: "number", test: (v) => /[0-9]/.test(v), label: "One number" },
+  { key: "length", test: (v) => v.length >= 5, label: "At least 5 characters" },
 ];
 
 export default function PasswordInput({
@@ -44,7 +41,7 @@ export default function PasswordInput({
             id={id}
             type={visible ? "text" : "password"}
             required={required}
-            minLength={8}
+            minLength={5}
             autoComplete={autoComplete}
             value={value}
             onChange={onChange}
