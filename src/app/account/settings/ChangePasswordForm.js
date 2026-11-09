@@ -60,8 +60,7 @@ export default function ChangePasswordForm() {
     <section className={styles.card}>
       <h2 className={styles.cardTitle}>Change password</h2>
       <p className={styles.fieldHint} style={{ marginTop: -6, marginBottom: 14 }}>
-        Pick something only you know — at least 8 characters with a letter and a number or
-        symbol. Longer is stronger.
+        Choose a password with at least 5 characters. Letters, numbers, and symbols are all optional.
       </p>
       {saved && <p className={styles.formSaved}>Password changed. Use it the next time you sign in.</p>}
       {error && <p className={styles.formError}>{error}</p>}
@@ -90,6 +89,8 @@ export default function ChangePasswordForm() {
             id="settings-new-password"
             className={styles.input}
             type="password"
+            minLength={5}
+            required
             autoComplete="new-password"
             value={next}
             onChange={(e) => {
@@ -131,6 +132,8 @@ export default function ChangePasswordForm() {
             id="settings-confirm-password"
             className={styles.input}
             type="password"
+            minLength={5}
+            required
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => {
