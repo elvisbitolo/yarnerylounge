@@ -31,17 +31,16 @@ function mapCollectionRow(row) {
 
 export async function listCollections() {
   const prisma = getPrisma();
-  if (prisma) {
-    try {
-      const rows = await prisma.spaceCollection.findMany({
-        orderBy: { createdAt: "asc" },
-      });
-      if (rows.length) return rows.map(mapCollectionRow);
-    } catch (err) {
-      logError("collections.prisma_list_failed", { error: err.message });
-    }
+  if (!prisma) throw Object.assign(new Error("Database unavailable"), { code: 503 });
+  try {
+    const rows = await prisma.spaceCollection.findMany({
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map(mapCollectionRow);
+  } catch (err) {
+    logError("collections.prisma_list_failed", { error: err.message });
+    throw err;
   }
-  return [];
 }
 
 export async function createCollection({ name, description, spaceIds, createdBy }) {
@@ -57,44 +56,43 @@ export async function createCollection({ name, description, spaceIds, createdBy 
     createdAt: new Date(),
   };
   const prisma = getPrisma();
-  if (prisma) {
-    try {
-      const created = await prisma.spaceCollection.create({ data });
-      return { id: created.id, name: created.name };
-    } catch (err) {
-      logError("collections.prisma_create_failed", { error: err.message });
-    }
+  if (!prisma) throw Object.assign(new Error("Database unavailable"), { code: 503 });
+  try {
+    const created = await prisma.spaceCollection.create({ data });
+    return { id: created.id, name: created.name };
+  } catch (err) {
+    logError("collections.prisma_create_failed", { error: err.message });
+    throw err;
   }
-  return null;
 }
 
 export async function updateCollection(id, { name, description, spaceIds }) {
   const prisma = getPrisma();
-  if (prisma) {
-    try {
-      const existing = await prisma.spaceCollection.findUnique({ where: { id } });
-      if (!existing) return null;
-      const data = {};
-      if (typeof name === "string" && name.trim()) data.name = name.trim();
-      if (typeof description === "string") data.description = description;
-      if (spaceIds !== undefined) data.spaceIds = normalizeSpaceIds(spaceIds);
-      const updated = await prisma.spaceCollection.update({ where: { id }, data });
-      return mapCollectionRow(updated);
-    } catch (err) {
-      logError("collections.prisma_update_failed", { error: err.message });
-    }
+  if (!prisma) throw Object.assign(new Error("Database unavailable"), { code: 503 });
+  try {
+    const existing = await prisma.spaceCollection.findUnique({ where: { id } });
+    if (!existing) return null;
+    const data = {};
+    if (typeof name === "string" && name.trim()) data.name = name.trim();
+    if (typeof description === "string") data.description = description;
+    if (spaceIds !== undefined) data.spaceIds = normalizeSpaceIds(spaceIds);
+    const updated = await prisma.spaceCollection.update({ where: { id }, data });
+    return mapCollectionRow(updated);
+  } catch (err) {
+    logError("collections.prisma_update_failed", { error: err.message });
+    throw err;
   }
-  return null;
 }
 
 export async function deleteCollection(id) {
   const prisma = getPrisma();
-  if (prisma) {
-    try {
-      await prisma.spaceCollection.deleteMany({ where: { id } });
-    } catch (err) {
-      logError("collections.prisma_delete_failed", { error: err.message });
-    }
+  if (!prisma) throw Object.assign(new Error("Database unavailable"), { code: 503 });
+  try {
+    const result = await prisma.spaceCollection.deleteMany({ where: { id } });
+    return result.count > 0;
+  } catch (err) {
+    logError("collections.prisma_delete_failed", { error: err.message });
+    throw err;
   }
 }
 
