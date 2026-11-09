@@ -14,6 +14,7 @@ async function loadSystemSnapshot() {
     database: "unknown",
     recordings: null,
     storage: null,
+    authAttempts: null,
     checkedAt: new Date().toISOString(),
   };
 
