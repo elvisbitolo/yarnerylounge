@@ -46,6 +46,7 @@ export async function POST(request) {
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: "Account services are temporarily unavailable." }, { status: 503 });
 
+  let blobUrls = [];
   try {
     // Verify a one-time email code. This works for password and Google/Facebook
     // accounts alike, unlike asking every member to have a local password.
@@ -66,11 +67,26 @@ export async function POST(request) {
 
     const accountRole = await prisma.user.findUnique({ where: { id: user.uid }, select: { role: true } });
     if (accountRole?.role === "owner") {
-      const otherOwners = await prisma.user.count({ where: { id: { not: user.uid }, role: "owner", suspended: false } });
+      const otherOwners = await prisma.user.count({ where: { id: { not: user.uid }, role: "owner", OR: [{ suspended: false }, { suspended: null }] } });
       if (otherOwners === 0) {
         return NextResponse.json({ error: "Transfer ownership to another active owner before deleting this account. Secret Yarnery must retain an active owner." }, { status: 409 });
       }
     }
+
+    const [profileMedia, memberPosts, memberArticles, memberProjects] = await Promise.all([
+      prisma.user.findUnique({ where: { id: user.uid }, select: { photoURL: true, coverPhotoURL: true } }),
+      prisma.post.findMany({ where: { authorId: user.uid }, select: { imageUrl: true, imageUrls: true, videoUrl: true } }),
+      prisma.article.findMany({ where: { authorId: user.uid }, select: { coverImage: true } }),
+      prisma.project.findMany({ where: { userId: user.uid }, select: { imageUrls: true } }),
+    ]);
+    const candidates = [profileMedia?.photoURL, profileMedia?.coverPhotoURL,
+      ...memberPosts.flatMap((post) => [post.imageUrl, post.videoUrl, ...(post.imageUrls || [])]),
+      ...memberArticles.map((article) => article.coverImage),
+      ...memberProjects.flatMap((project) => project.imageUrls || []),
+    ];
+    blobUrls = [...new Set(candidates.filter((value) => {
+      try { return new URL(value).hostname.endsWith("blob.vercel-storage.com"); } catch { return false; }
+    }))];
 
     const storedSub = await prisma.subscription.findFirst({
       where: { OR: [{ id: user.uid }, { userId: user.uid }] },
@@ -112,6 +128,8 @@ export async function POST(request) {
       await tx.report.updateMany({ where: { reporterId: user.uid }, data: { reporterName: "Former member" } });
       await tx.announcement.updateMany({ where: { authorId: user.uid }, data: { authorName: "Former member" } });
       await tx.auditLog.updateMany({ where: { actorId: user.uid }, data: { actorName: "Former member", metadata: null } });
+      await tx.automation.deleteMany({ where: { createdBy: user.uid } });
+      await tx.automationHistory.updateMany({ where: { targetUserId: user.uid }, data: { targetUserId: null } });
       await tx.article.updateMany({
         where: { authorId: user.uid },
         data: { authorName: "Former member", coverImage: null, likes: null },
@@ -238,6 +256,17 @@ export async function POST(request) {
         },
       });
     });
+
+    // Remove uploaded media from this app's Vercel Blob store after database
+    // references have been cleared. External avatar URLs are never deleted.
+    if (blobUrls.length) {
+      try {
+        const { del } = await import("@vercel/blob");
+        await del(blobUrls);
+      } catch (blobError) {
+        logError("account.delete_blob_cleanup_failed", { uid: user.uid, count: blobUrls.length, error: blobError?.message });
+      }
+    }
 
     const cookieStore = await cookies();
     cookieStore.delete(AUTH_COOKIE);
