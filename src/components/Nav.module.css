@@ -1107,3 +1107,79 @@
     max-width: 100%;
   }
 }
+
+
+/* Desktop workspace sizing: keep the sidebar in a predictable flex track and
+   let every page consume the remaining width without causing horizontal overflow. */
+@media (min-width: 901px) {
+  .shell {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    min-height: calc(100vh - var(--topbar-h, 60px));
+    overflow: clip;
+  }
+
+  .sidebar {
+    box-sizing: border-box;
+    flex: 0 0 250px;
+    width: 250px;
+    min-width: 250px;
+    max-width: 250px;
+  }
+
+  .sidebar.sidebarCollapsed {
+    flex: 0 0 0;
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+    border-right: 0;
+  }
+
+  .sidebarInner {
+    flex: 0 0 250px;
+    width: 250px;
+    min-width: 250px;
+  }
+
+  .content {
+    box-sizing: border-box;
+    flex: 1 1 0%;
+    width: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1200px) {
+  .sidebar,
+  .sidebar:not(.sidebarCollapsed) {
+    flex-basis: 232px;
+    width: 232px;
+    min-width: 232px;
+    max-width: 232px;
+  }
+
+  .sidebarInner {
+    flex-basis: 232px;
+    width: 232px;
+    min-width: 232px;
+  }
+
+  .sidebar.sidebarCollapsed {
+    flex-basis: 0;
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+  }
+}
+
+@supports (height: 100dvh) {
+  @media (min-width: 901px) {
+    .shell {
+      min-height: calc(100dvh - var(--topbar-h, 60px));
+    }
+  }
+}
