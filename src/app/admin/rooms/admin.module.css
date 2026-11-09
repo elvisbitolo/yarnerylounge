@@ -558,3 +558,238 @@ a.statCard:hover {
   .mobileMemberActions { gap: 6px; }
   .mobileMemberActions .actionLink, .mobileMemberActions .actionDelete { flex: 1 1 auto; }
 }
+
+
+/* Admin overview and course-management responsive layouts */
+.overviewContainer {
+  width: min(100% - 48px, 1180px);
+  max-width: 1180px;
+  box-sizing: border-box;
+  padding: 36px;
+}
+.overviewContainer .statGrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr));
+}
+.overviewContainer .quickAction {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.overviewContainer .item > div,
+.courseManager .item > div,
+.courseEditor .item > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.overviewContainer .itemName,
+.courseManager .itemName,
+.courseEditor .itemName {
+  overflow-wrap: anywhere;
+}
+.courseManager,
+.courseEditor {
+  width: min(100% - 48px, 900px);
+  max-width: 900px;
+  box-sizing: border-box;
+}
+.courseManager .form,
+.courseEditor .form {
+  min-width: 0;
+  box-sizing: border-box;
+}
+.courseManager .input,
+.courseManager .textarea,
+.courseEditor .input,
+.courseEditor .textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+.courseItem,
+.lessonItem {
+  min-width: 0;
+}
+.moduleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.moduleHeader > h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.moduleActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.courseEditor .itemActions {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.courseEditor .item {
+  align-items: flex-start;
+}
+@media (max-width: 900px) {
+  .overviewContainer {
+    width: 100%;
+    padding: 28px 22px;
+  }
+  .courseManager,
+  .courseEditor {
+    width: 100%;
+    padding: 30px 22px;
+  }
+}
+@media (max-width: 640px) {
+  .overviewContainer {
+    padding: 24px 16px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .overviewContainer .title {
+    font-size: 25px;
+    margin-bottom: 20px;
+  }
+  .overviewContainer .quickActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .overviewContainer .quickAction {
+    min-width: 0;
+    min-height: 44px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.3;
+  }
+  .overviewContainer .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .overviewContainer .statCard {
+    min-width: 0;
+    padding: 15px 13px;
+  }
+  .overviewContainer .statValue {
+    font-size: 24px;
+  }
+  .overviewContainer .statLabel {
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+  .overviewContainer .item {
+    align-items: flex-start;
+    padding: 14px;
+  }
+  .overviewContainer .itemMeta {
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+  }
+  .courseManager,
+  .courseEditor {
+    padding: 24px 16px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .courseManager .title,
+  .courseEditor .title {
+    font-size: 25px;
+    line-height: 1.2;
+  }
+  .courseManager .form,
+  .courseEditor .form {
+    padding: 18px 14px;
+    margin-bottom: 18px;
+  }
+  .courseManager .formTitle,
+  .courseEditor .formTitle {
+    line-height: 1.35;
+  }
+  .courseManager .input,
+  .courseManager .textarea,
+  .courseEditor .input,
+  .courseEditor .textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .courseManager .textarea,
+  .courseEditor .textarea {
+    min-height: 100px;
+  }
+  .courseManager .submit,
+  .courseEditor .submit {
+    width: 100%;
+    min-height: 46px;
+  }
+  .courseManager .courseItem,
+  .courseEditor .lessonItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+  .courseManager .courseItem > div,
+  .courseEditor .lessonItem > div {
+    width: 100%;
+  }
+  .courseManager .courseItem .delete,
+  .courseEditor .lessonItem .delete,
+  .courseEditor .lessonItem .toggle {
+    min-height: 40px;
+  }
+  .moduleHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .moduleActions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .moduleActions .toggle,
+  .moduleActions .delete {
+    flex: 1 1 120px;
+    min-height: 40px;
+  }
+  .courseEditor .itemActions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .courseEditor .itemActions > button {
+    flex: 1 1 100px;
+    min-height: 40px;
+  }
+}
+@media (max-width: 380px) {
+  .overviewContainer .quickActions,
+  .overviewContainer .statGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .overviewContainer .quickAction {
+    justify-content: flex-start;
+    text-align: left;
+    padding-left: 14px;
+  }
+  .courseManager,
+  .courseEditor {
+    padding: 20px 12px;
+  }
+  .courseManager .form,
+  .courseEditor .form {
+    padding: 15px 12px;
+  }
+  .moduleActions {
+    flex-direction: column;
+  }
+  .moduleActions .toggle,
+  .moduleActions .delete {
+    width: 100%;
+  }
+}
