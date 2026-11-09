@@ -16,8 +16,6 @@ import {
 import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
 import { oauthFailedKey } from "@/lib/oauth-providers";
 import FacebookIcon from "@/components/FacebookIcon";
-import LinkedInIcon from "@/components/LinkedInIcon";
-import TwitchIcon from "@/components/TwitchIcon";
 import GoogleIcon from "@/components/GoogleIcon";
 import PasswordInput from "@/components/PasswordInput";
 import AuthAside from "@/components/AuthAside";
@@ -247,14 +245,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     return handleProvider("facebook");
   }
 
-  async function handleLinkedIn() {
-    return handleProvider("linkedin_oidc");
-  }
-
-  async function handleTwitch() {
-    return handleProvider("twitch");
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -349,8 +339,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     busy === "email" ||
     busy === "google" ||
     busy === "facebook" ||
-    busy === "linkedin_oidc" ||
-    busy === "twitch" ||
     waitingOnOAuth
   ) {
     return (
@@ -412,24 +400,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
             type="button"
           >
             <FacebookIcon /> {t("continueWithFacebook")}
-          </button>
-
-          <button
-            className={styles.oauthButton}
-            onClick={handleLinkedIn}
-            disabled={!!busy}
-            type="button"
-          >
-            <LinkedInIcon /> {t("continueWithLinkedIn")}
-          </button>
-
-          <button
-            className={styles.oauthButton}
-            onClick={handleTwitch}
-            disabled={!!busy}
-            type="button"
-          >
-            <TwitchIcon /> {t("continueWithTwitch")}
           </button>
 
           <div className={styles.divider}>{tc("or")}</div>
