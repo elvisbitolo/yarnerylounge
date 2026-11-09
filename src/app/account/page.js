@@ -76,7 +76,7 @@ export default async function AccountPage() {
           <div className={styles.row}>
             <span className={styles.label}>Plan</span>
             <span className={styles.value}>
-              {tierLabel(sub ? sub.tier : "free")} · {sub ? sub.plan : "Community"}
+              {tierLabel(sub?.tier || "flirting")}
               {userDoc?.foundingMember && (
                 <span className={`${styles.badge} ${styles.badgeFounding}`}>Founding Yarnie 🧶</span>
               )}
