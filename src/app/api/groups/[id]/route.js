@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { deleteWhere, deletePostWithComments } from "@/lib/server/delete";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
@@ -8,14 +7,9 @@ import { requireOwner, guardJson } from "@/lib/server/authorize";
 
 export async function DELETE(req, { params }) {
   const { id } = await params;
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
-  const userDoc = await getUserDoc(user.uid);
-  if (userDoc?.role !== "owner") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireOwner();
+  const denied = guardJson(auth);
+  if (denied) return denied;
 
   const prisma = getPrisma();
   try {
