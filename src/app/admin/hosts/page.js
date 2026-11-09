@@ -137,7 +137,7 @@ export default function AdminHostsPage() {
   const options = scopeOptions[scopeType] || [];
 
   return (
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.adminWorkspace}`}>
         <h1 className={styles.title}>Scoped hosts</h1>
         <p className={styles.itemMeta}>
           Grant host or co-host powers for a specific room, event, course, group, or space.
