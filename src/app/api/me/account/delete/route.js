@@ -33,7 +33,7 @@ export async function POST(request) {
   if (confirmation !== "DELETE") {
     return NextResponse.json({ error: 'Type DELETE exactly to confirm.' }, { status: 400 });
   }
-  if (!/^\\d{6,8}$/.test(emailCode)) {
+  if (!/^\d{6,8}$/.test(emailCode)) {
     return NextResponse.json({ error: "Enter the verification code sent to your email address." }, { status: 400 });
   }
   if (!user.email) {
@@ -137,7 +137,7 @@ export async function POST(request) {
       await tx.musicFile.deleteMany({ where: { uploadedBy: user.uid } });
       await tx.blindDate.deleteMany({ where: { OR: [{ uid: user.uid }, { memberId: user.uid }] } });
       await tx.conversationMessage.deleteMany({ where: { senderId: user.uid } });
-      await tx.$executeRaw\`UPDATE "Conversation" SET "participantIds" = array_remove("participantIds", ${user.uid}), "lastMessage" = NULL, "lastMessageAt" = NULL WHERE ${user.uid} = ANY("participantIds")\`;
+      await tx.$executeRaw`UPDATE "Conversation" SET "participantIds" = array_remove("participantIds", ${user.uid}), "lastMessage" = NULL, "lastMessageAt" = NULL WHERE ${user.uid} = ANY("participantIds")`;
       await tx.notification.deleteMany({ where: { OR: [{ userId: user.uid }, { actorId: user.uid }] } });
       await tx.follow.deleteMany({ where: { OR: [{ followerId: user.uid }, { followingId: user.uid }] } });
       await tx.memberWatch.deleteMany({ where: { OR: [{ watcherId: user.uid }, { targetId: user.uid }] } });
