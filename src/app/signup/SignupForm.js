@@ -66,8 +66,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   const [busy, setBusy] = useState("");
   const [verifyEmail, setVerifyEmail] = useState("");
   const [resent, setResent] = useState(false);
-  const [acceptedToS, setAcceptedToS] = useState(false);
-  const [tosError, setTosError] = useState(false);
   // Submission or OAuth return hit the membership wall; show the explained
   // membership-required box with the plan CTA instead of silently redirecting.
   const [membershipRequired, setMembershipRequired] = useState(false);
@@ -261,12 +259,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
     e.preventDefault();
     setError("");
     setMembershipRequired(false);
-    if (!acceptedToS) {
-      setTosError(true);
-      setError(t("tosRequired"));
-      return;
-    }
-    setTosError(false);
     setBusy("email");
     let navigated = false;
     try {
@@ -474,29 +466,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
             />
-            <div className={styles.tosField}>
-                <label className={styles.tosLabel}>
-                  <input
-                    className={styles.tosCheckbox}
-                    type="checkbox"
-                    checked={acceptedToS}
-                    required
-                    aria-invalid={tosError}
-                    onChange={(e) => {
-                      setAcceptedToS(e.target.checked);
-                      if (e.target.checked) setTosError(false);
-                    }}
-                  />
-                  <span>
-                    {t.rich("tosCheckbox", {
-                      terms: (chunks) => <Link className={styles.link} href="/terms">{chunks}</Link>,
-                    })}
-                  </span>
-                </label>
-                {tosError && (
-                  <p className={styles.tosError} role="alert">{t("tosRequired")}</p>
-                )}
-              </div>
             <button className={styles.submit} type="submit" disabled={!!busy}>
               {busy === "email" ? t("creatingAccount") : t("createAccountBtn")}
             </button>
