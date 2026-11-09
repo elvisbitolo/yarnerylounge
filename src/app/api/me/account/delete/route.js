@@ -28,13 +28,13 @@ export async function POST(request) {
   if (limited) return limited;
 
   const body = await request.json().catch(() => ({}));
-  const currentPassword = String(body.currentPassword || "");
+  const emailCode = String(body.emailCode || "").trim();
   const confirmation = String(body.confirmation || "");
   if (confirmation !== "DELETE") {
     return NextResponse.json({ error: 'Type DELETE exactly to confirm.' }, { status: 400 });
   }
-  if (currentPassword.length < 1 || currentPassword.length > 256) {
-    return NextResponse.json({ error: "Enter your current password to verify your identity." }, { status: 400 });
+  if (!/^\\d{6,8}$/.test(emailCode)) {
+    return NextResponse.json({ error: "Enter the verification code sent to your email address." }, { status: 400 });
   }
   if (!user.email) {
     return NextResponse.json({ error: "This account has no email address for identity verification. Contact support." }, { status: 400 });
@@ -44,19 +44,21 @@ export async function POST(request) {
   if (!prisma) return NextResponse.json({ error: "Account services are temporarily unavailable." }, { status: 503 });
 
   try {
-    // Re-authenticate independently of the existing application session.
+    // Verify a one-time email code. This works for password and Google/Facebook
+    // accounts alike, unlike asking every member to have a local password.
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) throw new Error("Supabase public auth configuration is missing.");
     const verifier = createClient(supabaseUrl, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: verified, error: verifyError } = await verifier.auth.signInWithPassword({
+    const { data: verified, error: verifyError } = await verifier.auth.verifyOtp({
       email: user.email,
-      password: currentPassword,
+      token: emailCode,
+      type: "email",
     });
     if (verifyError || verified?.user?.id !== user.uid) {
-      return NextResponse.json({ error: "The password is incorrect. Your account has not been changed." }, { status: 400 });
+      return NextResponse.json({ error: "That verification code is invalid or expired. Your account has not been changed." }, { status: 400 });
     }
 
     const storedSub = await prisma.subscription.findFirst({
@@ -94,6 +96,8 @@ export async function POST(request) {
         where: { authorId: user.uid },
         data: { authorName: "Former member", reactions: null, createdById: null },
       });
+      await tx.announcement.updateMany({ where: { authorId: user.uid }, data: { authorName: "Former member" } });
+      await tx.auditLog.updateMany({ where: { actorId: user.uid }, data: { actorName: "Former member", metadata: null } });
       await tx.article.updateMany({
         where: { authorId: user.uid },
         data: { authorName: "Former member", coverImage: null, likes: null },
@@ -129,6 +133,11 @@ export async function POST(request) {
       await tx.pushSubscription.deleteMany({ where: { userId: user.uid } });
       await tx.socialLink.deleteMany({ where: { userId: user.uid } });
       await tx.whatsAppMessage.deleteMany({ where: { userId: user.uid } });
+      await tx.authAttempt.deleteMany({ where: { email: { equals: user.email, mode: "insensitive" } } });
+      await tx.musicFile.deleteMany({ where: { uploadedBy: user.uid } });
+      await tx.blindDate.deleteMany({ where: { OR: [{ uid: user.uid }, { memberId: user.uid }] } });
+      await tx.conversationMessage.deleteMany({ where: { senderId: user.uid } });
+      await tx.$executeRaw\`UPDATE "Conversation" SET "participantIds" = array_remove("participantIds", ${user.uid}), "lastMessage" = NULL, "lastMessageAt" = NULL WHERE ${user.uid} = ANY("participantIds")\`;
       await tx.notification.deleteMany({ where: { OR: [{ userId: user.uid }, { actorId: user.uid }] } });
       await tx.follow.deleteMany({ where: { OR: [{ followerId: user.uid }, { followingId: user.uid }] } });
       await tx.memberWatch.deleteMany({ where: { OR: [{ watcherId: user.uid }, { targetId: user.uid }] } });
@@ -215,6 +224,15 @@ export async function POST(request) {
     cookieStore.delete(AUTH_COOKIE);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    // If Auth deletion succeeded but a later database operation failed, make
+    // a best-effort attempt to revoke the app sessions and lock the tombstone.
+    try {
+      await prisma.session.deleteMany({ where: { userId: user.uid } });
+      await prisma.user.update({ where: { id: user.uid }, data: { suspended: true } });
+      (await cookies()).delete(AUTH_COOKIE);
+    } catch (cleanupError) {
+      logError("account.delete_emergency_lock_failed", { uid: user.uid, error: cleanupError?.message });
+    }
     logError("account.delete_failed", { uid: user.uid, error: error?.message || "Unknown error" });
     return NextResponse.json({
       error: "Your sign-in identity was closed, but we could not finish removing all account data. Please contact Secret Yarnery support so the remaining cleanup can be completed.",
