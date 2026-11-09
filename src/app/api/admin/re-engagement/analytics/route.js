@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
+import { requireModerator, guardJson } from "@/lib/server/authorize";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -15,10 +15,9 @@ function millis(value) {
 }
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  const actor = await getUserDoc(user.uid);
-  if (!canModerate(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const auth = await requireModerator();
+  const denied = guardJson(auth);
+  if (denied) return denied;
 
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
