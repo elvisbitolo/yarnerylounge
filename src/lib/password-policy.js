@@ -23,8 +23,8 @@ export function passwordStrength(value) {
   let score = 0;
   if (v.length >= 6) score += 1;
   if (v.length >= 12) score += 1;
-  if (/[A-Za-z]/.test(v) && /\d/.test(v)) score += 1;
-  if (/[^\w\s]/.test(v)) score += 1;
+  if (v.length >= 16) score += 1;
+  if (v.length >= 20) score += 1;
   return Math.min(4, score);
 }
 
