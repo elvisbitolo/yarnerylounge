@@ -63,7 +63,7 @@ export default function AdminModerationPage() {
   }
 
   return (
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.adminWorkspace}`}>
         <h1 className={styles.title}>Moderation</h1>
         {error && <p className={styles.error}>{error}</p>}
 
