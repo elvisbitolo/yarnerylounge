@@ -8,6 +8,7 @@ import {
   isPasswordRecovery,
   loginWithOAuthProvider,
   loginWithSupabaseEmail,
+  reportAuthFailure,
   reconcileSessionCookie,
   refreshSession,
   resendSignupVerification,
@@ -309,6 +310,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
       // signing-in screen keeps the transition from feeling like a delay.
       window.location.assign("/signing-in");
     } catch (err) {
+      reportAuthFailure({ email, action: "login", provider: "email", error: err });
       if (err.code === "email_not_verified" || err.code === "email_not_confirmed") {
         setVerifyNotice(err.message);
         setResent(false);
