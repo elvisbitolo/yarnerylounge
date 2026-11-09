@@ -151,7 +151,7 @@ export default function AdminOverviewPage() {
                 {data.recentPosts.map((post) => {
                   const initials = (post.authorName || "M")
                     .trim()
-                    .split(/\\s+/)
+                    .split(/\s+/)
                     .slice(0, 2)
                     .map((part) => part[0])
                     .join("")
