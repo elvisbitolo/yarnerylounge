@@ -13,6 +13,7 @@ export const ADMIN_SECTIONS = [
     { href: "/admin/members", label: "Members", guard: "moderator", basis: "/api/admin/members -> requireModerator()" },
     { href: "/admin/moderation", label: "Moderation", guard: "moderator", basis: "/api/admin/reports -> canModerate()" },
     { href: "/admin/groups", label: "Groups", guard: "moderator", basis: "UNVERIFIED - see audit note" },
+    { href: "/admin/hosts", label: "Hosts", guard: "moderator", basis: "/api/admin/host-assignments -> requireModerator()" },
     { href: "/admin/spaces", label: "Spaces", guard: "moderator", basis: "UNVERIFIED - space CRUD is requireOwner()" },
   ] },
   { label: "Editorial", items: [
@@ -29,10 +30,8 @@ export const ADMIN_SECTIONS = [
     { href: "/admin/questions", label: "Questions", guard: "owner", basis: "/api/admin/questions -> requireOwner()" },
   ] },
   { label: "System", items: [
-    { href: "/admin/hosts", label: "Hosts", guard: "moderator", basis: "/api/admin/host-assignments -> requireModerator()" },
     { href: "/admin/automations", label: "Automations", guard: "owner", basis: "/api/admin/automations -> requireOwner()" },
     { href: "/admin/re-engagement", label: "Member reactivation", guard: "moderator", isNew: true, basis: "/api/admin/re-engagement/analytics -> canModerate()" },
-    { href: "/admin/system-health", label: "System health", guard: "owner", isNew: true, basis: "/api/admin/system-health -> requireOwner()" },
     { href: "/admin/analytics", label: "Analytics", guard: "owner", basis: "/api/admin/analytics -> requireOwner()" },
     { href: "/admin/settings", label: "Settings", guard: "owner", basis: "/api/admin/settings -> requireOwner()" },
   ] },
