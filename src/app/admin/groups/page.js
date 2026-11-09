@@ -64,7 +64,7 @@ export default function AdminGroupsPage() {
   }
 
   return (
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.adminWorkspace}`}>
         <h1 className={styles.title}>Manage groups</h1>
 
         <form className={styles.form} onSubmit={handleCreate}>
