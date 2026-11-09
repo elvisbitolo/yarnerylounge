@@ -41,11 +41,6 @@ const OAUTH_AUTHORIZE = {
   // supports. The previous space-scoped override was worse than redundant —
   // GoTrue appends custom scopes with strings.Split(s, ","), so it arrived as
   // ONE bogus token with literal spaces and the authorize call was rejected.
-  linkedin_oidc: {},
-  // GoTrue asks for user:read:email by default and hardcodes Verified: true.
-  // A Twitch account with no email attached yields none, so the member still
-  // hits the prepaid gate — unavoidable, and not a configuration mistake.
-  twitch: {},
 };
 
 // Failure copy for the return leg, keyed off the `?provider=` marker. Without
@@ -54,13 +49,6 @@ const OAUTH_AUTHORIZE = {
 const OAUTH_FAILED_KEYS = {
   google: "googleFailed",
   facebook: "facebookFailed",
-  // Derived, not literal: the GoTrue provider key is lowercase (`linkedin`)
-  // while the message key reads `linkedInFailed`, so they cannot both be
-  // `provider + "Failed"`. Keep this explicit rather than clever — a wrong
-  // key renders as a raw string in the UI, not an error.
-  // id differs from the message key: `linkedin_oidc` upstream, human wording here.
-  linkedin_oidc: "linkedInFailed",
-  twitch: "twitchFailed",
 };
 
 // Builds the `options` for a signInWithOAuth call.
