@@ -32,11 +32,12 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => ({}));
   const emailCode = String(body.emailCode || "").trim();
+  const accessToken = String(body.accessToken || "");
   const confirmation = String(body.confirmation || "");
   if (confirmation !== "DELETE") {
     return NextResponse.json({ error: 'Type DELETE exactly to confirm.' }, { status: 400 });
   }
-  if (!/^\d{6,8}$/.test(emailCode)) {
+  if (!/^\d{6,8}$/.test(emailCode) && accessToken.length < 100) {
     return NextResponse.json({ error: "Enter the verification code sent to your email address." }, { status: 400 });
   }
   if (!user.email) {
@@ -54,16 +55,18 @@ export async function POST(request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) throw new Error("Supabase public auth configuration is missing.");
-    const verifier = createClient(supabaseUrl, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data: verified, error: verifyError } = await verifier.auth.verifyOtp({
-      email: user.email,
-      token: emailCode,
-      type: "email",
-    });
-    if (verifyError || verified?.user?.id !== user.uid) {
-      return NextResponse.json({ error: "That verification code is invalid or expired. Your account has not been changed." }, { status: 400 });
+    let verifiedUser = null;
+    if (accessToken.length >= 100) {
+      const { default: supabaseAdmin } = await import("@/lib/supabase/service");
+      const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
+      if (!error) verifiedUser = data?.user || null;
+    } else {
+      const verifier = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data, error } = await verifier.auth.verifyOtp({ email: user.email, token: emailCode, type: "email" });
+      if (!error) verifiedUser = data?.user || null;
+    }
+    if (verifiedUser?.id !== user.uid || String(verifiedUser.email || "").toLowerCase() !== user.email.toLowerCase()) {
+      return NextResponse.json({ error: "That email verification is invalid or expired. Your account has not been changed." }, { status: 400 });
     }
 
     const accountRole = await prisma.user.findUnique({ where: { id: user.uid }, select: { role: true } });
