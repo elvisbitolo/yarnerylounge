@@ -17,7 +17,7 @@ test("passwords shorter than six characters are refused", () => {
   assert.match(validatePasswordChange({ currentPassword: CURRENT, newPassword: "abcde" }), /6 characters/i);
 });
 
-test("five characters pass without uppercase, numbers, or symbols", () => {
+test("six characters pass without uppercase, numbers, or symbols", () => {
   assert.equal(validatePasswordChange({ currentPassword: CURRENT, newPassword: "abcdef" }), null);
   assert.equal(validatePasswordChange({ currentPassword: CURRENT, newPassword: "123456" }), null);
 });
@@ -29,7 +29,7 @@ test("the new password must differ from the current one", () => {
   );
 });
 
-test("strength grows with length, then mix, then symbols", () => {
+test("strength grows with password length", () => {
   assert.equal(passwordStrength(""), 0);
   assert.equal(passwordStrength("abc"), 0);
   assert.equal(passwordStrength("abcdef"), 1);
