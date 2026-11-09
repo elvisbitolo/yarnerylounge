@@ -4,7 +4,7 @@ import { publicMetadata } from "@/lib/seo";
 import SignupForm from "./SignupForm";
 
 export const metadata = publicMetadata({
-  title: "Join",
+  title: { absolute: "Secret Yarnery" },
   description:
     "Create your free Secret Yarnery account — live video lounges, courses, events and a community that connects in real time. Cancel anytime.",
   path: "/signup",
