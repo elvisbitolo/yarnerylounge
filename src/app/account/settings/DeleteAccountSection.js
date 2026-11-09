@@ -98,7 +98,7 @@ export default function DeleteAccountSection({ email }) {
                 autoComplete="one-time-code"
                 maxLength={8}
                 value={emailCode}
-                onChange={(event) => setEmailCode(event.target.value.replace(/\\D/g, "").slice(0, 8))}
+                onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
                 required
               />
             </div>
@@ -121,7 +121,7 @@ export default function DeleteAccountSection({ email }) {
             <button type="button" className={styles.deleteCancel} onClick={() => { setOpen(false); setError(""); }}>
               Keep my account
             </button>
-            <button type="submit" className={styles.deleteButton} disabled={busy || confirmation !== "DELETE" || !/^\\d{6,8}$/.test(emailCode)}>
+            <button type="submit" className={styles.deleteButton} disabled={busy || confirmation !== "DELETE" || !/^\d{6,8}$/.test(emailCode)}>
               {busy ? "Deleting account…" : "Permanently delete account"}
             </button>
           </div>
