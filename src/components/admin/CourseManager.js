@@ -103,8 +103,8 @@ export default function CourseManager({ hostOnly = false }) {
     await loadCourses();
   }
 
-  return (
-    <Nav role={role}>
+  const content = (
+    <>
       <div className={`${styles.container} ${styles.courseManager}`}>
         <h1 className={styles.title}>Manage courses</h1>
 
@@ -201,6 +201,8 @@ export default function CourseManager({ hostOnly = false }) {
           </div>
         )}
       </div>
-    </Nav>
+    </>
   );
+
+  return hostOnly ? <Nav role={role}>{content}</Nav> : content;
 }
