@@ -4,7 +4,7 @@ import { seedAlwaysOnRooms } from "@/lib/server/rooms";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function POST() {
   const auth = await requireOwner();
   const denied = guardJson(auth);
   if (denied) return denied;
