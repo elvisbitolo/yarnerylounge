@@ -161,8 +161,8 @@ export default function CourseEditor({ basePath = "/admin" }) {
     await loadContent();
   }
 
-  return (
-    <Nav role={role}>
+  const content = (
+    <>
       <div className={`${styles.container} ${styles.courseEditor}`}>
         <p className={styles.listTitle}>
           <Link className={styles.itemMeta} href={`${basePath}/courses`}>← All courses</Link>
@@ -451,6 +451,8 @@ export default function CourseEditor({ basePath = "/admin" }) {
           ))
         )}
       </div>
-    </Nav>
+    </>
   );
+
+  return basePath === "/host" ? <Nav role={role}>{content}</Nav> : content;
 }
