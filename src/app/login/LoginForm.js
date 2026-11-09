@@ -332,7 +332,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
   async function handleRecovery(e) {
     e.preventDefault();
     setError("");
-    if (password.length < 5) {
+    if (password.length < 6) {
       setError(t("passwordTooShort"));
       return;
     }
