@@ -11,12 +11,12 @@
 export function buildCspHeader({ isDev = process.env.NODE_ENV === "development" } = {}) {
   return `
   default-src 'self';
-  script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://8x8.vc https://*.8x8.vc;
+  script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://8x8.vc https://*.8x8.vc https://vercel.live;
   style-src 'self' 'unsafe-inline';
   img-src 'self' blob: data: https:;
   font-src 'self';
   media-src 'self' blob: data: https://*.supabase.co https:;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.bigdatacloud.net https://api-bdc.io;
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.bigdatacloud.net https://api-bdc.io https://8x8.vc https://*.8x8.vc wss://8x8.vc wss://*.8x8.vc https://vercel.live wss://vercel.live https://*.christasspeakeasy.com;
   frame-src 'self' https://8x8.vc https://*.8x8.vc https://www.youtube.com https://youtube.com;
   object-src 'none';
   base-uri 'self';
