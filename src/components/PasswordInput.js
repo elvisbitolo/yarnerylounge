@@ -29,7 +29,7 @@ export default function PasswordInput({
           htmlFor={id}
           style={{
             display: "block",
-            fontSize: 13,
+            fontSize: 15,
             fontWeight: 600,
             color: "#34344a",
             marginBottom: 6,
@@ -51,9 +51,9 @@ export default function PasswordInput({
             onBlur={() => setFocused(false)}
             style={{
               width: "100%",
-              height: 46,
+              height: 50,
               padding: "0 44px 0 14px",
-              fontSize: 15,
+              fontSize: 16,
               border: "1px solid #d8d8e3",
               borderRadius: 10,
               outline: "none",
