@@ -39,14 +39,15 @@ export async function createSession({ uid, accessToken, refreshToken }) {
   const id = randomUUID();
   try {
     await prisma.session.create({
-      data: {
-        id,
-        userId: uid,
-        accessToken,
-        refreshToken: refreshToken || "",
-        familyId: randomUUID(),
-        expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
-      },
+data: {
+    id,
+    userId: uid,
+    accessToken,
+    refreshToken: refreshToken || "",
+    familyId: randomUUID(),
+    expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
+    lastSeenAt: new Date(),
+  },
     });
     return id;
   } catch (err) {
@@ -122,8 +123,8 @@ export async function resolveSession(sid) {
 
 function maybeTouch(prisma, sid) {
   prisma.session
-    .updateMany({
-      where: { id: sid, lastSeenAt: { lt: new Date(Date.now() - LAST_SEEN_TOUCH_MS) } },
+    .update({
+      where: { id: sid },
       data: { lastSeenAt: new Date() },
     })
     .catch(() => {});
