@@ -28,6 +28,7 @@ export async function GET() {
         expiresAt: true,
       },
     });
+    const userIds = users.map((u) => u.id);
     const subs = await prisma.subscription.findMany({
       take: 1000,
       select: {
@@ -44,9 +45,20 @@ export async function GET() {
       subMap.set(sub.userId || sub.id, sub);
       if (sub.id) subMap.set(sub.id, sub);
     }
+    // fetch the most recent session per user for "last seen"
+    const sessions = await prisma.session.findMany({
+      where: { userId: { in: userIds } },
+      orderBy: { lastSeenAt: "desc" },
+      take: userIds.length,
+    });
+    const lastSeenMap = new Map();
+    for (const s of sessions) {
+      if (s.userId) lastSeenMap.set(s.userId, s.lastSeenAt);
+    }
     const members = users.map((user) => {
       const sub = subMap.get(user.id) || null;
       const active = isActiveSub(sub);
+      const lastSeen = lastSeenMap.get(user.id);
       return {
         id: user.id,
         name: user.name || "",
@@ -71,6 +83,7 @@ export async function GET() {
           : sub
             ? "inactive"
             : "none",
+        lastSeenAt: lastSeen ? lastSeen.toISOString() : null,
       };
     });
     return NextResponse.json({ members });

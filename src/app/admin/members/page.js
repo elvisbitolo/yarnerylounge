@@ -225,6 +225,7 @@ export default function AdminMembersPage() {
                 <th>Role</th>
                 <th>Status</th>
                 <th>Expires</th>
+                <th>Last Seen</th>
                 <th>Joined</th>
                 <th>Actions</th>
               </tr>
@@ -264,6 +265,7 @@ export default function AdminMembersPage() {
                     </td>
                     <td><span className={member.suspended ? styles.statusSuspended : isActive ? styles.statusActive : styles.statusInactive}>{statusLabel}</span></td>
                     <td>{formatDate(member.expiresAt)}</td>
+                    <td>{member.lastSeenAt ? new Date(member.lastSeenAt).toLocaleString() : "—"}</td>
                     <td className={styles.memberJoined}>{formatDate(member.createdAt)}</td>
                     <td>
                       <div className={styles.memberActions}>
