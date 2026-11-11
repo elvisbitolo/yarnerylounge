@@ -21,7 +21,7 @@ export default function AdminRail({ role, name, email }) {
       <div className={styles.who}>
         <p className={styles.whoName}>{name || email || "Signed in"}</p>
         <p className={styles.whoRole}>
-          {role} · {role === "owner" ? "full access" : "limited"}
+          {role} · {role === "owner" ? "full access" : "limited access"}
         </p>
       </div>
 
@@ -29,17 +29,21 @@ export default function AdminRail({ role, name, email }) {
         {sections.map((section) => (
           <div key={section.label}>
             <div className={styles.group}>{section.label}</div>
-            {section.items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`${styles.link} ${isActive(item.href) ? styles.linkActive : ""}`}
-              >
-                <span className={styles.dot} />
-                {item.label}
-                {item.isNew ? <span className={styles.newTag}>NEW</span> : null}
-              </Link>
-            ))}
+            {section.items.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${styles.link} ${active ? styles.linkActive : ""}`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <span className={styles.dot} aria-hidden="true" />
+                  <span>{item.label}</span>
+                  {item.isNew ? <span className={styles.newTag}>NEW</span> : null}
+                </Link>
+              );
+            })}
           </div>
         ))}
       </div>
