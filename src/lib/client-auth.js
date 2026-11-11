@@ -130,14 +130,36 @@ export async function checkPaidSignup(email) {
 }
 
 export async function loginWithSupabaseEmail(email, password) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
+    email: cleanEmail,
     password,
   });
   if (error) {
-    let message = error.message || "Could not sign in. Please try again.";
+    let message = "We couldn't sign you in. Please check your email and password, then try again.";
     if (error.code === "invalid_credentials" || error.code === "user_not_found") {
-      message = "That email and password combination does not match our records.";
+      // Supabase intentionally returns the same invalid_credentials response
+      // for an unknown email and a wrong password. Only after that failure,
+      // consult our existing rate-limited membership precheck so members get
+      // an actionable message without treating provider error text as truth.
+      try {
+        const check = await fetch("/api/auth/precheck", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ email: cleanEmail }),
+        });
+        const account = check.ok ? await check.json() : null;
+        if (account?.accountExists === true) {
+          message = "Your password is incorrect. Please check your password and try again.";
+        } else if (account?.accountExists === false) {
+          message = "We couldn't find an account with this email address. Please check the email or create an account.";
+        } else {
+          message = "Your email or password is incorrect. Please check both and try again.";
+        }
+      } catch {
+        message = "Your email or password is incorrect. Please check both and try again.";
+      }
     } else if (error.code === "email_not_confirmed") {
       message = "Please verify your email first — check your inbox for the confirmation link.";
     }
