@@ -3,7 +3,8 @@
   align-items: stretch;
   min-height: 100vh;
   min-height: 100dvh;
-  background: #ffffff;
+  /* Keep the area beneath the viewport-height sticky rail dark on long pages. */
+  background: #111014;
 }
 
 .rail {
