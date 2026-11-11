@@ -23,7 +23,7 @@
   scrollbar-color: #51404b #111014;
   background: #111014;
   border-right: 1px solid #30242d;
-  padding: 22px 12px 28px;
+  padding: 16px 10px 16px;
   color: #f7f2f6;
 }
 
@@ -40,8 +40,8 @@
 }
 
 .who {
-  margin: 16px 2px 24px;
-  padding: 12px;
+  margin: 10px 2px 12px;
+  padding: 8px 10px;
   min-width: 0;
   background: #1b171d;
   border: 1px solid #382a35;
@@ -58,7 +58,7 @@
 }
 
 .whoRole {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: #c5b7c2;
   font-size: 11px;
   line-height: 1.4;
@@ -68,7 +68,7 @@
 .railScroll {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 8px;
 }
 
 .railScroll > div {
@@ -76,29 +76,29 @@
 }
 
 .group {
-  margin: 0 0 6px;
-  padding: 0 10px;
+  margin: 0 0 3px;
+  padding: 0 9px;
   color: #fa81cd;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.11em;
-  line-height: 1.5;
+  letter-spacing: 0.1em;
+  line-height: 1.25;
   text-transform: uppercase;
 }
 
 .link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 39px;
+  gap: 8px;
+  min-height: 32px;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 5px 9px;
   border: 1px solid transparent;
   border-radius: 9px;
   color: #d2cbd1;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 550;
-  line-height: 1.35;
+  line-height: 1.25;
   text-decoration: none;
   transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
 }
@@ -151,6 +151,80 @@
   min-width: 0;
   width: 0;
   background: #ffffff;
+}
+
+/* Keep the complete owner navigation visible on common laptop heights. */
+@media (max-height: 850px) and (min-width: 901px) {
+  .rail {
+    padding: 12px 9px 12px;
+  }
+
+  .brand {
+    padding-bottom: 2px;
+    font-size: 14px;
+  }
+
+  .who {
+    margin: 7px 2px 8px;
+    padding: 6px 9px;
+  }
+
+  .whoName {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .whoRole {
+    margin-top: 2px;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .railScroll {
+    gap: 5px;
+  }
+
+  .group {
+    margin-bottom: 2px;
+    font-size: 8px;
+    line-height: 1.2;
+  }
+
+  .link {
+    min-height: 27px;
+    padding: 3px 8px;
+    font-size: 11px;
+    line-height: 1.15;
+  }
+
+  .newTag {
+    padding: 1px 4px;
+    font-size: 8px;
+  }
+}
+
+@media (max-height: 680px) and (min-width: 901px) {
+  .rail {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .who {
+    margin-top: 4px;
+    margin-bottom: 5px;
+    padding: 4px 8px;
+  }
+
+  .railScroll {
+    gap: 3px;
+  }
+
+  .link {
+    min-height: 24px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 10.5px;
+  }
 }
 
 @media (max-width: 900px) {
