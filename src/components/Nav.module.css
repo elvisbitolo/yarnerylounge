@@ -1137,10 +1137,16 @@
     border-right: 0;
   }
 
+  /* Fill the sidebar's available height so the nav can scroll above
+     the anchored profile footer instead of collapsing to a fixed flex basis. */
   .sidebarInner {
-    flex: 0 0 250px;
-    width: 250px;
-    min-width: 250px;
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 0;
+    height: 100%;
   }
 
   .content {
@@ -1160,12 +1166,6 @@
     width: 232px;
     min-width: 232px;
     max-width: 232px;
-  }
-
-  .sidebarInner {
-    flex-basis: 232px;
-    width: 232px;
-    min-width: 232px;
   }
 
   .sidebar.sidebarCollapsed {
