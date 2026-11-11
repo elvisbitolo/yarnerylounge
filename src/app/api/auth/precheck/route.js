@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
-import { getUserByEmail } from "@/lib/server/auth";
+import { getPrisma } from "@/lib/db/prisma";
+import { mapUserRow } from "@/lib/server/user-core";
 import { isOpenAccess, OPEN_ACCESS_PLAN } from "@/lib/server/access-policy";
 import { toMillis } from "@/lib/server/user-core";
 
@@ -24,7 +25,12 @@ export async function POST(req) {
     // Resolve the local member record for both signup and login guidance.
     // The login form uses only accountExists after a failed credential check;
     // it never receives profile details or credentials from this endpoint.
-    const userDoc = await getUserByEmail(clean);
+    const prisma = getPrisma();
+    if (!prisma) throw new Error("Database unavailable");
+    const userRow = await prisma.user.findFirst({
+      where: { email: { equals: clean, mode: "insensitive" } },
+    });
+    const userDoc = mapUserRow(userRow);
 
     // Open-access mode admits everyone while the community ramps up.
     if (isOpenAccess()) {
