@@ -134,6 +134,10 @@ export function tierRank(tier) {
   return TIER_RANK[normalize(tier)] ?? -1;
 }
 
+export function isPaidTier(tier) {
+  return tierRank(tier) >= 1;
+}
+
 export function meetsTier(userTier, requiredTier) {
   if (requiredTier == null || requiredTier === "") return true;
   const req = normalize(requiredTier);

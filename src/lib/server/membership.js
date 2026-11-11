@@ -3,22 +3,31 @@
 // __tests__/tier-resolution.test.js. All three targets live in this directory.
 import { CAPABILITIES } from "./capabilities-core.js";
 import { isOpenAccess, openAccessPlan } from "./access-policy.js";
-import { tierForRole } from "./plans.js";
-import { toMillis } from "./user-core.js";
-
-const PAID_PLANS = new Set(["hooking-up", "moving-in"]);
+import { effectiveSubscription } from "./subscription-core.js";
+import { effectiveExpiryMillis, isPaidTier } from "./billing.js";
+import { displayTier, tierForRole } from "./plans.js";
 
 // Derives a cheap, read-efficient membership snapshot from the user doc only.
 // This mirrors getAccessSub/getCapabilities (subscription doc) with a single
 // read, so global providers/badges never fan out queries per component.
-export function deriveMembership(userDoc, now = Date.now()) {
+export function deriveMembership(userDoc, now = Date.now(), sub = null) {
   const plan = userDoc?.plan || "flirting";
   const role = userDoc?.role || "member";
 
-  const expiresAtMs = toMillis(userDoc?.expiresAt);
-  const paidPlan = PAID_PLANS.has(plan);
+  const effectiveSub = effectiveSubscription(sub);
+  const hasSubRow = sub != null;
+  const planSource = hasSubRow
+    ? effectiveSub?.tier || effectiveSub?.planName || effectiveSub?.plan
+    : plan;
+  const canonicalPlan = displayTier(planSource, null);
+  const expiresAtMs = effectiveExpiryMillis(effectiveSub, userDoc);
+  const paidPlan = isPaidTier(canonicalPlan);
   const expired = paidPlan && expiresAtMs > 0 && expiresAtMs < now;
-  const explicitlyCanceled = userDoc?.paymentStatus === "cancelled";
+  const explicitlyCanceled =
+    userDoc?.paymentStatus === "cancelled" ||
+    userDoc?.paymentStatus === "refunded" ||
+    effectiveSub?.status === "canceled" ||
+    Boolean(effectiveSub?.canceledAt);
 
   let planKey = "flirting";
   // A top-tier role wins over the plan string, so a manually granted host shows
@@ -31,8 +40,25 @@ export function deriveMembership(userDoc, now = Date.now()) {
   // the gate is flipped on — mirrors getAccessSub so badges/CTAs match the
   // server capability grants (no upgrade prompts while the community ramps up).
   else if (!explicitlyCanceled && userDoc && isOpenAccess()) planKey = openAccessPlan();
-  else if (!explicitlyCanceled && !expired && plan === "moving-in") planKey = "moving-in";
-  else if (!explicitlyCanceled && !expired && plan === "hooking-up") planKey = "hooking-up";
+  else if (!explicitlyCanceled && !expired && canonicalPlan !== "flirting") planKey = canonicalPlan;
+
+  const caps =
+    planKey === "moving-in"
+      ? CAPABILITIES.host
+      : planKey === "hooking-up"
+        ? CAPABILITIES.paid
+        : CAPABILITIES.free;
+
+  return {
+    planKey,
+    label: caps.label,
+    plan,
+    role,
+    capabilities: caps,
+    profileBadge: caps.profileBadge,
+    theme: userDoc?.extra?.dashboardTheme || userDoc?.dashboardTheme || null,
+  };
+}
 
   const caps =
     planKey === "moving-in"

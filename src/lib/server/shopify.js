@@ -101,3 +101,11 @@ export function roleAfterRevoke(currentRole) {
   if (current === "owner" || current === "moderator") return currentRole;
   return "member";
 }
+
+export function laterExpiry(current, incoming) {
+  const currentMs = current ? new Date(current).getTime() : 0;
+  const incomingMs = incoming ? new Date(incoming).getTime() : 0;
+  if (!Number.isFinite(incomingMs) || incomingMs <= 0) return currentMs > 0 ? current : null;
+  if (!Number.isFinite(currentMs) || currentMs <= 0) return incoming;
+  return currentMs >= incomingMs ? current : incoming;
+}
