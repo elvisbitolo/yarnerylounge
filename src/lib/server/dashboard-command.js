@@ -834,12 +834,18 @@ async function attempt(fn) {
   }
 }
 
-export async function getDashboardCommandData(uid, userDoc) {
+export async function getDashboardCommandInitialData(uid, userDoc) {
   const role = userDoc?.role || "member";
-  const memberships = await getUserMemberships(uid);
   const isStaff = canModerate(userDoc);
-  const gamification = await getGamification(uid, userDoc?.name || "Member");
-  const perkTier = await getPerkTier(uid);
+
+  // Resolve identity data concurrently. None of these operations depends on
+  // another, so they must not serialize the first dashboard response.
+  const [gamification, perkTier, spotlight, upcomingRooms] = await Promise.all([
+    getGamification(uid, userDoc?.name || "Member"),
+    getPerkTier(uid),
+    attempt(() => getDashboardSpotlight(uid, userDoc)),
+    attempt(() => getDashboardUpcomingRooms(uid, userDoc)),
+  ]);
 
   const user = {
     uid,
@@ -859,16 +865,33 @@ export async function getDashboardCommandData(uid, userDoc) {
     },
   };
 
-  const [stats, activity, upcomingRooms, spotlight, messages, content, notifications, needsAttention, onboarding, leaderboard] =
+  return {
+    user,
+    isStaff,
+    spotlight,
+    upcomingRooms,
+    // Deferred sections start in a neutral state. This avoids showing an
+    // error state while their independent request is still in flight.
+    stats: null,
+    activity: { ok: true, value: [] },
+    content: { ok: true, value: { metric: "engagement", items: [] } },
+    needsAttention: { ok: true, value: [] },
+    leaderboard: { ok: true, value: [] },
+  };
+}
+
+export async function getDashboardCommandDeferredData(uid, userDoc) {
+  const role = userDoc?.role || "member";
+  const isStaff = canModerate(userDoc);
+
+  // Memberships are needed only for activity visibility. Load them alongside
+  // the other independent dashboard sections rather than before the fan-out.
+  const membershipsPromise = getUserMemberships(uid);
+  const [stats, needsAttention, content, onboarding, leaderboard, memberships] =
     await Promise.all([
       attempt(() => getDashboardStats(uid, userDoc)),
-      attempt(() => getDashboardActivity(uid, role, memberships)),
-      attempt(() => getDashboardUpcomingRooms(uid, userDoc)),
-      attempt(() => getDashboardSpotlight(uid, userDoc)),
-      attempt(() => getDashboardMessages(uid)),
-      attempt(() => getDashboardContent()),
-      attempt(() => getDashboardNotifications(uid)),
       attempt(() => getDashboardNeedsAttention(userDoc)),
+      attempt(() => getDashboardContent()),
       attempt(() => getDashboardOnboarding(uid)),
       isStaff ? attempt(async () => {
         const entries = await getLeaderboard(5);
@@ -885,20 +908,19 @@ export async function getDashboardCommandData(uid, userDoc) {
           photoURL: photoByUserId.get(entry.userId) || null,
         }));
       }) : Promise.resolve({ ok: true, value: [] }),
+      membershipsPromise,
     ]);
 
-  return {
-    user,
-    isStaff,
-    stats,
-    activity,
-    upcomingRooms,
-    spotlight,
-    messages,
-    content,
-    notifications,
-    needsAttention,
-    onboarding,
-    leaderboard,
-  };
+  const activity = await attempt(() => getDashboardActivity(uid, role, memberships));
+
+  return { stats, activity, content, needsAttention, onboarding, leaderboard };
+}
+
+// Retain the combined server API for any non-route callers. The HTTP route
+// uses the progressive pair above so the first screen is not blocked by
+// analytics, content ranking, and staff-only dashboard sections.
+export async function getDashboardCommandData(uid, userDoc) {
+  const initial = await getDashboardCommandInitialData(uid, userDoc);
+  const deferred = await getDashboardCommandDeferredData(uid, userDoc);
+  return { ...initial, ...deferred };
 }
