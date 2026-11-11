@@ -39,6 +39,45 @@
   color: #fa81cd;
 }
 
+.railTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.railTop .brand {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.navToggle {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #4a3844;
+  border-radius: 10px;
+  background: #1b171d;
+  color: #f7f2f6;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.navToggle:hover {
+  background: #241c27;
+}
+
+.navToggle:focus-visible {
+  outline: 2px solid #fa81cd;
+  outline-offset: 2px;
+}
+
 .who {
   margin: 10px 2px 12px;
   padding: 8px 10px;
@@ -232,6 +271,10 @@
     flex-direction: column;
   }
 
+  .body {
+    width: auto;
+  }
+
   .rail {
     z-index: 30;
     width: 100%;
@@ -244,13 +287,37 @@
     top: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior: auto;
     border-right: 0;
     border-bottom: 1px solid #30242d;
     padding: 12px 0 10px;
   }
 
+  .rail:not(.railOpen) {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .rail:not(.railOpen) .who,
+  .rail:not(.railOpen) .railScroll {
+    display: none;
+  }
+
   .brand {
     padding: 0 14px;
+  }
+
+  .navToggle {
+    display: inline-flex;
+    margin-right: 12px;
+  }
+
+  .railTop {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 6px 0;
+    background: #111014;
   }
 
   .who {
@@ -282,7 +349,7 @@
 
   .link {
     width: 100%;
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px;
     gap: 8px;
     font-size: 12px;
