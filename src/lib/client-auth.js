@@ -151,7 +151,7 @@ export async function loginWithSupabaseEmail(email, password) {
         });
         const account = check.ok ? await check.json() : null;
         if (account?.accountExists === true) {
-          message = "Your password is incorrect. Please check your password and try again.";
+          message = "The password is incorrect for this email address. Please try again, or select “Forgot password?” if you need to reset it.";
         } else if (account?.accountExists === false) {
           message = "We couldn't find an account with this email address. Please check the email or create an account.";
         } else {
