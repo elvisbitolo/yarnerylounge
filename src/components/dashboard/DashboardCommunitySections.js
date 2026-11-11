@@ -259,9 +259,9 @@ function formatVideoDuration(seconds) {
 }
 
 export function DashboardFeaturedVideos() {
-  const { value, loading } = useDashboardResource("/api/recordings?limit=200&thumbnails=1", "data");
+  const { value, loading } = useDashboardResource("/api/recordings?limit=5&thumbnails=1", "data");
   const videos = Array.isArray(value)
-    ? value.filter((recording) => recording.status === "ready")
+    ? value.filter((recording) => recording.status === "ready").slice(0, 4)
     : [];
   const featured = videos[0];
   const recent = videos.slice(1);
