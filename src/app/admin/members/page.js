@@ -147,13 +147,15 @@ export default function AdminMembersPage() {
   const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
 
   function exportMembers() {
-    const headers = ["Name", "Email", "Plan", "Role", "Status", "Joined"];
+    const headers = ["Name", "Email", "Plan", "Role", "Status", "Expires", "Last Seen", "Joined"];
     const rows = filtered.map((member) => [
       member.name || "Unnamed",
       member.email,
       PLAN_OPTIONS.find((option) => option.value === (member.plan || "flirting"))?.label || member.plan,
       member.role,
       member.suspended ? "Suspended" : ["active", "trial"].includes(member.subStatus) ? "Active" : "Inactive",
+      formatDate(member.expiresAt),
+      formatDate(member.lastSeenAt),
       formatDate(member.createdAt),
     ]);
     const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
