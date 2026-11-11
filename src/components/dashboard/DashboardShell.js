@@ -53,13 +53,31 @@ export default function DashboardShell() {
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to load"))))
       .then((json) => {
         if (!active) return;
-        if (json.ok) {
-          setData(json.data);
-          setFatal(false);
-        } else {
-          setFatal(true);
-        }
+        if (!json.ok) throw new Error("Failed to load dashboard");
+        setData(json.data);
+        setFatal(false);
         setLoading(false);
+
+        // Load analytics and lower-page sections after the first-screen
+        // dashboard content is available. A failure here must not blank the
+        // already-rendered dashboard.
+        fetch("/api/dashboard/command/deferred")
+          .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to load details"))))
+          .then((details) => {
+            if (!active || !details.ok) return;
+            setData((current) => current ? { ...current, ...details.data } : current);
+          })
+          .catch(() => {
+            if (!active) return;
+            setData((current) => current ? {
+              ...current,
+              stats: { ok: false, error: "Failed to load" },
+              activity: { ok: false, error: "Failed to load" },
+              content: { ok: false, error: "Failed to load" },
+              needsAttention: { ok: false, error: "Failed to load" },
+              leaderboard: { ok: false, error: "Failed to load" },
+            } : current);
+          });
       })
       .catch(() => {
         if (!active) return;
