@@ -21,6 +21,11 @@ export async function POST(req) {
     }
     const clean = email.toLowerCase().trim();
 
+    // Resolve the local member record for both signup and login guidance.
+    // The login form uses only accountExists after a failed credential check;
+    // it never receives profile details or credentials from this endpoint.
+    const userDoc = await getUserByEmail(clean);
+
     // Open-access mode admits everyone while the community ramps up.
     if (isOpenAccess()) {
       return NextResponse.json({
@@ -29,7 +34,8 @@ export async function POST(req) {
         plan: OPEN_ACCESS_PLAN,
         role: "member",
         openAccess: true,
-        isNew: true,
+        isNew: !userDoc,
+        accountExists: Boolean(userDoc),
       });
     }
 
@@ -37,7 +43,6 @@ export async function POST(req) {
     // Shopify placeholder or active membership is still recognised here so
     // the session exchange can preserve that higher entitlement, but a
     // missing/expired paid record must never block account creation.
-    const userDoc = await getUserByEmail(clean);
     if (!userDoc) {
       return NextResponse.json({
         allowed: true,
@@ -46,6 +51,7 @@ export async function POST(req) {
         role: "member",
         openAccess: false,
         isNew: true,
+        accountExists: false,
       });
     }
 
@@ -63,6 +69,7 @@ export async function POST(req) {
       role,
       openAccess: false,
       isNew: userDoc.id === clean,
+      accountExists: true,
     });
   } catch (err) {
     logError("auth.precheck_failed", { error: err.message });
