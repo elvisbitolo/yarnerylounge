@@ -60,20 +60,3 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
   };
 }
 
-  const caps =
-    planKey === "moving-in"
-      ? CAPABILITIES.host
-      : planKey === "hooking-up"
-        ? CAPABILITIES.paid
-        : CAPABILITIES.free;
-
-  return {
-    planKey,
-    label: caps.label,
-    plan,
-    role,
-    capabilities: caps,
-    profileBadge: caps.profileBadge,
-    theme: userDoc?.extra?.dashboardTheme || userDoc?.dashboardTheme || null,
-  };
-}
