@@ -546,17 +546,37 @@ async function getRecentHappened(events, limit, roomNameBySlug) {
   return items.sort((a, b) => b.startTime - a.startTime).slice(0, limit);
 }
 
+// The spotlight and rooms loaders both need the visible lounges and events.
+// Resolve them once per request and share the RSVP lookups so the first-screen
+// response does not issue the same queries twice.
+async function loadFirstScreenContext(uid, userDoc) {
+  const [roomList, allEvents] = await Promise.all([
+    listVisibleCommunityRooms(uid, userDoc),
+    listEvents(),
+  ]);
+  const rsvpCounts = new Map();
+  const rsvpCount = (eventId) => {
+    if (!rsvpCounts.has(eventId)) {
+      rsvpCounts.set(eventId, listRsvps(eventId).then((list) => list.length));
+    }
+    return rsvpCounts.get(eventId);
+  };
+  return { roomList, allEvents, expandedEvents: expandEvents(allEvents), rsvpCount };
+}
+
 // Data for the full-width "What's On" band directly under the welcome banner:
 // the next meetups, blocks members pinned for everyone, the viewer's own next
 // availability block, and a short "recently happened" history. Occurrence ids
 // key recurring events; hrefs always point at the base event page.
-export async function getDashboardSpotlight(uid, userDoc, limit = 5) {
+export async function getDashboardSpotlight(uid, userDoc, limit = 5, context = null) {
   const now = Date.now();
   // Keep the room-name lookup scoped to lounges the current member can see.
-  const roomList = await listVisibleCommunityRooms(uid, userDoc);
+  const roomList = context?.roomList ?? (await listVisibleCommunityRooms(uid, userDoc));
   const roomNameBySlug = new Map(roomList.map((room) => [room.slug, room.name || room.slug]));
-  const allEvents = await listEvents();
-  const upcoming = expandEvents(allEvents)
+  const allEvents = context?.allEvents ?? (await listEvents());
+  const expandedEvents = context?.expandedEvents ?? expandEvents(allEvents);
+  const rsvpCount = context?.rsvpCount ?? ((eventId) => listRsvps(eventId).then((list) => list.length));
+  const upcoming = expandedEvents
     .filter((event) => toMillis(event.startTime) > now)
     .slice(0, limit);
 
@@ -569,7 +589,7 @@ export async function getDashboardSpotlight(uid, userDoc, limit = 5) {
       endTime: event.endTime ? toMillis(event.endTime) : null,
       roomSlug: event.roomSlug || "",
       roomName: event.roomSlug ? roomNameBySlug.get(event.roomSlug) || "" : "",
-      rsvpCount: (await listRsvps(event.id)).length,
+      rsvpCount: await rsvpCount(event.id),
     }))
   );
 
@@ -582,9 +602,12 @@ export async function getDashboardSpotlight(uid, userDoc, limit = 5) {
   return { events, myBlocks, pinnedBlocks, recent };
 }
 
-export async function getDashboardUpcomingRooms(uid, userDoc, limit = 6) {
+export async function getDashboardUpcomingRooms(uid, userDoc, limit = 6, context = null) {
   const now = Date.now();
-  const [rooms, events] = await Promise.all([listVisibleCommunityRooms(uid, userDoc), listEvents()]);
+  const rooms = context?.roomList ?? (await listVisibleCommunityRooms(uid, userDoc));
+  const events = context?.allEvents ?? (await listEvents());
+  const expandedEvents = context?.expandedEvents ?? expandEvents(events);
+  const rsvpCount = context?.rsvpCount ?? ((eventId) => listRsvps(eventId).then((list) => list.length));
   const activeRooms = rooms.filter((room) => room.status === "active");
   const liveRooms = activeRooms.filter((room) => isRoomLive(room, now));
   const scheduledRooms = activeRooms
@@ -593,16 +616,16 @@ export async function getDashboardUpcomingRooms(uid, userDoc, limit = 6) {
   const roomBySlug = new Map(rooms.map((room) => [room.slug, room]));
   const viewerCounts = await activeRoomMemberCounts(liveRooms.map((room) => room.id));
 
-  const upcomingEvents = expandEvents(events)
+  const upcomingEvents = expandedEvents
     .filter((event) => toMillis(event.startTime) > now)
     .sort((a, b) => toMillis(a.startTime) - toMillis(b.startTime))
     .slice(0, limit);
 
   const eventRsvpCounts = {};
   if (upcomingEvents.length > 0) {
-    const lists = await Promise.all(upcomingEvents.map((event) => listRsvps(event.id)));
+    const counts = await Promise.all(upcomingEvents.map((event) => rsvpCount(event.id)));
     upcomingEvents.forEach((event, i) => {
-      eventRsvpCounts[event.id] = lists[i].length;
+      eventRsvpCounts[event.id] = counts[i];
     });
   }
 
@@ -834,12 +857,24 @@ async function attempt(fn) {
   }
 }
 
-export async function getDashboardCommandData(uid, userDoc) {
+export async function getDashboardCommandInitialData(uid, userDoc) {
   const role = userDoc?.role || "member";
-  const memberships = await getUserMemberships(uid);
   const isStaff = canModerate(userDoc);
-  const gamification = await getGamification(uid, userDoc?.name || "Member");
-  const perkTier = await getPerkTier(uid);
+
+  // Resolve identity data and the shared first-screen context concurrently.
+  // The spotlight and rooms loaders then reuse the same lounges, events, and
+  // RSVP lookups instead of issuing them twice. A context failure falls back
+  // to the loaders' own reads so one broken query cannot blank the dashboard.
+  const [gamification, perkTier, contextResult] = await Promise.all([
+    getGamification(uid, userDoc?.name || "Member"),
+    getPerkTier(uid),
+    attempt(() => loadFirstScreenContext(uid, userDoc)),
+  ]);
+  const context = contextResult.ok ? contextResult.value : null;
+  const [spotlight, upcomingRooms] = await Promise.all([
+    attempt(() => getDashboardSpotlight(uid, userDoc, 5, context)),
+    attempt(() => getDashboardUpcomingRooms(uid, userDoc, 6, context)),
+  ]);
 
   const user = {
     uid,
@@ -859,46 +894,59 @@ export async function getDashboardCommandData(uid, userDoc) {
     },
   };
 
-  const [stats, activity, upcomingRooms, spotlight, messages, content, notifications, needsAttention, onboarding, leaderboard] =
-    await Promise.all([
-      attempt(() => getDashboardStats(uid, userDoc)),
-      attempt(() => getDashboardActivity(uid, role, memberships)),
-      attempt(() => getDashboardUpcomingRooms(uid, userDoc)),
-      attempt(() => getDashboardSpotlight(uid, userDoc)),
-      attempt(() => getDashboardMessages(uid)),
-      attempt(() => getDashboardContent()),
-      attempt(() => getDashboardNotifications(uid)),
-      attempt(() => getDashboardNeedsAttention(userDoc)),
-      attempt(() => getDashboardOnboarding(uid)),
-      isStaff ? attempt(async () => {
-        const entries = await getLeaderboard(5);
-        const userIds = [...new Set(entries.map((entry) => entry.userId).filter(Boolean))];
-        const prisma = getPrisma();
-        if (!prisma || !userIds.length) return entries;
-        const users = await prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: { id: true, photoURL: true },
-        });
-        const photoByUserId = new Map(users.map((member) => [member.id, member.photoURL || null]));
-        return entries.map((entry) => ({
-          ...entry,
-          photoURL: photoByUserId.get(entry.userId) || null,
-        }));
-      }) : Promise.resolve({ ok: true, value: [] }),
-    ]);
-
   return {
     user,
     isStaff,
-    stats,
-    activity,
-    upcomingRooms,
     spotlight,
-    messages,
-    content,
-    notifications,
-    needsAttention,
-    onboarding,
-    leaderboard,
+    upcomingRooms,
+    // Deferred sections start in a neutral state. This avoids showing an
+    // error state while their independent request is still in flight.
+    stats: null,
+    activity: { ok: true, value: [] },
+    content: { ok: true, value: { metric: "engagement", items: [] } },
+    needsAttention: { ok: true, value: [] },
+    leaderboard: { ok: true, value: [] },
   };
+}
+
+export async function getDashboardCommandDeferredData(uid, userDoc) {
+  const role = userDoc?.role || "member";
+  const isStaff = canModerate(userDoc);
+
+  // Memberships are needed only for activity visibility. Start that lookup
+  // with the other independent sections and fold the activity read into the
+  // same fan-out so it does not add a serial round trip.
+  const membershipsPromise = getUserMemberships(uid);
+  const [stats, needsAttention, content, leaderboard, activity] = await Promise.all([
+    attempt(() => getDashboardStats(uid, userDoc)),
+    attempt(() => getDashboardNeedsAttention(userDoc)),
+    attempt(() => getDashboardContent()),
+    isStaff ? attempt(async () => {
+      const entries = await getLeaderboard(5);
+      const userIds = [...new Set(entries.map((entry) => entry.userId).filter(Boolean))];
+      const prisma = getPrisma();
+      if (!prisma || !userIds.length) return entries;
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, photoURL: true },
+      });
+      const photoByUserId = new Map(users.map((member) => [member.id, member.photoURL || null]));
+      return entries.map((entry) => ({
+        ...entry,
+        photoURL: photoByUserId.get(entry.userId) || null,
+      }));
+    }) : Promise.resolve({ ok: true, value: [] }),
+    attempt(async () => getDashboardActivity(uid, role, await membershipsPromise)),
+  ]);
+
+  return { stats, activity, content, needsAttention, leaderboard };
+}
+
+// Retain the combined server API for any non-route callers. The HTTP route
+// uses the progressive pair above so the first screen is not blocked by
+// analytics, content ranking, and staff-only dashboard sections.
+export async function getDashboardCommandData(uid, userDoc) {
+  const initial = await getDashboardCommandInitialData(uid, userDoc);
+  const deferred = await getDashboardCommandDeferredData(uid, userDoc);
+  return { ...initial, ...deferred };
 }
