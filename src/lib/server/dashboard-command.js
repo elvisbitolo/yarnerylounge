@@ -876,6 +876,8 @@ export async function getDashboardCommandInitialData(uid, userDoc) {
     activity: { ok: true, value: [] },
     content: { ok: true, value: { metric: "engagement", items: [] } },
     needsAttention: { ok: true, value: [] },
+    messages: { ok: true, value: [] },
+    notifications: { ok: true, value: [] },
     leaderboard: { ok: true, value: [] },
   };
 }
@@ -887,11 +889,13 @@ export async function getDashboardCommandDeferredData(uid, userDoc) {
   // Memberships are needed only for activity visibility. Load them alongside
   // the other independent dashboard sections rather than before the fan-out.
   const membershipsPromise = getUserMemberships(uid);
-  const [stats, needsAttention, content, onboarding, leaderboard, memberships] =
+  const [stats, needsAttention, content, messages, notifications, onboarding, leaderboard, memberships] =
     await Promise.all([
       attempt(() => getDashboardStats(uid, userDoc)),
       attempt(() => getDashboardNeedsAttention(userDoc)),
       attempt(() => getDashboardContent()),
+      attempt(() => getDashboardMessages(uid)),
+      attempt(() => getDashboardNotifications(uid)),
       attempt(() => getDashboardOnboarding(uid)),
       isStaff ? attempt(async () => {
         const entries = await getLeaderboard(5);
@@ -913,7 +917,7 @@ export async function getDashboardCommandDeferredData(uid, userDoc) {
 
   const activity = await attempt(() => getDashboardActivity(uid, role, memberships));
 
-  return { stats, activity, content, needsAttention, onboarding, leaderboard };
+  return { stats, activity, content, messages, notifications, needsAttention, onboarding, leaderboard };
 }
 
 // Retain the combined server API for any non-route callers. The HTTP route
