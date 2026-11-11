@@ -25,6 +25,7 @@ export async function GET() {
         plan: true,
         suspended: true,
         foundingMember: true,
+        expiresAt: true,
       },
     });
     const subs = await prisma.subscription.findMany({
@@ -61,6 +62,7 @@ export async function GET() {
             : user.plan || "flirting",
         suspended: user.suspended || false,
         foundingMember: !!user.foundingMember,
+        expiresAt: user.expiresAt,
         tier: sub && active ? sub.tier || "lounge" : "",
         subStatus: active
           ? sub.status === "trialing"
