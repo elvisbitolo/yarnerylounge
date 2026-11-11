@@ -46,6 +46,7 @@ export default function DashboardShell() {
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [deferredLoading, setDeferredLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -57,6 +58,7 @@ export default function DashboardShell() {
         setData(json.data);
         setFatal(false);
         setLoading(false);
+        setDeferredLoading(true);
 
         // Load analytics and lower-page sections after the first-screen
         // dashboard content is available. A failure here must not blank the
@@ -64,8 +66,10 @@ export default function DashboardShell() {
         fetch("/api/dashboard/command/deferred")
           .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to load details"))))
           .then((details) => {
-            if (!active || !details.ok) return;
+            if (!active) return;
+            if (!details.ok) throw new Error("Failed to load details");
             setData((current) => current ? { ...current, ...details.data } : current);
+            setDeferredLoading(false);
           })
           .catch(() => {
             if (!active) return;
@@ -77,12 +81,14 @@ export default function DashboardShell() {
               needsAttention: { ok: false, error: "Failed to load" },
               leaderboard: { ok: false, error: "Failed to load" },
             } : current);
+            setDeferredLoading(false);
           });
       })
       .catch(() => {
         if (!active) return;
         setFatal(true);
         setLoading(false);
+        setDeferredLoading(false);
       });
     return () => {
       active = false;
@@ -292,7 +298,16 @@ export default function DashboardShell() {
         </div>
         <DashboardCommunityFeed />
 
-        <div className={styles.kpiGrid} data-tour="tour-kpis">{kpis}</div>
+        <div className={styles.kpiGrid} data-tour="tour-kpis">
+          {deferredLoading ? (
+            <>
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+            </>
+          ) : kpis}
+        </div>
 
         <div className={styles.grid}>
           <div className={styles.col}>
@@ -302,7 +317,9 @@ export default function DashboardShell() {
             </div>
           )}
 
-            {activity?.ok ? (
+            {deferredLoading ? (
+              <CardSkeleton lines={5} />
+            ) : activity?.ok ? (
               <div data-tour="tour-activity">
                 <RecentActivity data={activityValue} />
               </div>
@@ -313,19 +330,25 @@ export default function DashboardShell() {
           </div>
 
           <div className={styles.col}>
-            {needsAttention?.ok ? (
+            {deferredLoading ? (
+              <CardSkeleton lines={3} />
+            ) : needsAttention?.ok ? (
               <NeedsAttention data={attentionValue} />
             ) : (
               <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
             )}
 
-            {content?.ok ? (
+            {deferredLoading ? (
+              <CardSkeleton lines={4} />
+            ) : content?.ok ? (
               <ContentPerformance data={contentValue} />
             ) : (
               <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
             )}
 
-            {leaderboard?.ok && leaderboard.value.length > 0 && (
+            {deferredLoading && isStaff ? (
+              <CardSkeleton lines={5} />
+            ) : leaderboard?.ok && leaderboard.value.length > 0 && (
               <div className={styles.card}>
                 <div className={styles.cardHeader}>
                   <h2 className={styles.cardTitle}>{t("recognition")}</h2>
