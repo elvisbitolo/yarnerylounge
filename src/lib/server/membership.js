@@ -4,7 +4,8 @@
 import { CAPABILITIES } from "./capabilities-core.js";
 import { isOpenAccess, openAccessPlan } from "./access-policy.js";
 import { effectiveSubscription } from "./subscription-core.js";
-import { effectiveExpiryMillis, isPaidTier } from "./billing.js";
+import { effectiveExpiryMillis } from "./billing.js";
+import { isPaidTier } from "./plans.js";
 import { displayTier, tierForRole } from "./plans.js";
 
 // Derives a cheap, read-efficient membership snapshot from the user doc only.
