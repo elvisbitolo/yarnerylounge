@@ -370,7 +370,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
             <h1 className={styles.title}>{t("chooseNewPassword")}</h1>
             <p className={styles.subtitle}>{t("recoveryDesc")}</p>
 
-            {error && <p className={styles.error}>{error}</p>}
+            {error && <p className={styles.error} role="alert" aria-live="assertive">{error}</p>}
 
             <form onSubmit={handleRecovery}>
               <PasswordInput
@@ -435,7 +435,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
               <p className={styles.success}>{t("resetSent", { email })}</p>
             ) : (
               <>
-                {error && <p className={styles.error}>{error}</p>}
+                {error && <p className={styles.error} role="alert" aria-live="assertive">{error}</p>}
                 {verifyNotice && (
                   <div className={styles.verifyBox}>
                     <p className={styles.verifyText}>{verifyNotice}</p>
@@ -524,7 +524,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
           <h1 className={styles.title}>{t("welcomeBack")}</h1>
           <p className={styles.subtitle}>{t("signInToJoin")}</p>
 
-          {error && <p className={styles.error}>{error}</p>}
+          {error && <p className={styles.error} role="alert" aria-live="assertive">{error}</p>}
 
           {noAccount && (
             <div className={styles.verifyBox}>
@@ -574,6 +574,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
                 type="email"
                 required
                 autoComplete="email"
+                placeholder="Enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -584,6 +585,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              placeholder="Enter your password"
               showRules={false}
             />
             <button className={styles.submit} type="submit" disabled={!!busy}>
