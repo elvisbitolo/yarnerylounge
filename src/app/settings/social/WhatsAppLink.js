@@ -59,7 +59,7 @@ export default function WhatsAppLink() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to save WhatsApp settings");
-      setMsg({ type: "ok", text: "WhatsApp linked. You'll get DMs for mentions and direct messages." });
+      setMsg({ type: "ok", text: "WhatsApp linked. You&apos;ll get DMs for mentions and direct messages." });
       setConsent(false);
       await load();
     } catch (error) {
