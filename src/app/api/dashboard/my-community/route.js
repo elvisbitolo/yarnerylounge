@@ -26,8 +26,8 @@ export async function GET() {
     const [groups, lounges, groupTotal, loungeTotal] = await Promise.all([
       prisma.group.findMany({
         where: {
+          createdBy: uid,
           status: { not: "deleted" },
-          OR: [{ createdBy: uid }, { members: { some: { userId: uid } } }],
         },
         select: {
           id: true,
