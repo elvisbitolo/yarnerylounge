@@ -2376,7 +2376,10 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
           <PollBlock postId={post.id} post={post} uid={uid} disabled={disabledActions} />
         )}
         {(post.imageUrls?.length ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : [])).length > 0 && (
-          <div className={styles.postImageGallery}>
+          <div
+            className={styles.postImageGallery}
+            data-image-count={(post.imageUrls?.length ? post.imageUrls.length : post.imageUrl ? 1 : 0)}
+          >
             {(post.imageUrls?.length ? post.imageUrls : [post.imageUrl]).map((url, index) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={url} src={url} alt={post.altText || `Post photo ${index + 1}`} className={styles.postImage} loading="lazy" decoding="async" />
