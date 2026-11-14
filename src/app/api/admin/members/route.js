@@ -197,21 +197,33 @@ export async function GET() {
       },
     });
     const userIds = users.map((u) => u.id);
-    const subs = await prisma.subscription.findMany({
-      take: 1000,
-      select: {
-        id: true,
-        userId: true,
-        tier: true,
-        status: true,
-        currentPeriodEnd: true,
-        trialEnd: true,
-      },
-    });
+    // Only load subscriptions belonging to the members on this page. Sort newest
+    // first and keep the first row for each member so a stale/legacy duplicate
+    // cannot overwrite the current subscription status in the admin filters.
+    const subs = userIds.length
+      ? await prisma.subscription.findMany({
+          where: {
+            OR: [
+              { id: { in: userIds } },
+              { userId: { in: userIds } },
+            ],
+          },
+          orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+          select: {
+            id: true,
+            userId: true,
+            tier: true,
+            status: true,
+            currentPeriodEnd: true,
+            trialEnd: true,
+            updatedAt: true,
+          },
+        })
+      : [];
     const subMap = new Map();
     for (const sub of subs) {
-      subMap.set(sub.userId || sub.id, sub);
-      if (sub.id) subMap.set(sub.id, sub);
+      const memberId = sub.userId || sub.id;
+      if (memberId && !subMap.has(memberId)) subMap.set(memberId, sub);
     }
     // fetch the most recent session per user for "last seen"
     const sessions = await prisma.session.findMany({
