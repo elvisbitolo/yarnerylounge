@@ -40,6 +40,16 @@ export default function AdminMembersPage() {
   const [delBusy, setDelBusy] = useState(false);
   const [planChange, setPlanChange] = useState(null);
   const [planBusy, setPlanBusy] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [addForm, setAddForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    plan: "flirting",
+    expiresAt: "",
+  });
 
   const loadMembers = useCallback(async () => {
     const res = await fetch("/api/admin/members");
@@ -62,6 +72,15 @@ export default function AdminMembersPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => data && setRole(data.role));
   }, []);
+
+  useEffect(() => {
+    if (!addOpen) return undefined;
+    function onKeyDown(event) {
+      if (event.key === "Escape" && !addBusy) setAddOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [addOpen, addBusy]);
 
   async function updateMember(id, changes) {
     setError("");
@@ -99,6 +118,44 @@ export default function AdminMembersPage() {
       if (updated) setPlanChange(null);
     } finally {
       setPlanBusy(false);
+    }
+  }
+
+  function openAddMember() {
+    setAddError("");
+    setAddForm({ name: "", email: "", password: "", plan: "flirting", expiresAt: "" });
+    setAddOpen(true);
+  }
+
+  function closeAddMember() {
+    if (addBusy) return;
+    setAddOpen(false);
+  }
+
+  function updateAddField(field, value) {
+    setAddForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitAddMember(event) {
+    event.preventDefault();
+    if (addBusy) return;
+    setAddError("");
+    setAddBusy(true);
+    try {
+      const res = await fetch("/api/admin/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(addForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not create member");
+      setAddOpen(false);
+      setAddForm({ name: "", email: "", password: "", plan: "flirting", expiresAt: "" });
+      await loadMembers();
+    } catch (err) {
+      setAddError(err.message);
+    } finally {
+      setAddBusy(false);
     }
   }
 
@@ -181,7 +238,14 @@ export default function AdminMembersPage() {
             <h1 className={styles.title}>Members</h1>
             <p className={styles.membersSubtitle}>Manage your community, subscriptions and member access.</p>
           </div>
-          <a className={styles.link} href="/admin/hosts">Assign scoped hosts →</a>
+          <div className={styles.membersHeaderActions}>
+            <a className={styles.link} href="/admin/hosts">Assign scoped hosts →</a>
+            {role === "owner" && (
+              <button type="button" className={styles.addMemberButton} onClick={openAddMember}>
+                + Add member
+              </button>
+            )}
+          </div>
         </div>
 
         {error && <p className={styles.error}>{error}</p>}
@@ -385,6 +449,114 @@ export default function AdminMembersPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleting(null)}
       />
+      {addOpen && (
+        <div
+          className={styles.memberModalOverlay}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !addBusy) setAddOpen(false);
+          }}
+        >
+          <form
+            className={styles.memberModalCard}
+            onSubmit={submitAddMember}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-member-title"
+          >
+            <h2 id="add-member-title" className={styles.memberModalTitle}>Add member</h2>
+            <p className={styles.memberModalHelp}>
+              Creates a sign-in account they can use right away. No email confirmation needed.
+            </p>
+
+            {addError && <p className={styles.error}>{addError}</p>}
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="add-member-name">Name <span className={styles.memberModalOptional}>(optional)</span></label>
+              <input
+                id="add-member-name"
+                className={styles.input}
+                type="text"
+                value={addForm.name}
+                onChange={(event) => updateAddField("name", event.target.value)}
+                placeholder="Defaults to the email prefix"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className={styles.fieldRow}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="add-member-email">Email</label>
+                <input
+                  id="add-member-email"
+                  className={styles.input}
+                  type="email"
+                  required
+                  value={addForm.email}
+                  onChange={(event) => updateAddField("email", event.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="add-member-password">Password</label>
+                <input
+                  id="add-member-password"
+                  className={styles.input}
+                  type="password"
+                  required
+                  minLength={6}
+                  value={addForm.password}
+                  onChange={(event) => updateAddField("password", event.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+
+            <div className={styles.fieldRow}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="add-member-plan">Plan</label>
+                <select
+                  id="add-member-plan"
+                  className={styles.input}
+                  value={addForm.plan}
+                  onChange={(event) => updateAddField("plan", event.target.value)}
+                >
+                  {PLAN_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="add-member-expiry">Expires on</label>
+                <input
+                  id="add-member-expiry"
+                  className={styles.input}
+                  type="date"
+                  disabled={addForm.plan === "flirting"}
+                  value={addForm.plan === "flirting" ? "" : addForm.expiresAt}
+                  onChange={(event) => updateAddField("expiresAt", event.target.value)}
+                />
+              </div>
+            </div>
+
+            <p className={styles.memberModalHelp}>
+              {addForm.plan === "flirting"
+                ? "Flirting never expires."
+                : "Leave the date blank for no end date. Access lasts through the selected day."}
+              {addForm.plan === "moving-in" ? " Moving In also grants host access." : ""}
+            </p>
+
+            <div className={styles.memberModalActions}>
+              <button type="button" className={styles.memberModalCancel} onClick={closeAddMember} disabled={addBusy}>
+                Cancel
+              </button>
+              <button type="submit" className={styles.memberModalSubmit} disabled={addBusy}>
+                {addBusy ? "Creating…" : "Create member"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </>
   );
 }
