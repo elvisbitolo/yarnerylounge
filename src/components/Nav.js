@@ -243,11 +243,6 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
   const administrationLinks = getAdministrationLinks(role);
   const close = () => setMobileOpen(false);
 
-  // Admin has a dedicated console shell and navigation. Do not render the
-  // community topbar, sidebar, or fixed bottom navigation around it.
-  if (pathname?.startsWith("/admin")) return children;
-
-
   useEffect(() => {
     if (!mobileSearch) return undefined;
     const frame = requestAnimationFrame(() => mobileSearchInputRef.current?.focus());
@@ -346,6 +341,13 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
       })
       .catch(() => {});
   }, [role]);
+
+  // Admin has a dedicated console shell and navigation. Do not render the
+  // community topbar, sidebar, or fixed bottom navigation around it. This must
+  // stay after every hook call: returning early before the effects above would
+  // change the number of hooks between renders and crash navigation between
+  // the admin console and the community (React "Rendered more/fewer hooks").
+  if (pathname?.startsWith("/admin")) return children;
 
   return (
     <>
