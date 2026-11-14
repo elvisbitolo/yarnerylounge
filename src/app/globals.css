@@ -118,7 +118,11 @@ html {
 html,
 body {
   max-width: 100vw;
+  /* Use `clip` where supported: unlike `hidden`, it does not turn the body
+     into a scroll container, so the sticky topbar and sidebar stay pinned to
+     the viewport while the page scrolls. `hidden` remains the fallback. */
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
