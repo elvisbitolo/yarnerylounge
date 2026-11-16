@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import { requireModerator, requireOwner, guardJson } from "@/lib/server/authorize";
+import { AUTH_COOKIE } from "@/lib/server/auth";
+import { parseSessionCookie } from "@/lib/server/auth-core";
+import { createSession } from "@/lib/server/session-store";
+import { getSwitchRoot, tagSessionForSwitch } from "@/lib/server/account-switch";
 import { isActiveSub } from "@/lib/server/billing";
 import { getPrisma } from "@/lib/db/prisma";
 import { logAudit } from "@/lib/server/audit";
@@ -108,11 +114,18 @@ export async function POST(req) {
   const role = plan === "moving-in" ? "host" : "member";
   const displayName = name || email.split("@")[0] || "Member";
 
+  // The creator owns this account for the saved-account switcher. Deriving the
+  // root means an owner who is themselves a child still files the account under
+  // the same group.
+  const creatorRoot = await getSwitchRoot(auth.userDoc);
+  const ownerId = creatorRoot?.rootId || auth.userDoc?.id || null;
+
   try {
     await prisma.$transaction(async (tx) => {
       await tx.user.create({
         data: {
           id: uid,
+          ownerId,
           name: displayName,
           email,
           role,
@@ -151,16 +164,69 @@ export async function POST(req) {
     return NextResponse.json({ error: "Could not create member." }, { status: 500 });
   }
 
+  // Pre-provision one saved session for the new account so it appears in the
+  // creator's switcher without them re-entering the password. Best-effort: the
+  // account itself is already created, so a sign-in hiccup must not turn the
+  // request into a failure. They can still add it manually via "Add account".
+  let switchReady = false;
+  if (ownerId) {
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const anonKey =
+        process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (supabaseUrl && anonKey) {
+        const anon = createClient(supabaseUrl, anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const { data, error } = await anon.auth.signInWithPassword({ email, password });
+        if (error || !data?.session?.access_token) {
+          logError("admin.members.switch_signin_failed", {
+            email,
+            error: error?.message,
+          });
+        } else {
+          const sid = await createSession({
+            uid,
+            accessToken: data.session.access_token,
+            refreshToken: data.session.refresh_token || null,
+            switchOwnerId: ownerId,
+          });
+          if (sid) {
+            // Only the owner's own session joins the switcher group. A delegate
+            // acting as the owner must not have their session tagged with the
+            // principal's root id.
+            if (!auth.user.actorUid) {
+              const currentSid = parseSessionCookie(
+                (await cookies()).get(AUTH_COOKIE)?.value
+              )?.sid;
+              await tagSessionForSwitch(currentSid, ownerId);
+            }
+            switchReady = true;
+          }
+        }
+      }
+    } catch (err) {
+      logError("admin.members.switch_provision_failed", { email, error: err.message });
+    }
+  }
+
   await logAudit({
     actorId: auth.user.uid,
     actorName: auth.userDoc?.name || auth.user.email || "",
     action: "member.created",
     targetId: uid,
-    metadata: { email, plan, expiresAt: expiresAt ? expiresAt.toISOString() : null },
+    metadata: {
+      email,
+      plan,
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      ownerId,
+      switchReady,
+    },
   });
 
   return NextResponse.json({
     ok: true,
+    switchReady,
     member: {
       id: uid,
       name: displayName,

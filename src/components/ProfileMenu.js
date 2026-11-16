@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { roleBadgeLabel } from "@/lib/profile/roles";
-import { logout } from "@/lib/client-auth";
+import { logout, logoutAll } from "@/lib/client-auth";
 import styles from "./Nav.module.css";
 
 function initials(name) {
@@ -21,6 +21,10 @@ export default function ProfileMenu() {
   const menuRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+  const [canSwitch, setCanSwitch] = useState(false);
+  const [switching, setSwitching] = useState("");
+  const [switchError, setSwitchError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -30,10 +34,36 @@ export default function ProfileMenu() {
         if (active && data) setProfile(data);
       })
       .catch(() => {});
+    fetch("/api/auth/accounts")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setCanSwitch(Boolean(data.eligible));
+        setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };
   }, []);
+
+  // Refresh the saved-account list every time the menu opens, so an account
+  // just created in the admin form appears without a full page reload.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    fetch("/api/auth/accounts")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setCanSwitch(Boolean(data.eligible));
+        setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const name = profile?.name || "Account";
   const isStaff = profile?.role === "owner" || profile?.role === "moderator";
@@ -42,6 +72,34 @@ export default function ProfileMenu() {
     await logout();
     router.push("/login");
     router.refresh();
+  }
+
+  async function handleLogoutAll() {
+    await logoutAll();
+    // Full reload so every client subscription is reset with the cleared cookie.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload after the session cookie is cleared
+    window.location.assign("/login");
+  }
+
+  async function handleSwitch(userId) {
+    if (switching) return;
+    setSwitchError("");
+    setSwitching(userId);
+    try {
+      const res = await fetch("/api/auth/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not switch accounts");
+      // Full reload rebinds every server and client view to the new identity.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload after the active session cookie changes
+      window.location.assign("/dashboard");
+    } catch (err) {
+      setSwitchError(err.message || "Could not switch accounts");
+      setSwitching("");
+    }
   }
 
   useEffect(() => {
@@ -108,6 +166,48 @@ export default function ProfileMenu() {
             </div>
           </div>
 
+          {canSwitch && (
+            <div className={styles.accountSection}>
+              <p className={styles.accountLabel}>Switch account</p>
+              {accounts.map((account) => (
+                <button
+                  key={account.id}
+                  type="button"
+                  className={styles.accountRow}
+                  onClick={() => handleSwitch(account.id)}
+                  disabled={account.current || Boolean(switching)}
+                  aria-current={account.current ? "true" : undefined}
+                >
+                  {account.photoURL ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className={styles.accountAvatar} src={account.photoURL} alt="" />
+                  ) : (
+                    <span className={styles.accountAvatar}>
+                      {initials(account.name || account.email)}
+                    </span>
+                  )}
+                  <span className={styles.accountMeta}>
+                    <span className={styles.accountName}>{account.name || "Account"}</span>
+                    <span className={styles.accountEmail}>{account.email || ""}</span>
+                  </span>
+                  {account.current ? (
+                    <span className={styles.accountCurrent}>Current</span>
+                  ) : switching === account.id ? (
+                    <span className={styles.accountCurrent}>...</span>
+                  ) : null}
+                </button>
+              ))}
+              {switchError && <p className={styles.accountError}>{switchError}</p>}
+              <a
+                className={styles.profileLink}
+                href="/login?addAccount=1"
+                onClick={() => setOpen(false)}
+              >
+                + Add account
+              </a>
+            </div>
+          )}
+
           <Link className={styles.profileLink} href="/account" onClick={() => setOpen(false)}>
             Account
           </Link>
@@ -135,6 +235,15 @@ export default function ProfileMenu() {
           >
             Sign out
           </button>
+          {canSwitch && accounts.length > 1 && (
+            <button
+              type="button"
+              className={styles.profileLink}
+              onClick={handleLogoutAll}
+            >
+              Sign out of all accounts
+            </button>
+          )}
         </div>
       )}
     </div>

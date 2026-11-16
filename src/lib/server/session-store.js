@@ -33,21 +33,22 @@ export async function getSessionRow(sid) {
   }
 }
 
-export async function createSession({ uid, accessToken, refreshToken }) {
+export async function createSession({ uid, accessToken, refreshToken, switchOwnerId = null }) {
   const prisma = getPrisma();
   if (!prisma) return null;
   const id = randomUUID();
   try {
     await prisma.session.create({
-data: {
-    id,
-    userId: uid,
-    accessToken,
-    refreshToken: refreshToken || "",
-    familyId: randomUUID(),
-    expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
-    lastSeenAt: new Date(),
-  },
+      data: {
+        id,
+        userId: uid,
+        accessToken,
+        refreshToken: refreshToken || "",
+        familyId: randomUUID(),
+        expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
+        lastSeenAt: new Date(),
+        switchOwnerId,
+      },
     });
     return id;
   } catch (err) {

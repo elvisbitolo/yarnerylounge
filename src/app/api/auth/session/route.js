@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
-import { AUTH_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/server/auth";
+import { cookies } from "next/headers";
+import {
+  AUTH_COOKIE,
+  SESSION_MAX_AGE_SECONDS,
+  getCurrentUserStatus,
+  getUserDoc,
+} from "@/lib/server/auth";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
-import { serializeSessionCookie } from "@/lib/server/auth-core";
+import { parseSessionCookie, serializeSessionCookie } from "@/lib/server/auth-core";
 import { assertSameOrigin } from "@/lib/server/same-origin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
 import { verifySupabaseToken } from "@/lib/server/auth";
-import { createSession } from "@/lib/server/session-store";
+import { createSession, SESSION_OK } from "@/lib/server/session-store";
+import {
+  canUseSwitcher,
+  canUseSwitcherSession,
+  claimAccountForRoot,
+  getSwitchRoot,
+  tagSessionForSwitch,
+} from "@/lib/server/account-switch";
 import { getPrisma } from "@/lib/db/prisma";
 
 export async function POST(req) {
@@ -20,6 +33,7 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const { supabaseToken, supabaseRefreshToken, name } = body;
+    const addAccount = body?.addAccount === true;
     if (!supabaseToken) {
       return NextResponse.json({ error: "Missing credential" }, { status: 400 });
     }
@@ -27,6 +41,39 @@ export async function POST(req) {
     const identity = await verifySupabaseToken(supabaseToken);
     if (!identity) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    // Adding an account keeps the current session alive. Resolve the owner
+    // group first so a member who is not allowed to switch cannot create a
+    // second session even if they call this endpoint directly.
+    let switchRoot = null;
+    let currentSid = null;
+    if (addAccount) {
+      const current = await getCurrentUserStatus();
+      if (current.status !== SESSION_OK) {
+        return NextResponse.json(
+          { error: "Sign in to your owner account before adding another account." },
+          { status: 401 }
+        );
+      }
+      const realUid = current.identity.actorUid || current.identity.uid;
+      const currentDoc = await getUserDoc(realUid);
+      switchRoot = await getSwitchRoot(currentDoc);
+      currentSid = parseSessionCookie((await cookies()).get(AUTH_COOKIE)?.value)?.sid;
+      if (
+        !switchRoot ||
+        !canUseSwitcher(switchRoot.rootDoc) ||
+        !(await canUseSwitcherSession({
+          sid: currentSid,
+          rootId: switchRoot.rootId,
+          realUid,
+        }))
+      ) {
+        return NextResponse.json({ error: "Account switching is not enabled" }, { status: 403 });
+      }
+      if (identity.uid === realUid) {
+        return NextResponse.json({ error: "You are already signed in to that account." }, { status: 409 });
+      }
     }
 
     const perAccount = rateLimitGuard(`session-uid:${identity.uid}`, { limit: 20 });
@@ -269,10 +316,19 @@ export async function POST(req) {
       });
     }
 
+    if (addAccount) {
+      const claim = await claimAccountForRoot(member, switchRoot.rootId);
+      if (!claim.ok) {
+        return NextResponse.json({ error: claim.error }, { status: 409 });
+      }
+      await tagSessionForSwitch(currentSid, switchRoot.rootId);
+    }
+
     const sid = await createSession({
       uid: identity.uid,
       accessToken: supabaseToken,
       refreshToken: supabaseRefreshToken || null,
+      switchOwnerId: addAccount ? switchRoot.rootId : null,
     });
     if (!sid) {
       throw new Error("session row not created");
@@ -289,6 +345,7 @@ export async function POST(req) {
       uid: identity.uid,
       isNewUser,
       needsConsent,
+      switched: addAccount,
     });
     res.cookies.set(
       AUTH_COOKIE,

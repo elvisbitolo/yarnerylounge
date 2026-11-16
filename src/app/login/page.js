@@ -29,6 +29,7 @@ export default async function LoginPage({ searchParams }) {
       oauthPending={Boolean(params?.provider)}
       hasSession={Boolean(cookieStore.get(AUTH_COOKIE)?.value)}
       openAccess={isOpenAccess()}
+      addAccount={params?.addAccount === "1"}
     />
   );
 }

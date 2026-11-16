@@ -42,11 +42,12 @@ const APP_URL = /^https?:\/\/[^\s"']+$/i.test(CONFIGURED_APP_URL)
     ? window.location.origin
     : "";
 
-async function createSession({ supabaseToken, supabaseRefreshToken, name } = {}) {
+async function createSession({ supabaseToken, supabaseRefreshToken, name, addAccount } = {}) {
   const body = {};
   if (supabaseToken) body.supabaseToken = supabaseToken;
   if (supabaseRefreshToken) body.supabaseRefreshToken = supabaseRefreshToken;
   if (name) body.name = name;
+  if (addAccount) body.addAccount = true;
   let lastError = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 800));
@@ -129,7 +130,7 @@ export async function checkPaidSignup(email) {
   throw new Error(data.message || "Could not check membership");
 }
 
-export async function loginWithSupabaseEmail(email, password) {
+export async function loginWithSupabaseEmail(email, password, { addAccount = false } = {}) {
   const cleanEmail = String(email || "").trim().toLowerCase();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: cleanEmail,
@@ -170,12 +171,14 @@ export async function loginWithSupabaseEmail(email, password) {
   }
   const session = data?.session;
   if (session?.access_token) {
-    await createSession({
+    const result = await createSession({
       supabaseToken: session.access_token,
       supabaseRefreshToken: session.refresh_token || undefined,
+      addAccount,
     });
+    return { user: null, data: result?.data || null, switched: !!addAccount };
   }
-  return { user: null };
+  return { user: null, switched: false };
 }
 
 export async function loginWithOAuthProvider(provider) {
@@ -401,7 +404,7 @@ export async function refreshSession() {
   return reconcileSessionCookie();
 }
 
-export async function logout() {
+async function endSession({ all = false } = {}) {
   // Drop the shim's cached user before anything async runs, so no in-flight
   // /api/me re-check can re-paint the member as signed in behind us.
   beginExplicitLogout();
@@ -414,8 +417,21 @@ export async function logout() {
   } catch {
     // best-effort
   }
-  await fetch("/api/auth/logout", { method: "POST" });
+  await fetch("/api/auth/logout", {
+    method: "POST",
+    headers: all ? { "Content-Type": "application/json" } : undefined,
+    body: all ? JSON.stringify({ all: true }) : undefined,
+  });
   endExplicitLogout();
+}
+
+export async function logout() {
+  return endSession();
+}
+
+// Ends every saved session in this owner's switcher group.
+export async function logoutAll() {
+  return endSession({ all: true });
 }
 
 function supabaseError(error) {

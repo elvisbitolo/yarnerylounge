@@ -23,6 +23,9 @@ model User {
   timezone               String?
 
   id                     String    @id
+  // Self-referential owner for account switching. Child accounts created by an
+  // owner carry that owner's id; null means the account is its own root.
+  ownerId                String?
   name                   String
   username               String?
   email                  String?
@@ -145,11 +148,18 @@ model User {
   grantsGiven     AccountGrant[] @relation("AccountGrantPrincipal")
   grantsReceived AccountGrant[] @relation("AccountGrantGrantee")
 
+  // Account switcher grouping. `ownedAccounts` are the accounts this member
+  // created; `owner` is the member that created this account (null = root).
+  owner          User?  @relation("AccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownedAccounts  User[] @relation("AccountOwner")
+
   // Back-references for the "who actually did this" columns. Named, because
   // User already relates to these three models as an author.
   postsCreated     Post[]         @relation("PostCreatedBy")
   commentsCreated  PostComment[]  @relation("PostCommentCreatedBy")
   roomMessagesCreated RoomMessage[] @relation("RoomMessageCreatedBy")
+
+  @@index([ownerId])
 }
 
 // Lets one member act as another member's account.
@@ -219,12 +229,16 @@ model Session {
   lastSeenAt   DateTime  @default(now())
   createdAt    DateTime  @default(now())
   revokedAt    DateTime?
+  // Account-switcher group this session is exposed to. Null means the session
+  // is only usable as the active login, not as a saved switchable account.
+  switchOwnerId String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
   @@index([expiresAt])
+  @@index([switchOwnerId])
 }
 
 model Follow {

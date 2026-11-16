@@ -69,7 +69,7 @@ function BrandMark() {
   );
 }
 
-export default function LoginForm({ oauthPending = false, hasSession = false, openAccess = false }) {
+export default function LoginForm({ oauthPending = false, hasSession = false, openAccess = false, addAccount = false }) {
   const t = useTranslations("auth");
   const tc = useTranslations("common");
   const [email, setEmail] = useState("");
@@ -111,7 +111,9 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
   // trips, so the signing-in screen covers it — otherwise the form and its
   // "New here? Create an account" link sit on screen for a member who is never
   // going to use them. Anonymous visitors (no cookie) skip straight to the form.
-  const [wallChecked, setWallChecked] = useState(false);
+  // ?addAccount=1 is the exception: the member is signed in on purpose and the
+  // form is exactly what they came for.
+  const [wallChecked, setWallChecked] = useState(addAccount);
   const resolvingWall = hasSession && !wallChecked;
 
   const [noAccount, setNoAccount] = useState(false);
@@ -123,6 +125,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
   // session-refresh / password-recovery paths, where the page's own handler
   // deals with the session.
   useEffect(() => {
+    if (addAccount) return;
     const params = new URLSearchParams(window.location.search);
     // Skip the wall only for a *live* OAuth return. A stale ?provider= link
     // carries no session of its own, so a member arriving on one of those with a
@@ -159,7 +162,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
     return () => {
       cancelled = true;
     };
-  }, [hasSession]);
+  }, [hasSession, addAccount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -297,11 +300,11 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
     // the whole /signing-in load, so the spinner has to survive the handoff.
     let navigated = false;
     try {
-      await loginWithSupabaseEmail(email, password);
+      const result = await loginWithSupabaseEmail(email, password, { addAccount });
       navigated = true;
-      // Full reload so the fresh session cookie is read server-side; the
-      // signing-in screen keeps the transition from feeling like a delay.
-      window.location.assign("/signing-in");
+      // Adding an account replaces the active session with the new one. A full
+      // reload rebinds every client subscription to the switched identity.
+      window.location.assign(addAccount && result?.switched ? "/dashboard" : "/signing-in");
     } catch (err) {
       reportAuthFailure({ email, action: "login", provider: "email", error: err });
       if (err.code === "email_not_verified" || err.code === "email_not_confirmed") {
@@ -521,8 +524,14 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
             ← {t("backToLanding")}
           </a>
           <BrandMark />
-          <h1 className={styles.title}>{t("welcomeBack")}</h1>
-          <p className={styles.subtitle}>{t("signInToJoin")}</p>
+          <h1 className={styles.title}>
+            {addAccount ? "Add another account" : t("welcomeBack")}
+          </h1>
+          <p className={styles.subtitle}>
+            {addAccount
+              ? "Sign in to the account you want to switch to. It stays saved on this device."
+              : t("signInToJoin")}
+          </p>
 
           {error && <p className={styles.error} role="alert" aria-live="assertive">{error}</p>}
 
@@ -545,25 +554,29 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
             </div>
           )}
 
-          <button
-            className={styles.oauthButton}
-            onClick={handleGoogle}
-            disabled={!!busy}
-            type="button"
-          >
-            <GoogleIcon /> {t("continueWithGoogle")}
-          </button>
+          {!addAccount && (
+            <>
+              <button
+                className={styles.oauthButton}
+                onClick={handleGoogle}
+                disabled={!!busy}
+                type="button"
+              >
+                <GoogleIcon /> {t("continueWithGoogle")}
+              </button>
 
-          <button
-            className={styles.oauthButton}
-            onClick={handleFacebook}
-            disabled={!!busy}
-            type="button"
-          >
-            <FacebookIcon /> {t("continueWithFacebook")}
-          </button>
+              <button
+                className={styles.oauthButton}
+                onClick={handleFacebook}
+                disabled={!!busy}
+                type="button"
+              >
+                <FacebookIcon /> {t("continueWithFacebook")}
+              </button>
 
-          <div className={styles.divider}>{tc("or")}</div>
+              <div className={styles.divider}>{tc("or")}</div>
+            </>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className={styles.field}>
@@ -599,11 +612,27 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
             </a>
           </p>
 
-          <p className={styles.footer}>
-            {t("newHere")} <a className={styles.link} href="/signup">{t("createAccountLink")}</a>
-          </p>
+          {addAccount ? (
+            <p className={styles.footer}>
+              <a
+                className={styles.link}
+                href="/dashboard"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the switcher list is rebound to the active session
+                  window.location.assign("/dashboard");
+                }}
+              >
+                Cancel and go back
+              </a>
+            </p>
+          ) : (
+            <p className={styles.footer}>
+              {t("newHere")} <a className={styles.link} href="/signup">{t("createAccountLink")}</a>
+            </p>
+          )}
 
-          {!openAccess && (
+          {!openAccess && !addAccount && (
             <p className={styles.membershipHint}>
               {t("membershipHint")}{" "}
               <a
