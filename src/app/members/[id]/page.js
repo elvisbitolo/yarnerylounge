@@ -41,6 +41,16 @@ async function safe(promise, fallback) {
   }
 }
 
+// Route params arrive percent-encoded (e.g. an email-based user id becomes
+// `name%40example.com`), so a raw prisma lookup by id would miss it.
+function decodeParam(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function formatJoined(value) {
   if (!value) return "";
   const d = value.toMillis ? new Date(value.toMillis()) : new Date(value);
@@ -94,7 +104,8 @@ function commonalities(viewer, member) {
 }
 
 export default async function MemberProfilePage({ params }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = decodeParam(rawId);
   const viewer = await getCurrentUser();
   if (!viewer) redirect("/login");
 
