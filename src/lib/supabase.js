@@ -1,4 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  clearFetchFailure,
+  installAuthDiagnostics,
+  recordFetchFailure,
+} from "@/lib/auth-diagnostics";
 
 // Single shared Supabase client for everything that runs in the browser.
 // Every other browser-facing module imports this one instance, so GoTrue
@@ -24,7 +29,33 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+installAuthDiagnostics();
+
+const diagnosticFetch = async (input, init) => {
+  const url = typeof input === "string" ? input : input?.url;
+  const method = String(init?.method || input?.method || "GET");
+  try {
+    const response = await fetch(input, init);
+    if (!response.ok) {
+      recordFetchFailure({
+        url,
+        method,
+        status: response.status,
+        statusText: response.statusText,
+        phase: "supabase_http",
+      });
+    } else {
+      clearFetchFailure();
+    }
+    return response;
+  } catch (error) {
+    recordFetchFailure({ url, method, error, phase: "supabase_network" });
+    throw error;
+  }
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: diagnosticFetch },
   auth: {
     persistSession: false,
     autoRefreshToken: false,

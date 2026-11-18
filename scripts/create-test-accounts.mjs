@@ -187,7 +187,7 @@ for (const account of ACCOUNTS) {
         console.log(`* ${email} -> would reset the password`);
       } else {
         const { error } = await supabase.auth.admin.updateUserById(uid, {
-          password: TEMP_PASSWORD,
+          password: tempPassword,
           email_confirm: true,
         });
         if (error) throw new Error(`updateUserById: ${error.message}`);

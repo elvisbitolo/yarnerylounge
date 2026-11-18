@@ -20,6 +20,24 @@ function cleanText(value, maxLength) {
     .slice(0, maxLength);
 }
 
+function cleanInt(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  const integer = Math.trunc(number);
+  return integer >= 0 && integer <= 599 ? integer : null;
+}
+
+function cleanUrl(value) {
+  const text = cleanText(value, 300);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return `${url.origin}${url.pathname}`.slice(0, 300);
+  } catch {
+    return text.split(/[?#]/)[0] || null;
+  }
+}
+
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const limited = rateLimitGuard(`auth-attempt:${ip}`, { limit: 20, windowMs: 60_000 });
@@ -37,6 +55,10 @@ export async function POST(request) {
   const email = cleanText(body?.email, 254).toLowerCase() || null;
   const errorCode = cleanText(body?.errorCode, 100) || null;
   const errorMessage = cleanText(body?.errorMessage, 500) || "Authentication was unsuccessful";
+  const requestUrl = cleanUrl(body?.requestUrl);
+  const statusCode = cleanInt(body?.statusCode);
+  const failureType = cleanText(body?.failureType, 60) || null;
+  const cspViolation = cleanText(body?.cspViolation, 300) || null;
 
   if (!ALLOWED_ACTIONS.has(action) || !ALLOWED_PROVIDERS.has(provider)) {
     return NextResponse.json({ error: "Unsupported authentication event" }, { status: 400 });
@@ -52,6 +74,10 @@ export async function POST(request) {
         provider,
         errorCode,
         errorMessage,
+        requestUrl,
+        statusCode,
+        failureType,
+        cspViolation,
         source: "client_reported",
       },
       select: { id: true },

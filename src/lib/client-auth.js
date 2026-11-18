@@ -1,4 +1,9 @@
 import { supabase } from "@/lib/supabase";
+import {
+  getAuthDiagnostics,
+  memberFacingAuthMessage,
+  resetAuthDiagnostics,
+} from "@/lib/auth-diagnostics";
 import { forgetCachedMembership } from "@/lib/membership";
 import { auth, beginExplicitLogout, endExplicitLogout } from "@/lib/auth-client";
 import { oauthAuthorizeOptions } from "@/lib/oauth-providers";
@@ -19,12 +24,21 @@ import { oauthAuthorizeOptions } from "@/lib/oauth-providers";
 // a bounded error code/message for the private developer monitor.
 export function reportAuthFailure({ email, action, provider = "email", error } = {}) {
   if (typeof window === "undefined") return;
+  const diagnostics = getAuthDiagnostics();
+  const failure = diagnostics.failure;
+  const csp = diagnostics.csp;
   const payload = {
     email: String(email || "").trim().slice(0, 254),
     action,
     provider,
-    errorCode: String(error?.code || "auth_error").slice(0, 100),
-    errorMessage: String(error?.message || "Authentication was unsuccessful").slice(0, 500),
+    errorCode: String(error?.code || failure?.failureType || "auth_error").slice(0, 100),
+    errorMessage: String(
+      error?.memberMessage || memberFacingAuthMessage(error, { action }) || "Authentication was unsuccessful"
+    ).slice(0, 500),
+    requestUrl: failure?.url || csp?.blockedUri || null,
+    statusCode: failure?.status ?? error?.status ?? null,
+    failureType: failure?.failureType || (error?.code ? "auth_error" : "unknown"),
+    cspViolation: csp ? `${csp.directive}: ${csp.blockedUri || "blocked"}` : null,
   };
   fetch("/api/auth/attempt", {
     method: "POST",
@@ -32,7 +46,9 @@ export function reportAuthFailure({ email, action, provider = "email", error } =
     credentials: "same-origin",
     keepalive: true,
     body: JSON.stringify(payload),
-  }).catch(() => {});
+  })
+    .catch(() => {})
+    .finally(resetAuthDiagnostics);
 }
 
 const CONFIGURED_APP_URL = process.env.NEXT_PUBLIC_APP_URL || "";
@@ -137,7 +153,7 @@ export async function loginWithSupabaseEmail(email, password, { addAccount = fal
     password,
   });
   if (error) {
-    let message = "We couldn't sign you in. Please check your email and password, then try again.";
+    let message = memberFacingAuthMessage(error, { action: "login" });
     if (error.code === "invalid_credentials" || error.code === "user_not_found") {
       // Supabase intentionally returns the same invalid_credentials response
       // for an unknown email and a wrong password. Only after that failure,
@@ -164,9 +180,12 @@ export async function loginWithSupabaseEmail(email, password, { addAccount = fal
     } else if (error.code === "email_not_confirmed") {
       message = "Please verify your email first — check your inbox for the confirmation link.";
     }
+    const diagnostics = getAuthDiagnostics();
     const authError = new Error(message);
-    authError.code = error.code || "auth_error";
-    authError.status = error.status || null;
+    authError.memberMessage = message;
+    authError.technicalMessage = error?.message;
+    authError.code = error.code || diagnostics.failure?.failureType || "auth_error";
+    authError.status = error.status || diagnostics.failure?.status || null;
     throw authError;
   }
   const session = data?.session;
@@ -194,7 +213,7 @@ export async function loginWithSupabaseOAuthProvider(provider) {
     provider,
     options: oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP_URL }),
   });
-  if (error) throw supabaseError(error);
+  if (error) throw supabaseError(error, { action: "oauth_login" });
   return { user: null };
 }
 
@@ -207,7 +226,7 @@ export async function signupWithSupabaseEmail(name, email, password) {
       data: { name },
     },
   });
-  if (error) throw supabaseError(error);
+  if (error) throw supabaseError(error, { action: "signup" });
   const session = data?.session;
   if (session?.access_token) {
     await createSession({
@@ -298,7 +317,7 @@ export async function sendPasswordReset(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(clean, {
     redirectTo: `${APP_URL}/login`,
   });
-  if (error) throw supabaseError(error);
+  if (error) throw supabaseError(error, { action: "password_reset" });
 }
 
 // True when the current URL carries the Supabase password-recovery tokens
@@ -314,7 +333,7 @@ export function isPasswordRecovery() {
 // lands straight inside the app without signing in again.
 export async function completePasswordRecovery(newPassword) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw supabaseError(error);
+  if (error) throw supabaseError(error, { action: "password_reset" });
 
   const { data } = await supabase.auth.getSession();
   const session = data?.session;
@@ -333,7 +352,7 @@ export async function resendSignupVerification(email) {
     email,
     options: { emailRedirectTo: `${APP_URL}/login` },
   });
-  if (error) throw supabaseError(error);
+  if (error) throw supabaseError(error, { action: "resend" });
   return true;
 }
 
@@ -434,10 +453,14 @@ export async function logoutAll() {
   return endSession({ all: true });
 }
 
-function supabaseError(error) {
-  const msg = typeof error === "string" ? error : error?.message || "Authentication failed";
+function supabaseError(error, { action = "auth" } = {}) {
+  const source = typeof error === "string" ? { message: error } : error || {};
+  const diagnostics = getAuthDiagnostics();
+  const msg = memberFacingAuthMessage(source, { action });
   const err = new Error(msg);
-  err.code = error?.code || "auth_error";
-  if (error?.status) err.status = error.status;
+  err.memberMessage = msg;
+  err.technicalMessage = source?.message;
+  err.code = source?.code || diagnostics.failure?.failureType || "auth_error";
+  err.status = source?.status || diagnostics.failure?.status || null;
   return err;
 }

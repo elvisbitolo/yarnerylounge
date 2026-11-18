@@ -1508,6 +1508,10 @@ model AuthAttempt {
   provider     String
   errorCode    String?
   errorMessage String?  @db.VarChar(500)
+  requestUrl   String?  @db.VarChar(300)
+  statusCode   Int?
+  failureType  String?
+  cspViolation String?  @db.VarChar(300)
   source       String   @default("client_reported")
   createdAt    DateTime @default(now())
 

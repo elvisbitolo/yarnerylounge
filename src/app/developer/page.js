@@ -92,7 +92,7 @@ async function loadSystemSnapshot() {
     const rows = await prisma.authAttempt.findMany({
       orderBy: { createdAt: "desc" },
       take: 100,
-      select: { id: true, email: true, action: true, provider: true, errorCode: true, errorMessage: true, source: true, createdAt: true },
+      select: { id: true, email: true, action: true, provider: true, errorCode: true, errorMessage: true, requestUrl: true, statusCode: true, failureType: true, cspViolation: true, source: true, createdAt: true },
     });
     snapshot.authAttempts = rows;
     snapshot.noAccountAttempts = rows.filter((row) => {
@@ -260,7 +260,7 @@ export default async function DeveloperPage() {
           <span className={styles.muted}>Latest 100 · newest first</span>
         </div>
         <div className={styles.networkPanel}>
-          <p className={styles.networkIntro}>Failed email/password sign-in and registration attempts reported by the application, including the submitted email, provider, error code and time. Passwords and access tokens are never collected.</p>
+          <p className={styles.networkIntro}>Failed email/password sign-in and registration attempts reported by the application, including the submitted email, provider, error code, request URL, status, browser-block details and time. Passwords and access tokens are never collected.</p>
           {snapshot.authAttempts === null ? (
             <p className={styles.networkEmpty}>Authentication logs are unavailable. Confirm the AuthAttempt database migration has been applied.</p>
           ) : snapshot.authAttempts.length === 0 ? (
@@ -268,7 +268,7 @@ export default async function DeveloperPage() {
           ) : (
             <div className={styles.networkTableWrap}>
               <table className={styles.networkTable}>
-                <thead><tr><th>Time</th><th>Email submitted</th><th>Action</th><th>Provider</th><th>Error code</th><th>Error details</th><th>Source</th></tr></thead>
+                <thead><tr><th>Time</th><th>Email submitted</th><th>Action</th><th>Provider</th><th>Error code</th><th>Error details</th><th>Diagnostics</th><th>Source</th></tr></thead>
                 <tbody>
                   {snapshot.authAttempts.map((attempt) => (
                     <tr key={attempt.id}>
@@ -278,6 +278,14 @@ export default async function DeveloperPage() {
                       <td>{attempt.provider}</td>
                       <td><span className={styles.eventError}>{attempt.errorCode || "auth_error"}</span></td>
                       <td className={styles.authErrorDetails}>{attempt.errorMessage || "Authentication was unsuccessful"}</td>
+                      <td className={styles.authErrorDetails}>
+                        {[
+                          attempt.failureType,
+                          Number.isFinite(attempt.statusCode) ? `HTTP ${attempt.statusCode}` : null,
+                          attempt.requestUrl,
+                          attempt.cspViolation ? `CSP ${attempt.cspViolation}` : null,
+                        ].filter(Boolean).join(" · ") || "—"}
+                      </td>
                       <td>{attempt.source}</td>
                     </tr>
                   ))}
