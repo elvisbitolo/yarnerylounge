@@ -170,7 +170,7 @@ export async function loginWithSupabaseEmail(email, password, { addAccount = fal
         if (account?.accountExists === true) {
           message = "The password is incorrect for this email address. Please try again, or select “Forgot password?” if you need to reset it.";
         } else if (account?.accountExists === false) {
-          message = "We couldn't find an account with this email address. Please check the email or create an account.";
+          message = "We don't have an account for this email. Please create an account first, then sign in.";
         } else {
           message = "Your email or password is incorrect. Please check both and try again.";
         }
