@@ -352,7 +352,7 @@ export function UpcomingRooms({ data }) {
               : "UPCOMING";
             const visibleMembers = members.slice(0, 8);
             const memberNames = members.slice(0, 2).map((member) => member.name).filter(Boolean);
-            const remainingMembers = Math.max(0, viewerCount - visibleMembers.length);
+            const remainingMembers = Math.max(0, viewerCount - memberNames.length);
 
             return (
               <article
