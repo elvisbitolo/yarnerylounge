@@ -6,16 +6,13 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import StatCard from "./StatCard";
-import AudienceChart from "./AudienceChart";
 import {
   DashboardMemberAvatar,
   WelcomeBanner,
   CommunityNextSteps,
-  ReturnVisitCard,
   QuickActions,
   CreatorHub,
   CommunityHub,
-  RecentActivity,
   UpcomingRooms,
   ContentPerformance,
   NeedsAttention,
@@ -23,7 +20,7 @@ import {
 import EventsSpotlight from "./EventsSpotlight";
 import DashboardNotificationCard from "./DashboardNotificationCard";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
-import { DashboardActivityPreview, DashboardActiveMembers, DashboardCommunityFeed, DashboardStudioCard, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardProfileCompletion, DashboardCommunityBuilderCard, DashboardEngagementProgress, DashboardYourCommunity } from "./DashboardCommunitySections";
+import { DashboardActiveMembers, DashboardCommunityFeed, DashboardStudioCard, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardProfileCompletion, DashboardCommunityBuilderCard, DashboardEngagementProgress, DashboardYourCommunity } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -145,10 +142,9 @@ export default function DashboardShell() {
     );
   }
 
-  const { user, isStaff, stats, activity, upcomingRooms, spotlight, content, needsAttention, leaderboard } = data;
+  const { user, isStaff, stats, upcomingRooms, spotlight, content, needsAttention, leaderboard } = data;
 
   const statsValue = stats?.ok ? stats.value : null;
-  const activityValue = activity?.ok ? activity.value : [];
   const roomsValue = upcomingRooms?.ok ? upcomingRooms.value : [];
   const contentValue = content?.ok ? content.value : null;
   const attentionValue = needsAttention?.ok ? needsAttention.value : [];
@@ -242,17 +238,11 @@ export default function DashboardShell() {
         <DashboardStudioCard />
         <ChristaLiveInvitation />
         <DashboardNotificationCard />
-        <div className={styles.grid}>
-          <div className={styles.col}>
-            <CommunityNextSteps />
-            <ReturnVisitCard streak={user.streak} points={user.points} />
-          </div>
-          <div className={styles.col}>
-            <DashboardActiveMembers />
-            <DashboardActivityPreview />
-            <DashboardMemberDiscovery />
-          </div>
-        </div>
+        <section className={styles.dashboardCommunityGrid} aria-label="Community connections">
+          <CommunityNextSteps />
+          <DashboardActiveMembers />
+          <DashboardMemberDiscovery />
+        </section>
         <div data-tour="tour-actions">
           <QuickActions isStaff={isStaff} />
         </div>
@@ -273,70 +263,49 @@ export default function DashboardShell() {
           ) : kpis}
         </div>
 
-        <div className={styles.grid}>
-          <div className={styles.col}>
-          {isStaff && (
-            <div className={styles.card}>
-              <AudienceChart />
-            </div>
+        <section className={styles.dashboardInsightsGrid} aria-label="Community insights">
+          {deferredLoading ? (
+            <CardSkeleton lines={3} />
+          ) : needsAttention?.ok ? (
+            <NeedsAttention data={attentionValue} />
+          ) : (
+            <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
           )}
 
-            {deferredLoading ? (
-              <CardSkeleton lines={5} />
-            ) : activity?.ok ? (
-              <div data-tour="tour-activity">
-                <RecentActivity data={activityValue} />
+          {deferredLoading ? (
+            <CardSkeleton lines={4} />
+          ) : content?.ok ? (
+            <ContentPerformance data={contentValue} />
+          ) : (
+            <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
+          )}
+
+          {deferredLoading && isStaff ? (
+            <CardSkeleton lines={5} />
+          ) : leaderboard?.ok && leaderboard.value.length > 0 ? (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>{t("recognition")}</h2>
+                <Link className={styles.cardLink} href="/leaderboard">
+                  {t("leaderboard")}
+                </Link>
               </div>
-            ) : (
-              <SectionError message={t("activityLoadError")} onRetry={handleRetry} />
-            )}
-
-          </div>
-
-          <div className={styles.col}>
-            {deferredLoading ? (
-              <CardSkeleton lines={3} />
-            ) : needsAttention?.ok ? (
-              <NeedsAttention data={attentionValue} />
-            ) : (
-              <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
-            )}
-
-            {deferredLoading ? (
-              <CardSkeleton lines={4} />
-            ) : content?.ok ? (
-              <ContentPerformance data={contentValue} />
-            ) : (
-              <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
-            )}
-
-            {deferredLoading && isStaff ? (
-              <CardSkeleton lines={5} />
-            ) : leaderboard?.ok && leaderboard.value.length > 0 && (
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>{t("recognition")}</h2>
-                  <Link className={styles.cardLink} href="/leaderboard">
-                    {t("leaderboard")}
-                  </Link>
-                </div>
-                <ul className={styles.list}>
-                  {leaderboard.value.map((entry) => (
-                    <li key={entry.userId}>
-                      <Link className={`${styles.item} ${styles.dashboardRecognitionItem}`} href={`/members/${entry.userId}`}>
-                        <DashboardMemberAvatar name={entry.name} photoURL={entry.photoURL} />
-                        <span className={styles.dashboardRecognitionName}>
-                          <span className={styles.itemTitle}>#{entry.rank} {entry.name}</span>
-                          <span className={styles.itemMeta}>{t("pts", { points: entry.points, badges: entry.badgeCount })}</span>
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
+              <ul className={styles.list}>
+                {leaderboard.value.map((entry) => (
+                  <li key={entry.userId}>
+                    <Link className={`${styles.item} ${styles.dashboardRecognitionItem}`} href={`/members/${entry.userId}`}>
+                      <DashboardMemberAvatar name={entry.name} photoURL={entry.photoURL} />
+                      <span className={styles.dashboardRecognitionName}>
+                        <span className={styles.itemTitle}>#{entry.rank} {entry.name}</span>
+                        <span className={styles.itemMeta}>{t("pts", { points: entry.points, badges: entry.badgeCount })}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
       </div>
     </div>
   );

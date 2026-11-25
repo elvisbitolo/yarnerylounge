@@ -144,6 +144,7 @@ function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) 
 
 function BottomNav({ t }) {
   const pathname = usePathname();
+  const router = useRouter();
   const items = [
     { href: "/dashboard", label: t("home"), icon: "home", show: true },
     { href: "/community", label: t("footerCommunity"), icon: "community", show: true },
@@ -226,6 +227,7 @@ const icons = {
 export default function Nav({ role, children }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  const router = useRouter();
   const isRoomPage = pathname?.startsWith("/rooms/");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(
