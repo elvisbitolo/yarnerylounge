@@ -9,7 +9,6 @@ import StatCard from "./StatCard";
 import {
   DashboardMemberAvatar,
   WelcomeBanner,
-  CommunityNextSteps,
   QuickActions,
   CreatorHub,
   CommunityHub,
@@ -237,7 +236,6 @@ export default function DashboardShell() {
         <DashboardStudioCard />
         <ChristaLiveInvitation />
         <section className={styles.dashboardCommunityGrid} aria-label="Community connections">
-          <CommunityNextSteps />
           <DashboardActiveMembers />
           <DashboardMemberDiscovery />
         </section>

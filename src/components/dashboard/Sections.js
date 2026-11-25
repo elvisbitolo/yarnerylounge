@@ -31,36 +31,6 @@ function formatTime(ms) {
   });
 }
 
-export function CommunityNextSteps() {
-  const actions = [
-    { href: "/messages", title: "Check your messages", detail: "Continue a conversation with another member." },
-    { href: "/feed", title: "Join a discussion", detail: "Share an update or reply to a community post." },
-    { href: "/members", title: "Meet members", detail: "Discover people in the community." },
-    { href: "/events", title: "See what's coming up", detail: "Find an event or session to join." },
-  ];
-
-  return (
-    <Card title="Make a connection today" theme="violet">
-      <p className={styles.itemBody} style={{ marginBottom: 10 }}>
-        A few easy ways to take part in the community.
-      </p>
-      <ul className={styles.list}>
-        {actions.map((action) => (
-          <li key={action.href}>
-            <Link className={styles.item} href={action.href}>
-              <span className={styles.itemSplit}>
-                <span className={styles.itemTitle}>{action.title}</span>
-                <span className={styles.cardLink} aria-hidden="true"><ArrowRight size={15} /></span>
-              </span>
-              <span className={styles.itemBody}>{action.detail}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
-
 export function ReturnVisitCard({ streak = 0, points = 0 }) {
   const hasStreak = Number(streak) > 0;
 
