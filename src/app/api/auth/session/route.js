@@ -88,26 +88,32 @@ export async function POST(req) {
     }
 
     const prisma = getPrisma();
-    let member = await prisma.user.findUnique({
+    // Always resolve the verified email across every matching member row,
+    // even when the Supabase UID already matches one row. OAuth signup can
+    // create a lower-tier duplicate whose ID equals the auth UID while the
+    // original paid membership remains under a legacy ID.
+    const uidMember = await prisma.user.findUnique({
       where: { id: identity.uid },
+      include: { subscription: true },
     });
+    let member = uidMember;
 
-    // Supabase OAuth UIDs can differ from legacy application member IDs.
-    // Only a verified email may bridge those identities. If several legacy
-    // rows share that email, select the strongest entitlement and reject ties.
-    if (!member && identity.email_verified && identity.email) {
+    if (identity.email_verified && identity.email) {
       const emailMatches = await prisma.user.findMany({
         where: { email: { equals: identity.email.trim(), mode: "insensitive" } },
         include: { subscription: true },
       });
-      const resolution = selectEmailMember(emailMatches);
+      const candidates = new Map(emailMatches.map((candidate) => [candidate.id, candidate]));
+      if (uidMember) candidates.set(uidMember.id, uidMember);
+
+      const resolution = selectEmailMember([...candidates.values()]);
       if (resolution.ambiguous) {
         return NextResponse.json(
           { error: "email_account_ambiguous", message: "Multiple member accounts match this verified email. Please contact support." },
           { status: 409 }
         );
       }
-      member = resolution.member;
+      member = resolution.member || uidMember;
     }
 
     let isNewUser = false;
@@ -331,7 +337,7 @@ export async function POST(req) {
       }
     } else if (identity.photoURL && !member.photoURL) {
       member = await prisma.user.update({
-        where: { id: identity.uid },
+        where: { id: member.id },
         data: { photoURL: identity.photoURL },
       });
     }
