@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapSubscriptionRow } from "../subscription-core.js";
+import { isCanceledSubscription, mapSubscriptionRow } from "../subscription-core.js";
 import { isActiveSub } from "../billing.js";
 
 test("mapSubscriptionRow: null stays null", () => {
@@ -53,4 +53,20 @@ test("mapSubscriptionRow: expired subscription is not active", () => {
     currentPeriodEnd: new Date(Date.now() - 1000 * 60 * 60 * 24),
   });
   assert.equal(isActiveSub(sub), false);
+});
+
+test("isCanceledSubscription: an active subscription wins over a stale canceledAt timestamp", () => {
+  assert.equal(isCanceledSubscription({ status: "active", canceledAt: new Date("2026-08-27T10:00:10Z") }), false);
+  assert.equal(isCanceledSubscription({ status: "active", canceledAt: null }), false);
+});
+
+test("isCanceledSubscription: explicit canceled status remains canceled", () => {
+  assert.equal(isCanceledSubscription({ status: "canceled", canceledAt: null }), true);
+  assert.equal(isCanceledSubscription({ status: "canceled", canceledAt: new Date() }), true);
+});
+
+test("isCanceledSubscription: legacy rows without status can use canceledAt", () => {
+  assert.equal(isCanceledSubscription({ canceledAt: new Date() }), true);
+  assert.equal(isCanceledSubscription({ canceledAt: null }), false);
+  assert.equal(isCanceledSubscription(null), false);
 });
