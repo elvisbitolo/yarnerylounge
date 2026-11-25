@@ -262,45 +262,53 @@ export default function DashboardShell() {
         </div>
 
         <section className={styles.dashboardInsightsGrid} aria-label="Community insights">
-          {deferredLoading ? (
-            <CardSkeleton lines={3} />
-          ) : needsAttention?.ok ? (
-            <NeedsAttention data={attentionValue} />
-          ) : (
-            <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
-          )}
+          <div className={styles.dashboardInsightAttention}>
+            {deferredLoading ? (
+              <CardSkeleton lines={2} />
+            ) : needsAttention?.ok ? (
+              <NeedsAttention data={attentionValue} />
+            ) : (
+              <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
+            )}
+          </div>
 
-          {deferredLoading ? (
-            <CardSkeleton lines={4} />
-          ) : content?.ok ? (
-            <ContentPerformance data={contentValue} />
-          ) : (
-            <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
-          )}
+          <div className={styles.dashboardInsightTopContent}>
+            {deferredLoading ? (
+              <CardSkeleton lines={4} />
+            ) : content?.ok ? (
+              <ContentPerformance data={contentValue} />
+            ) : (
+              <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
+            )}
+          </div>
 
           {deferredLoading && isStaff ? (
-            <CardSkeleton lines={5} />
+            <div className={styles.dashboardInsightRecognition}>
+              <CardSkeleton lines={5} />
+            </div>
           ) : leaderboard?.ok && leaderboard.value.length > 0 ? (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2 className={styles.cardTitle}>{t("recognition")}</h2>
-                <Link className={styles.cardLink} href="/leaderboard">
-                  {t("leaderboard")}
-                </Link>
+            <div className={styles.dashboardInsightRecognition}>
+              <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <h2 className={styles.cardTitle}>{t("recognition")}</h2>
+                  <Link className={styles.cardLink} href="/leaderboard">
+                    {t("leaderboard")}
+                  </Link>
+                </div>
+                <ul className={styles.list}>
+                  {leaderboard.value.map((entry) => (
+                    <li key={entry.userId}>
+                      <Link className={`${styles.item} ${styles.dashboardRecognitionItem}`} href={`/members/${entry.userId}`}>
+                        <DashboardMemberAvatar name={entry.name} photoURL={entry.photoURL} />
+                        <span className={styles.dashboardRecognitionName}>
+                          <span className={styles.itemTitle}>#{entry.rank} {entry.name}</span>
+                          <span className={styles.itemMeta}>{t("pts", { points: entry.points, badges: entry.badgeCount })}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className={styles.list}>
-                {leaderboard.value.map((entry) => (
-                  <li key={entry.userId}>
-                    <Link className={`${styles.item} ${styles.dashboardRecognitionItem}`} href={`/members/${entry.userId}`}>
-                      <DashboardMemberAvatar name={entry.name} photoURL={entry.photoURL} />
-                      <span className={styles.dashboardRecognitionName}>
-                        <span className={styles.itemTitle}>#{entry.rank} {entry.name}</span>
-                        <span className={styles.itemMeta}>{t("pts", { points: entry.points, badges: entry.badgeCount })}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             </div>
           ) : null}
         </section>

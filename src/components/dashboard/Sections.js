@@ -468,9 +468,9 @@ export function ContentPerformance({ data }) {
       {!data || data.items.length === 0 ? (
         <EmptyState text={t("sharePosts")} />
       ) : (
-        <ul className={styles.list}>
+        <ul className={`${styles.list} ${styles.dashboardContentList}`}>
           {data.items.map((item) => (
-            <li key={item.id}>
+            <li className={styles.dashboardContentListItem} key={item.id}>
               <div className={styles.dashboardContentItem}>
                 {item.authorId ? (
                   <Link className={styles.dashboardContentAuthor} href={`/members/${encodeURIComponent(item.authorId)}`}>
@@ -484,8 +484,8 @@ export function ContentPerformance({ data }) {
                   </span>
                 )}
                 <Link className={styles.dashboardContentBody} href={item.href}>
-                  <span className={styles.itemSplit}>
-                    <span className={styles.itemTitle} style={{ maxWidth: "70%" }}>{item.title}</span>
+                  <span className={styles.dashboardContentPostHeading}>
+                    <span className={styles.itemTitle}>{item.title}</span>
                     <span className={`${styles.tag} ${styles.tagRsvp}`}>{item.score} eng.</span>
                   </span>
                   <span className={styles.itemMeta}>
