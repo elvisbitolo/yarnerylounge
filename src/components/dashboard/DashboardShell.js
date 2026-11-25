@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import StatCard from "./StatCard";
-import AudienceChart from "./AudienceChart";
 import {
   DashboardMemberAvatar,
   WelcomeBanner,
@@ -275,12 +274,6 @@ export default function DashboardShell() {
 
         <div className={styles.grid}>
           <div className={styles.col}>
-          {isStaff && (
-            <div className={styles.card}>
-              <AudienceChart />
-            </div>
-          )}
-
             {deferredLoading ? (
               <CardSkeleton lines={5} />
             ) : activity?.ok ? (
