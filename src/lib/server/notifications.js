@@ -31,14 +31,6 @@ const NOTIFICATION_TYPE_TO_PREF = {
   // unmuteable - a daily notification members cannot silence is worse than
   // one filed under the closest existing bucket.
   daily_match: "feed",
-  // Watch alerts ("tell me when they come online / enter a lounge") are a
-  // deliberate, per-member subscription with no natural home among the other
-  // buckets, so they get their own opt-out rather than riding along with feed
-  // or chat.
-  watch_online: "watch",
-  watch_room: "watch",
-  priority_online: "watch",
-  priority_room: "watch",
   recording_ready: "events",
 };
 

@@ -22,10 +22,17 @@ function timeAgo(iso) {
 function notificationIcon(type) {
   if (["comment", "chat", "dm", "mention"].includes(type)) return MessageCircle;
   if (["event_reminder", "event_rsvp", "rsvp", "availability_rsvp", "lounge_live", "recording_ready"].includes(type)) return CalendarDays;
-  if (["follow", "watch_online", "watch_room", "priority_online"].includes(type)) return Users;
+  if (["follow"].includes(type)) return Users;
   if (["like"].includes(type)) return Heart;
   return Bell;
 }
+
+const REMOVED_NOTIFICATION_TYPES = new Set([
+  "watch_online",
+  "watch_room",
+  "priority_online",
+  "priority_room",
+]);
 
 function isActivity(item) {
   return !["automation", "digest", "reengagement"].includes(item.type);
@@ -69,13 +76,14 @@ export default function NotificationsList({ notifications }) {
     }
   }
 
-  const unread = notifications.filter((n) => !n.read).length;
-  const activity = notifications.filter(isActivity).length;
-  const visibleNotifications = useMemo(() => notifications.filter((item) => {
+  const activeNotifications = notifications.filter((item) => !REMOVED_NOTIFICATION_TYPES.has(item.type));
+  const unread = activeNotifications.filter((n) => !n.read).length;
+  const activity = activeNotifications.filter(isActivity).length;
+  const visibleNotifications = useMemo(() => activeNotifications.filter((item) => {
     if (filter === "unread") return !item.read;
     if (filter === "activity") return isActivity(item);
     return true;
-  }), [filter, notifications]);
+  }), [filter, activeNotifications]);
 
   return (
     <div className={styles.notificationCenter}>
