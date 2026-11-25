@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v29";
+const VERSION = "v30";
 
 // API requests are left to the network by default: a cached /api/me JSON that
 // carries a uid replays long after the session cookie is gone, which makes
@@ -111,7 +111,7 @@ const warmShell = async () => {
         const response = await fetch(target.href, { credentials: "same-origin" });
         if (!response || !response.ok) return;
         if (new URL(response.url).pathname !== target.pathname) return;
-        await cache.put(url, response.clone());
+        if (!SHELL_URLS.includes(url)) await cache.put(url, response.clone());
       } catch {
         // Offline, signed out, or the route errored -- skip this entry.
       }
@@ -207,8 +207,11 @@ self.addEventListener("fetch", (event) => {
           (response) => response || offlineResponse(),
           () =>
             caches.match(request)
-              .then((cached) => (cached ? cached : caches.match("/dashboard")))
-              .then((cached) => (cached ? cached : caches.match("/")))
+              .then((cached) => {
+                const path = new URL(request.url).pathname;
+                if (SHELL_URLS.includes(path)) return offlineResponse();
+                return cached || caches.match("/");
+              })
               .then((cached) => cached || offlineResponse())
         )
     );
