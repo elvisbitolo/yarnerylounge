@@ -1321,3 +1321,12 @@
   outline: 3px solid #ffffff;
   outline-offset: 3px;
 }
+
+
+/* Keep the mobile drawer above the fixed bottom navigation. This leaves the
+   profile footer and its Sign out action fully visible on short screens. */
+@media (max-width: 900px) {
+  .sidebar {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+}
