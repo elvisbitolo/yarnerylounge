@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import styles from "./Nav.module.css";
 import MemberBadge from "./MemberBadge";
-import { Flame } from "lucide-react";
+import { Flame, LogOut } from "lucide-react";
+import { logout } from "@/lib/client-auth";
 
 function initials(name) {
   return (name || "?")
@@ -26,6 +28,7 @@ function Avatar({ url, name, className }) {
 
 export default function SidebarProfile({ points = 0, streak = 0, close }) {
   const t = useTranslations("nav");
+  const router = useRouter();
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
@@ -44,6 +47,13 @@ export default function SidebarProfile({ points = 0, streak = 0, close }) {
   const name = profile?.name || "Member";
   const handle = profile?.username ? `@${profile.username}` : profile?.email || "";
   const xp = Number(points) || 0;
+
+  async function handleLogout() {
+    close?.();
+    await logout();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <div className={styles.sidebarFooter}>
@@ -64,6 +74,10 @@ export default function SidebarProfile({ points = 0, streak = 0, close }) {
       <Link className={styles.profileViewBtn} href="/account" onClick={close}>
         {t("viewProfile")}
       </Link>
+      <button type="button" className={styles.sidebarSignOut} onClick={handleLogout}>
+        <LogOut size={21} strokeWidth={2.4} aria-hidden="true" />
+        <span>Sign out</span>
+      </button>
     </div>
   );
 }
