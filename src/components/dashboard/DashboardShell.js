@@ -45,7 +45,6 @@ export default function DashboardShell() {
   const [fatal, setFatal] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
-  const [exporting, setExporting] = useState(false);
   const [deferredLoading, setDeferredLoading] = useState(true);
 
   useEffect(() => {
@@ -105,28 +104,6 @@ export default function DashboardShell() {
     e.preventDefault();
     const q = query.trim();
     if (q) router.push(`/search?q=${encodeURIComponent(q)}`);
-  }
-
-  function handleExport() {
-    if (exporting) return;
-    setExporting(true);
-    fetch("/api/admin/analytics/export")
-      .then((res) => {
-        if (!res.ok) throw new Error("Export failed");
-        return res.blob();
-      })
-      .then((blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `yarnery-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        setExporting(false);
-      })
-      .catch(() => setExporting(false));
   }
 
   if (loading) {
@@ -221,16 +198,6 @@ export default function DashboardShell() {
             </p>
           </div>
           <div className={styles.headerRight} data-tour="tour-search">
-            {isStaff && (
-              <button
-                type="button"
-                className={styles.exportBtn}
-                onClick={handleExport}
-                disabled={exporting}
-              >
-                {exporting ? "Exporting…" : "Export CSV"}
-              </button>
-            )}
             <form className={styles.search} onSubmit={handleSearch}>
               <span className={styles.searchIcon}>
                 <Search size={15} strokeWidth={2.2} aria-hidden="true" />
