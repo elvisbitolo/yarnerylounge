@@ -1330,3 +1330,47 @@
     bottom: calc(72px + env(safe-area-inset-bottom));
   }
 }
+
+
+/* Persistent, clearly labelled sign-out action in the main header. */
+.topbarSignOut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #ff6b8a;
+  border-radius: 10px;
+  background: #8f1238;
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(143, 18, 56, 0.22);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.topbarSignOut:hover {
+  background: #ad1748;
+}
+
+.topbarSignOut:active {
+  transform: translateY(1px);
+}
+
+.topbarSignOut:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .topbarSignOut {
+    min-height: 40px;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+}
