@@ -1300,6 +1300,13 @@
   cursor: pointer;
   box-shadow: 0 3px 10px rgba(143, 18, 56, 0.24);
   transition: background 0.15s ease, transform 0.15s ease;
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .sidebarSignOut {
+    display: flex;
+  }
 }
 
 .sidebarSignOut:hover {
