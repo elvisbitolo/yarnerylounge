@@ -13,6 +13,17 @@ const PLAN_OPTIONS = [
   { value: "hooking-up", label: "Hooking Up", rank: 1 },
   { value: "moving-in", label: "Moving In", rank: 2 },
 ];
+const ASSIGNABLE_ROLE_OPTIONS = [
+  { value: "member", label: "Member" },
+  { value: "host", label: "Host" },
+  { value: "moderator", label: "Moderator" },
+];
+
+function toDateInputValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
 
 function formatDate(value) {
   if (!value) return "—";
@@ -38,8 +49,18 @@ export default function AdminMembersPage() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
   const [delBusy, setDelBusy] = useState(false);
-  const [planChange, setPlanChange] = useState(null);
-  const [planBusy, setPlanBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editForm, setEditForm] = useState({
+    id: "",
+    name: "",
+    plan: "flirting",
+    role: "member",
+    expiresAt: "",
+    foundingMember: false,
+    suspended: false,
+  });
   const [addOpen, setAddOpen] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
   const [addError, setAddError] = useState("");
@@ -48,6 +69,7 @@ export default function AdminMembersPage() {
     email: "",
     password: "",
     plan: "flirting",
+    role: "member",
     expiresAt: "",
   });
 
@@ -74,16 +96,18 @@ export default function AdminMembersPage() {
   }, []);
 
   useEffect(() => {
-    if (!addOpen) return undefined;
+    if (!addOpen && !editOpen) return undefined;
     function onKeyDown(event) {
-      if (event.key === "Escape" && !addBusy) setAddOpen(false);
+      if (event.key !== "Escape") return;
+      if (addOpen && !addBusy) setAddOpen(false);
+      if (editOpen && !editBusy) setEditOpen(false);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [addOpen, addBusy]);
+  }, [addOpen, addBusy, editOpen, editBusy]);
 
-  async function updateMember(id, changes) {
-    setError("");
+  async function updateMember(id, changes, setFailure = setError) {
+    setFailure("");
     const res = await fetch(`/api/admin/members/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -91,39 +115,60 @@ export default function AdminMembersPage() {
     });
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error || "Update failed");
+      setFailure(data.error || "Update failed");
       return false;
     }
     await loadMembers();
     return true;
   }
 
-  function requestPlanChange(member, nextPlan) {
-    const current = PLAN_OPTIONS.find((option) => option.value === (member.plan || "flirting"));
-    const next = PLAN_OPTIONS.find((option) => option.value === nextPlan);
-    if (!next || nextPlan === (member.plan || "flirting")) return;
-    if (current && next.rank < current.rank) {
-      setError("");
-      setPlanChange({ member, nextPlan });
-      return;
-    }
-    updateMember(member.id, { plan: nextPlan });
+  function openEditMember(member) {
+    setError("");
+    setEditError("");
+    const currentRole = String(member.role || "member").toLowerCase();
+    setEditForm({
+      id: member.id,
+      name: member.name || member.email || "this member",
+      plan: member.plan || "flirting",
+      role: ASSIGNABLE_ROLE_OPTIONS.some((option) => option.value === currentRole) ? currentRole : "member",
+      expiresAt: toDateInputValue(member.expiresAt),
+      foundingMember: Boolean(member.foundingMember),
+      suspended: Boolean(member.suspended),
+    });
+    setEditOpen(true);
   }
 
-  async function confirmPlanChange() {
-    if (!planChange) return;
-    setPlanBusy(true);
+  function closeEditMember() {
+    if (editBusy) return;
+    setEditOpen(false);
+  }
+
+  function updateEditField(field, value) {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitEditMember(event) {
+    event.preventDefault();
+    if (editBusy) return;
+    setEditError("");
+    setEditBusy(true);
     try {
-      const updated = await updateMember(planChange.member.id, { plan: planChange.nextPlan });
-      if (updated) setPlanChange(null);
+      const updated = await updateMember(editForm.id, {
+        plan: editForm.plan,
+        role: editForm.role,
+        expiresAt: editForm.plan === "flirting" ? null : (editForm.expiresAt || null),
+        foundingMember: editForm.foundingMember,
+        suspended: editForm.suspended,
+      }, setEditError);
+      if (updated) setEditOpen(false);
     } finally {
-      setPlanBusy(false);
+      setEditBusy(false);
     }
   }
 
   function openAddMember() {
     setAddError("");
-    setAddForm({ name: "", email: "", password: "", plan: "flirting", expiresAt: "" });
+    setAddForm({ name: "", email: "", password: "", plan: "flirting", role: "member", expiresAt: "" });
     setAddOpen(true);
   }
 
@@ -150,7 +195,7 @@ export default function AdminMembersPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not create member");
       setAddOpen(false);
-      setAddForm({ name: "", email: "", password: "", plan: "flirting", expiresAt: "" });
+      setAddForm({ name: "", email: "", password: "", plan: "flirting", role: "member", expiresAt: "" });
       await loadMembers();
     } catch (err) {
       setAddError(err.message);
@@ -313,22 +358,8 @@ export default function AdminMembersPage() {
                       </a>
                     </td>
                     <td className={styles.memberEmail}>{member.email || "—"}</td>
-                    <td>
-                      {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
-                        <select className={styles.tableSelect} value={memberPlan} onChange={(event) => requestPlanChange(member, event.target.value)} aria-label={`Plan for ${member.name || member.email}`}>
-                          {[...PLAN_OPTIONS].sort((a, b) => Number(b.value === memberPlan) - Number(a.value === memberPlan)).map((option) => (
-                            <option key={option.value} value={option.value} >{option.label}</option>
-                          ))}
-                        </select>
-                      ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
-                    </td>
-                    <td>
-                      {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
-                        <select className={styles.tableSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
-                          <option value="member">Member</option><option value="moderator">Moderator</option>
-                        </select>
-                      ) : <span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span>}
-                    </td>
+                    <td><span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span></td>
+                    <td><span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span></td>
                     <td><span className={member.suspended ? styles.statusSuspended : isActive ? styles.statusActive : styles.statusInactive}>{statusLabel}</span></td>
                     <td>{formatDate(member.expiresAt)}</td>
                     <td>{member.lastSeenAt ? new Date(member.lastSeenAt).toLocaleString() : "—"}</td>
@@ -336,9 +367,10 @@ export default function AdminMembersPage() {
                     <td>
                       <div className={styles.memberActions}>
                         <a className={styles.actionLink} href={`/members/${member.id}`}>Profile</a>
-                        {member.role !== "owner" && <>
+                        {!["owner", "moderator"].includes(member.role) && <>
                           <a className={styles.actionLink} href={`/admin/hosts?userId=${member.id}`}>Host</a>
                           {role === "owner" && <>
+                            <button type="button" className={styles.actionLink} onClick={() => openEditMember(member)}>Edit</button>
                             <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}>{member.foundingMember ? "Unmark 🧶" : "Mark founding"}</button>
                             <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { suspended: !member.suspended })}>{member.suspended ? "Unsuspend" : "Suspend"}</button>
                             <button type="button" className={styles.actionDelete} onClick={() => requestDelete(member)}>Delete</button>
@@ -377,22 +409,8 @@ export default function AdminMembersPage() {
                 </div>
 
                 <dl className={styles.mobileMemberDetails}>
-                  <div><dt>Plan</dt><dd>
-                    {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
-                      <select className={styles.mobileMemberSelect} value={memberPlan} onChange={(event) => requestPlanChange(member, event.target.value)} aria-label={`Plan for ${member.name || member.email}`}>
-                        {PLAN_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    ) : <span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span>}
-                  </dd></div>
-                  <div><dt>Role</dt><dd>
-                    {role === "owner" && !["owner", "moderator"].includes(member.role) ? (
-                      <select className={styles.mobileMemberSelect} value={member.role === "moderator" ? "moderator" : "member"} onChange={(event) => updateMember(member.id, { role: event.target.value })} aria-label={`Role for ${member.name || member.email}`}>
-                        <option value="member">Member</option><option value="moderator">Moderator</option>
-                      </select>
-                    ) : <span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span>}
-                  </dd></div>
+                  <div><dt>Plan</dt><dd><span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span></dd></div>
+                  <div><dt>Role</dt><dd><span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span></dd></div>
                   <div><dt>Joined</dt><dd>{formatDate(member.createdAt)}</dd></div>
                   <div><dt>Member #</dt><dd>{start + index}</dd></div>
                 </dl>
@@ -402,6 +420,7 @@ export default function AdminMembersPage() {
                   {member.role !== "owner" && <>
                     <a className={styles.actionLink} href={`/admin/hosts?userId=${member.id}`}>Host</a>
                     {role === "owner" && <>
+                      <button type="button" className={styles.actionLink} onClick={() => openEditMember(member)}>Edit</button>
                       <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}>{member.foundingMember ? "Unmark founding" : "Mark founding"}</button>
                       <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { suspended: !member.suspended })}>{member.suspended ? "Unsuspend" : "Suspend"}</button>
                       <button type="button" className={styles.actionDelete} onClick={() => requestDelete(member)}>Delete</button>
@@ -428,17 +447,6 @@ export default function AdminMembersPage() {
           </nav>
         </div>
       </div>
-      <ConfirmModal
-        open={!!planChange}
-        title="Confirm membership downgrade"
-        message={planChange ? `Change ${planChange.member.name || planChange.member.email || "this member"} from ${PLAN_OPTIONS.find((option) => option.value === (planChange.member.plan || "flirting"))?.label} to ${PLAN_OPTIONS.find((option) => option.value === planChange.nextPlan)?.label}? This takes effect immediately and removes access to features exclusive to the previous tier.` : ""}
-        confirmLabel="Apply downgrade"
-        busy={planBusy}
-        busyLabel="Updating…"
-        danger
-        onConfirm={confirmPlanChange}
-        onCancel={() => !planBusy && setPlanChange(null)}
-      />
       <ConfirmModal
         open={!!deleting}
         title="Delete member"
@@ -527,23 +535,37 @@ export default function AdminMembersPage() {
                 </select>
               </div>
               <div className={styles.field}>
-                <label className={styles.label} htmlFor="add-member-expiry">Expires on</label>
-                <input
-                  id="add-member-expiry"
+                <label className={styles.label} htmlFor="add-member-role">Role</label>
+                <select
+                  id="add-member-role"
                   className={styles.input}
-                  type="date"
-                  disabled={addForm.plan === "flirting"}
-                  value={addForm.plan === "flirting" ? "" : addForm.expiresAt}
-                  onChange={(event) => updateAddField("expiresAt", event.target.value)}
-                />
+                  value={addForm.role}
+                  onChange={(event) => updateAddField("role", event.target.value)}
+                >
+                  {ASSIGNABLE_ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="add-member-expiry">Expires on</label>
+              <input
+                id="add-member-expiry"
+                className={styles.input}
+                type="date"
+                disabled={addForm.plan === "flirting"}
+                value={addForm.plan === "flirting" ? "" : addForm.expiresAt}
+                onChange={(event) => updateAddField("expiresAt", event.target.value)}
+              />
             </div>
 
             <p className={styles.memberModalHelp}>
               {addForm.plan === "flirting"
                 ? "Flirting never expires."
                 : "Leave the date blank for no end date. Access lasts through the selected day."}
-              {addForm.plan === "moving-in" ? " Moving In also grants host access." : ""}
+              {" Role is stored exactly as selected."}
             </p>
 
             <div className={styles.memberModalActions}>
@@ -552,6 +574,99 @@ export default function AdminMembersPage() {
               </button>
               <button type="submit" className={styles.memberModalSubmit} disabled={addBusy}>
                 {addBusy ? "Creating…" : "Create member"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {editOpen && (
+        <div
+          className={styles.memberModalOverlay}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeEditMember();
+          }}
+        >
+          <form
+            className={styles.memberModalCard}
+            onSubmit={submitEditMember}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-member-title"
+          >
+            <h2 id="edit-member-title" className={styles.memberModalTitle}>Edit {editForm.name}</h2>
+            <p className={styles.memberModalHelp}>
+              Set the plan, expiry, role and flags explicitly. Host is a global role; scoped host access is managed separately.
+            </p>
+
+            {editError && <p className={styles.error}>{editError}</p>}
+
+            <div className={styles.fieldRow}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="edit-member-plan">Plan</label>
+                <select
+                  id="edit-member-plan"
+                  className={styles.input}
+                  value={editForm.plan}
+                  onChange={(event) => updateEditField("plan", event.target.value)}
+                >
+                  {PLAN_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="edit-member-role">Role</label>
+                <select
+                  id="edit-member-role"
+                  className={styles.input}
+                  value={editForm.role}
+                  onChange={(event) => updateEditField("role", event.target.value)}
+                >
+                  {ASSIGNABLE_ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="edit-member-expiry">Expires on</label>
+              <input
+                id="edit-member-expiry"
+                className={styles.input}
+                type="date"
+                disabled={editForm.plan === "flirting"}
+                value={editForm.plan === "flirting" ? "" : editForm.expiresAt}
+                onChange={(event) => updateEditField("expiresAt", event.target.value)}
+              />
+            </div>
+
+            <div className={styles.memberModalActions}>
+              <label className={styles.label}>
+                <input
+                  type="checkbox"
+                  checked={editForm.foundingMember}
+                  onChange={(event) => updateEditField("foundingMember", event.target.checked)}
+                />
+                {" Founding member"}
+              </label>
+              <label className={styles.label}>
+                <input
+                  type="checkbox"
+                  checked={editForm.suspended}
+                  onChange={(event) => updateEditField("suspended", event.target.checked)}
+                />
+                {" Suspended"}
+              </label>
+            </div>
+
+            <div className={styles.memberModalActions}>
+              <button type="button" className={styles.memberModalCancel} onClick={closeEditMember} disabled={editBusy}>
+                Cancel
+              </button>
+              <button type="submit" className={styles.memberModalSubmit} disabled={editBusy}>
+                {editBusy ? "Saving…" : "Save changes"}
               </button>
             </div>
           </form>

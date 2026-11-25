@@ -11,6 +11,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logAudit } from "@/lib/server/audit";
 import { logError } from "@/lib/server/log";
 import supabaseAdmin from "@/lib/supabase/service";
+import { normalizeAdminRole } from "@/lib/server/admin-member-update";
 
 const VALID_PLANS = ["flirting", "hooking-up", "moving-in"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,6 +49,10 @@ export async function POST(req) {
   }
   if (!VALID_PLANS.includes(plan)) {
     return NextResponse.json({ error: "Invalid plan." }, { status: 400 });
+  }
+  const roleResult = normalizeAdminRole(body?.role);
+  if (!roleResult.ok) {
+    return NextResponse.json({ error: "Invalid role." }, { status: 400 });
   }
 
   let expiresAt = null;
@@ -109,9 +114,7 @@ export async function POST(req) {
   }
 
   const uid = authUser.id;
-  // Moving In carries host rights everywhere else in the app, so keep the
-  // stored role in sync with the chosen plan (same rule as the PATCH handler).
-  const role = plan === "moving-in" ? "host" : "member";
+  const role = roleResult.role || (plan === "moving-in" ? "host" : "member");
   const displayName = name || email.split("@")[0] || "Member";
 
   // The creator owns this account for the saved-account switcher. Deriving the

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getCurrentUser } from "@/lib/server/auth";
+import { getCurrentUserStatus } from "@/lib/server/auth";
 import { AUTH_COOKIE } from "@/lib/server/auth";
+import { SESSION_NEEDS_CONSENT, SESSION_OK, SESSION_UNAVAILABLE } from "@/lib/server/session-store";
 import { getPrisma } from "@/lib/db/prisma";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
@@ -19,8 +20,20 @@ function sameOrigin(request) {
 }
 
 export async function POST(request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+  const current = await getCurrentUserStatus();
+  if (current.status === SESSION_UNAVAILABLE) {
+    return NextResponse.json(
+      { error: "Session temporarily unavailable. Please try again." },
+      { status: 503, headers: { "Retry-After": "5" } }
+    );
+  }
+  if (current.status === SESSION_NEEDS_CONSENT) {
+    return NextResponse.json({ error: "Please accept the community terms first." }, { status: 403 });
+  }
+  if (current.status !== SESSION_OK || !current.identity) {
+    return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+  }
+  const user = current.identity;
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   if (user.actorUid && user.actorUid !== user.uid) {
     return NextResponse.json({ error: "Sign in directly to your own account before requesting account deletion." }, { status: 403 });
@@ -102,7 +115,6 @@ export async function POST(request) {
       await tx.postVersion.updateMany({ where: { editorId: user.uid }, data: { editorId: null, editorName: "Former member" } });
       await tx.postModerationLog.updateMany({ where: { actorId: user.uid }, data: { actorId: null, actorName: "Former member" } });
       await tx.report.updateMany({ where: { reporterId: user.uid }, data: { reporterName: "Former member" } });
-      await tx.announcement.updateMany({ where: { authorId: user.uid }, data: { authorName: "Former member" } });
       await tx.auditLog.updateMany({ where: { actorId: user.uid }, data: { actorName: "Former member", metadata: null } });
       await tx.automation.deleteMany({ where: { createdBy: user.uid } });
       await tx.automationHistory.updateMany({ where: { targetUserId: user.uid }, data: { targetUserId: null } });

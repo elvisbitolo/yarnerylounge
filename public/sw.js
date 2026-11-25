@@ -41,6 +41,17 @@ const SHELL_URLS = [
   "/calendar",
 ];
 
+const NO_CACHE_DOCUMENT_PREFIXES = ["/account", "/admin"];
+
+const isNoCacheDocument = (url) => {
+  try {
+    const { pathname } = new URL(url);
+    return NO_CACHE_DOCUMENT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  } catch {
+    return false;
+  }
+};
+
 // Everything Next.js emits for the current build, including the Turbopack
 // module registry that each chunk binds its imports against.
 const isStaticBuildAsset = (url) => {
@@ -194,6 +205,10 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
+    if (isNoCacheDocument(request.url)) {
+      event.respondWith(fetch(request));
+      return;
+    }
     event.respondWith(
       fetch(request)
         .then((response) => {

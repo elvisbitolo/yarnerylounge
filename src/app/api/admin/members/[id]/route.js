@@ -6,6 +6,7 @@ import { isActiveSub } from "@/lib/server/billing";
 import { tierRank } from "@/lib/server/plans";
 import { logError, logInfo } from "@/lib/server/log";
 import { deleteMemberData } from "@/lib/server/delete-member-data";
+import { normalizeAdminExpiry, normalizeAdminPlan, normalizeAdminRole } from "@/lib/server/admin-member-update";
 
 // Plan duration mapping (days) - based on SHOPIFY_VARIANTS in shopify.js
 const PLAN_DURATION_DAYS = {
@@ -22,7 +23,19 @@ export async function PATCH(req, { params }) {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const { role, suspended, foundingMember, plan } = await req.json();
+  const body = await req.json().catch(() => ({}));
+  const { suspended, foundingMember } = body;
+  const planResult = normalizeAdminPlan(body.plan);
+  if (!planResult.ok) return NextResponse.json({ error: planResult.error }, { status: 400 });
+  const roleResult = normalizeAdminRole(body.role);
+  if (!roleResult.ok) return NextResponse.json({ error: roleResult.error }, { status: 400 });
+  const hasExpiry = Object.prototype.hasOwnProperty.call(body, "expiresAt");
+  const expiryResult = normalizeAdminExpiry(body.expiresAt);
+  if (!expiryResult.ok) return NextResponse.json({ error: expiryResult.error }, { status: 400 });
+
+  const plan = planResult.plan;
+  const role = roleResult.role;
+  let expiresAt = expiryResult.expiresAt;
 
   const prisma = getPrisma();
   const existing = await prisma.user.findUnique({ where: { id } });
@@ -32,7 +45,8 @@ export async function PATCH(req, { params }) {
 
   const update = {};
   let periodEnd = null;
-  const existingSub = plan !== undefined
+  const changesMembership = plan !== undefined || hasExpiry;
+  const existingSub = changesMembership
     ? await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } })
     : null;
 
@@ -41,9 +55,6 @@ export async function PATCH(req, { params }) {
     : String(existing.role || "").toLowerCase() === "host" ? "moving-in" : existing.plan || "flirting";
 
   if (role !== undefined) {
-    if (!["member", "moderator"].includes(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    }
     if (auth.userDoc.role !== "owner") {
       return NextResponse.json({ error: "Only the owner can change roles" }, { status: 403 });
     }
@@ -64,43 +75,44 @@ export async function PATCH(req, { params }) {
     }
     update.foundingMember = Boolean(foundingMember);
   }
-  if (plan !== undefined) {
-    const validPlans = ["flirting", "hooking-up", "moving-in"];
-    if (!validPlans.includes(plan)) {
-      return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
-    }
+  if (changesMembership) {
     if (auth.userDoc.role !== "owner") {
       return NextResponse.json({ error: "Only the owner can change membership plans" }, { status: 403 });
     }
     if (["owner", "moderator"].includes(String(existing.role || "").toLowerCase())) {
       return NextResponse.json({ error: "Staff membership access is controlled by their role" }, { status: 400 });
     }
-    // Calculate currentPeriodEnd based on plan duration
-    const durationDays = PLAN_DURATION_DAYS[plan] || 0;
-    periodEnd = durationDays > 0
-      ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
-      : null;
-    // Owner-initiated admin changes may downgrade membership tiers.
-    // Keep the user's host privilege synchronized with the selected plan.
-    update.role = plan === "moving-in" ? "host" : "member";
-    update.plan = plan;
-    update.expiresAt = periodEnd;
+    const targetPlan = plan || existingSub?.tier || existing.plan || "flirting";
+    if (targetPlan === "flirting") {
+      expiresAt = null;
+    } else if (plan !== undefined && !hasExpiry) {
+      const durationDays = PLAN_DURATION_DAYS[plan] || 0;
+      expiresAt = durationDays > 0
+        ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
+        : null;
+    }
+    if (plan !== undefined) update.plan = plan;
+    update.expiresAt = expiresAt;
+    periodEnd = expiresAt;
   }
+
+  const subscriptionPlan = plan || existingSub?.tier || existing.plan || "flirting";
+  const subscriptionRole = role || existing.role;
 
   try {
     await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id }, data: update });
 
-      if (plan !== undefined) {
+      if (changesMembership) {
         if (existingSub) {
           await tx.subscription.update({
             where: { id: existingSub.id },
             data: {
               status: "active",
-              plan,
-              tier: plan,
-              planName: plan,
-              role: update.role || existing.role,
+              plan: subscriptionPlan,
+              tier: subscriptionPlan,
+              planName: subscriptionPlan,
+              role: subscriptionRole,
               currentPeriodEnd: periodEnd,
               trialEnd: null,
               canceledAt: null,
@@ -115,10 +127,10 @@ export async function PATCH(req, { params }) {
               userId: id,
               provider: "admin",
               status: "active",
-              plan,
-              tier: plan,
-              planName: plan,
-              role: update.role || existing.role,
+              plan: subscriptionPlan,
+              tier: subscriptionPlan,
+              planName: subscriptionPlan,
+              role: subscriptionRole,
               shopifyCustomerId: existing.shopifyCustomerId || "",
               shopifyOrderId: existing.shopifyOrderId || "",
               providerCustomerId: "",
@@ -138,19 +150,29 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Could not update member" }, { status: 500 });
   }
 
-  if (plan !== undefined) {
+  if (changesMembership) {
     await logAudit({
       actorId: auth.user.uid,
       actorName: auth.userDoc?.name || auth.user.email || "",
       action: "member.plan_changed",
       targetId: id,
       metadata: {
-        plan,
+        plan: subscriptionPlan,
         prevPlan: previousEffectivePlan,
-        changeType: tierRank(plan) < tierRank(previousEffectivePlan) ? "downgrade" : "upgrade_or_assignment",
-        role: existing.role,
+        expiresAt: expiresAt ? expiresAt.toISOString() : null,
+        changeType: tierRank(subscriptionPlan) < tierRank(previousEffectivePlan) ? "downgrade" : "upgrade_or_assignment",
+        role: subscriptionRole,
         immediate: true,
       },
+    });
+  }
+  if (role !== undefined && role !== existing.role) {
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: auth.userDoc?.name || auth.user.email || "",
+      action: "member.role_changed",
+      targetId: id,
+      metadata: { role, prevRole: existing.role },
     });
   }
 
