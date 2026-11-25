@@ -67,6 +67,9 @@ function getDestination(pathname, admin) {
   const exact = MEMBER_ROUTES[pathname];
   if (exact) return { href: exact[0], label: exact[1] };
 
+  const space = pathname.match(/^\/spaces\/([^/]+)$/);
+  if (space) return { href: "/spaces", label: "Spaces" };
+
   const lesson = pathname.match(/^\/courses\/([^/]+)\/lessons\/[^/]+$/);
   if (lesson) return { href: `/courses/${lesson[1]}`, label: "Course" };
 
@@ -118,14 +121,9 @@ export default function BackButton({
       return;
     }
 
-    // Next.js maintains an index for entries created by its App Router.
-    // Only go back when an in-app entry exists; direct visits use a safe parent.
-    const historyIndex = window.history.state?.idx;
-    if (Number.isInteger(historyIndex) && historyIndex > 0) {
-      router.back();
-    } else {
-      router.replace(target);
-    }
+    // Use the page's explicit parent destination so direct visits and internal
+    // navigation behave identically and the visible label always stays truthful.
+    router.replace(target);
   }
 
   return (
