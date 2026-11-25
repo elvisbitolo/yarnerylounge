@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import AdminRail from "@/components/AdminRail";
+import BackButton from "@/components/BackButton";
 import styles from "@/lib/admin/admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,10 @@ export default async function AdminLayout({ children }) {
   return (
     <div className={styles.shell}>
       <AdminRail role={role} name={userDoc?.name} email={user.email} />
-      <div className={styles.body}>{children}</div>
+      <div className={styles.body}>
+        <BackButton global admin />
+        {children}
+      </div>
     </div>
   );
 }
