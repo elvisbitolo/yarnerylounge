@@ -24,10 +24,6 @@ export function mapSubscriptionRow(row) {
   };
 }
 
-// True for a subscription row written by the emergency open-access override
-// rather than by a purchase. Such a row carries no priceId and no
-// shopifyCustomerId, and it records only that the member once signed up while
-// the override was switched on.
 // A stale cancellation timestamp must not override a later active status.
 // Treat the timestamp as a legacy cancellation signal only when status is absent.
 export function isCanceledSubscription(sub) {
@@ -36,6 +32,10 @@ export function isCanceledSubscription(sub) {
   return !sub.status && Boolean(sub.canceledAt);
 }
 
+// True for a subscription row written by the emergency open-access override
+// rather than by a purchase. Such a row carries no priceId and no
+// shopifyCustomerId, and it records only that the member once signed up while
+// the override was switched on.
 export function isOpenAccessRow(sub) {
   return sub?.provider === "open-access";
 }
