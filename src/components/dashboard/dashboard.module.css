@@ -3006,3 +3006,39 @@ a.activityActor:hover .itemTitle {
     font-size: 16px;
   }
 }
+
+
+/* Balanced dashboard layout after removing streak, activity and audience cards. */
+.dashboardCommunityGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 16px;
+  margin-block: 22px;
+}
+.dashboardCommunityGrid > * {
+  min-width: 0;
+  height: 100%;
+}
+.dashboardInsightsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+  margin-block: 22px;
+}
+.dashboardInsightsGrid > * {
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .dashboardCommunityGrid,
+  .dashboardInsightsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .dashboardCommunityGrid,
+  .dashboardInsightsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
