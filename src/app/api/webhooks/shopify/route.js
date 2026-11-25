@@ -158,11 +158,6 @@ async function grantAccess({ data, email, order }) {
         },
       });
     }
-
-    if (variant.plan !== "flirting") {
-      const { createWelcomeMessage } = await import("@/lib/server/messages");
-      await createWelcomeMessage({ uid, plan: variant.plan, role: variant.role });
-    }
   } else {
     const periodEnd = expiresAt ? new Date(expiresAt) : null;
     const periodStart = order.created_at ? new Date(order.created_at) : new Date();

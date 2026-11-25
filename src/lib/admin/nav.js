@@ -17,7 +17,6 @@ export const ADMIN_SECTIONS = [
     { href: "/admin/spaces", label: "Spaces", guard: "owner", basis: "/api/spaces POST and admin listing -> requireOwner()" },
   ] },
   { label: "Editorial", items: [
-    { href: "/admin/announcements", label: "Announcements", guard: "moderator", basis: "/api/admin/announcements -> requireModerator()" },
     { href: "/admin/articles", label: "Articles", guard: "moderator", isNew: true, basis: "/api/admin/content/article -> moderator policy" },
     { href: "/admin/collections", label: "Collections", guard: "owner", basis: "/api/admin/collections -> requireOwner()" },
   ] },

@@ -18,7 +18,6 @@ import {
   NeedsAttention,
 } from "./Sections";
 import EventsSpotlight from "./EventsSpotlight";
-import DashboardNotificationCard from "./DashboardNotificationCard";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
 import { DashboardActiveMembers, DashboardCommunityFeed, DashboardStudioCard, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardProfileCompletion, DashboardCommunityBuilderCard, DashboardEngagementProgress, DashboardYourCommunity } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
@@ -237,7 +236,6 @@ export default function DashboardShell() {
         <DashboardFeaturedVideos />
         <DashboardStudioCard />
         <ChristaLiveInvitation />
-        <DashboardNotificationCard />
         <section className={styles.dashboardCommunityGrid} aria-label="Community connections">
           <CommunityNextSteps />
           <DashboardActiveMembers />

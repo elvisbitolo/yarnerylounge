@@ -1,11 +1,9 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { fillTemplate } from "@/lib/server/automations-core";
-import { createNotification } from "@/lib/server/notifications";
 import { awardPoints } from "@/lib/server/gamification";
 import { addSpaceMember } from "@/lib/server/spaces";
 import { getOrCreateDm, addMessage } from "@/lib/server/chat";
 import { recordAutomationRun } from "@/lib/server/automation-history";
-import { sendPushToUser } from "@/lib/server/push";
 import { logError } from "@/lib/server/log";
 
 export { fillTemplate };
@@ -135,21 +133,6 @@ async function executeAction(automation, context) {
   const values = placeholderValues(context);
   const owner = config.to === "owner" ? await getOwnerUser() : null;
 
-  if (action === "create_notification") {
-    const userId = owner?.uid || config.toUserId || "";
-    if (!userId) return;
-    const text = fillTemplate(config.message, values);
-    await createNotification({
-      userId,
-      type: "automation",
-      actorId: "",
-      actorName: "Secret Yarnery",
-      text,
-      href: config.href || "/dashboard",
-    });
-    return;
-  }
-
   if (action === "award_points") {
     const points = Math.max(Number(config.points) || 0, 0);
     const subjectUid = context.subjectUid || "";
@@ -178,14 +161,6 @@ async function executeAction(automation, context) {
       { uid: senderOwner.uid, name: senderOwner.name || "Secret Yarnery" },
       text || "You have a new message from Secret Yarnery."
     );
-  }
-
-  if (action === "send_push") {
-    const subjectUid = context.subjectUid || config.toUserId || "";
-    if (!subjectUid) return;
-    const title = fillTemplate(config.title, values) || "Secret Yarnery";
-    const body = fillTemplate(config.body, values) || "You have a new notification.";
-    await sendPushToUser(subjectUid, { title, body, url: config.href || "/dashboard" });
   }
 }
 

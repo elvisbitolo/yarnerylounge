@@ -398,56 +398,6 @@ export function DashboardCommunityFeed() {
   );
 }
 
-export function DashboardActivityPreview() {
-  const { value, loading } = useDashboardResource("/api/notifications?preview=1", "notifications");
-  const notifications = Array.isArray(value) ? value.slice(0, 5) : [];
-  return (
-    <DashboardCard title="Your recent activity" href="/notifications" linkLabel="All activity">
-      {loading ? <p className={styles.itemBody}>Checking your activity…</p> : notifications.length ? (
-        <ul className={styles.list}>
-          {notifications.map((item) => {
-            const href = typeof item.href === "string" && item.href.startsWith("/") ? item.href : "/notifications";
-            const actorName = item.actorName || "Yarnery Lounge";
-            const initials = actorName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "Y";
-            const profileHref = item.actorId ? `/members/${encodeURIComponent(item.actorId)}` : null;
-            const avatar = item.actorPhotoUrl ? (
-              <img className={styles.activityAvatar} src={item.actorPhotoUrl} alt="" loading="lazy" />
-            ) : profileHref ? (
-              <span className={styles.activityAvatarFallback} aria-hidden="true">{initials}</span>
-            ) : (
-              <span className={styles.activitySystemAvatar} aria-hidden="true">
-                <Sparkles size={19} strokeWidth={1.7} aria-hidden="true" />
-              </span>
-            );
-            return (
-              <li key={item.id}>
-                <div className={styles.activityItem}>
-                  {profileHref ? (
-                    <Link className={styles.activityActor} href={profileHref} aria-label={`View ${actorName}'s profile`}>
-                      {avatar}
-                      <span className={styles.itemTitle}>{actorName}</span>
-                    </Link>
-                  ) : (
-                    <span className={styles.activityActor}>
-                      {avatar}
-                      <span className={styles.itemTitle}>{actorName}</span>
-                    </span>
-                  )}
-                  <span className={styles.itemMeta}>{relativeTime(item.createdAt)}</span>
-                  <Link className={styles.activityContent} href={href}>
-                    <span className={styles.itemBody}>{item.text || "You have a new community notification."}</span>
-                    {!item.read ? <span className={styles.activityUnread}>New</span> : null}
-                  </Link>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : <p className={styles.itemBody}>You&apos;re all caught up. New likes, replies and mentions will appear here.</p>}
-    </DashboardCard>
-  );
-}
-
 export function DashboardMemberDiscovery() {
   const { value, loading } = useDashboardResource("/api/members/similar", "members");
   const members = Array.isArray(value) ? value.slice(0, 4) : [];

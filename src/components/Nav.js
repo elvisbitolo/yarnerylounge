@@ -69,7 +69,6 @@ function getAdministrationLinks(role) {
       { href: "/admin/hosts", key: "scopedHosts" },
       { href: "/admin/moderation", key: "moderation" },
       { href: "/admin/automations", key: "automations" },
-      { href: "/admin/announcements", key: "announcements" },
     ];
   }
   if (role === "moderator") {

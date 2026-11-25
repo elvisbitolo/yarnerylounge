@@ -5,7 +5,6 @@ import { listEvents, expandEvents } from "@/lib/server/events";
 import { getCourse, getCourseFull, getProgress } from "@/lib/server/courses";
 import { listSpaces } from "@/lib/server/spaces";
 import { listConversations } from "@/lib/server/chat";
-import { listNotifications } from "@/lib/server/notifications";
 import { getLeaderboard } from "@/lib/server/gamification";
 
 function toMillis(value) {
@@ -248,29 +247,17 @@ export async function getRecentMessages(uid, limit = 3) {
   }));
 }
 
-export async function getRecentNotifications(uid, limit = 5) {
-  return (await listNotifications(uid, limit)).map((n) => ({
-    id: n.id,
-    text: n.text || "",
-    href: n.href || "/notifications",
-    read: !!n.read,
-    createdAt: toMillis(n.createdAt),
-  }));
-}
-
 export async function getDashboardData(uid, userDoc, tier) {
   const role = userDoc?.role || "member";
   const memberships = await getUserMemberships(uid);
-  const [activity, learning, spaces, rooms, events, messages, notifications, leaderboard] =
-    await Promise.all([
-      getCommunityActivity(uid, role, memberships),
-      getContinueLearning(uid, tier),
-      getRecommendedSpaces(uid, tier, memberships),
-      getLiveRooms(),
-      getUpcomingEvents(),
-      getRecentMessages(uid),
-      getRecentNotifications(uid),
-      getLeaderboard(3),
-    ]);
-  return { activity, learning, spaces, rooms, events, messages, notifications, leaderboard };
+  const [activity, learning, spaces, rooms, events, messages, leaderboard] = await Promise.all([
+    getCommunityActivity(uid, role, memberships),
+    getContinueLearning(uid, tier),
+    getRecommendedSpaces(uid, tier, memberships),
+    getLiveRooms(),
+    getUpcomingEvents(),
+    getRecentMessages(uid),
+    getLeaderboard(3),
+  ]);
+  return { activity, learning, spaces, rooms, events, messages, leaderboard };
 }

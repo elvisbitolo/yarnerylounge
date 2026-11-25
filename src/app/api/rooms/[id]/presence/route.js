@@ -13,8 +13,6 @@ import {
 } from "@/lib/server/room-presence";
 import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 import { getScopedHostRights } from "@/lib/server/hosts";
-import { announceLoungeLive } from "@/lib/server/lounge-live";
-import { isLoungeLiveEnabled } from "@/lib/server/lounge-live-core";
 
 export const dynamic = "force-dynamic";
 
@@ -108,20 +106,6 @@ export async function POST(req, { params }) {
     after(async () => {
       if (room.persisted) {
         const joinedAt = new Date();
-        if (isLoungeLiveEnabled()) {
-          await announceLoungeLive({
-            user: {
-              uid: auth.user.uid,
-              email: auth.user.email || auth.userDoc?.email || "",
-              name: auth.userDoc?.name || auth.user.displayName || "Member",
-            },
-            room: { id: room.id, name: room.name, slug: room.slug },
-            now: joinedAt.getTime(),
-            sessionId,
-          });
-        }
-        // Record only after the announcement checks the previous join history;
-        // this also removes the former create-vs-query race.
         const prisma = getPrisma();
         if (prisma) {
           await prisma.roomEvent.create({

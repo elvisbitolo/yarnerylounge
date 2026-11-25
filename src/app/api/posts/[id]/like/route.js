@@ -40,19 +40,6 @@ export async function POST(req, { params }) {
       where: { id },
       data: { likes: nextLikes, lastActivityAt: new Date() },
     });
-    if (!already && data.authorId && data.authorId !== user.uid) {
-      const { createNotification } = await import("@/lib/server/notifications");
-      const actorName = userDoc?.name || user.email?.split("@")[0] || "Member";
-      await createNotification({
-        userId: data.authorId,
-        type: "like",
-        actorId: user.uid,
-        actorName,
-        targetId: id,
-        href: `/feed`,
-        text: `Liked your post`,
-      });
-    }
     return NextResponse.json({ liked, count });
   } catch (err) {
     logError("posts.like.prisma_write_failed", { error: err.message });

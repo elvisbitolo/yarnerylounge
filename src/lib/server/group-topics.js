@@ -272,20 +272,6 @@ export async function addThreadReply({ threadId, groupId, topicKey, uid, userNam
         where: { groupId_key: { groupId, key: topicKey } },
         data: { lastActivityAt: now },
       }).catch(() => {});
-      if (threadRow.authorId && threadRow.authorId !== uid) {
-        const groupRow = await prisma.group.findUnique({ where: { id: groupId } });
-        const slug = groupRow ? groupRow.slug : "";
-        const { createNotification } = await import("@/lib/server/notifications");
-        await createNotification({
-          userId: threadRow.authorId,
-          type: "comment",
-          actorId: uid,
-          actorName: userName || "Member",
-          targetId: threadId,
-          href: `/groups/${slug}`,
-          text: `Replied on "${threadRow.title || "your thread"}"`,
-        });
-      }
       return { id: reply.id };
     } catch (err) {
       logError("group-topics.prisma_add_reply_failed", { error: err.message });

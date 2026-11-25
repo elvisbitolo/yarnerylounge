@@ -13,7 +13,7 @@ import MembersMap from "./MembersMap";
 import MemberFilters from "./MemberFilters";
 import { MEMBER_TABS, applyMemberTab, emptyViewMessage } from "@/lib/members/tabs-core";
 import styles from "./members.module.css";
-import { Bell, MapPin, MessageCircle, ShieldBan, VolumeX } from "lucide-react";
+import { MapPin, MessageCircle, ShieldBan, VolumeX } from "lucide-react";
 
 const CRAFTS = [
   { value: "crochet", label: "Crochet" },
@@ -275,7 +275,6 @@ export default function MembersDirectory({
           iBlocked: !!data.iBlocked,
           theyBlocked: !!data.theyBlocked,
           muted: !!data.muted,
-          watching: !!data.watching,
         };
         safetyCache.current.set(memberId, next);
         // A newer hover may have replaced this entry while the fetch was in
@@ -307,7 +306,6 @@ export default function MembersDirectory({
         iBlocked: !!data.iBlocked,
         theyBlocked: !!data.theyBlocked,
         muted: !!data.muted,
-        watching: !!data.watching,
       };
       safetyCache.current.set(memberId, next);
       setSafety((prev) => (prev && prev.targetId === memberId ? next : prev));
@@ -886,15 +884,6 @@ export default function MembersDirectory({
                 onClick={() => toggleSafety(safety.muted ? "unmute" : "mute")}
               >
                 <VolumeX size={13} /> {safety.muted ? "Unmute" : "Mute"}
-              </button>
-              <button
-                type="button"
-                className={`${styles.safetyBtn}${safety.watching ? ` ${styles.safetyWatching}` : ""}`}
-                disabled={safety.loading || safety.failed || safety.busy || safety.theyBlocked}
-                title="Notify me when they come online or enter a lounge"
-                onClick={() => toggleSafety(safety.watching ? "unwatch" : "watch")}
-              >
-                <Bell size={13} /> {safety.watching ? "Notifying" : "Notify"}
               </button>
             </div>
           )}

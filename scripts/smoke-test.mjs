@@ -63,7 +63,6 @@ async function cleanup() {
     await pool.query(`DELETE FROM "Post" WHERE "authorId" = $1`, [uid]);
     await pool.query(`DELETE FROM "PostComment" WHERE "authorId" = $1`, [uid]);
     await pool.query(`DELETE FROM "Gamification" WHERE "id" = $1 OR "userId" = $1`, [uid]);
-    await pool.query(`DELETE FROM "Notification" WHERE "userId" = $1 OR "actorId" = $1`, [uid]);
     await pool.query(`DELETE FROM "Subscription" WHERE "id" = $1 OR "userId" = $1`, [uid]);
     await pool.query(`DELETE FROM "User" WHERE "id" = $1`, [uid]);
   } catch (e) {

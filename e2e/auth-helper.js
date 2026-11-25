@@ -41,7 +41,6 @@ async function createMember() {
       await pool.query(`DELETE FROM "Post" WHERE "authorId" = $1`, [uid]);
       await pool.query(`DELETE FROM "PostComment" WHERE "authorId" = $1`, [uid]);
       await pool.query(`DELETE FROM "Gamification" WHERE "id" = $1 OR "userId" = $1`, [uid]);
-      await pool.query(`DELETE FROM "Notification" WHERE "userId" = $1 OR "actorId" = $1`, [uid]);
       await pool.query(`DELETE FROM "Subscription" WHERE "id" = $1 OR "userId" = $1`, [uid]);
       await pool.query(`DELETE FROM "Follow" WHERE "followerId" = $1 OR "followingId" = $1`, [uid]);
       // Scheduling tables, in dependency order. Deleting "User" first raised an

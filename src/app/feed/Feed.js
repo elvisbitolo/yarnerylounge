@@ -13,7 +13,7 @@ import { cardThemeVars } from "@/lib/card-themes";
 import { dataUrlToBlob } from "@/lib/data-url";
 import { IMAGE_DATA_URL_MAX, isSystemPost } from "@/lib/server/posts-core";
 import styles from "./feed.module.css";
-import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown, Share2, Video, X, Pencil, Trash2, RotateCcw, Bell, BellOff, EyeOff, Lock, Unlock, Archive, History, Quote, Repeat2, VolumeX, Clock } from "lucide-react";
+import { PenSquare, BarChart3, HelpCircle, Trophy, ScrollText, Pin, PlusCircle, MessageCircle, Crown, FileText, CalendarDays, ChevronDown, Share2, Video, X, Pencil, Trash2, RotateCcw, EyeOff, Lock, Unlock, Archive, History, Quote, Repeat2, VolumeX, Clock } from "lucide-react";
 import { embedInfoForUrl, normalizeTag, isValidTag } from "@/lib/feed-utils";
 
 const PAGE_SIZE = 20;
@@ -1066,7 +1066,6 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
   const [showTrash, setShowTrash] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [mutedIds, setMutedIds] = useState(() => new Set());
-  const [notifIds, setNotifIds] = useState(() => new Set());
   // Composer extras.
   const [composerSchedule, setComposerSchedule] = useState("");
   const [composerSensitive, setComposerSensitive] = useState(false);
@@ -1879,19 +1878,6 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
     if (!isMuted) setPosts((prev) => prev.filter((p) => p.authorId !== post.authorId));
   }
 
-  async function handleNotifications(post) {
-    const res = await fetch(`/api/posts/${post.id}/subscribe`, { method: "POST" });
-    if (!res.ok) return;
-    const data = await res.json().catch(() => ({}));
-    const subscribed = typeof data.subscribed === "boolean" ? data.subscribed : !notifIds.has(post.id);
-    setNotifIds((prev) => {
-      const next = new Set(prev);
-      if (subscribed) next.add(post.id);
-      else next.delete(post.id);
-      return next;
-    });
-  }
-
   async function openHistory(post) {
     setHistoryFor(post.id);
     setHistoryItems(null);
@@ -2225,12 +2211,6 @@ export default function Feed({ uid, userName, userPhotoURL = "", role, groupId, 
             label: t("copyText"),
             icon: <FileText size={15} />,
             onClick: () => copyPostText(post),
-          },
-          {
-            key: "notify",
-            label: notifIds.has(post.id) ? t("turnOffNotifications") : t("turnOnNotifications"),
-            icon: notifIds.has(post.id) ? <BellOff size={15} /> : <Bell size={15} />,
-            onClick: () => handleNotifications(post),
           },
           // Only members can be muted. A platform post has no author, and
           // muting one would send an empty target that the safety route

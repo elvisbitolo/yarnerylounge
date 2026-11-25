@@ -7,7 +7,7 @@ import styles from "../chat.module.css";
 // Forward a message into another conversation: the already-rendered (decrypted)
 // text and attachment are posted through the same /messages endpoint used by
 // the composer, so the recipient gets a regular message — with the normal mute
-// and notification handling applied.
+// handling applied.
 export default function ForwardPicker({ open, onClose, conversationId, messageId, msg }) {
   const [conversations, setConversations] = useState(null);
   const [status, setStatus] = useState("");

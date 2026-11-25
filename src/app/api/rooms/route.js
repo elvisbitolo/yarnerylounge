@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { listRooms, createRoom } from "@/lib/server/rooms";
-import { requireUser, requireOwner, guardJson } from "@/lib/server/authorize";
+import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities, canHost } from "@/lib/server/capabilities";
 import { logAudit } from "@/lib/server/audit";
-import { getSpace, getSpaceMembers } from "@/lib/server/spaces";
-import { createNotification } from "@/lib/server/notifications";
-import { getUserDoc } from "@/lib/server/auth";
+import { getSpace } from "@/lib/server/spaces";
 import { serialize } from "@/lib/server/serialize";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
@@ -158,59 +156,5 @@ export async function POST(req) {
     },
   });
 
-  if (room.kind === "broadcast" && !parsedOpensAt) {
-    await notifyRoomGoLive({
-      room,
-      actorId: auth.user.uid,
-      actorName: auth.userDoc?.name || auth.user.email || "A host",
-    });
-  }
-
   return NextResponse.json({ room });
-}
-
-async function notifyRoomGoLive({ room, actorId, actorName }) {
-  let members = [];
-  try {
-    const prisma = getPrisma();
-    if (room.spaceId) {
-      const spaceMembers = await getSpaceMembers(room.spaceId);
-      members = spaceMembers
-        .map((m) => m.userId)
-        .filter((uid) => uid && uid !== actorId);
-    } else if (room.groupId) {
-      const rows = await prisma.groupMember.findMany({
-        where: { groupId: room.groupId },
-        select: { userId: true },
-      });
-      members = rows
-        .map((d) => d.userId)
-        .filter((uid) => uid && uid !== actorId);
-    } else {
-      const rows = await prisma.user.findMany({
-        select: { id: true },
-        take: 1000,
-      });
-      members = rows
-        .map((d) => d.id)
-        .filter((uid) => uid && uid !== actorId);
-    }
-  } catch (err) {
-    logError("room.golive_members_failed", { error: err.message });
-    return;
-  }
-
-  for (const uid of members) {
-    const target = await getUserDoc(uid);
-    const name = target?.name || "Member";
-    await createNotification({
-      userId: uid,
-      type: "lounge_live",
-      actorId,
-      actorName,
-      targetId: room.id,
-      href: `/rooms/${room.slug}`,
-      text: `${actorName} just went live in "${room.name}". Join now.`,
-    });
-  }
 }

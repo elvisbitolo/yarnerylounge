@@ -351,9 +351,8 @@
 
 /* ---------------------------------------------------------------------
    "Christa is live" card.
-   Shown to every member regardless of their notification preferences: it is
-   a passive hint, not an interruption, so it is not gated on the same opt-out
-   as the push/email broadcast.
+   Shown to every member as a passive hint rather than an interruption, so it
+   is not gated on an in-app banner opt-out.
    --------------------------------------------------------------------- */
 
 .liveCard {

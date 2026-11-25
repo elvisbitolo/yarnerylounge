@@ -128,7 +128,7 @@ export default async function NeighbourhoodsPage() {
           </li>
           <li>
             <strong>Topics</strong> — a forum for questions &amp; answers, show-and-tells and
-            neighbourhood announcements.
+            neighbourhood news.
           </li>
           <li>
             <strong>Neighbours</strong> — every member of the network, with the ones in your

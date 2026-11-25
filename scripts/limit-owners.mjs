@@ -8,7 +8,7 @@
 // src/lib/server/subscription.js treats them identically. So a demotion to
 // moderator keeps the member's tier, badge, room-hosting rights and
 // subscription bypass, while giving up the owner-only surfaces:
-// recordings management, spaces/courses/push/seed routes, and the ability to
+// recordings management, spaces/courses/seed routes, and the ability to
 // delete another member's post (posts.js grants that to owner only).
 //
 // Safe by default: this is a DRY RUN. Pass --apply to write.
@@ -148,7 +148,7 @@ try {
     console.log(
       `\n  ! ${dormant.length} dormant account(s) would become moderators:\n` +
         `    credentials nobody is monitoring holding rights to delete any\n` +
-        `    comment, pin messages and post announcements. Re-run with\n` +
+        `    comment and pin messages. Re-run with\n` +
         `    --purge-dormant to delete them instead of demoting.`
     );
   }
@@ -201,7 +201,7 @@ try {
 
   const client = await pool.connect();
 // Deleting a User row is blocked by every foreign key that does NOT cascade.
-// Follow and Notification are the ones that bite in practice -- Follow declares
+// Follow is the one that bites in practice -- it declares
 // plain relations with no onDelete, so it defaults to restricting. Rather than
 // hardcode today's tables, ask the catalog which relations restrict and clear
 // those first, so the script stays correct as the schema grows.

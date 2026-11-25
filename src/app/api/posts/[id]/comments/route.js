@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { canAccessPost } from "@/lib/server/posts";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
-import { createNotification } from "@/lib/server/notifications";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 import { resolveActorId } from "@/lib/server/acting-as-core";
 import { awardPoints, awardBadge, POINTS } from "@/lib/server/gamification";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { validateCommentText } from "@/lib/server/posts-core";
-import { extractMentions, resolveMentions, sendMentionNotifications } from "@/lib/server/mentions";
+
 
 export async function GET(req, { params }) {
   const { id: postId } = await params;
@@ -154,15 +153,7 @@ export async function POST(req, { params }) {
       where: { id: postId },
       data: { commentCount: { increment: 1 }, lastActivityAt: new Date() },
     });
-    // Commenting auto-subscribes you to the thread, exactly like Facebook:
-    // you get notified about later replies without asking.
-    await prisma.postSubscription
-      .upsert({
-        where: { postId_userId: { postId, userId: user.uid } },
-        create: { postId, userId: user.uid },
-        update: {},
-      })
-      .catch((err) => logError("comments.subscribe_failed", { postId, error: err.message }));
+
     commentId = comment.id;
   } catch (err) {
     logError("posts.comments.prisma_write_failed", { error: err.message });
@@ -178,69 +169,7 @@ export async function POST(req, { params }) {
   });
   awardBadge(user.uid, "first_comment", authorName).catch(() => {});
 
-  const mentionUsernames = extractMentions(check.text);
-  if (mentionUsernames.length > 0) {
-    resolveMentions(mentionUsernames).then((mentions) =>
-      sendMentionNotifications({
-        mentions,
-        actorId: user.uid,
-        actorName: authorName,
-        targetId: postId,
-        href: `/feed`,
-        text: "comment",
-      })
-    ).catch(() => {});
-  }
 
-  if (post.authorId !== user.uid) {
-    createNotification({
-      userId: post.authorId,
-      type: "comment",
-      actorId: user.uid,
-      actorName: authorName,
-      targetId: postId,
-      href: `/feed`,
-      text: `commented on your post`,
-    }).catch((err) => {
-      logError("comments.notify_author_failed", { postId, error: err.message });
-    });
-  }
-
-  notifySubscribers(postId, post.authorId, user.uid, authorName).catch(() => {});
 
   return NextResponse.json({ id: commentId });
-}
-
-// Notify everyone who follows the thread (post subscriptions) about the new
-// reply, minus the actor and minus the author, who already got a direct
-// "commented on your post" notification above. This replaces the old
-// "everyone who ever commented" fan-out so opting out actually sticks.
-async function notifySubscribers(postId, postAuthorId, actorId, actorName) {
-  try {
-    const prisma = getPrisma();
-    const rows = await prisma.postSubscription.findMany({
-      where: { postId },
-      select: { userId: true },
-    });
-    const notified = new Set();
-    for (const row of rows) {
-      const userId = row.userId;
-      if (!userId) continue;
-      if (userId === actorId) continue;
-      if (userId === postAuthorId) continue;
-      if (notified.has(userId)) continue;
-      notified.add(userId);
-      await createNotification({
-        userId,
-        type: "comment",
-        actorId,
-        actorName,
-        targetId: postId,
-        href: `/feed`,
-        text: `also commented on this post`,
-      }).catch(() => {});
-    }
-  } catch (err) {
-    logError("posts.comments.subscribers_failed", { error: err.message });
-  }
 }

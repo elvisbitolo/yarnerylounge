@@ -58,14 +58,6 @@ test("normalizeProfile: empty body yields no patch and no errors", () => {
   assert.deepEqual(errors, {});
 });
 
-test("normalizeProfile: notifications coerces to on/off only", () => {
-  assert.equal(normalizeProfile({ notifications: "on" }).patch.notifications, "on");
-  assert.equal(normalizeProfile({ notifications: "off" }).patch.notifications, "off");
-  const { patch, errors } = normalizeProfile({ notifications: "maybe" });
-  assert.equal(patch.notifications, undefined);
-  assert.equal(errors.notifications, "Notifications must be \"on\" or \"off\"");
-});
-
 test("profileChanged: detects no-op saves", () => {
   const prev = { name: "Ada", headline: "Engineer" };
   const { changed, hasChanges } = profileChanged(prev, { name: "Ada", headline: "Engineer" });

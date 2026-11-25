@@ -50,7 +50,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Enter a valid phone number in international format, e.g. +254..." }, { status: 400 });
   }
   if (body?.consent !== true) {
-    return NextResponse.json({ error: "Please confirm that you consent to receiving WhatsApp notifications." }, { status: 400 });
+    return NextResponse.json({ error: "Please confirm consent to link your WhatsApp account." }, { status: 400 });
   }
 
   const prisma = getPrisma();

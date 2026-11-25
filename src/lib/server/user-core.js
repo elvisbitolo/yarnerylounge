@@ -63,11 +63,6 @@ export function mapUserRow(row) {
     favoriteHookSize: row.favoriteHookSize || "",
     socialLinks: row.socialLinks && typeof row.socialLinks === "object" ? row.socialLinks : {},
     extra: row.extra && typeof row.extra === "object" ? row.extra : {},
-    notifications: row.notifications || "",
-    notificationPreferences:
-      row.notificationPreferences && typeof row.notificationPreferences === "object"
-        ? row.notificationPreferences
-        : {},
     foundingMember: row.foundingMember || false,
     suspended: row.suspended || false,
     recognitionCount: row.recognitionCount || 0,

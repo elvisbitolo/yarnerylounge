@@ -214,8 +214,8 @@ export async function POST(req) {
     }
     logJwtDiagnostics(token);
 
-    // Token prewarming only authorizes the meeting. Attendance and room
-    // notifications are recorded after the client confirms videoConferenceJoined.
+    // Token prewarming only authorizes the meeting. Attendance is recorded
+    // after the client confirms videoConferenceJoined.
 
 
     return NextResponse.json({

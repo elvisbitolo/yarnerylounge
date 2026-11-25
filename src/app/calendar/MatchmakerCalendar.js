@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Globe, Pencil, Plus, Trash2, Users, ChevronLeft, ChevronRight, X, Bell } from "lucide-react";
+import { CalendarDays, Globe, Pencil, Plus, Trash2, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   RECURRING_OPTIONS,
   recurringLabel,
@@ -67,8 +67,6 @@ const EXTRA_ZONES = [
 
 const TIMEZONE_STORAGE_KEY = "yarnery-calendar-timezone";
 
-const REMINDERS_STORAGE_KEY = "yarnery-calendar-reminders";
-
 function browserTimeZone() {
   if (typeof window === "undefined") return "UTC";
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -127,8 +125,6 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
   const [selected, setSelected] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [toast, setToast] = useState("");
-  const [reminders, setReminders] = useState(() => new Set());
-  const notifiedRef = useRef(new Set());
   // The week/day axis opens on waking hours instead of a dead 00:00–08:00.
   const [showAllHours, setShowAllHours] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -169,18 +165,6 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     const timer = setTimeout(() => setToast(""), 2600);
     return () => clearTimeout(timer);
   }, [toast]);
-
-  useEffect(() => {
-    // Read persisted reminders after mount so server and client first render
-    // agree (localStorage is not available on the server).
-    try {
-      const stored = JSON.parse(window.localStorage.getItem(REMINDERS_STORAGE_KEY) || "[]");
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydrate from storage
-      if (Array.isArray(stored) && stored.length) setReminders(new Set(stored));
-    } catch {
-      // Storage disabled: reminders simply start empty.
-    }
-  }, []);
 
   useEffect(() => {
     if (!selected && !showAdd && !editing) return undefined;
@@ -263,30 +247,6 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     setFilters((prev) => ({ ...prev, [kind]: !prev[kind] }));
   }
 
-  function toggleReminder(block) {
-    if (!block.eventId) return;
-    const has = reminders.has(block.eventId);
-    setReminders((prev) => {
-      const next = new Set(prev);
-      if (has) next.delete(block.eventId);
-      else next.add(block.eventId);
-      try {
-        window.localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify([...next]));
-      } catch {
-        // Storage disabled: the reminder still applies for this session.
-      }
-      return next;
-    });
-    if (has) {
-      setToast("Reminder removed");
-      return;
-    }
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-    setToast("Reminder set — we'll nudge you 15 minutes before");
-  }
-
   function downloadEvent(block) {
     const ics = buildEventIcs({
       id: block.eventId,
@@ -347,24 +307,6 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
     timeZone,
     windowStartMinutes,
   });
-
-  // Fire "starting soon" reminders while the calendar is open. Notifications
-  // are best-effort: permission may be denied and the tab may be closed.
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-    const nowMs = now.getTime();
-    const soon = nowMs + 15 * 60 * 1000;
-    events.forEach((event) => {
-      if (!reminders.has(event.id) || notifiedRef.current.has(event.id)) return;
-      const start = new Date(event.startTime).getTime();
-      if (!Number.isFinite(start) || start <= nowMs || start > soon) return;
-      notifiedRef.current.add(event.id);
-      new Notification(`Starting soon: ${event.title}`, {
-        body: `${formatClock(event.startTime, timeZone)} · ${roomName(event.roomSlug)}`,
-      });
-    });
-  }, [now, events, reminders, timeZone]);
 
   // Bring the current time into view on first paint and whenever the window
   // changes, rather than dropping the member at 00:00. The position is read
@@ -904,9 +846,7 @@ export default function MatchmakerCalendar({ userId, userName, userAvatar }) {
           }}
           onDelete={() => deleteSlot(selected.id).then(() => setSelected(null))}
           onToggle={() => toggleRsvp(selected)}
-          onRemind={() => toggleReminder(selected)}
           onDownload={() => downloadEvent(selected)}
-          isReminded={Boolean(selected.eventId) && reminders.has(selected.eventId)}
           busy={busyId === selected.id}
         />
       )}
@@ -1135,9 +1075,7 @@ function SelectedModal({
   onEdit,
   onDelete,
   onToggle,
-  onRemind,
   onDownload,
-  isReminded,
   busy,
 }) {
   const isEvent = block.kind === "event";
@@ -1205,15 +1143,6 @@ function SelectedModal({
           ) : (
             <button className={styles.saveBtn} onClick={onToggle} disabled={busy}>
               <Users size={15} /> {block.rsvpCount && block.rsvpCount > 0 ? `Stitching along (${block.rsvpCount})` : "Stitch Along"}
-            </button>
-          )}
-          {isEvent && !started && (
-            <button
-              className={`${styles.cancelBtn} ${isReminded ? styles.remindedBtn : ""}`}
-              onClick={onRemind}
-              aria-pressed={isReminded}
-            >
-              <Bell size={15} /> {isReminded ? "Reminder on" : "Remind me"}
             </button>
           )}
           <button className={styles.cancelBtn} onClick={onClose}>Close</button>

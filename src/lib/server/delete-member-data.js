@@ -95,9 +95,6 @@ export async function deleteMemberData(prisma, memberId) {
     prisma.post.deleteMany({ where: { authorId: memberId } }),
     prisma.articleComment.deleteMany({ where: { authorId: memberId } }),
     prisma.article.deleteMany({ where: { authorId: memberId } }),
-    prisma.notification.deleteMany({
-      where: { OR: [{ userId: memberId }, { actorId: memberId }] },
-    }),
     prisma.follow.deleteMany({
       where: { OR: [{ followerId: memberId }, { followingId: memberId }] },
     }),
@@ -138,7 +135,6 @@ export async function deleteMemberData(prisma, memberId) {
     prisma.group.deleteMany({ where: { createdBy: memberId } }),
     prisma.subscription.deleteMany({ where: { id: memberId } }),
     prisma.gamification.deleteMany({ where: { id: memberId } }),
-    prisma.pushSubscription.deleteMany({ where: { userId: memberId } }),
     prisma.user.delete({ where: { id: memberId } }),
   ]);
 }

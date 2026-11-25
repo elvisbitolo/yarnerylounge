@@ -39,7 +39,6 @@ const PROFILE_COLUMNS = new Set([
   "bestGiftProject",
   "photoURL",
   "coverPhotoURL",
-  "notifications",
   "socialLinks",
 ]);
 
@@ -127,7 +126,6 @@ export async function GET() {
     bestGiftProject: userDoc?.bestGiftProject || "",
     photoURL: userDoc?.photoURL || "",
     coverPhotoURL: userDoc?.coverPhotoURL || "",
-    notifications: userDoc?.notifications || "on",
     points: Number(gamification?.points) || 0,
     streak: Number(gamification?.streak) || 0,
     bestStreak: Number(gamification?.bestStreak) || 0,

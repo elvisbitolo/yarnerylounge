@@ -26,7 +26,7 @@ export const CONTENT_POLICY = {
   event: "scope:event",
 
   // Moderator-level staff. Matches the moderator guard on /admin/groups,
-  // /admin/rooms, /admin/spaces, /admin/announcements and /admin/courses.
+  // /admin/rooms, /admin/spaces and /admin/courses.
   group: "moderator",
   article: "moderator",
   lesson: "moderator",

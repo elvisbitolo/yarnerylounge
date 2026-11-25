@@ -34,7 +34,7 @@ function Toggle({ checked, onChange, icon: Icon, label, hint }) {
 }
 
 // The global Chat settings drawer (gear in the rail header): the privacy +
-// notification toggles that apply across every conversation. Writes go to the
+// sound toggles that apply across every conversation. Writes go to the
 // server via the settings API; the shared prefs store mirrors the result.
 export default function ChatSettingsPanel({ open, onClose }) {
   const { settings } = useChatPrefs();
@@ -124,7 +124,7 @@ export default function ChatSettingsPanel({ open, onClose }) {
           </section>
 
           <section className={styles.settingsSection}>
-            <h3 className={styles.settingsSectionTitle}>Notifications</h3>
+            <h3 className={styles.settingsSectionTitle}>Sound</h3>
             <Toggle
               checked={settings.messageSound !== false}
               onChange={(value) => patch("messageSound", value)}

@@ -59,7 +59,7 @@ export function readChatPrefs(extra, conversationId) {
   return chatPrefs[conversationId];
 }
 
-// A muted conversation suppresses new-message notifications. `muted: true`
+// A muted conversation suppresses new-message sounds. `muted: true`
 // means always; `mutedUntil` is the wall-clock timestamp a timed mute expires.
 export function isConversationMuted(prefs, now = Date.now()) {
   if (!prefs || typeof prefs !== "object") return false;

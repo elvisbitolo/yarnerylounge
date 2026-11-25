@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Archive, ArrowLeft, Bell, Pin, Search, ShieldBan, Star, X } from "lucide-react";
+import { Archive, ArrowLeft, Pin, Search, ShieldBan, Star, VolumeX, X } from "lucide-react";
 import { MUTE_DURATIONS, muteSelectionFromPrefs } from "@/lib/chat-settings-core";
 import { rawPrefsFor, resolvedPrefs, saveConversationPrefs } from "@/lib/chat-prefs-store";
 import { setStarred } from "@/lib/chat-star-store";
@@ -161,10 +161,10 @@ export default function ChatInfo({
           </div>
 
           <section className={styles.settingsSection}>
-            <h3 className={styles.settingsSectionTitle}>Notifications</h3>
+            <h3 className={styles.settingsSectionTitle}>Sound & mute</h3>
             <div className={styles.settingsRow}>
               <span className={styles.settingsIcon}>
-                <Bell size={16} aria-hidden="true" />
+                <VolumeX size={16} aria-hidden="true" />
               </span>
               <span className={styles.settingsLabelWrap}>
                 <span className={styles.settingsLabel}>Mute</span>

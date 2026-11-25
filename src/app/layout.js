@@ -2,13 +2,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
-import { getPrisma } from "@/lib/db/prisma";
 import { organizationJsonLd, websiteJsonLd, SITE_DESCRIPTION } from "@/lib/seo";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import BackButton from "@/components/BackButton";
 import Providers from "@/components/Providers";
-import PushSetup from "@/components/PushSetup";
 import GlobalTheme from "@/components/GlobalTheme";
 import LoungeExpiryGuard from "@/components/LoungeExpiryGuard";
 import JsonLd from "@/components/JsonLd";
@@ -84,21 +82,6 @@ export default async function RootLayout({ children }) {
   // gone and pages just return their content.
   const user = await getCurrentUser().catch(() => null);
   const role = user ? (await getUserDoc(user.uid).catch(() => null))?.role : null;
-  // Render the bell's initial count on the server so the badge is visible
-  // immediately, even if the browser's /api/me or unread poll is delayed.
-  let initialUnreadCount = 0;
-  if (user) {
-    try {
-      const prisma = getPrisma();
-      if (prisma) {
-        initialUnreadCount = await prisma.notification.count({
-          where: { userId: user.uid, read: false },
-        });
-      }
-    } catch {
-      // The client-side poll remains the fallback if the initial count fails.
-    }
-  }
 
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable}`}>
@@ -106,10 +89,9 @@ export default async function RootLayout({ children }) {
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Providers messages={messages} locale={locale}>
           <LoungeExpiryGuard />
-          <PushSetup />
           <GlobalTheme />
           {user ? (
-            <Nav role={role} initialUnreadCount={initialUnreadCount}>
+            <Nav role={role}>
               <>
                 <BackButton global />
                 {children}

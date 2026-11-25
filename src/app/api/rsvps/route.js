@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { logError } from "@/lib/server/log";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
-import { createNotification } from "@/lib/server/notifications";
 import { awardPoints, POINTS } from "@/lib/server/gamification";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { applyRsvpCounts } from "@/lib/server/events-core";
@@ -106,19 +105,6 @@ export async function POST(req) {
   }).catch((err) => {
     logError("automation.event_rsvp_failed", { eventId, uid: user.uid, error: err.message });
   });
-
-  if (event.createdBy && event.createdBy !== user.uid) {
-    await createNotification({
-      userId: event.createdBy,
-      type: "rsvp",
-      actorId: user.uid,
-      actorName: memberName,
-      targetId: eventId,
-      href: `/events`,
-      text: `RSVP'd to "${event.title}"`,
-    });
-
-  }
 
   return NextResponse.json({ joined: true });
 }

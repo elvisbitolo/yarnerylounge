@@ -62,21 +62,6 @@ export async function POST(req, { params }) {
       data: { reactions: nextReactions },
     });
 
-    if (!already && comment.authorId && comment.authorId !== user.uid) {
-      const actorName =
-        userDoc?.name || user.name || user.email?.split("@")[0] || "Member";
-      const { createNotification } = await import("@/lib/server/notifications");
-      await createNotification({
-        userId: comment.authorId,
-        type: "like",
-        actorId: user.uid,
-        actorName,
-        targetId: id,
-        href: `/feed`,
-        text: `Reacted ${emoji} to your comment`,
-      }).catch(() => {});
-    }
-
     const updatedReactions = nextReactions;
     return NextResponse.json({
       reactions: summarizeReactions(updatedReactions),

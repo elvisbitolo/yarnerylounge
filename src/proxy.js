@@ -34,7 +34,6 @@ const AUTH_ROUTES = [
   "/rooms",
   "/courses",
   "/groups",
-  "/notifications",
   "/account",
   "/admin",
   "/members",

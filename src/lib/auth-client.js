@@ -83,7 +83,7 @@ export function onAuthStateChanged(_auth, callback) {
   let disposed = false;
   // Each subscriber owns its own request generation. A module-global counter
   // lets unrelated components invalidate one another's /api/me response, which
-  // can leave persistent UI (including the notification bell) stuck at zero.
+  // can leave persistent UI (including the chat inbox badge) stuck at zero.
   let emitGen = 0;
 
   async function emit() {

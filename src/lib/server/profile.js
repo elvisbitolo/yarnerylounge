@@ -289,13 +289,6 @@ export function normalizeProfile(body) {
       errors.coverPhotoURL = "Cover photo must be a valid URL or image";
     }
   }
-  if ("notifications" in body) {
-    if (body.notifications === "on" || body.notifications === "off") {
-      patch.notifications = body.notifications;
-    } else {
-      errors.notifications = "Notifications must be \"on\" or \"off\"";
-    }
-  }
   if ("profileVisibility" in body) {
     if (body.profileVisibility === "public" || body.profileVisibility === "private") {
       patch.profileVisibility = body.profileVisibility;

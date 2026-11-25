@@ -501,31 +501,6 @@ export function ContentPerformance({ data }) {
   );
 }
 
-export function NotificationsPanel({ data }) {
-  const unread = data.filter((n) => !n.read).length;
-  return (
-    <Card title="Notifications" linkLabel="View all" linkHref="/notifications" theme="fuchsia">
-      {data.length === 0 ? (
-        <EmptyState text="No notifications yet." />
-      ) : (
-        <ul className={styles.list}>
-          {data.map((n) => (
-            <li key={n.id}>
-              <Link className={styles.item} href={n.href}>
-                <span className={styles.itemSplit}>
-                  <span className={styles.itemBody}>{n.text}</span>
-                  {!n.read && <span className={`${styles.dot} ${styles.dotLive}`} />}
-                </span>
-                <span className={styles.itemMeta}>{timeAgo(n.createdAt)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
 export function NeedsAttention({ data }) {
   const t = useTranslations("dashboard");
   return (

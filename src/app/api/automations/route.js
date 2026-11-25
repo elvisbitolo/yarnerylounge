@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createNotification } from "@/lib/server/notifications";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -27,7 +26,6 @@ async function* paginateUsers() {
       select: {
         id: true,
         name: true,
-        notifications: true,
         createdAt: true,
         extra: true,
         gamification: {
@@ -51,15 +49,6 @@ async function sendWelcomeMessages() {
     if (user.extra?.[WELCOME_SENT_KEY]) continue;
 
     try {
-      await createNotification({
-        userId: user.id,
-        type: "system",
-        actorId: null,
-        actorName: "Secret Yarnery",
-        href: "/dashboard",
-        text: "Welcome to the community! Start by introducing yourself in the Feed or exploring the Members directory.",
-      });
-
       const extra = { ...(user.extra || {}) };
       extra[WELCOME_SENT_KEY] = true;
       extra.welcomeSentAt = new Date();
@@ -85,21 +74,11 @@ async function sendInactivityNudges() {
 
     if (!lastVisit && daysSince(createdAt) < INACTIVE_DAYS) continue;
     if (lastVisit && daysSince(new Date(lastVisit)) < INACTIVE_DAYS) continue;
-    if (user.notifications === "off") continue;
 
     const lastNudge = user.extra?.lastNudgeAt;
     if (lastNudge && daysSince(lastNudge) < INACTIVE_DAYS) continue;
 
     try {
-      await createNotification({
-        userId: user.id,
-        type: "system",
-        actorId: null,
-        actorName: "Secret Yarnery",
-        href: "/feed",
-        text: "We miss you! Check out what's new in the community.",
-      });
-
       const extra = { ...(user.extra || {}) };
       extra.lastNudgeAt = new Date();
       await prisma.user.update({
@@ -134,14 +113,6 @@ async function awardAutoBadges() {
       if (points >= m.at && !existing[m.badge]) {
         existing[m.badge] = { name: m.label, earnedAt: new Date() };
         changed = true;
-        await createNotification({
-          userId: user.id,
-          type: "system",
-          actorId: null,
-          actorName: "Secret Yarnery",
-          href: "/leaderboard",
-          text: `You earned the "${m.label}" badge for reaching ${m.at} points!`,
-        }).catch(() => {});
       }
     }
 

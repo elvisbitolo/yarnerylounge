@@ -67,7 +67,6 @@ export default function AdminOverviewPage() {
         { label: "Courses", value: data.counts.courses, href: "/admin/courses" },
         { label: "RSVPs", value: data.counts.rsvps, href: "/admin/events" },
         { label: "Reports", value: data.counts.reports, href: "/admin/moderation" },
-        { label: "Notifications sent", value: data.counts.notifications, href: null },
       ]
     : [];
 
@@ -83,8 +82,7 @@ export default function AdminOverviewPage() {
             <p className={styles.field}>
               The overview dashboard reads revenue-shaped totals, so it is owner-only. As a moderator you
               can still work from <a href="/admin/members">Members</a>,{" "}
-              <a href="/admin/moderation">Moderation</a>,{" "}
-              <a href="/admin/announcements">Announcements</a> and <a href="/admin/hosts">Hosts</a>.
+              <a href="/admin/moderation">Moderation</a> and <a href="/admin/hosts">Hosts</a>.
             </p>
           </div>
         ) : null}
@@ -98,7 +96,6 @@ export default function AdminOverviewPage() {
           <Link className={styles.quickAction} href="/admin/events">Schedule event</Link>
           <Link className={styles.quickAction} href="/admin/courses">Create course</Link>
           <Link className={styles.quickAction} href="/admin/groups">Create group/space</Link>
-          <Link className={styles.quickAction} href="/admin/announcements">Send announcement</Link>
           <Link className={styles.quickAction} href="/admin/members">Manage members</Link>
           <Link className={styles.quickAction} href="/admin/analytics">View analytics</Link>
         </div>

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/db/prisma";
-import { createNotification } from "@/lib/server/notifications";
 import { pickDailyBlindDate } from "@/lib/server/blind-date";
 import { dayKeyFor, MATCH_WINDOW_MS } from "@/lib/server/blind-date-core";
 import { getCapabilities, canUseMatchmaker } from "@/lib/server/capabilities";
@@ -10,13 +9,10 @@ import { logError } from "@/lib/server/log";
 
 // "Automatic 24-Hour Matching" is sold on the shop page, but nothing ran it.
 // The Daily Match was computed lazily inside pickDailyBlindDate() when a member
-// happened to open the page, and no notification was ever sent - so a member
-// could be "matched" and never know it. This job makes the match happen on a
-// schedule and tells the member about it.
+// happened to open the page. This job makes the match happen on a schedule.
 //
 // Runs hourly (see vercel.json) so a match can be refreshed as soon as its
-// private 24-hour review window has elapsed. Both picks and notifications are
-// idempotent.
+// private 24-hour review window has elapsed.
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -90,7 +86,6 @@ export async function GET(req) {
   }
 
   let activePicksByUid = new Map();
-  let alreadyNotifiedTargets = new Set();
   try {
     const activePicks = await prisma.blindDate.findMany({
       where: {
@@ -106,18 +101,6 @@ export async function GET(req) {
         return latest;
       }, new Map())
     );
-    const targetIds = activePicks.map((pick) => `${pick.uid}:${pick.date}`);
-    if (targetIds.length) {
-      const existingNotifications = await prisma.notification.findMany({
-        where: {
-          userId: { in: uids },
-          type: "daily_match",
-          targetId: { in: targetIds },
-        },
-        select: { targetId: true },
-      });
-      alreadyNotifiedTargets = new Set(existingNotifications.map((item) => item.targetId));
-    }
   } catch (err) {
     logError("cron.daily_match.active_picks_failed", { error: err.message });
     return NextResponse.json({ error: "Could not check active matches" }, { status: 503 });
@@ -126,7 +109,7 @@ export async function GET(req) {
   for (const uid of uids.slice(0, BATCH)) {
     try {
       const activePick = activePicksByUid.get(uid);
-      if (activePick && alreadyNotifiedTargets.has(`${uid}:${activePick.date}`)) {
+      if (activePick) {
         inReviewWindow += 1;
         continue;
       }
@@ -143,8 +126,6 @@ export async function GET(req) {
         continue;
       }
       processed += 1;
-
-      
     } catch (err) {
       failed += 1;
       logError("cron.daily_match.user_failed", { error: err.message, uid });
@@ -156,7 +137,6 @@ export async function GET(req) {
     eligible: uids.length,
     cappedAt: BATCH,
     processed,
-    notified,
     skipped,
     inReviewWindow,
     notEligible,

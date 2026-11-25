@@ -5,11 +5,9 @@ import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
 import { extractHashtags } from "@/lib/server/hashtags";
-import { extractMentions, resolveMentions, sendMentionNotifications } from "@/lib/server/mentions";
 import { resolveActorId } from "@/lib/server/acting-as-core";
 import { awardPoints, awardBadge, POINTS } from "@/lib/server/gamification";
 import { rewardActivation } from "@/lib/server/invites-core";
-import { createNotification } from "@/lib/server/notifications";
 import { runAutomations } from "@/lib/server/automations";
 import { logError } from "@/lib/server/log";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
@@ -792,21 +790,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Failed to create post" }, { status: 500 });
   }
 
-  const mentionUsernames = extractMentions(cleanText);
-  if (mentionUsernames.length > 0) {
-    resolveMentions(mentionUsernames).then((mentions) =>
-      sendMentionNotifications({
-        mentions,
-        actorId: user.uid,
-        actorName: authorName,
-        targetId: postId,
-        href: spaceId ? `/spaces/${spaceSlug}` : `/feed`,
-        text: "post",
-      })
-    ).catch((err) => {
-      logError("mention.notify_failed", { uid: user.uid, postId, error: err.message });
-    });
-  }
+
 
   runAutomations("new_post", {
     authorName,
@@ -849,29 +833,7 @@ export async function POST(req) {
     });
   }
 
-  if (spaceId) {
-    try {
-      const members = await prisma.spaceMember.findMany({
-        where: { spaceId },
-        take: 100,
-        select: { userId: true },
-      });
-      for (const member of members) {
-        const memberId = member.userId;
-        if (memberId === user.uid) continue;
-        await createNotification({
-          userId: memberId,
-          type: "space_activity",
-          actorId: user.uid,
-          actorName: authorName,
-          text: "posted in " + (spaceName || "a space"),
-          href: `/spaces/${spaceSlug}`,
-        });
-      }
-    } catch (err) {
-      logError("posts.prisma_space_members_failed", { error: err.message });
-    }
-  }
+
 
   return NextResponse.json({ id: postId });
 }

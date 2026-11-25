@@ -138,7 +138,6 @@ export async function POST(request) {
       // Remove private account data and member-only activity that is not
       // needed to preserve public discussions or legally required billing.
       await tx.session.deleteMany({ where: { userId: user.uid } });
-      await tx.pushSubscription.deleteMany({ where: { userId: user.uid } });
       await tx.socialLink.deleteMany({ where: { userId: user.uid } });
       await tx.subscription.updateMany({
         where: { OR: [{ id: user.uid }, { userId: user.uid }] },
@@ -150,14 +149,11 @@ export async function POST(request) {
       await tx.blindDate.deleteMany({ where: { OR: [{ uid: user.uid }, { memberId: user.uid }] } });
       await tx.conversationMessage.deleteMany({ where: { senderId: user.uid } });
       await tx.$executeRaw`UPDATE "Conversation" SET "participantIds" = array_remove("participantIds", ${user.uid}), "lastMessage" = NULL, "lastMessageAt" = NULL WHERE ${user.uid} = ANY("participantIds")`;
-      await tx.notification.deleteMany({ where: { OR: [{ userId: user.uid }, { actorId: user.uid }] } });
       await tx.follow.deleteMany({ where: { OR: [{ followerId: user.uid }, { followingId: user.uid }] } });
-      await tx.memberWatch.deleteMany({ where: { OR: [{ watcherId: user.uid }, { targetId: user.uid }] } });
       await tx.invitation.deleteMany({ where: { inviterUid: user.uid } });
       await tx.invitation.updateMany({ where: { acceptedUid: user.uid }, data: { acceptedUid: null, recipientEmail: null, recipientName: "Former member" } });
       await tx.matchDecision.deleteMany({ where: { OR: [{ userId: user.uid }, { targetUserId: user.uid }] } });
       await tx.hostAssignment.deleteMany({ where: { OR: [{ userId: user.uid }, { grantedBy: user.uid }] } });
-      await tx.postSubscription.deleteMany({ where: { userId: user.uid } });
       await tx.pollVote.deleteMany({ where: { userId: user.uid } });
       await tx.groupMember.deleteMany({ where: { userId: user.uid } });
       await tx.spaceMember.deleteMany({ where: { userId: user.uid } });
@@ -226,8 +222,7 @@ export async function POST(request) {
           favoriteHookSize: null,
           socialLinks: null,
           extra: null,
-          notifications: "off",
-          notificationPreferences: null,
+
           foundingMember: false,
           suspended: true,
           recognitionCount: 0,

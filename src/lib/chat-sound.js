@@ -1,6 +1,6 @@
 "use client";
 
-// A tiny notification chime for incoming chat messages, played from the rail
+// A tiny sound cue for incoming chat messages, played from the rail
 // when a conversation the viewer has open-for-sound receives a new message.
 // `shouldPlayMessageSound` is a pure decision (respects the messageSound
 // setting and per-conversation mute); the audible part stays browser-only.

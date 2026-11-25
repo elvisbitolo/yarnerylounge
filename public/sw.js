@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-const VERSION = "v28";
+const VERSION = "v29";
 
 // API requests are left to the network by default: a cached /api/me JSON that
 // carries a uid replays long after the session cookie is gone, which makes
@@ -36,7 +36,6 @@ const SHELL_URLS = [
   "/dashboard",
   "/feed",
   "/chat",
-  "/notifications",
   "/community",
   "/members",
   "/calendar",
@@ -230,89 +229,6 @@ self.addEventListener("fetch", (event) => {
         // by returning a basic Response so the browser doesn't crash.
         return new Response("", { status: 503, statusText: "Service Unavailable" });
       });
-    })
-  );
-});
-
-const UNREAD_NOTIFICATION_TAG = "christa-unread-summary";
-
-// Android Chrome does not implement the numeric App Badging API. Its PWA
-// launcher indicator is derived from active notifications, so keep one silent,
-// replaceable summary notification instead of creating one per unread item.
-async function syncUnreadSummary(count, url = "/notifications") {
-  const unread = Number.isFinite(Number(count)) ? Math.max(0, Math.trunc(Number(count))) : 0;
-  const allExisting = await self.registration.getNotifications();
-  const existing = allExisting.filter((notification) => notification.tag === UNREAD_NOTIFICATION_TAG);
-
-  if (unread === 0) {
-    allExisting.forEach((notification) => notification.close());
-    return;
-  }
-
-  // Retire individual notifications created by older service-worker versions.
-  allExisting
-    .filter((notification) => notification.tag !== UNREAD_NOTIFICATION_TAG)
-    .forEach((notification) => notification.close());
-
-  // Avoid re-posting an identical summary during the bell's regular polling.
-  if (existing.some((notification) => Number(notification.data?.unread) === unread)) return;
-
-  await self.registration.showNotification("Christa’s Speakeasy", {
-    body: `You have ${unread} unread notification${unread === 1 ? "" : "s"}.`,
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    tag: UNREAD_NOTIFICATION_TAG,
-    renotify: false,
-    silent: true,
-    data: { url, unread },
-  });
-}
-
-self.addEventListener("message", (event) => {
-  if (event.data?.type !== "sync-unread-notification") return;
-  event.waitUntil(syncUnreadSummary(event.data.unread, event.data.url).catch(() => {}));
-});
-
-self.addEventListener("push", (event) => {
-  let data = { title: "Community", body: "", url: "/notifications" };
-  if (event.data) {
-    try {
-      data = { ...data, ...event.data.json() };
-    } catch {
-      data.body = event.data.text();
-    }
-  }
-
-  const badgeCount = Number(data.badge);
-  event.waitUntil(
-    (async () => {
-      if (Number.isFinite(badgeCount)) {
-        await syncUnreadSummary(badgeCount, data.url || "/notifications");
-      }
-
-      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      for (const client of clientList) {
-        if (new URL(client.url).origin === self.location.origin) {
-          client.postMessage({ type: "push-badge", badge: badgeCount });
-        }
-      }
-    })().catch(() => {})
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const url = event.notification.data?.url || "/";
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (new URL(client.url).origin === self.location.origin && "focus" in client) {
-          client.focus();
-          client.navigate(url);
-          return;
-        }
-      }
-      return self.clients.openWindow(url);
     })
   );
 });

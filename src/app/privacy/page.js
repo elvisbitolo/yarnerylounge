@@ -27,7 +27,7 @@ const SECTIONS = [
   {
     heading: "How we use information",
     body:
-      "We use information to provide and personalize the community, authenticate accounts, display member profiles and content, operate messaging, groups, events and live rooms, manage membership access and purchases, send account or community notifications, prevent abuse, enforce our Terms of Service, maintain security, and troubleshoot and improve the service. We use profile details such as country, time zone, interests, and craft preferences to support member discovery and matching. When you use “Use my location”, we send your device coordinates to a geocoding provider, which returns a country and city; we store that country and city on your profile, we do not retain the coordinates themselves, and the derived country and city are saved without waiting for you to confirm them. The member map is drawn from country-level information only, so the marker shown for you is approximate and is not a precise position.",
+      "We use information to provide and personalize the community, authenticate accounts, display member profiles and content, operate messaging, groups, events and live rooms, manage membership access and purchases, send account-related emails, prevent abuse, enforce our Terms of Service, maintain security, and troubleshoot and improve the service. We use profile details such as country, time zone, interests, and craft preferences to support member discovery and matching. When you use “Use my location”, we send your device coordinates to a geocoding provider, which returns a country and city; we store that country and city on your profile, we do not retain the coordinates themselves, and the derived country and city are saved without waiting for you to confirm them. The member map is drawn from country-level information only, so the marker shown for you is approximate and is not a precise position.",
   },
   {
     heading: "When information is visible to others",
@@ -37,12 +37,12 @@ const SECTIONS = [
   {
     heading: "Cookies, device and usage information",
     body:
-      "The service uses necessary browser storage and cookies to keep you signed in, remember settings such as language, and support security and core features. We and our hosting/analytics providers may process technical information such as IP address, browser and device details, requests, and service performance or usage events to operate, secure, and understand the service. The app also uses browser storage for certain interface preferences and may request permission to send push notifications. You can manage browser storage and notification permissions in your browser settings.",
+      "The service uses necessary browser storage and cookies to keep you signed in, remember settings such as language, and support security and core features. We and our hosting/analytics providers may process technical information such as IP address, browser and device details, requests, and service performance or usage events to operate, secure, and understand the service. The app also uses browser storage for certain interface preferences. You can manage browser storage in your browser settings.",
   },
   {
     heading: "How information is shared",
     body:
-      "We share information with service providers that help us run the service, including providers for hosting and analytics, authentication and database services, geocoding, file storage, payment or membership processing, email or push delivery, and live video rooms. These providers process information as needed to provide their services. When you use “Use my location”, your device coordinates are sent to our geocoding provider, BigDataCloud, which processes them only to return a country and city. When you choose Google, Facebook, LinkedIn, or Twitch sign-in, that provider processes your sign-in under its own privacy terms and may handle your information in its own country, independently of this policy. Membership purchases may take place through Shopify or another configured checkout provider and are also subject to that provider's policies. We may disclose information when reasonably necessary to protect users, investigate abuse, comply with law, or protect our rights. We do not sell personal information for money.",
+      "We share information with service providers that help us run the service, including providers for hosting and analytics, authentication and database services, geocoding, file storage, payment or membership processing, email delivery, and live video rooms. These providers process information as needed to provide their services. When you use “Use my location”, your device coordinates are sent to our geocoding provider, BigDataCloud, which processes them only to return a country and city. When you choose Google, Facebook, LinkedIn, or Twitch sign-in, that provider processes your sign-in under its own privacy terms and may handle your information in its own country, independently of this policy. Membership purchases may take place through Shopify or another configured checkout provider and are also subject to that provider's policies. We may disclose information when reasonably necessary to protect users, investigate abuse, comply with law, or protect our rights. We do not sell personal information for money.",
   },
   {
     heading: "Live video, recordings and transcripts",
@@ -57,7 +57,7 @@ const SECTIONS = [
   {
     heading: "Your choices and privacy requests",
     body:
-      "You can review and update many profile details in your account settings, adjust browser notification permissions, and choose what you share with the community. Depending on where you live, you may have rights to request access to, correction of, deletion of, or a copy of your personal information, or to object to or restrict certain processing. Contact us to make a request. We may need to verify your identity before responding.",
+      "You can review and update many profile details in your account settings and choose what you share with the community. Depending on where you live, you may have rights to request access to, correction of, deletion of, or a copy of your personal information, or to object to or restrict certain processing. Contact us to make a request. We may need to verify your identity before responding.",
   },
   {
     heading: "Security and international processing",

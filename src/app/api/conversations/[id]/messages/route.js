@@ -3,18 +3,10 @@ import { getCurrentUser, getUserDoc, canModerate } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { getConversation, addMessage } from "@/lib/server/chat";
-import { createNotification } from "@/lib/server/notifications";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { validateReplyText } from "@/lib/server/chat-core";
-import {
-  chatNotifyType,
-  chatRecipientIds,
-  chatSnippet,
-  shouldNotifyChatRecipient,
-} from "@/lib/server/chat-notify-core";
-import { containsMention, isConversationMuted } from "@/lib/chat-settings-core";
 
 const MAX_ATTACHMENT_LENGTH = 700_000;
 const IMAGE_MIME = /^image\/(png|jpe?g|gif|webp|avif)$/;
@@ -227,68 +219,7 @@ export async function POST(req, { params }) {
     }
   }
 
-  const conv = await getConversation(conversationId, user.uid);
-  const notifyType = chatNotifyType(conv?.type);
-  if (conv && notifyType) {
-    // Every participant except the sender, for DMs and for group/region chats
-    // alike. A DM has one recipient; a group has everyone else in it.
-    const recipientIds = chatRecipientIds(conv.participantIds, user.uid);
-    if (recipientIds.length) {
-      let recipients = [];
-      try {
-        const prisma = getPrisma();
-        if (prisma) {
-          const rows = await prisma.user.findMany({
-            where: { id: { in: recipientIds } },
-            select: {
-              id: true,
-              notifications: true,
-              username: true,
-              extra: true,
-              suspended: true,
-            },
-          });
-          recipients = rows.filter((row) => !row.suspended);
-        }
-      } catch (err) {
-        logError("chat.prisma_recipients_failed", { conversationId, error: err.message });
-      }
 
-      const snippet = chatSnippet({ text, attachment });
-      const href = `/chat/${conversationId}`;
-      const isDm = conv.type === "dm";
-      const roomLabel = conv.title || conv.name || "your group chat";
-
-      for (const other of recipients) {
-        // A muted conversation stays quiet - except when the message
-        // @-mentions the recipient directly, so a specific ask still breaks
-        // through.
-        const convPrefs =
-          other.extra && other.extra.chatPrefs && other.extra.chatPrefs[conversationId]
-            ? other.extra.chatPrefs[conversationId]
-            : {};
-        const muted = isConversationMuted(convPrefs);
-        const mentioned = containsMention(text, other.username);
-        const globalOff = other.notifications === "off";
-
-        if (!globalOff && shouldNotifyChatRecipient({ muted, mentioned })) {
-          // createNotification() applies the granular "chat" preference to the
-          // in-app row and the push; the global opt-out is applied here.
-          try { console.log(JSON.stringify({event:"chat_notify_create", to: other.id, type: notifyType})); } catch {}
-          await createNotification({
-            userId: other.id,
-            type: notifyType,
-            actorId: user.uid,
-            actorName: senderName,
-            href,
-            text: snippet,
-          }).catch((err) => {
-            logError("notification.chat_failed", { conversationId, error: err.message });
-          });
-        }
-      }
-    }
-  }
 
   return NextResponse.json({ id: messageId });
 }

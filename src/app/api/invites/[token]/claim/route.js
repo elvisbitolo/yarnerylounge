@@ -35,8 +35,6 @@ export async function POST(req, { params }) {
       where: { id: result.invite.inviterUid },
       select: { name: true, role: true },
     });
-    notifyInviter(claimerName, user.uid, result.invite.inviterUid, inviterRow?.name || "Member").catch(() => {});
-    notifyOwner(claimerName, inviterRow?.name || "Member").catch(() => {});
 
     return NextResponse.json({
       ok: true,
@@ -51,38 +49,4 @@ export async function POST(req, { params }) {
     logError("invites.prisma_claim_failed", { uid: user.uid, error: err.message });
     return NextResponse.json({ error: "Could not claim this invite" }, { status: 500 });
   }
-}
-
-async function notifyInviter(claimerName, claimerUid, inviterUid, inviterName) {
-  if (!inviterUid || inviterUid === claimerUid) return;
-  const { createNotification } = await import("@/lib/server/notifications");
-  await createNotification({
-    userId: inviterUid,
-    type: "invite",
-    actorId: claimerUid,
-    actorName: claimerName || inviterName || "Member",
-    targetId: claimerUid,
-    href: `/members/${claimerUid}`,
-    text: `accepted your invite — welcome to Secret Yarnery!`,
-  });
-}
-
-async function notifyOwner(claimerName, inviterName) {
-  const prisma = getPrisma();
-  if (!prisma) return;
-  const owner = await prisma.user.findFirst({
-    where: { role: "owner" },
-    select: { id: true },
-  });
-  if (!owner) return;
-  const { createNotification } = await import("@/lib/server/notifications");
-  await createNotification({
-    userId: owner.id,
-    type: "invite",
-    actorId: "",
-    actorName: "",
-    targetId: "",
-    href: `/members/`,
-    text: `${claimerName || "A member"} joined via ${inviterName || "someone"}'s invite`,
-  });
 }

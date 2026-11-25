@@ -7,7 +7,7 @@ Production: [christasspeakeasy.com](https://www.christasspeakeasy.com)
 ## Features
 
 - **Member accounts and access levels** — authenticated profiles, membership plans, account settings, and staff tools.
-- **Member dashboard** — community activity, upcoming events and rooms, featured videos, member discovery, notifications, and contribution progress.
+- **Member dashboard** — community activity, upcoming events and rooms, featured videos, member discovery, and contribution progress.
 - **Community feed** — posts, photos, video attachments, polls, questions, comments, and reactions.
 - **Community Studio** — every signed-in member can upload, publish, and watch tutorials, project videos, and stitch-alongs. Members can delete their own uploads; Studio moderators can manage the full library.
 - **Live video lounges** — hosted video rooms powered by JaaS (8x8/Jitsi), with room chat and related live-community features.
@@ -16,7 +16,7 @@ Production: [christasspeakeasy.com](https://www.christasspeakeasy.com)
 - **Messaging** — member-to-member conversations with real-time delivery and encrypted message storage.
 - **Profiles and portfolios** — member profiles, project showcases, and community discovery.
 - **Topics and recognition** — discussions, leaderboard, points, badges, and member recognition.
-- **Notifications** — in-app notifications and optional web push; Supabase handles password-reset email.
+- **Password reset** — Supabase handles password-reset email.
 - **Recordings** — a member-facing library for available lounge recordings.
 
 ## Technology stack
@@ -38,7 +38,6 @@ Only technologies used by this repository are listed here.
 | Media storage | Supabase Storage and Vercel Blob | Studio/recording assets and feed media |
 | Hosting | Vercel | Application hosting and deployments |
 | Internationalization | next-intl | English, French, and German translations |
-| Web push | web-push (VAPID) | Browser push notifications |
 | Icons | lucide-react | Interface icons |
 | Image cropping | react-easy-crop | Image cropping UI |
 
@@ -95,7 +94,6 @@ Use [`.env.example`](.env.example) as the source of truth for environment variab
 - **JaaS:** `JITSI_APP_ID`, `JITSI_API_KEY_ID`, and `JITSI_PRIVATE_KEY` for signed meeting access; configure `JITSI_WEBHOOK_SECRET` for recording webhooks.
 - **Shopify:** access token and webhook secret for membership transaction handling. `SHOPIFY_OPEN_ACCESS` is an explicit switch for a temporary open-access period; keep it disabled for normal paid-plan gating.
 - **Studio:** `STUDIO_ADMIN_EMAILS` configures the Studio moderation allowlist. All signed-in members can publish; upload ownership controls who can remove a video, while moderators can manage the full library.
-- **Web push:** VAPID public/private keys and subject are optional.
 - **Cron:** `CRON_SECRET` protects scheduled Vercel endpoints.
 - **Origins:** `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_CANONICAL_HOST`, and `NEXT_PUBLIC_OWN_HOSTS` must match the domains used by the deployment.
 

@@ -5,7 +5,6 @@ import {
   validateRecognition,
 } from "@/lib/server/recognition-core";
 import { awardPoints } from "@/lib/server/gamification";
-import { createNotification } from "@/lib/server/notifications";
 import { withNotSuspended } from "@/lib/server/member-visibility-core";
 
 export { RECOGNITION_POINTS };
@@ -61,15 +60,6 @@ export async function createRecognition({ fromUid, fromName, toUid, value, note 
   }
 
   await awardPoints(toUid, RECOGNITION_POINTS, toName);
-  await createNotification({
-    userId: toUid,
-    type: "recognition",
-    actorId: fromUid,
-    actorName: fromName || "Member",
-    targetId: toUid,
-    href: `/members/${toUid}`,
-    text: `recognized you for being ${value}${cleanNote ? ` — "${cleanNote.slice(0, 120)}"` : ""}`,
-  });
 
   return { ok: true, value };
 }

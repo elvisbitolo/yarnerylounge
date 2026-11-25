@@ -3,7 +3,6 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { validateCommentText } from "@/lib/server/posts-core";
-import { createNotification } from "@/lib/server/notifications";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -66,17 +65,6 @@ export async function POST(req, { params }) {
         text: check.text,
       },
     });
-    if (row.authorId && row.authorId !== user.uid) {
-      await createNotification({
-        userId: row.authorId,
-        type: "comment",
-        actorId: user.uid,
-        actorName: authorName,
-        targetId: id,
-        href: `/articles/${id}`,
-        text: "commented on your article",
-      });
-    }
     return NextResponse.json({ id: comment.id });
   } catch (err) {
     logError("articles.comments.prisma_write_failed", { error: err.message });

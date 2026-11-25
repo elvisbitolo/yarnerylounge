@@ -59,7 +59,7 @@ export default function WhatsAppLink() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to save WhatsApp settings");
-      setMsg({ type: "ok", text: "WhatsApp linked. You'll get DMs for mentions and direct messages." });
+      setMsg({ type: "ok", text: "WhatsApp linked. Chat messages can now reach you there." });
       setConsent(false);
       await load();
     } catch (error) {
@@ -90,7 +90,7 @@ export default function WhatsAppLink() {
   }
 
   async function unlink() {
-    if (!confirm("Unlink WhatsApp? You will stop receiving WhatsApp notifications.")) return;
+    if (!confirm("Unlink WhatsApp? Chat messages will stop reaching you there.")) return;
     setBusy(true);
     setMsg(null);
     try {
@@ -114,8 +114,8 @@ export default function WhatsAppLink() {
     <section style={{ padding: 16, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 12 }}>
         <div>
-          <div style={{ fontWeight: 600 }}>WhatsApp notifications</div>
-          <div style={{ opacity: 0.7, fontSize: 13 }}>Optional messages for mentions and direct messages</div>
+          <div style={{ fontWeight: 600 }}>WhatsApp chat delivery</div>
+          <div style={{ opacity: 0.7, fontSize: 13 }}>Optional chat messages for mentions and direct messages</div>
         </div>
         {link && (
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, whiteSpace: "nowrap" }}>
@@ -151,10 +151,10 @@ export default function WhatsAppLink() {
           />
           <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 12, fontSize: 13, lineHeight: 1.5 }}>
             <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} style={{ marginTop: 3 }} />
-            <span>I agree to receive optional WhatsApp notifications from The Yarnery for mentions and direct messages. I can disable or unlink this at any time.</span>
+            <span>I agree to receive optional WhatsApp chat messages from The Yarnery for mentions and direct messages. I can disable or unlink this at any time.</span>
           </label>
           <div id="whatsapp-help" style={{ fontSize: 12, opacity: 0.65, marginTop: 8 }}>
-            Use E.164 format. You&apos;ll get DMs for mentions and direct messages once linked.
+            Use E.164 format. Chat messages can reach you on WhatsApp once linked.
           </div>
           <button type="button" onClick={save} disabled={saving || !consent || !phone.trim()} style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#22c55e", color: "#000", border: "none", fontWeight: 600, opacity: saving || !consent || !phone.trim() ? 0.6 : 1 }}>
             {saving ? "Saving…" : "Save WhatsApp number"}

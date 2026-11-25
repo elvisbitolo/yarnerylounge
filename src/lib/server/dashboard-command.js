@@ -8,7 +8,6 @@ import { listEvents, expandEvents, listRsvps, getEvent } from "@/lib/server/even
 import { getCourse } from "@/lib/server/courses";
 import { getSpace } from "@/lib/server/spaces";
 import { listConversations } from "@/lib/server/chat";
-import { listNotifications } from "@/lib/server/notifications";
 import { getLeaderboard, getGamification } from "@/lib/server/gamification";
 import { getUserMemberships } from "@/lib/server/dashboard";
 import { serializeAvailability, nextOccurrenceAt, previousOccurrenceAt } from "@/lib/server/availability-core";
@@ -689,16 +688,6 @@ export async function getDashboardMessages(uid, limit = 5) {
     title: conv?.title || conv?.name || "Chat",
     lastMessage: (conv.lastMessage || "").slice(0, 100),
     lastMessageAt: conv.lastMessageAt || conv.updatedAt || 0,
-  }));
-}
-
-export async function getDashboardNotifications(uid, limit = 6) {
-  return (await listNotifications(uid, limit)).map((n) => ({
-    id: n.id,
-    text: n.text || "",
-    href: n.href || "/notifications",
-    read: !!n.read,
-    createdAt: toMillis(n.createdAt),
   }));
 }
 

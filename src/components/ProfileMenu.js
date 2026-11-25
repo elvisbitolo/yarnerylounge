@@ -214,9 +214,6 @@ export default function ProfileMenu() {
           <Link className={styles.profileLink} href="/invite" onClick={() => setOpen(false)}>
             Invite a friend
           </Link>
-          <Link className={styles.profileLink} href="/notifications" onClick={() => setOpen(false)}>
-            Notifications
-          </Link>
           {isStaff && (
             <Link className={styles.profileLink} href="/admin" onClick={() => setOpen(false)}>
               Admin

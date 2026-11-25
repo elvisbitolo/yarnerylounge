@@ -17,12 +17,7 @@ function scopeHref(scope) {
 
 export default function HostPage() {
   const router = useRouter();
-  const [role, setRole] = useState("member");
   const [scopes, setScopes] = useState([]);
-  const [announcing, setAnnouncing] = useState("");
-  const [message, setMessage] = useState("");
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/host/scopes");
@@ -40,46 +35,13 @@ export default function HostPage() {
     return unsub;
   }, [router, load]);
 
-  useEffect(() => {
-    fetch("/api/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => data && setRole(data.role));
-  }, []);
-
-  async function sendAnnouncement(scope) {
-    setError("");
-    setStatus("");
-    if (!message.trim()) {
-      setError("Write a message first.");
-      return;
-    }
-    const res = await fetch("/api/admin/announcements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audience: scope.scopeType, scopeId: scope.scopeId, message }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || "Failed to send");
-      return;
-    }
-    setStatus(`Announcement sent to ${data.sentCount} member${data.sentCount === 1 ? "" : "s"}.`);
-    setMessage("");
-    setAnnouncing("");
-  }
-
-  const announceable = scopes.filter((s) => s.scopeType !== "course");
-  const creatable = scopes.filter((s) => s.scopeType === "space" || s.scopeType === "group");
-
   return (
       <div className={styles.container}>
         <h1 className={styles.title}>Host tools</h1>
         <p className={styles.itemMeta}>
-          Everything you host in one place. Open your lounges, create lounges in the
-          spaces and groups you host, and message the members you serve.
+          Everything you host in one place. Open your lounges and create lounges in
+          the spaces and groups you host.
         </p>
-        {error && <p className={styles.error}>{error}</p>}
-        {status && <p className={styles.success}>{status}</p>}
 
         {scopes.length === 0 ? (
           <p className={styles.empty}>
@@ -103,17 +65,6 @@ export default function HostPage() {
                   <Link className={styles.toggle} href={scopeHref(scope)}>
                     Open
                   </Link>
-                  {scope.scopeType !== "course" && (
-                    <button
-                      className={styles.toggle}
-                      onClick={() => {
-                        setAnnouncing(announcing === scope.scopeId ? "" : scope.scopeId);
-                        setMessage("");
-                      }}
-                    >
-                      {announcing === scope.scopeId ? "Cancel" : "Announce"}
-                    </button>
-                  )}
                   {(scope.scopeType === "space" || scope.scopeType === "group") && (
                     <Link
                       className={styles.toggle}
@@ -144,33 +95,10 @@ export default function HostPage() {
                     </Link>
                   )}
                 </div>
-                {announcing === scope.scopeId && (
-                  <div style={{ width: "100%", marginTop: 12 }}>
-                    <textarea
-                      className={styles.input}
-                      style={{ minHeight: 90, padding: "10px 12px", fontFamily: "inherit" }}
-                      maxLength={2000}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder={`Message for ${scope.name} members…`}
-                    />
-                    <div className={styles.fieldRow}>
-                      <button
-                        className={styles.submit}
-                        onClick={() => sendAnnouncement(scope)}
-                      >
-                        Send
-                      </button>
-                      <span className={styles.itemMeta}>{message.length}/2000</span>
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         )}
-
-        {announceable.length === 0 && creatable.length === 0 && null}
       </div>
   );
 }

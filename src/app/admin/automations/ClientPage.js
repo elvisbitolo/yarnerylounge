@@ -18,11 +18,9 @@ const TRIGGERS = {
 };
 
 const ACTIONS = {
-  create_notification: "Create a notification",
   award_points: "Award points",
   add_member_to_space: "Add member to a space",
   send_dm: "Send a direct message",
-  send_push: "Send a push notification",
 };
 
 const PLACEHOLDERS = {
@@ -86,11 +84,8 @@ export default function AdminAutomationsPage() {
 
   const [name, setName] = useState("");
   const [trigger, setTrigger] = useState("new_member");
-  const [action, setAction] = useState("create_notification");
-  const [message, setMessage] = useState("");
+  const [action, setAction] = useState("award_points");
   const [dmMessage, setDmMessage] = useState("");
-  const [pushTitle, setPushTitle] = useState("");
-  const [pushBody, setPushBody] = useState("");
   const [inactiveDays, setInactiveDays] = useState(30);
   const [milestone, setMilestone] = useState(1000);
   const [points, setPoints] = useState(5);
@@ -98,9 +93,7 @@ export default function AdminAutomationsPage() {
   const [expanded, setExpanded] = useState("");
   const [history, setHistory] = useState({});
 
-  const messageRef = useRef(null);
   const dmMessageRef = useRef(null);
-  const pushBodyRef = useRef(null);
 
   const loadAutomations = useCallback(async () => {
     const res = await fetch("/api/admin/automations");
@@ -131,22 +124,12 @@ export default function AdminAutomationsPage() {
   }, []);
 
   function insertPlaceholder(field, token) {
-    const el =
-      field === "dmMessage"
-        ? dmMessageRef.current
-        : field === "pushBody"
-        ? pushBodyRef.current
-        : messageRef.current;
+    const el = dmMessageRef.current;
     if (!el) return;
     const placeholder = `{{${token}}}`;
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? el.value.length;
-    const setter =
-      field === "dmMessage"
-        ? setDmMessage
-        : field === "pushBody"
-        ? setPushBody
-        : setMessage;
+    const setter = setDmMessage;
     setter(el.value.slice(0, start) + placeholder + el.value.slice(end));
     requestAnimationFrame(() => {
       el.focus();
@@ -181,12 +164,8 @@ export default function AdminAutomationsPage() {
     setBusy(true);
     try {
       const baseConfig =
-        action === "create_notification"
-          ? { to: "owner", message, href: "/dashboard" }
-          : action === "send_dm"
+        action === "send_dm"
           ? { message: dmMessage, href: "/chat" }
-          : action === "send_push"
-          ? { title: pushTitle, body: pushBody, href: "/dashboard" }
           : action === "award_points"
           ? { points }
           : { spaceId };
@@ -203,10 +182,7 @@ export default function AdminAutomationsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create automation");
       setName("");
-      setMessage("");
       setDmMessage("");
-      setPushTitle("");
-      setPushBody("");
       setSpaceId("");
       await loadAutomations();
     } catch (err) {
@@ -271,8 +247,8 @@ export default function AdminAutomationsPage() {
       <div className={styles.container}>
         <h1 className={styles.title}>Automations</h1>
         <p className={styles.subtitle}>
-          Trigger an action when something happens — new-member notifications,
-          bonus points, or direct messages.
+          Trigger an action when something happens — bonus points, space
+          membership, or direct messages.
         </p>
         {error && <p className={styles.error}>{error}</p>}
 
@@ -318,21 +294,6 @@ export default function AdminAutomationsPage() {
             </div>
           </div>
 
-          {action === "create_notification" && (
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="a-message">Notification message</label>
-              <input
-                id="a-message"
-                ref={messageRef}
-                className={styles.input}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="e.g. Welcome aboard!"
-              />
-              {renderChips("message")}
-            </div>
-          )}
-
           {action === "send_dm" && (
             <div className={styles.field}>
               <label className={styles.label} htmlFor="a-dm-message">Direct message text</label>
@@ -350,34 +311,6 @@ export default function AdminAutomationsPage() {
                 Creates a 1-on-1 chat between you and the member and sends this as the first message.
               </p>
             </div>
-          )}
-
-          {action === "send_push" && (
-            <>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="a-push-title">Push notification title</label>
-                <input
-                  id="a-push-title"
-                  className={styles.input}
-                  value={pushTitle}
-                  onChange={(e) => setPushTitle(e.target.value)}
-                  placeholder="e.g. You earned a milestone!"
-                />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="a-push-body">Push notification body</label>
-                <textarea
-                  id="a-push-body"
-                  ref={pushBodyRef}
-                  className={styles.textarea}
-                  rows={3}
-                  value={pushBody}
-                  onChange={(e) => setPushBody(e.target.value)}
-                  placeholder="e.g. You've reached 1000 points. Keep going!"
-                />
-                {renderChips("pushBody")}
-              </div>
-            </>
           )}
 
           {trigger === "member_inactive" && (

@@ -11,7 +11,7 @@ export async function GET() {
 
   const prisma = getPrisma();
   try {
-    const [users, posts, groups, spaces, rooms, events, courses, rsvps, notifications, reports] =
+    const [users, posts, groups, spaces, rooms, events, courses, rsvps, reports] =
       await Promise.all([
         prisma.user.count(),
         prisma.post.count(),
@@ -21,7 +21,6 @@ export async function GET() {
         prisma.event.count(),
         prisma.course.count(),
         prisma.rsvp.count(),
-        prisma.notification.count(),
         prisma.report.count(),
       ]);
 
@@ -72,7 +71,6 @@ export async function GET() {
         events,
         courses,
         rsvps,
-        notifications,
         reports,
       },
       recentPosts,

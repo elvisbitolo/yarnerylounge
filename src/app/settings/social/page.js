@@ -11,7 +11,7 @@ export default async function SocialSettingsPage() {
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "32px 20px 64px" }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Linked accounts</h1>
-      <p style={{ opacity: 0.7, marginBottom: 24 }}>Connect accounts to receive DMs for mentions and messages. This is additive and never replaces in-app or push notifications.</p>
+      <p style={{ opacity: 0.7, marginBottom: 24 }}>Connect accounts so chat messages can reach you there. This is additive and never replaces in-app messages.</p>
       <WhatsAppLink />
     </div>
   );

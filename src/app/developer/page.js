@@ -17,7 +17,6 @@ async function loadSystemSnapshot() {
     authAttempts: null,
     recentMembers: null,
     memberCount: null,
-    notificationActivity: null,
     whatsappDeliveryActivity: null,
     checkedAt: new Date().toISOString(),
   };
@@ -120,21 +119,6 @@ async function loadSystemSnapshot() {
   } catch {
     snapshot.recentMembers = null;
     snapshot.memberCount = null;
-  }
-
-  try {
-    const prisma = getPrisma();
-    snapshot.notificationActivity = await prisma.notification.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: {
-        id: true, userId: true, type: true, actorName: true, text: true,
-        read: true, href: true, createdAt: true,
-        user: { select: { name: true, email: true } },
-      },
-    });
-  } catch {
-    snapshot.notificationActivity = null;
   }
 
   try {
@@ -353,40 +337,6 @@ export default async function DeveloperPage() {
                       <td>{member.paymentStatus || "—"}</td>
                       <td>{member.role || "member"}</td>
                       <td>{member.id}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <div className={styles.sectionHead}>
-          <div><p className={styles.eyebrow}>Notification monitoring</p><h2>In-app notification activity</h2></div>
-          <span className={styles.muted}>Latest 100 · newest first</span>
-        </div>
-        <div className={styles.networkPanel}>
-          <p className={styles.networkIntro}>Persisted notification records with recipient, category, message, read state and timestamp. These rows confirm in-app notification creation; they do not prove browser push delivery.</p>
-          {snapshot.notificationActivity === null ? (
-            <p className={styles.networkEmpty}>Notification records are currently unavailable.</p>
-          ) : snapshot.notificationActivity.length === 0 ? (
-            <p className={styles.networkEmpty}>No in-app notifications have been recorded yet.</p>
-          ) : (
-            <div className={styles.networkTableWrap}>
-              <table className={styles.networkTable}>
-                <thead><tr><th>Created</th><th>Recipient</th><th>Email</th><th>Type</th><th>Message</th><th>Read</th><th>Destination</th></tr></thead>
-                <tbody>
-                  {snapshot.notificationActivity.map((notification) => (
-                    <tr key={notification.id}>
-                      <td>{new Date(notification.createdAt).toLocaleString()}</td>
-                      <td>{notification.user?.name || notification.userId}</td>
-                      <td>{notification.user?.email || "—"}</td>
-                      <td>{notification.type}</td>
-                      <td className={styles.authErrorDetails}>{notification.text}</td>
-                      <td><span className={notification.read ? styles.eventInfo : styles.eventWarning}>{notification.read ? "Read" : "Unread"}</span></td>
-                      <td>{notification.href || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
