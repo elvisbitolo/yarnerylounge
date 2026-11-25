@@ -400,13 +400,13 @@ export function UpcomingRooms({ data }) {
                           })}
                         </div>
                       ) : null}
-                      <span className={styles.dashboardRoomAttendanceText}>
-                        {hasPeople
-                          ? (memberNames.length
+                      {hasPeople ? (
+                        <span className={styles.dashboardRoomAttendanceText}>
+                          {memberNames.length
                             ? `Inside now: ${memberNames.join(", ")}${remainingMembers ? ` +${remainingMembers} more` : ""}`
-                            : `${viewerCount} ${viewerCount === 1 ? "person" : "people"} inside`)
-                          : "No members are inside yet."}
-                      </span>
+                            : `${viewerCount} ${viewerCount === 1 ? "person" : "people"} inside`}
+                        </span>
+                      ) : null}
                     </div>
                   ) : (
                     <span className={styles.dashboardRoomMeta}>
