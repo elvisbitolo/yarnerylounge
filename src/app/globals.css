@@ -113,6 +113,8 @@
 
 html {
   height: 100%;
+  /* A slightly larger root scale improves rem-based typography app-wide. */
+  font-size: 106.25%;
 }
 
 html,
