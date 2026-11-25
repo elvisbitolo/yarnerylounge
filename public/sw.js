@@ -198,8 +198,11 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           if (isCacheable(response)) {
-            const copy = response.clone();
-            caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+            const path = new URL(request.url).pathname;
+            if (!SHELL_URLS.includes(path)) {
+              const copy = response.clone();
+              caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+            }
           }
           return response;
         })
