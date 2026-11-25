@@ -21,6 +21,7 @@ import {
   tagSessionForSwitch,
 } from "@/lib/server/account-switch";
 import { getPrisma } from "@/lib/db/prisma";
+import { selectEmailMember } from "@/lib/server/member-resolution";
 
 export async function POST(req) {
   const crossOrigin = assertSameOrigin(req);
@@ -90,6 +91,25 @@ export async function POST(req) {
     let member = await prisma.user.findUnique({
       where: { id: identity.uid },
     });
+
+    // Supabase OAuth UIDs can differ from legacy application member IDs.
+    // Only a verified email may bridge those identities. If several legacy
+    // rows share that email, select the strongest entitlement and reject ties.
+    if (!member && identity.email_verified && identity.email) {
+      const emailMatches = await prisma.user.findMany({
+        where: { email: { equals: identity.email.trim(), mode: "insensitive" } },
+        include: { subscription: true },
+      });
+      const resolution = selectEmailMember(emailMatches);
+      if (resolution.ambiguous) {
+        return NextResponse.json(
+          { error: "email_account_ambiguous", message: "Multiple member accounts match this verified email. Please contact support." },
+          { status: 409 }
+        );
+      }
+      member = resolution.member;
+    }
+
     let isNewUser = false;
 
     if (!member) {
@@ -325,7 +345,7 @@ export async function POST(req) {
     }
 
     const sid = await createSession({
-      uid: identity.uid,
+      uid: member.id,
       accessToken: supabaseToken,
       refreshToken: supabaseRefreshToken || null,
       switchOwnerId: addAccount ? switchRoot.rootId : null,
@@ -342,7 +362,7 @@ export async function POST(req) {
 
     const res = NextResponse.json({
       ok: true,
-      uid: identity.uid,
+      uid: member.id,
       isNewUser,
       needsConsent,
       switched: addAccount,

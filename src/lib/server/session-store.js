@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import {
-  identityFromAccessToken,
+  identityForSession,
   isSupabaseAccessJwt,
   parseJwtPayload,
   SESSION_MAX_AGE_SECONDS,
@@ -102,7 +102,7 @@ export async function resolveSessionStatus(sid) {
   }
 
   if (isAccessTokenUsable(row.accessToken)) {
-    const identity = identityFromAccessToken(row.accessToken);
+    const identity = identityForSession(row.accessToken, row.userId);
     // A live-looking token we cannot read an identity out of is a corrupt row,
     // not a transient fault — nothing about waiting will fix it.
     if (!identity) return { status: SESSION_GONE };
@@ -144,7 +144,7 @@ async function refreshSessionRow(prisma, sid) {
 
       // A peer rotated the token while we waited on the lock — reuse its result.
       if (isAccessTokenUsable(row.accessToken)) {
-        const identity = identityFromAccessToken(row.accessToken);
+        const identity = identityForSession(row.accessToken, row.userId);
         return identity
           ? { status: SESSION_OK, identity, session: row }
           : { status: SESSION_GONE };
@@ -170,7 +170,7 @@ async function refreshSessionRow(prisma, sid) {
       }
 
       const access = data.session.access_token;
-      const identity = identityFromAccessToken(access);
+      const identity = identityForSession(access, row.userId);
       if (!identity) return { status: SESSION_GONE };
 
       const session = await tx.session.update({

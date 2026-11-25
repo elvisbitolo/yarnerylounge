@@ -99,3 +99,13 @@ export function identityFromAccessToken(access) {
     user_metadata: meta,
   });
 }
+
+
+// Maps a verified Supabase access token to the application member identity
+// stored on the session row. This keeps legacy User IDs stable when an OAuth
+// provider's Supabase UID differs from the original member ID.
+export function identityForSession(accessToken, memberId) {
+  if (!memberId) return null;
+  const identity = identityFromAccessToken(accessToken);
+  return identity ? { ...identity, uid: memberId } : null;
+}
