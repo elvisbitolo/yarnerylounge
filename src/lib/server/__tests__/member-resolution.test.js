@@ -17,3 +17,25 @@ test("does not guess when duplicate email accounts have equal entitlement", () =
 test("returns no match for an empty candidate list", () => {
   assert.deepEqual(selectEmailMember([]), { member: null, ambiguous: false });
 });
+
+test("prefers the original paid member when the Supabase UID matches a lower-tier duplicate", () => {
+  const original = {
+    id: "74f31134-bf0f-41ea-bc6d-9b4451b440cf",
+    email: "mamameer@gmail.com",
+    plan: "moving-in",
+    paymentStatus: "paid",
+    subscription: { status: "active", tier: "moving-in", provider: "admin" },
+  };
+  const uidMatchedDuplicate = {
+    id: "0ac99b32-262b-42ce-9a39-6da89d4cb4ee",
+    email: "mamameer@gmail.com",
+    plan: "flirting",
+    paymentStatus: "unpaid",
+    subscription: null,
+  };
+
+  // The route includes the UID-matched row and all verified-email matches.
+  const result = selectEmailMember([uidMatchedDuplicate, original]);
+  assert.equal(result.ambiguous, false);
+  assert.equal(result.member.id, original.id);
+});
