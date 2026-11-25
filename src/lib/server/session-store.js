@@ -35,7 +35,12 @@ export async function getSessionRow(sid) {
 
 export async function createSession({ uid, accessToken, refreshToken, switchOwnerId = null }) {
   const prisma = getPrisma();
-  if (!prisma) return null;
+  if (!prisma) {
+    const error = new Error("Database connection is not configured.");
+    error.code = "DATABASE_NOT_CONFIGURED";
+    throw error;
+  }
+
   const id = randomUUID();
   try {
     await prisma.session.create({
@@ -52,8 +57,11 @@ export async function createSession({ uid, accessToken, refreshToken, switchOwne
     });
     return id;
   } catch (err) {
-    logError("session.create_failed", { error: err.message });
-    return null;
+    logError("session.create_failed", {
+      code: err?.code || null,
+      error: String(err?.message || "Unknown session persistence error").slice(0, 500),
+    });
+    throw err;
   }
 }
 
