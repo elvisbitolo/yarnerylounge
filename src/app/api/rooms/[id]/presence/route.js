@@ -13,7 +13,6 @@ import {
 } from "@/lib/server/room-presence";
 import { evaluateJoinCapacity } from "@/lib/server/room-capacity-core";
 import { getScopedHostRights } from "@/lib/server/hosts";
-import { notifySecretYarneryRoom, notifyWatchersRoom } from "@/lib/server/member-watch";
 import { announceLoungeLive } from "@/lib/server/lounge-live";
 import { isLoungeLiveEnabled } from "@/lib/server/lounge-live-core";
 
@@ -130,8 +129,6 @@ export async function POST(req, { params }) {
           }).catch((err) => console.error("roomEvent.record_failed", err));
         }
       }
-      const broadcast = await notifySecretYarneryRoom(auth.user.uid, room);
-      if (broadcast.skipped) await notifyWatchersRoom(auth.user.uid, room);
     });
   }
   return NextResponse.json({ ok: true });
