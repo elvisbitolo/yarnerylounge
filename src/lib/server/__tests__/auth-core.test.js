@@ -8,6 +8,7 @@ import {
   parseSessionCookie,
   mapSupabaseUser,
   identityFromAccessToken,
+  identityForSession,
   SESSION_MAX_AGE_SECONDS,
 } from "../auth-core.js";
 
@@ -153,4 +154,18 @@ test("mapSupabaseUser uses Supabase uid, not legacy firebase_uid", () => {
 test("mapSupabaseUser tolerates null", () => {
   assert.equal(mapSupabaseUser(null), null);
   assert.equal(mapSupabaseUser(undefined), null);
+});
+
+test("identityForSession preserves the application member ID across OAuth UID changes", () => {
+  const token = makeAccessJwt("pwdopgyvkfsxxcuanoml", "authenticated", "https://pwdopgyvkfsxxcuanoml.supabase.co/auth/v1", {
+    sub: "new-supabase-auth-uid",
+    email: "member@example.com",
+    email_verified: true,
+    user_metadata: { name: "Member" },
+  });
+  const identity = identityForSession(token, "legacy-member-id");
+  assert.equal(identity.uid, "legacy-member-id");
+  assert.equal(identity.email, "member@example.com");
+  assert.equal(identity.email_verified, true);
+  assert.equal(identityForSession(token, ""), null);
 });
