@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getSubscription } from "@/lib/server/subscription";
+import { isCanceledSubscription } from "@/lib/server/subscription-core.js";
 import { subscriptionStatus } from "@/lib/server/billing";
 import { tierLabel } from "@/lib/server/plans";
 import { getPrisma } from "@/lib/db/prisma";
@@ -49,7 +50,7 @@ export default async function MembershipPage() {
   // this account page always reflects the member's actual purchase/cancellation.
   // A canceled subscription must always display the free tier, even if a legacy
   // subscription row still carries the previous paid plan in its plan fields.
-  const isCanceled = sub?.status === "canceled" || Boolean(sub?.canceledAt);
+  const isCanceled = isCanceledSubscription(sub);
   const tier = isCanceled ? "flirting" : sub?.tier || userDoc?.plan || "flirting";
   const isPaidTier = ["hooking-up", "moving-in"].includes(tier);
   const status = isCanceled ? "canceled" : isPaidTier ? subscriptionStatus(sub) : "none";
@@ -82,7 +83,7 @@ export default async function MembershipPage() {
             )}
           </span>
         </div>
-        {sub?.canceledAt && (
+        {isCanceled && sub?.canceledAt && (
           <div className={styles.row}>
             <span className={styles.label}>Canceled on</span>
             <span className={styles.value}>

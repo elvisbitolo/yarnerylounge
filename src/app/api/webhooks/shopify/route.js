@@ -132,8 +132,13 @@ async function grantAccess({ data, email, order }) {
         role: variant.role,
         shopifyCustomerId: customerId || "",
         shopifyOrderId: orderId || "",
+        currentPeriodStart: order.created_at ? new Date(order.created_at) : new Date(),
+        currentPeriodEnd: expiresAt ? new Date(expiresAt) : null,
+        // A newly confirmed paid order reactivates the subscription. Clear
+        // cancellation metadata left by any earlier cancellation.
+        canceledAt: null,
+        cancelAtPeriodEnd: false,
       };
-      if (expiresAt) subData.currentPeriodEnd = new Date(expiresAt);
       await prisma.subscription.upsert({
         where: { id: uid },
         create: subData,
@@ -146,7 +151,10 @@ async function grantAccess({ data, email, order }) {
           role: subData.role,
           shopifyCustomerId: subData.shopifyCustomerId,
           shopifyOrderId: subData.shopifyOrderId,
-          ...(subData.currentPeriodEnd ? { currentPeriodEnd: subData.currentPeriodEnd } : {}),
+          currentPeriodStart: subData.currentPeriodStart,
+          currentPeriodEnd: subData.currentPeriodEnd,
+          canceledAt: null,
+          cancelAtPeriodEnd: false,
         },
       });
     }
