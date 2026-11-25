@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono, Assistant } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
@@ -24,11 +24,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const assistant = Assistant({
-  variable: "--font-assistant",
-  weight: ["300", "400", "500", "600", "700", "800"],
-  subsets: ["latin"],
-});
 
 export const metadata = {
   metadataBase: new URL(CANONICAL_ORIGIN),
@@ -105,7 +100,7 @@ export default async function RootLayout({ children }) {
   }
 
   return (
-    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${assistant.variable}`}>
+    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Providers messages={messages} locale={locale}>
