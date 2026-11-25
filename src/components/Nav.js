@@ -4,15 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
-import NotificationBell from "./NotificationBell";
 import ChatInboxButton from "./ChatInboxButton";
-import LanguageSwitcher from "./LanguageSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import SidebarProfile from "./SidebarProfile";
 import LiveNowBanner from "./LiveNowBanner";
 import InviteClaimer from "./InviteClaimer";
 import styles from "./Nav.module.css";
-import { Home, Map, Users, Heart, Newspaper, CalendarDays, Images, Video, Clapperboard, BriefcaseBusiness, Trophy, MessageCircle, GraduationCap, BookOpen, ClipboardList, Sparkles, FolderOpen, Star } from "lucide-react";
+import { Home, Map, Users, Heart, Newspaper, CalendarDays, Images, Video, Clapperboard, BriefcaseBusiness, Trophy, MessageCircle, GraduationCap, BookOpen, ClipboardList, Sparkles, FolderOpen, Star, LogOut } from "lucide-react";
+import { logout } from "@/lib/client-auth";
 const CHEVRON = (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
     <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -224,7 +223,7 @@ const icons = {
   ),
 };
 
-export default function Nav({ role, children, initialUnreadCount = 0 }) {
+export default function Nav({ role, children }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const isRoomPage = pathname?.startsWith("/rooms/");
@@ -242,6 +241,12 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
   const [sidebarData, setSidebarData] = useState(null);
   const administrationLinks = getAdministrationLinks(role);
   const close = () => setMobileOpen(false);
+
+  async function handleTopbarLogout() {
+    await logout();
+    router.push("/login");
+    router.refresh();
+  }
 
   useEffect(() => {
     if (!mobileSearch) return undefined;
@@ -386,10 +391,17 @@ export default function Nav({ role, children, initialUnreadCount = 0 }) {
               <line x1="21" y1="21" x2="16.5" y2="16.5" />
             </svg>
           </button>
-          <NotificationBell initialUnreadCount={initialUnreadCount} />
           <ChatInboxButton />
-          <LanguageSwitcher />
           <ProfileMenu />
+          <button
+            type="button"
+            className={styles.topbarSignOut}
+            onClick={handleTopbarLogout}
+            aria-label="Sign out"
+          >
+            <LogOut size={19} strokeWidth={2.3} aria-hidden="true" />
+            <span>Sign out</span>
+          </button>
         </div>
       </header>
       {mobileSearch && (
