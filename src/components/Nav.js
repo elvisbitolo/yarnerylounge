@@ -223,7 +223,7 @@ const icons = {
   ),
 };
 
-export default function Nav({ role, children, initialUnreadCount = 0 }) {
+export default function Nav({ role, children }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const isRoomPage = pathname?.startsWith("/rooms/");
