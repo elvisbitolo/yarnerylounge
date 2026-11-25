@@ -2965,10 +2965,6 @@ a.activityActor:hover .itemTitle {
   line-height: 1.6;
 }
 
-.pageWrap :not(svg):not(svg *) {
-  font-size: max(14px, 1em);
-}
-
 .pageWrap :is(p, li, label, input, textarea, select, button, a) {
   line-height: 1.5;
 }
@@ -2990,6 +2986,7 @@ a.activityActor:hover .itemTitle {
   .yourCommunityDescription, .yourCommunityViewAll, .yourCommunityColumnHeader > a,
   .yourCommunityStat span, .yourCommunityItemCopy strong, .yourCommunityItemCopy span,
   .yourCommunityEmpty strong, .yourCommunityEmpty span, .yourCommunityEmpty a) {
+  font-size: max(14px, 1em);
   overflow-wrap: anywhere;
   white-space: normal;
 }
