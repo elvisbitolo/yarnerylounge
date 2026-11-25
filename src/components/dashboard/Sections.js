@@ -300,6 +300,9 @@ export function UpcomingRooms({ data }) {
   const t = useTranslations("dashboard");
   const [roomPresence, setRoomPresence] = useState({});
   const [presenceLoaded, setPresenceLoaded] = useState(false);
+  const featuredRooms = (Array.isArray(data) ? data : []).filter(
+    (item) => String(item.title || "").trim().toLocaleLowerCase() === "happy hour hub"
+  );
 
   useEffect(() => {
     let active = true;
@@ -316,7 +319,7 @@ export function UpcomingRooms({ data }) {
           setPresenceLoaded(true);
         }
       } catch {
-        // Keep the last successful snapshot; the card still has its server count.
+        // Keep the last successful snapshot; the lounge remains accessible.
       } finally {
         inFlight = false;
       }
@@ -332,11 +335,11 @@ export function UpcomingRooms({ data }) {
 
   return (
     <Card title={t("liveAndUpcoming")} linkLabel={t("allRooms")} linkHref="/rooms" theme="amber">
-      {data.length === 0 ? (
-        <EmptyState text={t("noRooms")} />
+      {featuredRooms.length === 0 ? (
+        <EmptyState text="Happy Hour Hub is not open right now." />
       ) : (
         <div className={styles.dashboardRoomGrid}>
-          {data.map((item) => {
+          {featuredRooms.map((item) => {
             const members = item.kind === "live" && presenceLoaded
               ? (roomPresence[item.slug] || [])
               : [];
@@ -347,18 +350,17 @@ export function UpcomingRooms({ data }) {
             const statusLabel = item.kind === "live"
               ? (hasPeople ? "LIVE NOW" : "OPEN NOW")
               : "UPCOMING";
-            const visibleMembers = members.slice(0, 5);
+            const visibleMembers = members.slice(0, 8);
             const memberNames = members.slice(0, 2).map((member) => member.name).filter(Boolean);
-            const remainingMembers = Math.max(0, viewerCount - memberNames.length);
+            const remainingMembers = Math.max(0, viewerCount - visibleMembers.length);
 
             return (
-              <Link
+              <article
                 key={item.id}
                 className={styles.dashboardRoomCard}
-                href={item.href}
                 style={{ "--dashboard-room-accent": item.color || "var(--dash-accent, #f6077a)" }}
               >
-                <span className={styles.dashboardRoomCover}>
+                <Link className={styles.dashboardRoomCover} href={item.href} aria-label={`Enter ${item.title}`}>
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt="" loading="lazy" />
                   ) : (
@@ -369,50 +371,54 @@ export function UpcomingRooms({ data }) {
                   <span className={`${styles.dashboardRoomStatus} ${item.kind === "live" ? styles.dashboardRoomStatusLive : styles.dashboardRoomStatusUpcoming}`}>
                     {statusLabel}
                   </span>
-                </span>
-                <span className={styles.dashboardRoomInfo}>
+                </Link>
+                <div className={styles.dashboardRoomInfo}>
                   <strong className={styles.dashboardRoomTitle}>{item.title}</strong>
                   {item.description ? <span className={styles.dashboardRoomDescription}>{item.description}</span> : null}
                   {item.kind === "live" ? (
-                    <span className={styles.dashboardRoomAttendance}>
+                    <div className={styles.dashboardRoomAttendance}>
                       {visibleMembers.length ? (
-                        <span className={styles.dashboardRoomAvatars} aria-label={`${viewerCount} members inside`}>
+                        <div className={styles.dashboardRoomAvatars} aria-label={`${viewerCount} members inside Happy Hour Hub`}>
                           {visibleMembers.map((member) => {
-                            const initials = (member.name || "M").trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
-                            return member.photoURL ? (
-                              <img
-                                className={styles.dashboardRoomAttendeeAvatar}
-                                src={member.photoURL}
-                                alt=""
-                                title={member.name}
+                            const name = member.name || "Member";
+                            const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
+                            return (
+                              <Link
+                                className={styles.dashboardRoomAttendeeProfile}
+                                href={`/members/${encodeURIComponent(member.userId)}`}
+                                aria-label={`View ${name}'s profile`}
+                                title={`View ${name}'s profile`}
                                 key={member.userId}
-                                loading="lazy"
-                              />
-                            ) : (
-                              <span className={styles.dashboardRoomAttendeeFallback} title={member.name} key={member.userId}>
-                                {initials}
-                              </span>
+                              >
+                                {member.photoURL ? (
+                                  <img className={styles.dashboardRoomAttendeeAvatar} src={member.photoURL} alt="" loading="lazy" />
+                                ) : (
+                                  <span className={styles.dashboardRoomAttendeeFallback} aria-hidden="true">{initials}</span>
+                                )}
+                              </Link>
                             );
                           })}
-                        </span>
+                        </div>
                       ) : null}
                       <span className={styles.dashboardRoomAttendanceText}>
                         {hasPeople
                           ? (memberNames.length
                             ? `Inside now: ${memberNames.join(", ")}${remainingMembers ? ` +${remainingMembers} more` : ""}`
                             : `${viewerCount} ${viewerCount === 1 ? "person" : "people"} inside`)
-                          : "Be the first to join"}
+                          : "No members are inside yet."}
                       </span>
-                    </span>
+                    </div>
                   ) : (
                     <span className={styles.dashboardRoomMeta}>
                       {formatTime(item.startTime)}
                       {item.rsvpCount > 0 ? ` · ${item.rsvpCount} going` : ""}
                     </span>
                   )}
-                  <span className={styles.dashboardRoomCta}>{item.kind === "live" ? "Enter lounge" : "View session"} <ArrowRight size={14} aria-hidden="true" /></span>
-                </span>
-              </Link>
+                  <Link className={styles.dashboardRoomCta} href={item.href}>
+                    {item.kind === "live" ? "Enter lounge" : "View session"} <ArrowRight size={14} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
             );
           })}
         </div>
