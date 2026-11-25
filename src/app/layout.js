@@ -6,6 +6,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { organizationJsonLd, websiteJsonLd, SITE_DESCRIPTION } from "@/lib/seo";
 import "./globals.css";
 import Nav from "@/components/Nav";
+import BackButton from "@/components/BackButton";
 import Providers from "@/components/Providers";
 import PushSetup from "@/components/PushSetup";
 import GlobalTheme from "@/components/GlobalTheme";
@@ -107,7 +108,14 @@ export default async function RootLayout({ children }) {
           <LoungeExpiryGuard />
           <PushSetup />
           <GlobalTheme />
-          {user ? <Nav role={role} initialUnreadCount={initialUnreadCount}>{children}</Nav> : children}
+          {user ? (
+            <Nav role={role} initialUnreadCount={initialUnreadCount}>
+              <>
+                <BackButton global />
+                {children}
+              </>
+            </Nav>
+          ) : children}
         </Providers>
         <Analytics />
         <SpeedInsights />
