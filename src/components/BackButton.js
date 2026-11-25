@@ -53,6 +53,7 @@ const MEMBER_ROUTES = {
   "/host/events": ["/host", "Host tools"],
   "/host/rooms": ["/host", "Host tools"],
   "/topics": ["/dashboard", "Dashboard"],
+  "/rooms": ["/dashboard", "Dashboard"],
 };
 
 function getDestination(pathname, admin) {
@@ -94,7 +95,7 @@ function getDestination(pathname, admin) {
   ) return null;
 
   // Chat and live video rooms have their own focused navigation controls.
-  if (pathname === "/chat" || pathname.startsWith("/chat/") || pathname === "/rooms" || pathname.startsWith("/rooms/")) return null;
+  if (pathname === "/chat" || pathname.startsWith("/chat/") || pathname.startsWith("/rooms/")) return null;
 
   return null;
 }
