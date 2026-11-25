@@ -18,7 +18,6 @@ const TRIGGERS = {
 };
 
 const ACTIONS = {
-  send_email: "Send an email",
   create_notification: "Create a notification",
   award_points: "Award points",
   add_member_to_space: "Add member to a space",
@@ -87,11 +86,7 @@ export default function AdminAutomationsPage() {
 
   const [name, setName] = useState("");
   const [trigger, setTrigger] = useState("new_member");
-  const [action, setAction] = useState("send_email");
-  const [toMode, setToMode] = useState("owner");
-  const [customEmail, setCustomEmail] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [action, setAction] = useState("create_notification");
   const [message, setMessage] = useState("");
   const [dmMessage, setDmMessage] = useState("");
   const [pushTitle, setPushTitle] = useState("");
@@ -103,8 +98,6 @@ export default function AdminAutomationsPage() {
   const [expanded, setExpanded] = useState("");
   const [history, setHistory] = useState({});
 
-  const subjectRef = useRef(null);
-  const bodyRef = useRef(null);
   const messageRef = useRef(null);
   const dmMessageRef = useRef(null);
   const pushBodyRef = useRef(null);
@@ -139,11 +132,7 @@ export default function AdminAutomationsPage() {
 
   function insertPlaceholder(field, token) {
     const el =
-      field === "subject"
-        ? subjectRef.current
-        : field === "body"
-        ? bodyRef.current
-        : field === "dmMessage"
+      field === "dmMessage"
         ? dmMessageRef.current
         : field === "pushBody"
         ? pushBodyRef.current
@@ -153,11 +142,7 @@ export default function AdminAutomationsPage() {
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? el.value.length;
     const setter =
-      field === "subject"
-        ? setSubject
-        : field === "body"
-        ? setBody
-        : field === "dmMessage"
+      field === "dmMessage"
         ? setDmMessage
         : field === "pushBody"
         ? setPushBody
@@ -195,11 +180,8 @@ export default function AdminAutomationsPage() {
     setError("");
     setBusy(true);
     try {
-      const to = toMode === "owner" ? "owner" : customEmail.trim();
       const baseConfig =
-        action === "send_email"
-          ? { to, subject, body }
-          : action === "create_notification"
+        action === "create_notification"
           ? { to: "owner", message, href: "/dashboard" }
           : action === "send_dm"
           ? { message: dmMessage, href: "/chat" }
@@ -221,14 +203,11 @@ export default function AdminAutomationsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create automation");
       setName("");
-      setSubject("");
-      setBody("");
       setMessage("");
       setDmMessage("");
       setPushTitle("");
       setPushBody("");
       setSpaceId("");
-      setCustomEmail("");
       await loadAutomations();
     } catch (err) {
       setError(err.message);
@@ -292,8 +271,8 @@ export default function AdminAutomationsPage() {
       <div className={styles.container}>
         <h1 className={styles.title}>Automations</h1>
         <p className={styles.subtitle}>
-          Trigger an action when something happens — welcome emails, new-member
-          notifications, or bonus points.
+          Trigger an action when something happens — new-member notifications,
+          bonus points, or direct messages.
         </p>
         {error && <p className={styles.error}>{error}</p>}
 
@@ -338,62 +317,6 @@ export default function AdminAutomationsPage() {
               </select>
             </div>
           </div>
-
-          {action === "send_email" && (
-            <>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="a-to">Send to</label>
-                <select
-                  id="a-to"
-                  className={styles.select}
-                  value={toMode}
-                  onChange={(e) => setToMode(e.target.value)}
-                >
-                  <option value="owner">The community owner</option>
-                  <option value="custom">A specific email address</option>
-                </select>
-              </div>
-              {toMode === "custom" && (
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="a-custom-email">Email address</label>
-                  <input
-                    id="a-custom-email"
-                    className={styles.input}
-                    type="email"
-                    value={customEmail}
-                    onChange={(e) => setCustomEmail(e.target.value)}
-                    placeholder="someone@example.com"
-                    required
-                  />
-                </div>
-              )}
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="a-subject">Subject</label>
-                <input
-                  id="a-subject"
-                  ref={subjectRef}
-                  className={styles.input}
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. Welcome aboard!"
-                />
-                {renderChips("subject")}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="a-body">Email body</label>
-                <textarea
-                  id="a-body"
-                  ref={bodyRef}
-                  className={styles.textarea}
-                  rows={4}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  placeholder="Hi, thanks for joining the community."
-                />
-                {renderChips("body")}
-              </div>
-            </>
-          )}
 
           {action === "create_notification" && (
             <div className={styles.field}>

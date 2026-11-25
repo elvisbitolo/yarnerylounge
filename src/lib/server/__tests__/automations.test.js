@@ -32,13 +32,13 @@ test("normalizeAutomation: accepts valid inputs", () => {
   const result = normalizeAutomation({
     name: "  Welcome  ",
     trigger: "new_member",
-    action: "send_email",
-    config: { to: "owner", subject: "Hi" },
+    action: "create_notification",
+    config: { to: "owner", message: "Hi" },
   });
   assert.equal(result.name, "Welcome");
   assert.equal(result.trigger, "new_member");
-  assert.equal(result.action, "send_email");
-  assert.deepEqual(result.config, { to: "owner", subject: "Hi" });
+  assert.equal(result.action, "create_notification");
+  assert.deepEqual(result.config, { to: "owner", message: "Hi" });
 });
 
 test("normalizeAutomation: rejects unknown trigger/action", () => {
@@ -55,7 +55,6 @@ test("constant lists cover the implemented actions", () => {
   assert.ok(AUTOMATION_TRIGGERS.includes("new_member"));
   assert.ok(AUTOMATION_TRIGGERS.includes("new_post"));
   assert.ok(AUTOMATION_TRIGGERS.includes("event_rsvp"));
-  assert.ok(AUTOMATION_ACTIONS.includes("send_email"));
   assert.ok(AUTOMATION_ACTIONS.includes("create_notification"));
   assert.ok(AUTOMATION_ACTIONS.includes("award_points"));
 });

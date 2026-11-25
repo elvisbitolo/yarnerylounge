@@ -7,7 +7,6 @@ import {
   mayWriteTier,
   roleAfterRevoke,
 } from "@/lib/server/shopify";
-import { sendEmail } from "@/lib/server/email";
 import { logError, logInfo } from "@/lib/server/log";
 import { isActiveSub } from "@/lib/server/billing";
 import { getPrisma } from "@/lib/db/prisma";
@@ -62,7 +61,6 @@ async function grantAccess({ data, email, order }) {
   const expiresAt = computeExpiresAt(variant)?.toISOString() || "";
   const customerId = order.customer?.id?.toString() || "";
   const orderId = order.id?.toString() || "";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
   const existing = await prisma.user.findFirst({ where: { email } });
   if (existing) {
@@ -153,19 +151,6 @@ async function grantAccess({ data, email, order }) {
       });
     }
 
-    await sendEmail({
-      to: email,
-      subject: "Your Speakeasy Membership is Active!",
-      html:
-        `<p>Hi ${existing.name || email},</p>` +
-        `<p>Your payment for the <strong>${variant.label}</strong> plan was successful. Your membership is now active.</p>` +
-        `<p>Enter the lounge to start matching, hopping into video lounges, and crafting together: ` +
-        `<a href="${appUrl}/login">Enter the Lounge</a></p>` +
-        `<p>— The Secret Yarnery Team</p>`,
-    }).catch((err) => {
-      logError("shopify.email_upgrade_failed", { email, error: err.message });
-    });
-
     if (variant.plan !== "flirting") {
       const { createWelcomeMessage } = await import("@/lib/server/messages");
       await createWelcomeMessage({ uid, plan: variant.plan, role: variant.role });
@@ -222,18 +207,6 @@ async function grantAccess({ data, email, order }) {
       });
     });
 
-    await sendEmail({
-      to: email,
-      subject: "Complete Your Speakeasy Signup",
-      html:
-        `<p>Welcome to Christa's Secret Swipe Speakeasy!</p>` +
-        `<p>Your payment for the <strong>${variant.label}</strong> plan was successful. Finish creating your account to enter the lounge:</p>` +
-        `<p><a href="${appUrl}/signup?email=${encodeURIComponent(email)}">Complete Your Signup</a></p>` +
-        `<p>Your ${variant.label} membership will be applied automatically after you register with this email.</p>` +
-        `<p>— The Secret Yarnery Team</p>`,
-    }).catch((err) => {
-      logError("shopify.email_prepaid_failed", { email, error: err.message });
-    });
   }
 }
 

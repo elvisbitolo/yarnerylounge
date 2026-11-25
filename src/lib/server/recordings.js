@@ -48,8 +48,6 @@ async function readBodyBounded(upstream, capBytes) {
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { createNotification } from "@/lib/server/notifications";
-import { sendEmail } from "@/lib/server/email";
-import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import {
   buildStoragePath,
   buildThumbnailPath,
@@ -313,7 +311,7 @@ export async function pullRecording(recording) {
     });
     try {
       if (recording.initiatorId) {
-        const didNotify = await createNotification({
+        await createNotification({
           userId: recording.initiatorId,
           type: "recording_ready",
           actorId: null,
@@ -322,24 +320,6 @@ export async function pullRecording(recording) {
           href: `/recordings?rec=${recording.id}`,
           text: recording.title ? `Your recording "${recording.title}" is ready` : "Your recording is ready",
         });
-        if (didNotify) {
-          const member = await prisma.user.findUnique({
-            where: { id: recording.initiatorId },
-            select: { email: true, notifications: true, notificationPreferences: true },
-          });
-          if (
-            member?.email &&
-            member.notifications !== "off" &&
-            member.notificationPreferences?.emailEvents !== false
-          ) {
-            const site = process.env.NEXT_PUBLIC_APP_URL || CANONICAL_ORIGIN;
-            await sendEmail({
-              to: member.email,
-              subject: recording.title ? `Your recording "${recording.title}" is ready` : "Your recording is ready",
-              text: `Your lounge recording is ready to watch.\\n\\nWatch recording: ${site}/recordings?rec=${recording.id}`,
-            });
-          }
-        }
       }
     } catch (e) {
       logError("recordings.notify_ready_failed", { id: recording.id, error: e?.message });

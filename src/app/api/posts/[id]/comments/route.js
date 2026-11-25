@@ -3,7 +3,6 @@ import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { canAccessPost } from "@/lib/server/posts";
 import { getCapabilities, canWriteChat } from "@/lib/server/capabilities";
 import { createNotification } from "@/lib/server/notifications";
-import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 import { resolveActorId } from "@/lib/server/acting-as-core";
@@ -205,24 +204,6 @@ export async function POST(req, { params }) {
     }).catch((err) => {
       logError("comments.notify_author_failed", { postId, error: err.message });
     });
-
-    getUserDoc(post.authorId)
-      .then((author) => {
-        if (
-          !author ||
-          !author.email ||
-          author.notifications === "off" ||
-          author.notificationPreferences?.feed === false
-        ) return null;
-        return sendEmail({
-          to: author.email,
-          subject: `New comment on your post`,
-          text: `${authorName} commented: "${text.trim()}"\n\nView it in the community feed.`,
-        });
-      })
-      .catch((err) => {
-        logError("email.comment_notify_failed", { postId, error: err.message });
-      });
   }
 
   notifySubscribers(postId, post.authorId, user.uid, authorName).catch(() => {});

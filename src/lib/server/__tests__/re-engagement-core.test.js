@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   selectReengagementCandidates,
-  isAutomationEmailOptOut,
+  isAutomationOptOut,
 } from "../re-engagement-core.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -53,11 +53,6 @@ test("select: the automations toggle opts a member out", () => {
   assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 0);
 });
 
-test("select: the legacy weeklyDigest flag opts a member out", () => {
-  const rows = [user({ extra: { lastActiveAt: new Date(NOW - 20 * DAY).toISOString(), emailPreferences: { weeklyDigest: false } } })];
-  assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 0);
-});
-
 test("select: a member nudged recently is not nudged again", () => {
   const rows = [user({ extra: { lastActiveAt: new Date(NOW - 40 * DAY).toISOString(), reengagementSentAt: new Date(NOW - 3 * DAY).toISOString() } })];
   assert.equal(selectReengagementCandidates(rows, { now: NOW }).length, 0);
@@ -78,7 +73,7 @@ test("select: the per-run cap is applied", () => {
   assert.equal(selectReengagementCandidates(rows, { now: NOW, limit: 3 }).length, 3);
 });
 
-test("isAutomationEmailOptOut: defaults to false", () => {
-  assert.equal(isAutomationEmailOptOut(user()), false);
-  assert.equal(isAutomationEmailOptOut(null), false);
+test("isAutomationOptOut: defaults to false", () => {
+  assert.equal(isAutomationOptOut(user()), false);
+  assert.equal(isAutomationOptOut(null), false);
 });

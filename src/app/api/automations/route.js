@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createNotification } from "@/lib/server/notifications";
-import { sendEmail } from "@/lib/server/email";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -28,7 +27,6 @@ async function* paginateUsers() {
       select: {
         id: true,
         name: true,
-        email: true,
         notifications: true,
         createdAt: true,
         extra: true,
@@ -61,14 +59,6 @@ async function sendWelcomeMessages() {
         href: "/dashboard",
         text: "Welcome to the community! Start by introducing yourself in the Feed or exploring the Members directory.",
       });
-
-      if (user.email) {
-        await sendEmail({
-          to: user.email,
-          subject: "Welcome to Secret Yarnery!",
-          text: `Hi ${user.name || "there"},\n\nWelcome to the community! We're glad you're here.\n\nStart by introducing yourself in the Feed or exploring the Members directory.\n\nSee you inside!\n— Secret Yarnery`,
-        }).catch(() => {});
-      }
 
       const extra = { ...(user.extra || {}) };
       extra[WELCOME_SENT_KEY] = true;

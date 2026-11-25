@@ -4,7 +4,6 @@ import {
   LIVE_ANNOUNCER_EMAIL,
   LIVE_COOLDOWN_MS,
   LIVE_PRESENCE_GRACE_MS,
-  buildLiveEmail,
   buildLiveMessage,
   decideAnnouncer,
   isLoungeLiveEnabled,
@@ -84,22 +83,6 @@ test("the announcement names her and the room she is actually in", () => {
 test("a blank room name still produces a readable sentence", () => {
   assert.equal(buildLiveMessage(""), "Christa is live in a lounge");
   assert.equal(buildLiveMessage(undefined), "Christa is live in a lounge");
-});
-
-test("the email carries a link to the lounge she joined", () => {
-  const mail = buildLiveEmail({
-    roomName: "Happy Hour Hub",
-    roomSlug: "happy-hour-hub",
-    appUrl: "https://www.christa-speakeasy.com",
-  });
-  assert.equal(mail.subject, "Christa is live in Happy Hour Hub");
-  assert.match(mail.text, /Join her: https:\/\/www\.christa-speakeasy\.com\/rooms\/happy-hour-hub/);
-});
-
-test("the email degrades without a configured app URL", () => {
-  const mail = buildLiveEmail({ roomName: "The Velvet Den", roomSlug: "velvet-den", appUrl: "" });
-  assert.equal(mail.subject, "Christa is live in The Velvet Den");
-  assert.doesNotMatch(mail.text, /Join her: https/);
 });
 
 // ------------------------------------------------------------------ gating

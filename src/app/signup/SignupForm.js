@@ -11,7 +11,6 @@ import {
   reportAuthFailure,
   reconcileSessionCookie,
   refreshSession,
-  resendSignupVerification,
 } from "@/lib/client-auth";
 import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
 import { oauthFailedKey } from "@/lib/oauth-providers";
@@ -62,8 +61,6 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
-  const [verifyEmail, setVerifyEmail] = useState("");
-  const [resent, setResent] = useState(false);
   // Submission or OAuth return hit the membership wall; show the explained
   // membership-required box with the plan CTA instead of silently redirecting.
   const [membershipRequired, setMembershipRequired] = useState(false);
@@ -255,83 +252,22 @@ export default function SignupForm({ oauthPending = false, hasSession = false })
       // Free Flirting signup is open. The session endpoint claims a paid
       // Shopify placeholder by email when one exists; otherwise it provisions
       // the new account at the free Flirting tier.
-      const result = await signupWithSupabaseEmail(name, email, password);
-      if (result && result.confirm) {
-        setVerifyEmail(email);
-        setResent(false);
-      } else {
-        navigated = true;
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
-        window.location.assign("/signing-in");
-      }
+      await signupWithSupabaseEmail(name, email, password);
+      navigated = true;
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload so the fresh session cookie is sent
+      window.location.assign("/signing-in");
     } catch (err) {
       reportAuthFailure({ email, action: "signup", provider: "email", error: err });
       if (err.code === "not_prepaid" || err.code === "expired") {
         // Explain why instead of silently dumping the visitor on the checkout:
         // they fill the form once, learn the sequence, and decide where to go.
         setMembershipRequired(true);
-      } else if (err.code === "email_not_verified" || err.code === "email_not_confirmed") {
-        setVerifyEmail(email);
-        setResent(false);
       } else {
         setError(err.message || t("signupFailed"));
       }
     } finally {
       if (!navigated) setBusy("");
     }
-  }
-
-  async function resendVerification() {
-    setBusy("verify");
-    setError("");
-    try {
-      await resendSignupVerification(verifyEmail || email);
-      setResent(true);
-    } catch (err) {
-      setError(err.message || "Could not resend verification email");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  if (verifyEmail) {
-    return (
-      <main className={styles.page}>
-        <div className={styles.authContainer}>
-          <div className={styles.authForm}>
-            <a className={styles.backLink} href={LANDING_URL}>
-              ← {t("backToLanding")}
-            </a>
-            <p className={styles.brand}><a className={styles.brandLink} href={LANDING_URL}>
-              <Image src="/brand/secretyarnery-logo.webp" alt="" width={90} height={28} className={styles.brandLogo} />
-              <span className={styles.brandWord}>Secret Yarnery</span>
-            </a></p>
-            <h1 className={styles.title}>{t("verifyEmail")}</h1>
-            <div className={styles.verifyBox}>
-              <p className={styles.verifyText}>
-                {t("verifyEmailDesc", { email: verifyEmail })}
-              </p>
-              {resent ? (
-                <p className={styles.verifyText}>{t("verificationResent")}</p>
-              ) : (
-                <button
-                  className={styles.linkBtn}
-                  onClick={resendVerification}
-                  disabled={!!busy}
-                >
-                  {busy === "verify" ? t("resending") : t("resendVerification")}
-                </button>
-              )}
-            </div>
-            {error && <p className={styles.error}>{error}</p>}
-            <p className={styles.footer}>
-              <a className={styles.link} href="/login">{t("signInAfterVerify")}</a>
-            </p>
-          </div>
-          <AuthAside />
-        </div>
-      </main>
-    );
   }
 
   if (

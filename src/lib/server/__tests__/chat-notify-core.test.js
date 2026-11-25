@@ -4,7 +4,6 @@ import {
   chatNotifyType,
   chatRecipientIds,
   chatSnippet,
-  shouldEmailChatRecipient,
   shouldNotifyChatRecipient,
 } from "../chat-notify-core.js";
 
@@ -57,38 +56,6 @@ test("a muted conversation goes quiet", () => {
 
 test("a direct mention breaks through a mute", () => {
   assert.equal(shouldNotifyChatRecipient({ muted: true, mentioned: true }), true);
-});
-
-test("email fires for an unmuted member who has not opted out", () => {
-  assert.equal(
-    shouldEmailChatRecipient({ globalOff: false, chatPrefOff: false, muted: false }),
-    true
-  );
-});
-
-test("the global opt-out suppresses email even in an active conversation", () => {
-  assert.equal(
-    shouldEmailChatRecipient({ globalOff: true, chatPrefOff: false, muted: false, mentioned: true }),
-    false
-  );
-});
-
-test("the granular chat preference suppresses email", () => {
-  assert.equal(
-    shouldEmailChatRecipient({ globalOff: false, chatPrefOff: true, muted: false, mentioned: true }),
-    false
-  );
-});
-
-test("a muted conversation does not email unless mentioned", () => {
-  assert.equal(
-    shouldEmailChatRecipient({ globalOff: false, chatPrefOff: false, muted: true, mentioned: false }),
-    false
-  );
-  assert.equal(
-    shouldEmailChatRecipient({ globalOff: false, chatPrefOff: false, muted: true, mentioned: true }),
-    true
-  );
 });
 
 test("the snippet is the message body when there is one", () => {

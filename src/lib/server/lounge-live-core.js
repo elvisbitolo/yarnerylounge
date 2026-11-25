@@ -64,22 +64,6 @@ export function buildLiveMessage(roomName) {
   return `${LIVE_ANNOUNCER_NAME} is live in ${name}`;
 }
 
-export function buildLiveEmail({ roomName, roomSlug, appUrl }) {
-  const room = String(roomName || "").trim() || "a lounge";
-  const base = String(appUrl || "").replace(/\/+$/, "");
-  const link = base && roomSlug ? `${base}/rooms/${roomSlug}` : base;
-  return {
-    subject: `${LIVE_ANNOUNCER_NAME} is live in ${room}`,
-    text:
-      `${LIVE_ANNOUNCER_NAME} just joined ${room} and is live now.\n\n` +
-      (link ? `Join her: ${link}\n\n` : "") +
-      // Names the opt-out rather than leaving members to wonder why they are
-      // being emailed. There is no per-address unsubscribe at this volume.
-      "You are receiving this because you are a member of the community. " +
-      "Turn off lounge announcements under Account > Notifications.",
-  };
-}
-
 /**
  * Decide whether this join should be announced, and to whom.
  *

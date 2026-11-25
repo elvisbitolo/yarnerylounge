@@ -21,12 +21,10 @@ function readExtra(row) {
   return row?.extra && typeof row.extra === "object" ? row.extra : {};
 }
 
-export function isAutomationEmailOptOut(row) {
+export function isAutomationOptOut(row) {
   if (row?.notifications === "off") return true;
   const prefs = row?.notificationPreferences;
-  if (prefs && prefs.automations === false) return true;
-  const extra = readExtra(row);
-  return extra.emailPreferences?.weeklyDigest === false;
+  return !!(prefs && prefs.automations === false);
 }
 
 function latestSessionActivity(row) {
@@ -48,7 +46,7 @@ export function selectReengagementCandidates(rows, options = {}) {
   const out = [];
 
   for (const row of Array.isArray(rows) ? rows : []) {
-    if (!row || row.suspended || isAutomationEmailOptOut(row)) continue;
+    if (!row || row.suspended || isAutomationOptOut(row)) continue;
 
     const createdMs = toMillis(row.createdAt);
     if (!Number.isFinite(createdMs) || now - createdMs < minAccountMs) continue;

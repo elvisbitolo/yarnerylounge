@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { logError } from "@/lib/server/log";
 import { getPrisma } from "@/lib/db/prisma";
 
-const DEFAULTS_VERSION = 2;
+const DEFAULTS_VERSION = 3;
 
 const DEFAULTS = {
   chat: true,
@@ -12,11 +12,16 @@ const DEFAULTS = {
   mentions: true,
   automations: true,
   watch: true,
-  emailMessages: true,
-  emailEvents: true,
-  emailRoomAnnouncements: true,
-  emailMatches: false,
 };
+
+const LEGACY_EMAIL_KEYS = [
+  "emailMessages",
+  "emailEvents",
+  "emailRoomAnnouncements",
+  "emailMembership",
+  "emailMatches",
+  "emailDigest",
+];
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -60,7 +65,7 @@ export async function GET() {
     } else {
       prefs = { ...DEFAULTS, ...stored };
     }
-    delete prefs.emailDigest;
+    for (const key of LEGACY_EMAIL_KEYS) delete prefs[key];
   } catch (err) {
     logError("notifications.prisma_prefs_read_failed", { error: err.message });
   }
@@ -92,7 +97,7 @@ export async function PUT(req) {
 
   // Preserve preferences owned by other features instead of wiping unknown keys.
   const prefs = { ...DEFAULTS, ...existing };
-  delete prefs.emailDigest;
+  for (const key of LEGACY_EMAIL_KEYS) delete prefs[key];
   for (const key of Object.keys(DEFAULTS)) {
     if (typeof body[key] === "boolean") prefs[key] = body[key];
   }

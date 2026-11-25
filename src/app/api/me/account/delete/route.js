@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/server/auth";
 import { AUTH_COOKIE } from "@/lib/server/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { logError } from "@/lib/server/log";
-import { sendEmail } from "@/lib/server/email";
 
 export const runtime = "nodejs";
 
@@ -29,40 +27,10 @@ export async function POST(request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const limitKey = body.action === "send-code" ? `account-delete-code:${user.uid}` : `account-delete:${user.uid}`;
-  const limited = rateLimitGuard(limitKey, { limit: body.action === "send-code" ? 3 : 5, windowMs: 60 * 60_000 });
+  const limited = rateLimitGuard(`account-delete:${user.uid}`, { limit: 5, windowMs: 60 * 60_000 });
   if (limited) return limited;
-  if (body.action === "send-code") {
-    if (!user.email) return NextResponse.json({ error: "This account has no email address for verification." }, { status: 400 });
-    try {
-      const { default: supabaseAdmin } = await import("@/lib/supabase/service");
-      const { data, error } = await supabaseAdmin.auth.admin.generateLink({ type: "magiclink", email: user.email });
-      if (error || !data?.properties?.email_otp) throw new Error(error?.message || "Could not generate an email verification code.");
-      const code = data.properties.email_otp;
-      const sent = await sendEmail({
-        to: user.email,
-        subject: "Your Secret Yarnery account deletion code",
-        text: `Use this one-time code to confirm account deletion: ${code}. It can only be used once. If you did not request this, ignore this email.`,
-        html: `<p>Use this one-time code to confirm account deletion:</p><p style="font-size:28px;font-weight:700;letter-spacing:8px;color:#f6077a;">${code}</p><p>This code can only be used once. If you did not request this, ignore this email.</p>`,
-      });
-      if (sent?.skipped) return NextResponse.json({ error: "Email delivery is not configured. Please contact Secret Yarnery support." }, { status: 503 });
-      return NextResponse.json({ ok: true });
-    } catch (error) {
-      logError("account.delete_code_send_failed", { uid: user.uid, error: error?.message });
-      return NextResponse.json({ error: "Could not send the verification code. Please try again." }, { status: 502 });
-    }
-  }
-  const emailCode = String(body.emailCode || "").trim();
-  const accessToken = String(body.accessToken || "");
-  const confirmation = String(body.confirmation || "");
-  if (confirmation !== "DELETE") {
+  if (String(body.confirmation || "") !== "DELETE") {
     return NextResponse.json({ error: 'Type DELETE exactly to confirm.' }, { status: 400 });
-  }
-  if (!/^\d{6,8}$/.test(emailCode) && accessToken.length < 100) {
-    return NextResponse.json({ error: "Enter the verification code sent to your email address." }, { status: 400 });
-  }
-  if (!user.email) {
-    return NextResponse.json({ error: "This account has no email address for identity verification. Contact support." }, { status: 400 });
   }
 
   const prisma = getPrisma();
@@ -71,25 +39,6 @@ export async function POST(request) {
   let blobUrls = [];
   let authDeleted = false;
   try {
-    // Verify a one-time email code. This works for password and Google/Facebook
-    // accounts alike, unlike asking every member to have a local password.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !anonKey) throw new Error("Supabase public auth configuration is missing.");
-    let verifiedUser = null;
-    if (accessToken.length >= 100) {
-      const { default: supabaseAdmin } = await import("@/lib/supabase/service");
-      const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
-      if (!error) verifiedUser = data?.user || null;
-    } else {
-      const verifier = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data, error } = await verifier.auth.verifyOtp({ email: user.email, token: emailCode, type: "magiclink" });
-      if (!error) verifiedUser = data?.user || null;
-    }
-    if (verifiedUser?.id !== user.uid || String(verifiedUser.email || "").toLowerCase() !== user.email.toLowerCase()) {
-      return NextResponse.json({ error: "That email verification is invalid or expired. Your account has not been changed." }, { status: 400 });
-    }
-
     const accountRole = await prisma.user.findUnique({ where: { id: user.uid }, select: { role: true } });
     if (accountRole?.role === "owner") {
       const otherOwners = await prisma.user.count({ where: { id: { not: user.uid }, role: "owner", OR: [{ suspended: false }, { suspended: null }] } });

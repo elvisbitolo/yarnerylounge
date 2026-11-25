@@ -368,7 +368,7 @@ export default async function DeveloperPage() {
           <span className={styles.muted}>Latest 100 · newest first</span>
         </div>
         <div className={styles.networkPanel}>
-          <p className={styles.networkIntro}>Persisted notification records with recipient, category, message, read state and timestamp. These rows confirm in-app notification creation; they do not prove browser push or email delivery.</p>
+          <p className={styles.networkIntro}>Persisted notification records with recipient, category, message, read state and timestamp. These rows confirm in-app notification creation; they do not prove browser push delivery.</p>
           {snapshot.notificationActivity === null ? (
             <p className={styles.networkEmpty}>Notification records are currently unavailable.</p>
           ) : snapshot.notificationActivity.length === 0 ? (

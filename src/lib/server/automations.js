@@ -1,6 +1,5 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { fillTemplate } from "@/lib/server/automations-core";
-import { sendEmail } from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notifications";
 import { awardPoints } from "@/lib/server/gamification";
 import { addSpaceMember } from "@/lib/server/spaces";
@@ -25,13 +24,12 @@ export async function getOwnerUser() {
     try {
       const row = await prisma.user.findFirst({
         where: { role: "owner" },
-        select: { id: true, name: true, email: true, username: true },
+        select: { id: true, name: true, username: true },
       });
       if (row) {
         return {
           uid: row.id,
           name: row.name || "",
-          email: row.email || "",
           username: row.username || "",
         };
       }
@@ -137,19 +135,6 @@ async function executeAction(automation, context) {
   const values = placeholderValues(context);
   const owner = config.to === "owner" ? await getOwnerUser() : null;
 
-  if (action === "send_email") {
-    const to = owner?.email || (config.to && typeof config.to === "string" ? config.to : "");
-    if (!to) return;
-    await sendEmail({
-      to,
-      subject: fillTemplate(config.subject, values),
-      text: fillTemplate(config.body, values),
-    }).catch((err) => {
-      logError("automation.email_failed", { error: err.message, automationId: automation.id });
-    });
-    return;
-  }
-
   if (action === "create_notification") {
     const userId = owner?.uid || config.toUserId || "";
     if (!userId) return;
@@ -210,7 +195,7 @@ export async function runAutomations(trigger, context = {}) {
   if (prisma) {
     try {
       const rows = await prisma.automation.findMany({
-        where: { active: true, trigger },
+        where: { active: true, trigger, action: { not: "send_email" } },
       });
       if (rows.length) automations = rows.map(mapAutomationRow);
     } catch (err) {

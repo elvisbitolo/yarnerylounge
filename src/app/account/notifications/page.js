@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import AccountTabs from "../AccountTabs";
-import EmailNotifications from "../EmailNotifications";
 import PushStatus from "../PushStatus";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import styles from "../account.module.css";
@@ -11,7 +10,6 @@ export const dynamic = "force-dynamic";
 export default async function AccountNotificationsPage() {
   const data = await loadAccount();
   if (!data) redirect("/login");
-  const { user, userDoc } = data;
 
   return (
       <div className={styles.container}>
@@ -21,7 +19,6 @@ export default async function AccountNotificationsPage() {
         <AccountTabs />
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>Notification preferences</h2>
-          <EmailNotifications enabled={userDoc?.notifications} />
           <PushStatus />
         </section>
         <section className={styles.card}>

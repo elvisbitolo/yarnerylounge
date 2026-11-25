@@ -161,10 +161,10 @@ async function matchesAnnouncer(user, prisma) {
 /**
  * Announce the announcer's arrival in `room` to every other active member.
  *
- * Never throws: a member's join must not fail because Resend timed out or a
- * push endpoint rejected the payload. Every failure is logged and swallowed.
+ * Never throws: a member's join must not fail because a push endpoint rejected
+ * the payload. Every failure is logged and swallowed.
  *
- * @returns {Promise<{announced: boolean, reason: string, notified?: number, push?: number, email?: number}>}
+ * @returns {Promise<{announced: boolean, reason: string, notified?: number, push?: number}>}
  */
 export async function announceLoungeLive({ user, room, now = Date.now(), sessionId = "" }) {
   const prisma = getPrisma();
@@ -207,7 +207,7 @@ export async function announceLoungeLive({ user, room, now = Date.now(), session
   try {
     const rows = await prisma.user.findMany({
       where: NOT_SUSPENDED,
-      select: { id: true, email: true, notificationPreferences: true },
+      select: { id: true, notificationPreferences: true },
     });
     recipients = selectRecipients(rows, user.uid);
   } catch (err) {
@@ -224,8 +224,8 @@ export async function announceLoungeLive({ user, room, now = Date.now(), session
     const batch = recipients.slice(i, i + BATCH);
     await Promise.all(
       batch.map(async (member) => {
-        // Members who muted the type get nothing at all — not even email. The
-        // pref is the single opt-out for all three channels.
+        // Members who muted the type get nothing at all. The pref is the single
+        // opt-out for both channels.
         const prefs = member.notificationPreferences;
         if (prefs && prefs.events === false) return;
 
@@ -249,9 +249,6 @@ export async function announceLoungeLive({ user, room, now = Date.now(), session
           pushed += 1;
           return;
         }
-
-        // Member-facing lounge alerts are in-app/push only. Member emails
-        // are reserved for Christa's explicit "Notify Members" action.
       })
     );
   }
@@ -262,7 +259,7 @@ export async function announceLoungeLive({ user, room, now = Date.now(), session
     notified,
     pushed,
   });
-  return { announced: true, reason: "live", notified, push: pushed, email: 0 };
+  return { announced: true, reason: "live", notified, push: pushed };
 }
 
 /**

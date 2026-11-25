@@ -76,7 +76,7 @@ export default function ClientPage() {
         <section className={styles.note}>
           <h2>How this works</h2>
           <p>Members are considered inactive after 48 hours without a recorded session visit. The scheduled reminder job runs daily and applies a seven-day cooldown. Suspended accounts are excluded from the inactivity counts.</p>
-          <p>“Returned after reminder” means a recorded session activity timestamp is later than a reminder sent in the last seven days. It is a useful proxy for reactivation, not proof the email or push notification caused the visit.</p>
+          <p>“Returned after reminder” means a recorded session activity timestamp is later than a reminder sent in the last seven days. It is a useful proxy for reactivation, not proof the in-app reminder caused the visit.</p>
           <p className={styles.updated}>Updated {new Date(data.generatedAt).toLocaleString()}</p>
         </section>
       </> : null}

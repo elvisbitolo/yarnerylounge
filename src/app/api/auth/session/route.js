@@ -6,7 +6,6 @@ import {
   getCurrentUserStatus,
   getUserDoc,
 } from "@/lib/server/auth";
-import { CANONICAL_ORIGIN } from "@/lib/server/origin";
 import { parseSessionCookie, serializeSessionCookie } from "@/lib/server/auth-core";
 import { assertSameOrigin } from "@/lib/server/same-origin";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
@@ -79,13 +78,6 @@ export async function POST(req) {
 
     const perAccount = rateLimitGuard(`session-uid:${identity.uid}`, { limit: 20 });
     if (perAccount) return perAccount;
-
-    if (identity.email && !identity.email_verified) {
-      return NextResponse.json(
-        { error: "email_not_verified" },
-        { status: 403 }
-      );
-    }
 
     const prisma = getPrisma();
     // Always resolve the verified email across every matching member row,
@@ -301,28 +293,8 @@ export async function POST(req) {
       isNewUser = provisioned.created;
 
       // A simultaneous OAuth/email callback may have created the account
-      // first. Only the request that actually creates it sends onboarding
-      // messages and runs the new-member automation.
-      if (isNewUser && identity.email) {
-        const { sendEmail } = await import("@/lib/server/email");
-        await sendEmail({
-          to: identity.email,
-          subject: "Welcome to Secret Yarnery",
-          text:
-            `Hi ${member.name || memberName},\n\n` +
-            `Welcome to Secret Yarnery! You're now a member of the community.\n\n` +
-            `Here's what's inside:\n` +
-            `- Live video lounges for real-time conversation\n` +
-            `- Courses with lessons and progress tracking\n` +
-            `- Events with RSVPs and reminders\n` +
-            `- Groups, spaces, direct messages and a community feed\n\n` +
-            `To start exploring: ${process.env.NEXT_PUBLIC_APP_URL || CANONICAL_ORIGIN}/explore\n\n` +
-            `We're glad you're here.\n\n— The Secret Yarnery Team`,
-        }).catch((err) => {
-          logError("email.welcome_failed", { uid: identity.uid, error: err.message });
-        });
-      }
-
+      // first. Only the request that actually creates it runs the new-member
+      // automation.
       if (isNewUser) {
         const { runAutomations } = await import("@/lib/server/automations");
         runAutomations("new_member", {

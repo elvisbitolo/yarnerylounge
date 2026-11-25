@@ -3,7 +3,6 @@ import { logError } from "@/lib/server/log";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
 import { createNotification } from "@/lib/server/notifications";
-import { sendEmail } from "@/lib/server/email";
 import { awardPoints, POINTS } from "@/lib/server/gamification";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { applyRsvpCounts } from "@/lib/server/events-core";
@@ -119,23 +118,6 @@ export async function POST(req) {
       text: `RSVP'd to "${event.title}"`,
     });
 
-    const creatorDoc = await getUserDoc(event.createdBy);
-    if (creatorDoc) {
-      const creator = creatorDoc;
-      if (
-        creator.email &&
-        creator.notifications !== "off" &&
-        creator.notificationPreferences?.events !== false
-      ) {
-        await sendEmail({
-          to: creator.email,
-          subject: `New RSVP for "${event.title}"`,
-          text: `${memberName} is going to "${event.title}".\n\nView RSVPs on the events page.`,
-        }).catch((err) => {
-          logError("email.rsvp_notify_failed", { eventId, to: creator.email, error: err.message });
-        });
-      }
-    }
   }
 
   return NextResponse.json({ joined: true });

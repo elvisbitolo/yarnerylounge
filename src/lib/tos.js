@@ -1,8 +1,8 @@
 // Terms of Service consent. Pure decision logic — no I/O, unit-testable, and
 // the single place that decides whether a member may use the app yet.
 //
-// Option B: the account exists (so Supabase, sessions, email verification and
-// the prepaid membership gate all behave exactly as before) but the member has
+// Option B: the account exists (so Supabase, sessions and the prepaid
+// membership gate all behave exactly as before) but the member has
 // no access until they explicitly accept. Two independent signals say "already
 // covered", and either one is enough:
 //

@@ -6,7 +6,7 @@
 // route fanned out to the single other participant and only when
 // conversation.type was "dm". Group and region chats were silent - a member
 // posting into a group notified nobody, in-app or otherwise. These helpers
-// describe who to notify, and whether each channel should fire.
+// describe who should receive an in-app notification.
 
 export const DM_NOTIFY_TYPE = "dm";
 export const GROUP_NOTIFY_TYPE = "chat";
@@ -43,21 +43,7 @@ export function shouldNotifyChatRecipient({ muted = false, mentioned = false } =
   return !muted || mentioned === true;
 }
 
-// Email. Honours the member's global opt-out, their granular "chat"
-// preference and the per-conversation mute, with the same mention break as
-// the in-app rule.
-export function shouldEmailChatRecipient({
-  globalOff = false,
-  chatPrefOff = false,
-  muted = false,
-  mentioned = false,
-} = {}) {
-  if (globalOff) return false;
-  if (chatPrefOff) return false;
-  return !muted || mentioned === true;
-}
-
-// The one-line preview used for both the notification and the email.
+// The one-line preview used for the notification.
 export function chatSnippet({ text = "", attachment = null } = {}) {
   const body = typeof text === "string" ? text.trim() : "";
   if (body) return body;

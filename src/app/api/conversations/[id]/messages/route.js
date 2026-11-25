@@ -6,14 +6,12 @@ import { getConversation, addMessage } from "@/lib/server/chat";
 import { createNotification } from "@/lib/server/notifications";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getPrisma } from "@/lib/db/prisma";
-import { sendEmail } from "@/lib/server/email";
 import { logError } from "@/lib/server/log";
 import { validateReplyText } from "@/lib/server/chat-core";
 import {
   chatNotifyType,
   chatRecipientIds,
   chatSnippet,
-  shouldEmailChatRecipient,
   shouldNotifyChatRecipient,
 } from "@/lib/server/chat-notify-core";
 import { containsMention, isConversationMuted } from "@/lib/chat-settings-core";
@@ -244,11 +242,9 @@ export async function POST(req, { params }) {
             where: { id: { in: recipientIds } },
             select: {
               id: true,
-              email: true,
               notifications: true,
               username: true,
               extra: true,
-              notificationPreferences: true,
               suspended: true,
             },
           });
@@ -274,7 +270,6 @@ export async function POST(req, { params }) {
         const muted = isConversationMuted(convPrefs);
         const mentioned = containsMention(text, other.username);
         const globalOff = other.notifications === "off";
-        const chatPrefOff = other.notificationPreferences?.chat === false;
 
         if (!globalOff && shouldNotifyChatRecipient({ muted, mentioned })) {
           // createNotification() applies the granular "chat" preference to the
@@ -289,22 +284,6 @@ export async function POST(req, { params }) {
             text: snippet,
           }).catch((err) => {
             logError("notification.chat_failed", { conversationId, error: err.message });
-          });
-        }
-
-        if (other.notificationPreferences?.emailMessages !== false && shouldEmailChatRecipient({ globalOff, chatPrefOff, muted, mentioned }) && other.email) {
-          await sendEmail({
-            to: other.email,
-            subject: isDm
-              ? `New message from ${senderName}`
-              : `New message in ${roomLabel}`,
-            text: isDm
-              ? `${senderName} sent you a message:\n\n"${snippet}"\n\n` +
-                `Reply in the community chat: ${process.env.NEXT_PUBLIC_APP_URL || ""}${href}`
-              : `${senderName} posted in ${roomLabel}:\n\n"${snippet}"\n\n` +
-                `Open the conversation: ${process.env.NEXT_PUBLIC_APP_URL || ""}${href}`,
-          }).catch((err) => {
-            logError("email.chat_notify_failed", { conversationId, error: err.message });
           });
         }
       }

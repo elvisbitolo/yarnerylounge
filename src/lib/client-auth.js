@@ -80,13 +80,6 @@ async function createSession({ supabaseToken, supabaseRefreshToken, name, addAcc
     lastError = data.error || "";
 
     if (res.status === 403) {
-      if (data.error === "email_not_verified") {
-        const err = new Error(
-          "Please verify your email first — check your inbox for the confirmation link."
-        );
-        err.code = "email_not_verified";
-        throw err;
-      }
       if (data.error === "not_prepaid") {
         const err = new Error(data.message || "This account needs a paid Speakeasy membership.");
         err.code = "not_prepaid";
@@ -177,8 +170,6 @@ export async function loginWithSupabaseEmail(email, password, { addAccount = fal
       } catch {
         message = "Your email or password is incorrect. Please check both and try again.";
       }
-    } else if (error.code === "email_not_confirmed") {
-      message = "Please verify your email first — check your inbox for the confirmation link.";
     }
     const diagnostics = getAuthDiagnostics();
     const authError = new Error(message);
@@ -221,20 +212,18 @@ export async function signupWithSupabaseEmail(name, email, password) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: `${APP_URL}/login`,
-      data: { name },
-    },
+    options: { data: { name } },
   });
   if (error) throw supabaseError(error, { action: "signup" });
   const session = data?.session;
-  if (session?.access_token) {
-    await createSession({
-      supabaseToken: session.access_token,
-      supabaseRefreshToken: session.refresh_token || undefined,
-    });
+  if (!session?.access_token) {
+    throw new Error("Account created. Please sign in.");
   }
-  return { user: null, confirm: !session?.access_token };
+  await createSession({
+    supabaseToken: session.access_token,
+    supabaseRefreshToken: session.refresh_token || undefined,
+  });
+  return { user: null };
 }
 
 export async function signupWithEmail(name, email, password) {
@@ -343,16 +332,6 @@ export async function completePasswordRecovery(newPassword) {
     supabaseToken: session.access_token,
     supabaseRefreshToken: session.refresh_token || undefined,
   });
-  return true;
-}
-
-export async function resendSignupVerification(email) {
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email,
-    options: { emailRedirectTo: `${APP_URL}/login` },
-  });
-  if (error) throw supabaseError(error, { action: "resend" });
   return true;
 }
 

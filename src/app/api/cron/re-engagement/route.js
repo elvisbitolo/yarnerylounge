@@ -31,7 +31,7 @@ export async function GET(req) {
         take: 500,
         orderBy: { id: "asc" },
         select: {
-          id: true, name: true, email: true, notifications: true, suspended: true,
+          id: true, name: true, notifications: true, suspended: true,
           notificationPreferences: true, extra: true, createdAt: true,
           sessions: { orderBy: { lastSeenAt: "desc" }, take: 1, select: { lastSeenAt: true } },
         },
@@ -47,26 +47,6 @@ export async function GET(req) {
   } catch (err) {
     logError("reengagement.prisma_read_failed", { error: err.message });
     return NextResponse.json({ error: "Read failed" }, { status: 503 });
-  }
-
-  let nextEvent = null;
-  try {
-    const ev = await prisma.event.findFirst({
-      where: { startTime: { gte: new Date() } },
-      orderBy: { startTime: "asc" },
-      select: { title: true, startTime: true },
-    });
-    if (ev) {
-      const date = ev.startTime instanceof Date ? ev.startTime : new Date(ev.startTime);
-      nextEvent = {
-        title: ev.title || "Event",
-        date: Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", {
-          weekday: "short", month: "short", day: "numeric",
-        }),
-      };
-    }
-  } catch (err) {
-    logError("reengagement.prisma_event_read_failed", { error: err.message });
   }
 
   const stats = { candidates: candidates.length, sent: 0, inAppSent: 0, skipped: 0, onboarding: 0, returning: 0 };

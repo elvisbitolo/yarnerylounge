@@ -5,35 +5,13 @@ import { useRouter } from "next/navigation";
 import styles from "../account.module.css";
 import { supabase } from "@/lib/supabase";
 
-export default function DeleteAccountSection({ email }) {
+export default function DeleteAccountSection() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [emailCode, setEmailCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function sendVerificationCode() {
-    setError("");
-    setSendingCode(true);
-    try {
-      const response = await fetch("/api/me/account/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ action: "send-code" }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "Could not send the verification email.");
-      setCodeSent(true);
-    } catch (err) {
-      setError(err.message || "Could not send the verification email. Try again.");
-    } finally {
-      setSendingCode(false);
-    }
-  }
   async function handleDelete(event) {
     event.preventDefault();
     setError("");
@@ -48,7 +26,7 @@ export default function DeleteAccountSection({ email }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ emailCode, confirmation }),
+        body: JSON.stringify({ confirmation }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Account deletion could not be completed.");
@@ -84,28 +62,6 @@ export default function DeleteAccountSection({ email }) {
         <form onSubmit={handleDelete}>
           {error && <p className={styles.formError} role="alert">{error}</p>}
           <div className={styles.field}>
-            <p className={styles.fieldHint}>We will send a one-time verification code to {email}. This confirms that you control the account email.</p>
-            <button type="button" className={styles.deleteCancel} onClick={sendVerificationCode} disabled={sendingCode || !email}>
-              {sendingCode ? "Sending code…" : codeSent ? "Resend verification code" : "Send verification code"}
-            </button>
-          </div>
-          {codeSent && (
-            <div className={styles.field}>
-              <label className={styles.fieldLabel} htmlFor="delete-email-code">Email verification code</label>
-              <input
-                id="delete-email-code"
-                className={styles.input}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={8}
-                value={emailCode}
-                onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
-                required
-              />
-            </div>
-          )}
-          <div className={styles.field}>
             <label className={styles.fieldLabel} htmlFor="delete-confirmation">
               Type DELETE to confirm
             </label>
@@ -123,7 +79,7 @@ export default function DeleteAccountSection({ email }) {
             <button type="button" className={styles.deleteCancel} onClick={() => { setOpen(false); setError(""); }}>
               Keep my account
             </button>
-            <button type="submit" className={styles.deleteButton} disabled={busy || confirmation !== "DELETE" || !/^\d{6,8}$/.test(emailCode)}>
+            <button type="submit" className={styles.deleteButton} disabled={busy || confirmation !== "DELETE"}>
               {busy ? "Deleting account…" : "Permanently delete account"}
             </button>
           </div>

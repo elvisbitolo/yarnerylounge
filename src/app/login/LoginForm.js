@@ -11,7 +11,6 @@ import {
   reportAuthFailure,
   reconcileSessionCookie,
   refreshSession,
-  resendSignupVerification,
   sendPasswordReset,
 } from "@/lib/client-auth";
 import { isOAuthReturn, isStaleProviderLink } from "@/lib/oauth-return";
@@ -78,8 +77,6 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
   const [busy, setBusy] = useState("");
   const [forgotPassword, setForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [verifyNotice, setVerifyNotice] = useState("");
-  const [resent, setResent] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Landed from the password-reset email? The Supabase recovery session lives
@@ -250,24 +247,10 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
     }
   }, [t]);
 
-  async function resendVerification() {
-    setBusy("verify");
-    setError("");
-    try {
-      await resendSignupVerification(email);
-      setResent(true);
-    } catch (err) {
-      setError(err.message || "Could not resend verification email");
-    } finally {
-      setBusy("");
-    }
-  }
-
   // Provider buttons share one handler: the only per-provider difference is
   // which authorize options get sent, and that lives in client-auth.js.
   async function handleProvider(provider) {
     setError("");
-    setVerifyNotice("");
     setNoAccount(false);
     setBusy(provider);
     try {
@@ -292,7 +275,6 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    setVerifyNotice("");
     setBusy("email");
     // location.assign() only queues the navigation — this document keeps
     // rendering until the new one commits. Clearing busy here would swap the
@@ -307,12 +289,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
       window.location.assign(addAccount && result?.switched ? "/dashboard" : "/signing-in");
     } catch (err) {
       reportAuthFailure({ email, action: "login", provider: "email", error: err });
-      if (err.code === "email_not_verified" || err.code === "email_not_confirmed") {
-        setVerifyNotice(err.message);
-        setResent(false);
-      } else {
-        setError(err.message || "Sign-in failed");
-      }
+      setError(err.message || "Sign-in failed");
     } finally {
       if (!navigated) setBusy("");
     }
@@ -439,22 +416,6 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
             ) : (
               <>
                 {error && <p className={styles.error} role="alert" aria-live="assertive">{error}</p>}
-                {verifyNotice && (
-                  <div className={styles.verifyBox}>
-                    <p className={styles.verifyText}>{verifyNotice}</p>
-                    {resent ? (
-                      <p className={styles.verifyText}>{t("verificationResent")}</p>
-                    ) : (
-                      <button
-                        className={styles.linkBtn}
-                        onClick={resendVerification}
-                        disabled={!!busy}
-                      >
-                        {busy === "verify" ? t("resending") : t("resendVerification")}
-                      </button>
-                    )}
-                  </div>
-                )}
                 <form onSubmit={handleReset}>
                   <div className={styles.field}>
                     <label className={styles.label} htmlFor="reset-email">{t("email")}</label>
@@ -487,7 +448,7 @@ export default function LoginForm({ oauthPending = false, hasSession = false, op
       {busy && (
         <div className={styles.loadOverlay} role="status" aria-live="polite">
           <div className={styles.spinner} />
-          <p className={styles.loadText}>{busy === "verify" ? t("resending") : t("sendResetLink")}</p>
+          <p className={styles.loadText}>{t("sendResetLink")}</p>
         </div>
       )}
     </main>

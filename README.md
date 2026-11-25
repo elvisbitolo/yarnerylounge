@@ -16,7 +16,7 @@ Production: [christasspeakeasy.com](https://www.christasspeakeasy.com)
 - **Messaging** — member-to-member conversations with real-time delivery and encrypted message storage.
 - **Profiles and portfolios** — member profiles, project showcases, and community discovery.
 - **Topics and recognition** — discussions, leaderboard, points, badges, and member recognition.
-- **Notifications** — in-app notifications, optional web push, and transactional email.
+- **Notifications** — in-app notifications and optional web push; Supabase handles password-reset email.
 - **Recordings** — a member-facing library for available lounge recordings.
 
 ## Technology stack
@@ -96,7 +96,6 @@ Use [`.env.example`](.env.example) as the source of truth for environment variab
 - **Shopify:** access token and webhook secret for membership transaction handling. `SHOPIFY_OPEN_ACCESS` is an explicit switch for a temporary open-access period; keep it disabled for normal paid-plan gating.
 - **Studio:** `STUDIO_ADMIN_EMAILS` configures the Studio moderation allowlist. All signed-in members can publish; upload ownership controls who can remove a video, while moderators can manage the full library.
 - **Web push:** VAPID public/private keys and subject are optional.
-- **Email:** `RESEND_API_KEY` and `EMAIL_FROM` enable transactional email delivery; without the API key, email attempts are logged by the server.
 - **Cron:** `CRON_SECRET` protects scheduled Vercel endpoints.
 - **Origins:** `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_CANONICAL_HOST`, and `NEXT_PUBLIC_OWN_HOSTS` must match the domains used by the deployment.
 

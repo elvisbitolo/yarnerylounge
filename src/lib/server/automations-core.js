@@ -11,7 +11,6 @@ export const AUTOMATION_TRIGGERS = [
 ];
 
 export const AUTOMATION_ACTIONS = [
-  "send_email",
   "create_notification",
   "award_points",
   "add_member_to_space",

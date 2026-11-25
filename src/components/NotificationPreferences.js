@@ -12,12 +12,6 @@ const IN_APP_KEYS = [
   { key: "watch", label: "Watched members", hint: "When someone you're watching comes online or enters a lounge" },
 ];
 
-const EMAIL_KEYS = [
-  { key: "emailMessages", label: "Messages and mentions", hint: "Email when you receive direct messages or are mentioned in chat" },
-  { key: "emailEvents", label: "Events and recordings", hint: "Event reminders and recording-ready emails" },
-  { key: "emailRoomAnnouncements", label: "Lounge announcements", hint: "Email announcements when the lounge host invites members to join" },
-];
-
 export default function NotificationPreferences() {
   const [prefs, setPrefs] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -90,9 +84,6 @@ export default function NotificationPreferences() {
     <div>
       <h3>In-app and push notifications</h3>
       {renderRows(IN_APP_KEYS)}
-      <h3 style={{ marginTop: 28 }}>Email notifications</h3>
-      <p className={styles.hint}>Choose which optional emails you receive. Essential account-security emails may still be sent.</p>
-      {renderRows(EMAIL_KEYS)}
       {error && <p className={styles.error}>{error}</p>}
       {saved && <p className={styles.formSaved}>Preferences saved.</p>}
       <button
