@@ -99,6 +99,7 @@ export async function PUT(req) {
   // Preserve preferences owned by other features instead of wiping unknown keys.
   const prefs = { ...DEFAULTS, ...existing };
   for (const key of LEGACY_EMAIL_KEYS) delete prefs[key];
+  delete prefs.watch;
   for (const key of Object.keys(DEFAULTS)) {
     if (typeof body[key] === "boolean") prefs[key] = body[key];
   }
