@@ -107,10 +107,11 @@ async function createSession({ supabaseToken, supabaseRefreshToken, name, addAcc
       const err = new Error(
         data.message ||
           (data.error === "server_error"
-            ? "Could not create your session. Please try again."
+            ? "We could not finish signing you in. Please try again."
             : lastError || "Failed to create session. Please try again.")
       );
-      err.code = "session_failed";
+      err.code = data.code || "session_failed";
+      err.referenceId = data.referenceId || null;
       throw err;
     }
   }

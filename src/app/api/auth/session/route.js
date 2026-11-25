@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import {
   AUTH_COOKIE,
@@ -29,6 +30,9 @@ export async function POST(req) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const limited = rateLimitGuard(`session-ip:${ip}`, { limit: 30 });
   if (limited) return limited;
+
+  let failureStage = "request_validation";
+  const referenceId = randomUUID();
 
   try {
     const body = await req.json();
@@ -79,7 +83,13 @@ export async function POST(req) {
     const perAccount = rateLimitGuard(`session-uid:${identity.uid}`, { limit: 20 });
     if (perAccount) return perAccount;
 
+    failureStage = "member_database_lookup";
     const prisma = getPrisma();
+    if (!prisma) {
+      const error = new Error("Database connection is not configured for this deployment.");
+      error.code = "DATABASE_NOT_CONFIGURED";
+      throw error;
+    }
     // Always resolve the verified email across every matching member row,
     // even when the Supabase UID already matches one row. OAuth signup can
     // create a lower-tier duplicate whose ID equals the auth UID while the
@@ -111,6 +121,7 @@ export async function POST(req) {
     let isNewUser = false;
 
     if (!member) {
+      failureStage = "member_provisioning";
       const prepaidEmail = (identity.email || "").toLowerCase().trim();
       const { isOpenAccess, OPEN_ACCESS_PLAN } = await import("@/lib/server/access-policy");
       const openAccess = isOpenAccess();
@@ -322,6 +333,7 @@ export async function POST(req) {
       await tagSessionForSwitch(currentSid, switchRoot.rootId);
     }
 
+    failureStage = "session_persistence";
     const sid = await createSession({
       uid: member.id,
       accessToken: supabaseToken,
@@ -334,6 +346,7 @@ export async function POST(req) {
 
     // Every genuinely new account must accept the current Terms before
     // entering the app. Existing accounts use their persisted consent state.
+    failureStage = "consent_check";
     const { mapUserRow } = await import("@/lib/server/user-core");
     const { needsTosConsent } = await import("@/lib/tos");
     const needsConsent = needsTosConsent(mapUserRow(member));
@@ -358,9 +371,32 @@ export async function POST(req) {
     );
     return res;
   } catch (err) {
-    logError("auth.session_exchange_failed", { error: err.message });
+    const errorCode = String(err?.code || "AUTH_SESSION_EXCHANGE_FAILED").slice(0, 80);
+    const databaseUnavailable = ["P1001", "P1002", "P2024", "P1017"].includes(errorCode);
+    let message;
+
+    if (errorCode === "DATABASE_NOT_CONFIGURED") {
+      message = "The sign-in service is not connected to its member database. Please contact support and share the reference ID below.";
+    } else if (databaseUnavailable) {
+      message = "The member database is temporarily unreachable or busy. Wait a minute, then try signing in again. If it continues, contact support with the reference ID below.";
+    } else if (failureStage === "session_persistence") {
+      message = "Your sign-in was verified, but we could not save your session. Please try again in a minute. If it continues, contact support with the reference ID below.";
+    } else if (failureStage === "member_provisioning") {
+      message = "Your sign-in was verified, but we could not finish setting up your member account. Please contact support with the reference ID below.";
+    } else if (failureStage === "member_database_lookup") {
+      message = "We could not look up your member account because the database request failed. Please try again shortly and share the reference ID with support if it continues.";
+    } else {
+      message = "We could not finish signing you in. Please try again. If it continues, contact support with the reference ID below.";
+    }
+
+    logError("auth.session_exchange_failed", {
+      referenceId,
+      stage: failureStage,
+      code: errorCode,
+      error: String(err?.message || "Unknown authentication error").slice(0, 500),
+    });
     return NextResponse.json(
-      { error: "server_error", message: "Could not create your session. Please try again." },
+      { error: "server_error", code: errorCode, referenceId, message },
       { status: 500 }
     );
   }
