@@ -2,11 +2,10 @@
   "name": "community",
   "version": "0.1.0",
   "private": true,
-  "engines": {
-    "node": "24.x"
-  },
+  "engines": { "node": "24.x" },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/version-service-worker.mjs",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
@@ -58,12 +57,7 @@
     "@prisma/engines@*": true,
     "@prisma/client@*": true,
     "@prisma/composer@*": true,
-    "@prisma/composer-cli@*": true,
     "@prisma/orm-toolchain@*": true
   },
-  "overrides": {
-    "jwks-rsa": {
-      "jose": "4.15.9"
-    }
-  }
+  "overrides": { "jwks-rsa": { "jose": "4.15.9" } }
 }
