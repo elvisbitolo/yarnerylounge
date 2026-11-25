@@ -237,6 +237,204 @@
   background: #3b2c47;
 }
 
+.manager {
+  background: #161119;
+  border: 1px solid #2b2233;
+  border-radius: 16px;
+  padding: 24px 26px;
+  margin: -10px 0 34px;
+}
+
+.managerHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.managerTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f7ecfa;
+  margin: 0;
+}
+
+.managerCurrent {
+  font-size: 13px;
+  color: #8d7c99;
+  margin: 5px 0 0;
+}
+
+.managerCurrent strong {
+  color: #f7ecfa;
+}
+
+.managerAccountLink {
+  font-size: 13px;
+  color: #cdb9d8;
+  text-decoration: none;
+  border-bottom: 1px solid #4a3a55;
+}
+
+.managerAccountLink:hover {
+  color: #fff;
+}
+
+.managerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.managerBlock {
+  background: #1d1622;
+  border: 1px solid #2b2233;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.managerBlockTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f7ecfa;
+  margin: 0;
+}
+
+.managerTierRow {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.managerCopy {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #b9a9c4;
+  margin: 0;
+}
+
+.managerCopy strong {
+  color: #f7ecfa;
+}
+
+.managerLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.managerLink {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #1f9d63;
+  color: #fff;
+}
+
+.managerLink + .managerLink {
+  background: #2b2233;
+  border: 1px solid #4a3a55;
+}
+
+.managerLink:hover {
+  filter: brightness(1.08);
+}
+
+.managerButton {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.managerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.managerButtonSecondary {
+  background: #2b2233;
+  color: #f7ecfa;
+  border-color: #4a3a55;
+}
+
+.managerButtonDanger {
+  background: #3a1d24;
+  color: #ffd9e0;
+  border-color: #6d3442;
+}
+
+.managerButton:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.managerField {
+  font-size: 12px;
+  color: #cdb9d8;
+}
+
+.managerInput,
+.managerTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #120c16;
+  border: 1px solid #3b2c47;
+  border-radius: 8px;
+  color: #f7ecfa;
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 10px;
+}
+
+.managerInput:focus,
+.managerTextarea:focus,
+.managerButton:focus-visible,
+.managerLink:focus-visible,
+.managerAccountLink:focus-visible {
+  outline: 2px solid #cdb9d8;
+  outline-offset: 2px;
+}
+
+.managerError,
+.managerSuccess {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin: 0 0 14px;
+}
+
+.managerError {
+  background: #3a1d24;
+  color: #ffd9e0;
+  border: 1px solid #6d3442;
+}
+
+.managerSuccess {
+  background: #163226;
+  color: #c9f5df;
+  border: 1px solid #2a6b4d;
+}
+
+.managerNote {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8d7c99;
+  margin: 16px 0 0;
+}
+
 @media (max-width: 560px) {
   .wrap {
     padding: 28px 14px 52px;
@@ -244,5 +442,14 @@
 
   .tier {
     padding: 20px 16px;
+  }
+
+  .manager {
+    padding: 20px 16px;
+    margin-top: 0;
+  }
+
+  .managerGrid {
+    grid-template-columns: 1fr;
   }
 }

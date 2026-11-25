@@ -1,10 +1,17 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/server/auth";
+import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getCapabilities, CAPABILITIES } from "@/lib/server/capabilities";
 import { getSubscription } from "@/lib/server/subscription";
 import { subscriptionStatus } from "@/lib/server/billing";
 import { isOpenAccess } from "@/lib/server/access-policy";
+import { TIERS, tierLabel } from "@/lib/server/plans";
+import {
+  billingTier,
+  canSelfManageMembership,
+  selfServicePlanAction,
+} from "@/lib/server/membership-self-service";
 import TierIcon from "@/components/TierIcon";
+import MembershipManager from "./MembershipManager";
 import styles from "./membership.module.css";
 
 export const dynamic = "force-dynamic";
@@ -118,10 +125,30 @@ function ProductLinks({ tierKey, compact = false }) {
 export default async function MembershipPage() {
   const user = await getCurrentUser();
   const openAccess = isOpenAccess();
-  const caps = user ? await getCapabilities(user.uid) : null;
-  const sub = user ? await getSubscription(user.uid) : null;
+  const [userDoc, caps, sub] = user
+    ? await Promise.all([
+        getUserDoc(user.uid).catch(() => null),
+        getCapabilities(user.uid),
+        getSubscription(user.uid),
+      ])
+    : [null, null, null];
   const currentTier = caps?.key || null;
   const currentIndex = currentTier ? SHOP_TIERS.indexOf(currentTier) : -1;
+  const savedTier = userDoc ? billingTier(userDoc, sub) : null;
+  const managerTiers = savedTier
+    ? TIERS.map((tier) => {
+        const product = TIER_PRODUCTS[tier];
+        return {
+          tier,
+          label: tierLabel(tier),
+          action: selfServicePlanAction(savedTier, tier),
+          monthly: product.monthly,
+          annual: product.annual || null,
+          monthlyLabel: product.monthlyLabel,
+          annualLabel: product.annualLabel || null,
+        };
+      })
+    : [];
 
   return (
     <main className={styles.wrap}>
@@ -160,6 +187,14 @@ export default async function MembershipPage() {
               </p>
             )}
           </section>
+        )}
+
+        {user && savedTier && (
+          <MembershipManager
+            currentTier={savedTier}
+            canManage={Boolean(userDoc) && canSelfManageMembership(userDoc.role)}
+            tiers={managerTiers}
+          />
         )}
 
         <div className={styles.ladder} id="plans">
