@@ -2580,7 +2580,7 @@
 .yourCommunityColumnHeader > a:hover { text-decoration: underline; }
 .yourCommunityStats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin: 17px 0;
 }
@@ -2906,5 +2906,11 @@
   .dashboardContentPostHeading {
     flex-wrap: wrap;
     gap: 6px 10px;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboardCommunityGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
