@@ -23,7 +23,7 @@ import {
 import EventsSpotlight from "./EventsSpotlight";
 import DashboardNotificationCard from "./DashboardNotificationCard";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
-import { DashboardActivityPreview, DashboardActiveMembers, DashboardCommunityFeed, DashboardStudioCard, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardMembershipCard, DashboardProfileCompletion, DashboardCommunityBuilderCard, DashboardEngagementProgress, DashboardYourCommunity } from "./DashboardCommunitySections";
+import { DashboardActivityPreview, DashboardActiveMembers, DashboardCommunityFeed, DashboardStudioCard, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardProfileCompletion, DashboardCommunityBuilderCard, DashboardEngagementProgress, DashboardYourCommunity } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -249,9 +249,6 @@ export default function DashboardShell() {
 
         <div data-tour="tour-welcome">
           <WelcomeBanner name={user.name} photoURL={user.photoURL} />
-        </div>
-        <div data-tour="tour-membership">
-          <DashboardMembershipCard />
         </div>
         {/* What's On is a first-screen dashboard feature: keep it immediately
             below the welcome banner so members can see community activity. */}

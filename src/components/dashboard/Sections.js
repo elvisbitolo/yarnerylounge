@@ -122,6 +122,9 @@ export function WelcomeBanner({ name, photoURL }) {
         <Link className={styles.welcomeLink} href="/feed">
           {t("viewFeed")}
         </Link>
+        <Link className={styles.welcomeLink} href="/account/membership">
+          Manage membership
+        </Link>
       </div>
     </div>
   );
