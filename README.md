@@ -7,6 +7,7 @@ Production: [christasspeakeasy.com](https://www.christasspeakeasy.com)
 ## Features
 
 - **Member accounts and access levels** — authenticated profiles, membership plans, account settings, and staff tools.
+- **Membership self-service** — plan upgrades through Shopify cart links, immediate local downgrades/cancellations, and owner-only billing follow-up requests in the audit log.
 - **Member dashboard** — community activity, upcoming events and rooms, featured videos, member discovery, and contribution progress.
 - **Community feed** — posts, photos, video attachments, polls, questions, comments, and reactions.
 - **Community Studio** — every signed-in member can upload, publish, and watch tutorials, project videos, and stitch-alongs. Members can delete their own uploads; Studio moderators can manage the full library.
@@ -92,7 +93,7 @@ Use [`.env.example`](.env.example) as the source of truth for environment variab
 - **Chat security:** `MESSAGE_ENCRYPTION_KEY` is required to send chat messages. It must be a base64-encoded 256-bit key. Messages use AES-256-GCM encryption at rest; the application refuses to store plaintext if the key is missing.
 - **Vercel Blob:** `BLOB_READ_WRITE_TOKEN` for feed media uploads.
 - **JaaS:** `JITSI_APP_ID`, `JITSI_API_KEY_ID`, and `JITSI_PRIVATE_KEY` for signed meeting access; configure `JITSI_WEBHOOK_SECRET` for recording webhooks.
-- **Shopify:** access token and webhook secret for membership transaction handling. `SHOPIFY_OPEN_ACCESS` is an explicit switch for a temporary open-access period; keep it disabled for normal paid-plan gating.
+- **Shopify:** `SHOPIFY_WEBHOOK_SECRET` verifies paid-order webhooks that grant plans. `NEXT_PUBLIC_SHOPIFY_PRICING_URL` sets the storefront origin used for cart permalinks. `SHOPIFY_OPEN_ACCESS` is an explicit switch for a temporary open-access period; keep it disabled for normal paid-plan gating.
 - **Studio:** `STUDIO_ADMIN_EMAILS` configures the Studio moderation allowlist. All signed-in members can publish; upload ownership controls who can remove a video, while moderators can manage the full library.
 - **Cron:** `CRON_SECRET` protects scheduled Vercel endpoints.
 - **Origins:** `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_CANONICAL_HOST`, and `NEXT_PUBLIC_OWN_HOSTS` must match the domains used by the deployment.
@@ -104,6 +105,12 @@ Never paste production secrets into source code, issues, or pull requests.
 ### Authentication and sessions
 
 Supabase Auth handles identity verification. The application maintains its own opaque, HTTP-only `community-auth` cookie backed by a server-side session record in PostgreSQL. Supabase access and refresh tokens remain on the server, where refresh-token rotation is coordinated per session.
+
+### Membership lifecycle
+
+The dashboard **Manage membership** button opens `/membership`, the full plan comparison and self-service manager. Upgrade links open the correct Shopify cart permalink; access is granted only when the paid-order webhook is verified. Downgrades and cancellations update local access immediately and write an owner-only audit entry with `billingStatus: pending_client_action` so the store team can handle Shopify billing separately. No automatic refund or Shopify-side cancellation is performed. Staff access is controlled by role, so `/account/membership` shows plan and payment history without a billing status row.
+
+The service worker in `public/sw.js` must have its `VERSION` bumped on every release. Installed PWAs otherwise keep the previous cached shell. `/account`, `/admin`, and `/membership` bypass document caching because they render role- and membership-specific content.
 
 ### Messaging and encryption
 

@@ -12,17 +12,6 @@ import styles from "../account.module.css";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_TEXT = {
-  active: "Active",
-  trialing: "Trial",
-  past_due: "Payment past due",
-  cancel_at_period_end: "Cancels at period end",
-  canceled: "Canceled",
-  paused: "Paused",
-  incomplete: "Incomplete",
-  inactive: "Expired",
-};
-
 export default async function MembershipPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -54,13 +43,6 @@ export default async function MembershipPage() {
   const tier = isCanceled ? "flirting" : sub?.tier || userDoc?.plan || "flirting";
   const isPaidTier = ["hooking-up", "moving-in"].includes(tier);
   const status = isCanceled ? "canceled" : isPaidTier ? subscriptionStatus(sub) : "none";
-  const statusText = isPaidTier ? STATUS_TEXT[status] || "Active" : status === "canceled" ? "Canceled" : "Free tier";
-  const statusTone =
-    isPaidTier && (status === "active" || status === "trialing")
-      ? `${styles.badge} ${styles.badgeActive}`
-      : status === "canceled" || status === "inactive"
-        ? `${styles.badge} ${styles.badgeInactive}`
-        : styles.badge;
   const canCancel = isPaidTier && ["active", "trialing", "past_due", "cancel_at_period_end"].includes(status);
 
   return (
@@ -68,12 +50,6 @@ export default async function MembershipPage() {
       <AccountTabs />
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>My membership</h2>
-        <div className={styles.row}>
-          <span className={styles.label}>Status</span>
-          <span className={styles.value}>
-            <span className={statusTone}>{statusText}</span>
-          </span>
-        </div>
         <div className={styles.row}>
           <span className={styles.label}>Plan</span>
           <span className={styles.value}>
