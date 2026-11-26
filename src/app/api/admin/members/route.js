@@ -11,7 +11,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logAudit } from "@/lib/server/audit";
 import { logError } from "@/lib/server/log";
 import supabaseAdmin from "@/lib/supabase/service";
-import { normalizeAdminRole } from "@/lib/server/admin-member-update";
+import { normalizeAdminRole, resolveAdminMemberStatus } from "@/lib/server/admin-member-update";
 
 const VALID_PLANS = ["flirting", "hooking-up", "moving-in"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -295,6 +295,8 @@ export async function GET() {
     const members = users.map((user) => {
       const sub = subMap.get(user.id) || null;
       const active = isActiveSub(sub);
+      const status = resolveAdminMemberStatus(user, sub);
+      const isStaff = ["owner", "moderator"].includes(String(user.role || "").toLowerCase());
       const lastSeen = lastSeenMap.get(user.id);
       return {
         id: user.id,
@@ -304,7 +306,7 @@ export async function GET() {
         createdAt: user.createdAt,
         role: user.role || "member",
         roleLabel: user.roleLabel || "",
-        plan: ["owner", "moderator"].includes(String(user.role || "").toLowerCase())
+        plan: isStaff
           ? "moving-in"
           : sub
             ? active ? sub.tier || "flirting" : "flirting"
@@ -313,13 +315,9 @@ export async function GET() {
         foundingMember: !!user.foundingMember,
         expiresAt: user.expiresAt,
         tier: sub && active ? sub.tier || "lounge" : "",
-        subStatus: active
-          ? sub.status === "trialing"
-            ? "trial"
-            : "active"
-          : sub
-            ? "inactive"
-            : "none",
+        subStatus: status.code,
+        status: status.category,
+        statusLabel: status.label,
         lastSeenAt: lastSeen ? lastSeen.toISOString() : null,
       };
     });

@@ -4,5 +4,6 @@ export function roleBadgeLabel(role, custom) {
   }
   if (role === "owner") return "Owner";
   if (role === "moderator") return "Moderator";
+  if (role === "host") return "Host";
   return "Member";
 }

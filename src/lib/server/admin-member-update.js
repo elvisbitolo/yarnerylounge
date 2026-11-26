@@ -1,4 +1,5 @@
 import { TIERS } from "./plans.js";
+import { isActiveSub } from "./billing.js";
 
 export const ADMIN_ASSIGNABLE_ROLES = ["member", "host", "moderator"];
 
@@ -24,4 +25,20 @@ export function normalizeAdminExpiry(value) {
   const expiresAt = new Date(iso);
   if (Number.isNaN(expiresAt.getTime())) return { ok: false, error: "Enter a valid expiry date." };
   return { ok: true, expiresAt };
+}
+
+export function resolveAdminMemberStatus(user, sub, now = Date.now()) {
+  if (user?.suspended) return { category: "suspended", label: "Suspended", code: "suspended" };
+  const role = String(user?.role || "").toLowerCase();
+  if (role === "owner" || role === "moderator") {
+    return { category: "active", label: "Role access", code: "role" };
+  }
+  if (!sub) return { category: "inactive", label: "Inactive", code: "none" };
+  const active = isActiveSub(sub, now);
+  if (sub.status === "trialing" && active) return { category: "active", label: "Trial", code: "trial" };
+  if (sub.status === "past_due" && active) {
+    return { category: "active", label: "Payment past due", code: "past_due" };
+  }
+  if (active) return { category: "active", label: "Active", code: "active" };
+  return { category: "inactive", label: "Inactive", code: "inactive" };
 }

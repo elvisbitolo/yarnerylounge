@@ -37,6 +37,31 @@ function csvCell(value) {
   return '"' + String(value ?? "").replace(/"/g, '""') + '"';
 }
 
+function memberStatus(member) {
+  const code = member.subStatus || "none";
+  const category = member.status || (
+    member.suspended || code === "suspended"
+      ? "suspended"
+      : ["role", "trial", "active", "past_due"].includes(code)
+        ? "active"
+        : "inactive"
+  );
+  const label = member.statusLabel || (
+    category === "suspended"
+      ? "Suspended"
+      : code === "role"
+        ? "Role access"
+        : code === "past_due"
+          ? "Payment past due"
+          : code === "trial"
+            ? "Trial"
+            : code === "active"
+              ? "Active"
+              : "Inactive"
+  );
+  return { category, label };
+}
+
 export default function AdminMembersPage() {
   const router = useRouter();
   const [members, setMembers] = useState([]);
@@ -235,9 +260,7 @@ export default function AdminMembersPage() {
         [member.name, member.email, member.id].some((value) => String(value || "").toLowerCase().includes(q));
       const matchesPlan = planFilter === "all" || (member.plan || "flirting") === planFilter;
       const matchesRole = roleFilter === "all" || (member.role || "member") === roleFilter;
-      const status = member.suspended ? "suspended" :
-        ["active", "trial"].includes(member.subStatus) ? "active" : "inactive";
-      const matchesStatus = statusFilter === "all" || status === statusFilter;
+      const matchesStatus = statusFilter === "all" || memberStatus(member).category === statusFilter;
       return matchesQuery && matchesPlan && matchesRole && matchesStatus;
     });
   }, [members, query, planFilter, roleFilter, statusFilter]);
@@ -255,7 +278,7 @@ export default function AdminMembersPage() {
       member.email,
       PLAN_OPTIONS.find((option) => option.value === (member.plan || "flirting"))?.label || member.plan,
       member.role,
-      member.suspended ? "Suspended" : ["active", "trial"].includes(member.subStatus) ? "Active" : "Inactive",
+      memberStatus(member).label,
       formatDate(member.expiresAt),
       formatDate(member.lastSeenAt),
       formatDate(member.createdAt),
@@ -344,8 +367,7 @@ export default function AdminMembersPage() {
             <tbody>
               {pageMembers.map((member, index) => {
                 const memberPlan = member.plan || "flirting";
-                const isActive = ["active", "trial"].includes(member.subStatus);
-                const statusLabel = member.suspended ? "Suspended" : isActive ? (member.subStatus === "trial" ? "Trial" : "Active") : "Inactive";
+                const { category, label } = memberStatus(member);
                 return (
                   <tr key={member.id}>
                     <td className={styles.memberIndex}>{start + index}</td>
@@ -360,7 +382,7 @@ export default function AdminMembersPage() {
                     <td className={styles.memberEmail}>{member.email || "—"}</td>
                     <td><span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span></td>
                     <td><span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span></td>
-                    <td><span className={member.suspended ? styles.statusSuspended : isActive ? styles.statusActive : styles.statusInactive}>{statusLabel}</span></td>
+                    <td><span className={category === "suspended" ? styles.statusSuspended : category === "active" ? styles.statusActive : styles.statusInactive}>{label}</span></td>
                     <td>{formatDate(member.expiresAt)}</td>
                     <td>{member.lastSeenAt ? new Date(member.lastSeenAt).toLocaleString() : "—"}</td>
                     <td className={styles.memberJoined}>{formatDate(member.createdAt)}</td>
@@ -381,7 +403,7 @@ export default function AdminMembersPage() {
                   </tr>
                 );
               })}
-              {pageMembers.length === 0 && <tr><td colSpan={8} className={styles.membersEmpty}>No members match these filters.</td></tr>}
+              {pageMembers.length === 0 && <tr><td colSpan={10} className={styles.membersEmpty}>No members match these filters.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -391,8 +413,7 @@ export default function AdminMembersPage() {
         <div className={styles.membersMobileList}>
           {pageMembers.map((member, index) => {
             const memberPlan = member.plan || "flirting";
-            const isActive = ["active", "trial"].includes(member.subStatus);
-            const statusLabel = member.suspended ? "Suspended" : isActive ? (member.subStatus === "trial" ? "Trial" : "Active") : "Inactive";
+            const { category, label } = memberStatus(member);
             return (
               <article className={styles.mobileMemberCard} key={member.id}>
                 <div className={styles.mobileMemberTop}>
@@ -405,7 +426,7 @@ export default function AdminMembersPage() {
                       <span className={styles.mobileMemberEmail}>{member.email || "No email"}</span>
                     </span>
                   </a>
-                  <span className={member.suspended ? styles.statusSuspended : isActive ? styles.statusActive : styles.statusInactive}>{statusLabel}</span>
+                  <span className={category === "suspended" ? styles.statusSuspended : category === "active" ? styles.statusActive : styles.statusInactive}>{label}</span>
                 </div>
 
                 <dl className={styles.mobileMemberDetails}>
@@ -417,7 +438,7 @@ export default function AdminMembersPage() {
 
                 <div className={styles.mobileMemberActions}>
                   <a className={styles.actionLink} href={`/members/${member.id}`}>View profile</a>
-                  {member.role !== "owner" && <>
+                  {!["owner", "moderator"].includes(member.role) && <>
                     <a className={styles.actionLink} href={`/admin/hosts?userId=${member.id}`}>Host</a>
                     {role === "owner" && <>
                       <button type="button" className={styles.actionLink} onClick={() => openEditMember(member)}>Edit</button>
