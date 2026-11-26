@@ -37,6 +37,12 @@ function csvCell(value) {
   return '"' + String(value ?? "").replace(/"/g, '""') + '"';
 }
 
+function formatExpiry(member) {
+  if (member.subStatus === "role") return "No expiry (role)";
+  if (!member.expiresAt) return "No expiry";
+  return formatDate(member.expiresAt);
+}
+
 function memberStatus(member) {
   const code = member.subStatus || "none";
   const category = member.status || (
@@ -279,7 +285,7 @@ export default function AdminMembersPage() {
       PLAN_OPTIONS.find((option) => option.value === (member.plan || "flirting"))?.label || member.plan,
       member.role,
       memberStatus(member).label,
-      formatDate(member.expiresAt),
+      formatExpiry(member),
       formatDate(member.lastSeenAt),
       formatDate(member.createdAt),
     ]);
@@ -383,7 +389,7 @@ export default function AdminMembersPage() {
                     <td><span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span></td>
                     <td><span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span></td>
                     <td><span className={category === "suspended" ? styles.statusSuspended : category === "active" ? styles.statusActive : styles.statusInactive}>{label}</span></td>
-                    <td>{formatDate(member.expiresAt)}</td>
+                    <td>{formatExpiry(member)}</td>
                     <td>{member.lastSeenAt ? new Date(member.lastSeenAt).toLocaleString() : "—"}</td>
                     <td className={styles.memberJoined}>{formatDate(member.createdAt)}</td>
                     <td>

@@ -282,15 +282,16 @@ export async function GET() {
       subMap.set(sub.userId || sub.id, sub);
       if (sub.id) subMap.set(sub.id, sub);
     }
-    // fetch the most recent session per user for "last seen"
-    const sessions = await prisma.session.findMany({
+    const sessions = await prisma.session.groupBy({
+      by: ["userId"],
       where: { userId: { in: userIds } },
-      orderBy: { lastSeenAt: "desc" },
-      take: userIds.length,
+      _max: { lastSeenAt: true },
     });
     const lastSeenMap = new Map();
-    for (const s of sessions) {
-      if (s.userId) lastSeenMap.set(s.userId, s.lastSeenAt);
+    for (const group of sessions) {
+      if (group.userId && group._max?.lastSeenAt) {
+        lastSeenMap.set(group.userId, group._max.lastSeenAt);
+      }
     }
     const members = users.map((user) => {
       const sub = subMap.get(user.id) || null;
