@@ -31,12 +31,15 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
     Boolean(effectiveSub?.canceledAt);
 
   let planKey = "flirting";
-  // A top-tier role wins over the plan string, so a manually granted host shows
-  // the Moving In label and Diamond badge rather than "Flirting". Previously
-  // only owner/moderator were honoured here while capabilities.js also honoured
-  // host, which is how a host ended up with host rights and no badge.
+  // Staff roles are independent of billing and always keep the top tier.
+  const staffTier = role === "owner" || role === "moderator" ? tierForRole(role) : null;
+  // A manually granted host role wins over the plan string, but an expired or
+  // canceled paid membership does not — Shopify writes role "host" to the user
+  // on purchase and never clears it, so letting the role win here left expired
+  // members showing Moving In even though the server gates already denied them.
   const roleTier = tierForRole(role);
-  if (roleTier) planKey = roleTier;
+  if (staffTier) planKey = staffTier;
+  else if (!expired && !explicitlyCanceled && roleTier) planKey = roleTier;
   // Open-access mode: every signed-in member is admitted at the top tier until
   // the gate is flipped on — mirrors getAccessSub so badges/CTAs match the
   // server capability grants (no upgrade prompts while the community ramps up).

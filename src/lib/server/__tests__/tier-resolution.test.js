@@ -213,6 +213,45 @@ test("an expired paid plan falls back to Flirting", () => {
   assert.equal(m.profileBadge?.icon, "sparkles");
 });
 
+test("an expired purchase does not keep the host role's Moving In badge", () => {
+  const m = withOpenAccess("false", () =>
+    deriveMembership({ role: "host", plan: "moving-in", expiresAt: Date.now() - 1000 })
+  );
+  assert.equal(m.planKey, "flirting");
+  assert.equal(m.profileBadge?.icon, "sparkles");
+  assert.equal(canJoinLounge(m.capabilities), false);
+});
+
+test("an expired subscription row also demotes a stale host role", () => {
+  const sub = {
+    status: "active",
+    tier: "moving-in",
+    planName: "moving-in",
+    role: "host",
+    currentPeriodEnd: new Date(Date.now() - 1000),
+  };
+  const m = withOpenAccess("false", () => deriveMembership({ role: "host", plan: "moving-in" }, Date.now(), sub));
+  assert.equal(m.planKey, "flirting");
+  assert.equal(m.profileBadge?.icon, "sparkles");
+});
+
+test("an explicitly canceled host role falls back to Flirting", () => {
+  const m = withOpenAccess("false", () =>
+    deriveMembership({ role: "host", plan: "moving-in", paymentStatus: "cancelled" })
+  );
+  assert.equal(m.planKey, "flirting");
+  assert.equal(canJoinLounge(m.capabilities), false);
+});
+
+test("staff roles keep Moving In even when a paid plan has expired", () => {
+  for (const role of ["owner", "moderator"]) {
+    const m = withOpenAccess("false", () =>
+      deriveMembership({ role, plan: "moving-in", expiresAt: Date.now() - 1000 })
+    );
+    assert.equal(m.planKey, "moving-in", `role ${role} lost the top tier`);
+  }
+});
+
 test("an unset access override means strict access, not open", () => {
   // This used to be open access, resolving every member to the top tier
   // regardless of plan. The default is now strict, so the plan decides.
