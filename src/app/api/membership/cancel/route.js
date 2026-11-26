@@ -61,6 +61,12 @@ export async function POST(req) {
             reason: safeReason || null,
             note: note || null,
             effectiveAt: now.toISOString(),
+            provider: "shopify",
+            requestedAction: "cancel_subscription",
+            billingStatus: "pending_client_action",
+            shopifyCustomerId: existing.shopifyCustomerId || null,
+            shopifyOrderId: existing.shopifyOrderId || null,
+            email: existing.email || null,
           },
         },
       });
@@ -99,7 +105,7 @@ export async function POST(req) {
       ok: true,
       canceledAt: now.toISOString(),
       plan: "flirting",
-      message: "Your paid plan has been canceled. Paid access has ended immediately.",
+      message: "Paid access has ended immediately. A cancellation request was recorded for the store team to handle Shopify billing.",
     });
   } catch (error) {
     logError("membership.cancel_failed", { error: error.message });

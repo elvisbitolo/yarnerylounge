@@ -72,6 +72,32 @@ export function shouldGrantMembership({ topic, data }) {
 export const SHOPIFY_UPGRADE_URL =
   process.env.NEXT_PUBLIC_SHOPIFY_PRICING_URL || "https://secretyarnery.com/pages/speakeasy";
 
+function storefrontOrigin() {
+  try {
+    return new URL(SHOPIFY_UPGRADE_URL).origin;
+  } catch {
+    return "https://secretyarnery.com";
+  }
+}
+
+// Cart permalinks let a member upgrade without an Admin API token. The variant
+// ids are already mapped from Shopify webhooks, so the same catalogue drives
+// both purchase recognition and checkout links.
+export function cartPermalink(variantId) {
+  if (!variantId) return null;
+  return `${storefrontOrigin()}/cart/${encodeURIComponent(String(variantId))}:1`;
+}
+
+export function checkoutLinksForTier(tier) {
+  const links = {};
+  for (const variant of SHOPIFY_VARIANTS) {
+    if (variant.plan !== tier || !variant.durationDays) continue;
+    if (variant.annual) links.annual = cartPermalink(variant.id);
+    else links.monthly = cartPermalink(variant.id);
+  }
+  return links;
+}
+
 // Whether an incoming purchase may write its tier over what the member already
 // holds. Tiers only ever move up: buying a cheaper plan must not silently strip
 // hosting or lounge access someone is currently paying for.

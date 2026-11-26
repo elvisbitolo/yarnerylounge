@@ -132,7 +132,7 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
                         `downgrade-${tier.tier}`,
                         "/api/membership/plan",
                         { plan: tier.tier },
-                        `Switch from ${currentLabel} to ${tier.label} now? Lower-tier access starts immediately and external billing is unchanged.`,
+                        `Switch from ${currentLabel} to ${tier.label} now? Lower-tier access starts immediately and a billing-change request is recorded for the store team.`,
                       )}
                     >
                       {busy === `downgrade-${tier.tier}` ? "Switching…" : `Switch to ${tier.label}`}
@@ -182,7 +182,7 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
                       "cancel",
                       "/api/membership/cancel",
                       { reason, note },
-                      `Cancel your ${currentLabel} plan now? Paid access ends immediately and external billing is unchanged.`,
+                      `Cancel your ${currentLabel} plan now? Paid access ends immediately and a cancellation request is recorded for the store team.`,
                     )}
                   >
                     {busy === "cancel" ? "Canceling…" : "Cancel paid access"}
@@ -198,8 +198,8 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
 
           <p className={styles.managerNote}>
             Upgrades open the secure storefront checkout. Downgrades and cancellations change access
-            here immediately but do not change Shopify billing; recurring charges must be managed on
-            the storefront.
+            here immediately and record a request for the store team to handle Shopify billing; you
+            can also manage purchases directly on the storefront.
           </p>
         </>
       )}

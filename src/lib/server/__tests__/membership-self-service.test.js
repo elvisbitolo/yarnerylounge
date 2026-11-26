@@ -6,6 +6,7 @@ import {
   normalizeMembershipPlan,
   selfServicePlanAction,
 } from "../membership-self-service.js";
+import { checkoutLinksForTier } from "../shopify.js";
 
 test("membership plan input accepts canonical and legacy names", () => {
   assert.equal(normalizeMembershipPlan("hooking-up"), "hooking-up");
@@ -52,6 +53,18 @@ test("billing tier treats canceled and expired plans as free", () => {
     billingTier({ plan: "hooking-up" }, { status: "active", tier: "hooking-up", currentPeriodEnd: past }, now),
     "flirting",
   );
+});
+
+test("upgrade links use the mapped Shopify variants as cart permalinks", () => {
+  const hooking = checkoutLinksForTier("hooking-up");
+  assert.equal(hooking.monthly.endsWith("/cart/51798261825769:1"), true);
+  assert.equal(hooking.annual.endsWith("/cart/51798264447209:1"), true);
+
+  const moving = checkoutLinksForTier("moving-in");
+  assert.equal(moving.monthly.endsWith("/cart/51798268575977:1"), true);
+  assert.equal(moving.annual.endsWith("/cart/51798277882089:1"), true);
+
+  assert.deepEqual(checkoutLinksForTier("flirting"), {});
 });
 
 test("self-service actions keep upgrades external and allow paid downgrades", () => {

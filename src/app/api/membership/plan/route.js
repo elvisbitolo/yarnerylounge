@@ -126,6 +126,12 @@ export async function POST(req) {
             immediate: true,
             externalBillingUnaffected: true,
             effectiveAt: now.toISOString(),
+            provider: "shopify",
+            requestedAction: "downgrade_subscription",
+            billingStatus: "pending_client_action",
+            shopifyCustomerId: existing.shopifyCustomerId || null,
+            shopifyOrderId: existing.shopifyOrderId || null,
+            email: existing.email || null,
           },
         },
       });
@@ -135,7 +141,7 @@ export async function POST(req) {
     return NextResponse.json({
       ok: true,
       plan: targetTier,
-      message: `You are now on ${tierLabel(targetTier)}. External billing is unchanged.`,
+      message: `You are now on ${tierLabel(targetTier)}. A billing-change request was recorded for the store team; Shopify billing is unchanged until they act.`,
     });
   } catch (error) {
     logError("membership.self_service_plan_change_failed", { error: error.message });

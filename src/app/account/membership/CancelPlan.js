@@ -36,14 +36,14 @@ export default function CancelPlan({ planLabel }) {
   }
 
   if (done) {
-    return <p className={styles.formSaved} role="status">Your paid plan is canceled. Paid access has ended immediately; you are now on the free Flirting tier.</p>;
+    return <p className={styles.formSaved} role="status">Paid access has ended immediately and you are now on the free Flirting tier. A cancellation request was recorded for the store team to handle Shopify billing.</p>;
   }
 
   return (
     <div className={styles.cancelPlan}>
       <div>
         <h3 className={styles.cancelTitle}>Cancel paid plan</h3>
-        <p className={styles.cancelCopy}>Cancellation takes effect immediately. You will lose paid features as soon as you confirm and move to the free Flirting tier.</p>
+        <p className={styles.cancelCopy}>Cancellation takes effect immediately. You will lose paid features as soon as you confirm, and a cancellation request will be recorded for the store team to handle Shopify billing.</p>
       </div>
       <label className={styles.cancelFeedbackLabel} htmlFor="cancel-reason">Would you mind telling us why? (optional)</label>
       <select id="cancel-reason" className={styles.input} value={reason} onChange={(event) => setReason(event.target.value)}>

@@ -5,6 +5,7 @@ import { getSubscription } from "@/lib/server/subscription";
 import { subscriptionStatus } from "@/lib/server/billing";
 import { isOpenAccess } from "@/lib/server/access-policy";
 import { TIERS, tierLabel } from "@/lib/server/plans";
+import { checkoutLinksForTier } from "@/lib/server/shopify";
 import {
   billingTier,
   canSelfManageMembership,
@@ -136,18 +137,20 @@ export default async function MembershipPage() {
   const currentIndex = currentTier ? SHOP_TIERS.indexOf(currentTier) : -1;
   const savedTier = userDoc ? billingTier(userDoc, sub) : null;
   const managerTiers = savedTier
-    ? TIERS.map((tier) => {
+    ?       TIERS.map((tier) => {
         const product = TIER_PRODUCTS[tier];
+        const checkout = checkoutLinksForTier(tier);
         return {
           tier,
           label: tierLabel(tier),
           action: selfServicePlanAction(savedTier, tier),
-          monthly: product.monthly,
-          annual: product.annual || null,
+          monthly: checkout.monthly || product.monthly,
+          annual: checkout.annual || product.annual || null,
           monthlyLabel: product.monthlyLabel,
           annualLabel: product.annualLabel || null,
         };
       })
+
     : [];
 
   return (
