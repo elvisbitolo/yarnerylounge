@@ -256,6 +256,8 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         photoURL: true,
         createdAt: true,
@@ -285,7 +287,9 @@ export async function GET() {
     }
     const sessions = await prisma.session.groupBy({
       by: ["userId"],
-      where: { userId: { in: userIds }, revokedAt: null },
+      // Last Seen is historical activity, not current-session presence. Include
+      // revoked/expired sessions so signing out does not erase a member's last visit.
+      where: { userId: { in: userIds } },
       _max: { lastSeenAt: true },
     });
     const lastSeenMap = new Map();
@@ -302,7 +306,14 @@ export async function GET() {
       const lastSeen = lastSeenMap.get(user.id);
       return {
         id: user.id,
-        name: user.name || "",
+        // Older accounts may have first/last name populated while the legacy
+        // name column is blank. Prefer the full profile name, then a readable
+        // email local-part; never expose a blank label in the admin table.
+        name:
+          String(user.name || "").trim() ||
+          [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
+          (user.email ? user.email.split("@")[0] : "") ||
+          "Unnamed member",
         email: user.email || "",
         photoURL: user.photoURL || "",
         createdAt: user.createdAt,
