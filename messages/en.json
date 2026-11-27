@@ -658,6 +658,7 @@
     "connectingStalled": "This is taking longer than usual — hang tight or retry.",
     "connectingElapsed": "{seconds}s",
     "unavailableRoom": "This lounge isn't available right now. Please try again.",
+    "loungesUnavailable": "Video lounges are temporarily unavailable. Please check back soon.",
     "joinFailedGeneric": "Unable to join this lounge. Please try again.",
     "startCamera": "Starting camera…",
     "cameraDenied": "Camera access was denied. You can still join without video.",

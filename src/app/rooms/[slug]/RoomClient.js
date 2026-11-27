@@ -1110,7 +1110,9 @@ export default function RoomClient({
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const code = data?.code;
-          if (code === "jaas_not_configured") {
+          if (code === "jaas_disabled") {
+            setInlineError(t("loungesUnavailable"));
+          } else if (code === "jaas_not_configured") {
             setInlineError(t("unavailableRoom"));
           } else {
             setInlineError(t("joinFailedGeneric"));

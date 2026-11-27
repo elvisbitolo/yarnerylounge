@@ -75,6 +75,12 @@ export function getJitsiPrivateKey() {
   return cleanPrivateKey(process.env.JITSI_PRIVATE_KEY);
 }
 
+export function isJitsiEnabled() {
+  const raw = process.env.JITSI_DISABLED;
+  if (raw == null || raw === "") return true;
+  return !(raw === "true" || raw === "1" || raw === "yes");
+}
+
 export function isJitsiConfigured() {
   const appId = getJitsiAppId();
   const apiKeyId = getJitsiApiKeyId();

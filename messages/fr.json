@@ -659,6 +659,7 @@
     "connectingStalled": "Cela prend plus de temps que d'habitude — patientez ou réessayez.",
     "connectingElapsed": "{seconds}s",
     "unavailableRoom": "ce salon n'est pas disponible pour le moment. Veuillez réessayer.",
+    "loungesUnavailable": "Les salons vidéo sont temporairement indisponibles. Veuillez revenir bientôt.",
     "joinFailedGeneric": "Impossible de rejoindre ce salon. Veuillez réessayer.",
     "startCamera": "Démarrage de la caméra…",
     "cameraDenied": "L'accès à la caméra a été refusé. Vous pouvez rejoindre sans vidéo.",

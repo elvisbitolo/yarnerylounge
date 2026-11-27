@@ -5,6 +5,7 @@ import { resolveRoomAccess } from "@/lib/server/room-access";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { getCapabilities } from "@/lib/server/capabilities";
+import { isJitsiEnabled } from "@/lib/server/jitsi";
 import { loungeGate } from "@/lib/server/lounge-gate";
 import RoomClient from "./RoomClient";
 import styles from "./room.module.css";
@@ -21,6 +22,19 @@ export default async function RoomPage({ params }) {
   // rather than shown a room they cannot join.
   const tierGate = await loungeGate(user.uid, userDoc, { lounge: true });
   if (tierGate) redirect(tierGate);
+  if (!isJitsiEnabled()) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.container}>
+          <h1 className={styles.title}>Lounges temporarily unavailable</h1>
+          <p className={styles.subtitle}>
+            Video lounges are taking a short break. Please check back soon.
+          </p>
+          <Link className={styles.link} href="/rooms">Back to lounges</Link>
+        </div>
+      </main>
+    );
+  }
   const gate = await resolveRoomAccess(slug, user.uid, userDoc);
   if (gate.denied) {
     return (

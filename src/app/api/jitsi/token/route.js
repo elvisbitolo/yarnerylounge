@@ -21,6 +21,7 @@ import {
   getJitsiApiKeyId,
   getJitsiPrivateKey,
   isJitsiConfigured,
+  isJitsiEnabled,
   describeJitsiToken,
 } from "@/lib/server/jitsi";
 import { logError, logInfo } from "@/lib/server/log";
@@ -39,6 +40,19 @@ export async function POST(req) {
     const auth = await requireTier("hooking-up");
     const denied = guardJson(auth);
     if (denied) return denied;
+
+    // 8x8 suspends the whole tenant for billing issues. The JWT would still
+    // sign successfully, but Jitsi would show its own suspension page, so fail
+    // here with a message we control while the account is disabled.
+    if (!isJitsiEnabled()) {
+      return NextResponse.json(
+        {
+          error: "Video lounges are temporarily unavailable. Please try again later.",
+          code: "jaas_disabled",
+        },
+        { status: 503 }
+      );
+    }
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const limited = rateLimitGuard(`jitsi-token:${auth.user.uid}`, { limit: 20 });

@@ -92,7 +92,7 @@ Use [`.env.example`](.env.example) as the source of truth for environment variab
 - **PostgreSQL:** `DATABASE_URL` and, where required, `DIRECT_URL`. Supabase/Vercel connection variable names are also supported.
 - **Chat security:** `MESSAGE_ENCRYPTION_KEY` is required to send chat messages. It must be a base64-encoded 256-bit key. Messages use AES-256-GCM encryption at rest; the application refuses to store plaintext if the key is missing.
 - **Vercel Blob:** `BLOB_READ_WRITE_TOKEN` for feed media uploads.
-- **JaaS:** `JITSI_APP_ID`, `JITSI_API_KEY_ID`, and `JITSI_PRIVATE_KEY` for signed meeting access; configure `JITSI_WEBHOOK_SECRET` for recording webhooks.
+- **JaaS:** `JITSI_APP_ID`, `JITSI_API_KEY_ID`, and `JITSI_PRIVATE_KEY` for signed meeting access; configure `JITSI_WEBHOOK_SECRET` for recording webhooks. Set `JITSI_DISABLED=true` if the 8x8 account is suspended for billing so lounges show a controlled unavailable message instead of the JaaS suspension page.
 - **Shopify:** `SHOPIFY_WEBHOOK_SECRET` verifies paid-order webhooks that grant plans. `NEXT_PUBLIC_SHOPIFY_PRICING_URL` sets the storefront origin used for cart permalinks. `SHOPIFY_OPEN_ACCESS` is an explicit switch for a temporary open-access period; keep it disabled for normal paid-plan gating.
 - **Studio:** `STUDIO_ADMIN_EMAILS` configures the Studio publishing/moderation allowlist, enforced on every write route. Upload ownership controls who can remove a video, while moderators can manage the full library.
 - **Cron:** `CRON_SECRET` protects scheduled Vercel endpoints.

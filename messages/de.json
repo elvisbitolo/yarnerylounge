@@ -661,6 +661,7 @@
     "connectingStalled": "Das dauert länger als gewöhnlich — einen Moment oder erneut versuchen.",
     "connectingElapsed": "{seconds}s",
     "unavailableRoom": "Diese Lounge ist gerade nicht verfügbar. Bitte versuchen Sie es erneut.",
+    "loungesUnavailable": "Die Video-Lounges sind vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
     "joinFailedGeneric": "Dieser Lounge kann derzeit nicht beigetreten werden. Bitte versuchen Sie es erneut.",
     "startCamera": "Kamera wird gestartet…",
     "cameraDenied": "Der Kamerazugriff wurde verweigert. Ohne Video können Sie weiterhin beitreten.",
