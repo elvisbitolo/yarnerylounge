@@ -223,6 +223,7 @@ export async function signupWithSupabaseEmail(name, email, password) {
   await createSession({
     supabaseToken: session.access_token,
     supabaseRefreshToken: session.refresh_token || undefined,
+    name: String(name || "").trim(),
   });
   return { user: null };
 }
