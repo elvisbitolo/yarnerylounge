@@ -535,7 +535,9 @@ a.statCard:hover {
 .mobileMemberActions { display: flex; flex-wrap: wrap; gap: 8px; }
 .mobileMemberActions .actionLink, .mobileMemberActions .actionDelete { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; font-size: 11px; }
 .mobileMembersEmpty { margin: 0; padding: 28px 16px; border: 1px dashed #d8d8e3; border-radius: 12px; color: #777783; text-align: center; }
-@media (max-width: 760px) {
+/* The admin shell's sidebar reduces the usable content width. Switch to the
+   existing card layout before the desktop table starts clipping its actions. */
+@media (max-width: 1180px) {
   .membersContainer { padding: 22px 14px; }
   .membersDesktopTable { display: none; }
   .membersMobileList { display: grid; gap: 12px; }
