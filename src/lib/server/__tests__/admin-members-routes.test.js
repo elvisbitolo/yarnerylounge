@@ -270,7 +270,7 @@ test("GET returns 503 on DB failure instead of an empty member list", async () =
   assert.equal(state.logs.at(-1)[0], "admin.members.prisma_failed");
 });
 
-test("GET has no result caps and excludes revoked sessions from last seen", async () => {
+test("GET has no result caps and includes historical sessions in last seen", async () => {
   state.prisma = prismaMock();
   state.users = [
     {
@@ -290,6 +290,6 @@ test("GET has no result caps and excludes revoked sessions from last seen", asyn
   assert.equal(Object.hasOwn(state.queries.users, "take"), false);
   assert.equal(Object.hasOwn(state.queries.subs, "take"), false);
   assert.deepEqual(state.queries.sessions.by, ["userId"]);
-  assert.equal(state.queries.sessions.where.revokedAt, null);
+  assert.deepEqual(state.queries.sessions.where, { userId: { in: ["member-uid"] } });
   assert.deepEqual(state.queries.sessions._max, { lastSeenAt: true });
 });

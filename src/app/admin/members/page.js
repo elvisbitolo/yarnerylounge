@@ -398,7 +398,7 @@ export default function AdminMembersPage() {
                         {!["owner", "moderator"].includes(member.role) && <>
                           <a className={styles.actionLink} href={`/admin/hosts?userId=${member.id}`}>Host</a>
                           {role === "owner" && <>
-                            <button type="button" className={styles.actionLink} onClick={() => openEditMember(member)}>Edit</button>
+                            <button type="button" className={styles.actionLink} onClick={() => openEditMember(member)}>Plan &amp; expiry</button>
                             <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}>{member.foundingMember ? "Unmark 🧶" : "Mark founding"}</button>
                             <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { suspended: !member.suspended })}>{member.suspended ? "Unsuspend" : "Suspend"}</button>
                             <button type="button" className={styles.actionDelete} onClick={() => requestDelete(member)}>Delete</button>
@@ -438,6 +438,7 @@ export default function AdminMembersPage() {
                 <dl className={styles.mobileMemberDetails}>
                   <div><dt>Plan</dt><dd><span className={styles.planPill}>{PLAN_OPTIONS.find((option) => option.value === memberPlan)?.label || memberPlan}</span></dd></div>
                   <div><dt>Role</dt><dd><span className={styles.rolePill}>{roleBadgeLabel(member.role, member.roleLabel)}</span></dd></div>
+                  <div><dt>Expires</dt><dd>{formatExpiry(member)}</dd></div>
                   <div><dt>Joined</dt><dd>{formatDate(member.createdAt)}</dd></div>
                   <div><dt>Member #</dt><dd>{start + index}</dd></div>
                 </dl>
@@ -447,7 +448,7 @@ export default function AdminMembersPage() {
                   {!["owner", "moderator"].includes(member.role) && <>
                     <a className={styles.actionLink} href={`/admin/hosts?userId=${member.id}`}>Host</a>
                     {role === "owner" && <>
-                      <button type="button" className={styles.actionLink} onClick={() => openEditMember(member)}>Edit</button>
+                      <button type="button" className={styles.actionLink} onClick={() => openEditMember(member)}>Plan &amp; expiry</button>
                       <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { foundingMember: !member.foundingMember })}>{member.foundingMember ? "Unmark founding" : "Mark founding"}</button>
                       <button type="button" className={styles.actionLink} onClick={() => updateMember(member.id, { suspended: !member.suspended })}>{member.suspended ? "Unsuspend" : "Suspend"}</button>
                       <button type="button" className={styles.actionDelete} onClick={() => requestDelete(member)}>Delete</button>
@@ -623,7 +624,7 @@ export default function AdminMembersPage() {
           >
             <h2 id="edit-member-title" className={styles.memberModalTitle}>Edit {editForm.name}</h2>
             <p className={styles.memberModalHelp}>
-              Set the plan, expiry, role and flags explicitly. Host is a global role; scoped host access is managed separately.
+              Change this member’s membership plan and access expiry. Flirting never expires. For Hooking Up or Moving In, choose an expiry date or leave it blank for no end date. Access remains valid through the selected day.
             </p>
 
             {editError && <p className={styles.error}>{editError}</p>}
@@ -667,6 +668,11 @@ export default function AdminMembersPage() {
                 value={editForm.plan === "flirting" ? "" : editForm.expiresAt}
                 onChange={(event) => updateEditField("expiresAt", event.target.value)}
               />
+            </div>
+
+            <div className={styles.memberModalHelp}>
+              <strong>Account settings</strong>
+              <span> Role is a global role; scoped host access is managed separately.</span>
             </div>
 
             <div className={styles.memberModalActions}>

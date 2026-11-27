@@ -319,14 +319,16 @@ export async function GET() {
         createdAt: user.createdAt,
         role: user.role || "member",
         roleLabel: user.roleLabel || "",
+        // Keep the assigned plan visible to admins even after it expires.
+        // Access status is reported separately via status/statusLabel.
         plan: isStaff
           ? "moving-in"
-          : sub
-            ? active ? sub.tier || "flirting" : "flirting"
-            : user.plan || "flirting",
+          : sub?.tier || user.plan || "flirting",
         suspended: user.suspended || false,
         foundingMember: !!user.foundingMember,
-        expiresAt: user.expiresAt,
+        // The subscription period is authoritative when present; retain the
+        // legacy User.expiresAt value as a fallback for older records.
+        expiresAt: sub?.currentPeriodEnd || user.expiresAt,
         tier: sub && active ? sub.tier || "lounge" : "",
         subStatus: status.code,
         status: status.category,
