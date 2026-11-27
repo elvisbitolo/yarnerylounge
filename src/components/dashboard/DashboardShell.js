@@ -138,10 +138,9 @@ export default function DashboardShell() {
     );
   }
 
-  const { user, isStaff, stats, upcomingRooms, spotlight, content, needsAttention, leaderboard } = data;
+  const { user, isStaff, stats, spotlight, content, needsAttention, leaderboard } = data;
 
   const statsValue = stats?.ok ? stats.value : null;
-  const roomsValue = upcomingRooms?.ok ? upcomingRooms.value : [];
   const contentValue = content?.ok ? content.value : null;
   const attentionValue = needsAttention?.ok ? needsAttention.value : [];
 
