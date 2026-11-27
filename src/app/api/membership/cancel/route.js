@@ -3,8 +3,17 @@ import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getPrisma } from "@/lib/db/prisma";
 import { roleAfterRevoke } from "@/lib/server/shopify";
 import { logError, logInfo } from "@/lib/server/log";
+import {
+  ShopifyCustomerError,
+  cancelShopifyContracts,
+  fetchShopifyCustomerProfile,
+  isShopifyCustomerConfigured,
+  resolveShopifyAccessToken,
+} from "@/lib/server/shopify-customer.js";
+import { selectCancellableContracts } from "@/lib/server/shopify-customer-core.js";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(req) {
   try {
@@ -35,6 +44,65 @@ export async function POST(req) {
     const note = String(body?.note || "").trim().slice(0, 500);
     const allowedReasons = new Set(["too_expensive", "not_using", "missing_features", "technical_issues", "taking_a_break", "other"]);
     const safeReason = allowedReasons.has(reason) ? reason : "";
+    const origin = req.nextUrl.origin;
+    let shopifyCanceledContracts = 0;
+    let shopifySkippedContracts = 0;
+    let shopifyCustomerId = existing.shopifyCustomerId || null;
+
+    try {
+      if (!isShopifyCustomerConfigured(origin)) {
+        throw new ShopifyCustomerError(
+          "CONFIG_MISSING",
+          "Shopify billing cancellation is not configured.",
+          503,
+        );
+      }
+      const accessToken = await resolveShopifyAccessToken(existing, origin);
+      const profile = await fetchShopifyCustomerProfile(accessToken, origin);
+      shopifyCustomerId = profile.customer?.id || shopifyCustomerId;
+      const contracts = selectCancellableContracts(profile.contractNodes);
+      const result = await cancelShopifyContracts({
+        accessToken,
+        contractIds: contracts.map((contract) => contract.id),
+        origin,
+      });
+      shopifyCanceledContracts = result.canceled;
+      shopifySkippedContracts = result.skipped;
+    } catch (error) {
+      if (error.code === "NOT_LINKED") {
+        return NextResponse.json(
+          {
+            error: "Link your Shopify billing once before cancelling.",
+            code: "LINK_SHOPIFY",
+          },
+          { status: 409 },
+        );
+      }
+      if (error.code === "RELINK_REQUIRED" || error.code === "CUSTOMER_NOT_FOUND") {
+        return NextResponse.json(
+          {
+            error: "Shopify billing needs to be linked again before cancelling.",
+            code: "RELINK_REQUIRED",
+          },
+          { status: 409 },
+        );
+      }
+      if (error.code === "CONFIG_MISSING") {
+        return NextResponse.json(
+          { error: "Shopify billing cancellation is not configured yet." },
+          { status: 503 },
+        );
+      }
+      logError("membership.shopify_cancel_failed", { uid, error: error.message, code: error.code });
+      return NextResponse.json(
+        {
+          error: "We could not cancel your Shopify subscription. Nothing has changed. Please try again.",
+          code: "SHOPIFY_CANCEL_FAILED",
+        },
+        { status: 502 },
+      );
+    }
+
     const now = new Date();
     const nextRole = roleAfterRevoke(existing.role);
     await prisma.$transaction(async (tx) => {
@@ -63,8 +131,10 @@ export async function POST(req) {
             effectiveAt: now.toISOString(),
             provider: "shopify",
             requestedAction: "cancel_subscription",
-            billingStatus: "pending_client_action",
-            shopifyCustomerId: existing.shopifyCustomerId || null,
+            billingStatus: shopifyCanceledContracts > 0 ? "cancelled_in_shopify" : "no_active_shopify_contract",
+            shopifyCanceledContracts,
+            shopifySkippedContracts,
+            shopifyCustomerId,
             shopifyOrderId: existing.shopifyOrderId || null,
             email: existing.email || null,
           },
@@ -100,12 +170,18 @@ export async function POST(req) {
       });
     });
 
-    logInfo("membership.member_canceled_immediately", { uid, previousTier: currentTier });
+    logInfo("membership.member_canceled_immediately", {
+      uid,
+      previousTier: currentTier,
+      shopifyCanceledContracts,
+      shopifySkippedContracts,
+    });
     return NextResponse.json({
       ok: true,
       canceledAt: now.toISOString(),
       plan: "flirting",
-      message: "Paid access has ended immediately. A cancellation request was recorded for the store team to handle Shopify billing.",
+      shopifyCanceledContracts,
+      message: "Your plan and recurring billing are cancelled. You are now on the free Flirting tier.",
     });
   } catch (error) {
     logError("membership.cancel_failed", { error: error.message });

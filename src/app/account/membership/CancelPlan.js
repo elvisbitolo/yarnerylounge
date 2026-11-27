@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ShopifyBillingLink from "@/components/ShopifyBillingLink";
 import styles from "../account.module.css";
 
 export default function CancelPlan({ planLabel }) {
@@ -13,7 +14,7 @@ export default function CancelPlan({ planLabel }) {
   const [note, setNote] = useState("");
 
   async function cancel() {
-    if (busy || !window.confirm(`Cancel your ${planLabel} plan now? Paid access will end immediately and your account will move to the free Flirting tier.`)) return;
+    if (busy || !window.confirm(`Cancel your ${planLabel} plan now? Paid access and recurring billing will end immediately.`)) return;
     setBusy(true);
     setError("");
     try {
@@ -36,14 +37,15 @@ export default function CancelPlan({ planLabel }) {
   }
 
   if (done) {
-    return <p className={styles.formSaved} role="status">Paid access has ended immediately and you are now on the free Flirting tier. A cancellation request was recorded for the store team to handle Shopify billing.</p>;
+    return <p className={styles.formSaved} role="status">Your plan and recurring billing are cancelled. You are now on the free Flirting tier.</p>;
   }
 
   return (
     <div className={styles.cancelPlan}>
       <div>
         <h3 className={styles.cancelTitle}>Cancel paid plan</h3>
-        <p className={styles.cancelCopy}>Cancellation takes effect immediately. You will lose paid features as soon as you confirm, and a cancellation request will be recorded for the store team to handle Shopify billing.</p>
+        <p className={styles.cancelCopy}>Cancellation takes effect immediately. Once Shopify billing is linked once, paid access and recurring billing both end here without a separate Shopify visit.</p>
+        <ShopifyBillingLink className={styles.link} wrapperClassName={styles.cancelCopy} message="Before cancelling, link your Shopify billing once." />
       </div>
       <label className={styles.cancelFeedbackLabel} htmlFor="cancel-reason">Would you mind telling us why? (optional)</label>
       <select id="cancel-reason" className={styles.input} value={reason} onChange={(event) => setReason(event.target.value)}>

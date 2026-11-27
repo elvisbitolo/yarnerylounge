@@ -42,6 +42,11 @@ model User {
   isPrePaid              Boolean?
   shopifyCustomerId      String?
   shopifyOrderId         String?
+  shopifyCustomerAccessToken String?
+  shopifyCustomerRefreshToken String?
+  shopifyCustomerTokenExpiresAt DateTime?
+  shopifyCustomerEmail   String?
+  shopifyCustomerLinkedAt DateTime?
   expiresAt              DateTime?
   firstName              String?
   lastName               String?

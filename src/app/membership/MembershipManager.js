@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ShopifyBillingLink from "@/components/ShopifyBillingLink";
 import styles from "./membership.module.css";
 
 const CANCEL_REASONS = [
@@ -40,7 +41,7 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
   const downgrades = tiers.filter((tier) => tier.action === "downgrade");
   const canCancel = tiers.some((tier) => tier.action === "cancel");
 
-  async function runAction(key, url, payload, confirmation) {
+  async function runAction(key, url, payload, confirmation, onSuccess) {
     if (busy) return;
     if (confirmation && !window.confirm(confirmation)) return;
     setBusy(key);
@@ -49,6 +50,7 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
     try {
       const data = await postJson(url, payload);
       setSuccess(data.message || "Your membership has been updated.");
+      if (onSuccess) onSuccess(data);
       router.refresh();
     } catch (err) {
       setError(err.message || "We could not update your membership. Please try again.");
@@ -174,6 +176,11 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
                     onChange={(event) => setNote(event.target.value)}
                     placeholder="Share anything that could help us improve."
                   />
+                  <ShopifyBillingLink
+                    className={styles.managerLink}
+                    wrapperClassName={styles.managerCopy}
+                    message="Link your Shopify billing once so cancellation ends recurring billing here."
+                  />
                   <button
                     type="button"
                     className={`${styles.managerButton} ${styles.managerButtonDanger}`}
@@ -182,10 +189,10 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
                       "cancel",
                       "/api/membership/cancel",
                       { reason, note },
-                      `Cancel your ${currentLabel} plan now? Paid access ends immediately and a cancellation request is recorded for the store team.`,
+                      `Cancel your ${currentLabel} plan now? Paid access and recurring billing end immediately.`,
                     )}
                   >
-                    {busy === "cancel" ? "Canceling…" : "Cancel paid access"}
+                    {busy === "cancel" ? "Canceling…" : "Cancel paid plan"}
                   </button>
                 </>
               ) : (
@@ -197,9 +204,9 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
           </div>
 
           <p className={styles.managerNote}>
-            Upgrades open the secure storefront checkout. Downgrades and cancellations change access
-            here immediately and record a request for the store team to handle Shopify billing; you
-            can also manage purchases directly on the storefront.
+            Upgrades open the secure storefront checkout. Downgrades change access here immediately.
+            Once Shopify billing is linked, cancellations end access and recurring billing here without
+            a separate Shopify visit.
           </p>
         </>
       )}
