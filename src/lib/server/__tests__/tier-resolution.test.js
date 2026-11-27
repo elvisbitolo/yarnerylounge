@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CAPABILITIES, canPublishRemote, canJoinLounge } from "../capabilities-core.js";
-import { deriveMembership } from "../membership.js";
+import { deriveMembership, meetsAccessTier } from "../membership.js";
 import { isOpenAccess } from "../access-policy.js";
 import { isOpenAccessRow, effectiveSubscription } from "../subscription-core.js";
 import { tierForRole, displayTier, TIER_FOR_ROLE, tierLabel } from "../plans.js";
@@ -424,4 +424,93 @@ test("the override still admits everyone while it is switched on", () => {
   const m = withOpenAccess("true", () => deriveMembership({ role: "member", plan: "flirting" }));
   assert.equal(m.planKey, "moving-in");
   assert.equal(canJoinLounge(m.capabilities), true);
+});
+
+const ACCESS_NOW = 1_700_000_000_000;
+
+function activeSub(tier, overrides = {}) {
+  return { provider: "shopify", status: "active", tier, plan: tier, planName: tier, ...overrides };
+}
+
+function memberOn(tier) {
+  return { role: "member", plan: tier };
+}
+
+test("meetsAccessTier ranks the resolved tier against the required tier", () => {
+  assert.equal(meetsAccessTier(memberOn("flirting"), activeSub("flirting"), "hooking-up", ACCESS_NOW), false);
+  assert.equal(meetsAccessTier(memberOn("hooking-up"), activeSub("hooking-up"), "hooking-up", ACCESS_NOW), true);
+  assert.equal(meetsAccessTier(memberOn("hooking-up"), activeSub("hooking-up"), "moving-in", ACCESS_NOW), false);
+  assert.equal(meetsAccessTier(memberOn("moving-in"), activeSub("moving-in"), "moving-in", ACCESS_NOW), true);
+  assert.equal(meetsAccessTier(memberOn("moving-in"), activeSub("moving-in"), "hooking-up", ACCESS_NOW), true);
+  assert.equal(meetsAccessTier(memberOn("flirting"), activeSub("flirting"), "premium", ACCESS_NOW), false);
+  assert.equal(meetsAccessTier(memberOn("hooking-up"), activeSub("hooking-up"), "premium", ACCESS_NOW), true);
+});
+
+test("meetsAccessTier fails closed for signed-out and expired paid access", () => {
+  assert.equal(meetsAccessTier(null, null, "hooking-up", ACCESS_NOW), false);
+  assert.equal(meetsAccessTier(memberOn("hooking-up"), null, "hooking-up", ACCESS_NOW), true);
+  assert.equal(
+    meetsAccessTier(
+      { role: "member", plan: "hooking-up", expiresAt: ACCESS_NOW - 1000 },
+      null,
+      "hooking-up",
+      ACCESS_NOW
+    ),
+    false
+  );
+  assert.equal(
+    meetsAccessTier(
+      memberOn("hooking-up"),
+      activeSub("hooking-up", { currentPeriodEnd: new Date(ACCESS_NOW - 1000) }),
+      "hooking-up",
+      ACCESS_NOW
+    ),
+    false
+  );
+});
+
+test("meetsAccessTier treats canceled and refunded paid plans as Flirting", () => {
+  assert.equal(
+    meetsAccessTier(memberOn("moving-in"), activeSub("moving-in", { status: "canceled" }), "hooking-up", ACCESS_NOW),
+    false
+  );
+  assert.equal(
+    meetsAccessTier(
+      { role: "host", plan: "moving-in", paymentStatus: "cancelled" },
+      activeSub("moving-in"),
+      "moving-in",
+      ACCESS_NOW
+    ),
+    false
+  );
+  assert.equal(
+    meetsAccessTier({ role: "member", plan: "moving-in", paymentStatus: "refunded" }, null, "hooking-up", ACCESS_NOW),
+    false
+  );
+});
+
+test("meetsAccessTier keeps owner, moderator and host staff access", () => {
+  for (const role of ["owner", "moderator"]) {
+    assert.equal(
+      meetsAccessTier({ role, plan: "flirting", expiresAt: ACCESS_NOW - 1000 }, activeSub("flirting"), "moving-in", ACCESS_NOW),
+      true,
+      `role ${role} lost its tier access`
+    );
+  }
+  assert.equal(meetsAccessTier({ role: "host", plan: "flirting" }, null, "moving-in", ACCESS_NOW), true);
+  assert.equal(
+    meetsAccessTier({ role: "host", plan: "moving-in", expiresAt: ACCESS_NOW + 1000 }, activeSub("moving-in"), "moving-in", ACCESS_NOW),
+    true
+  );
+  assert.equal(meetsAccessTier({ role: "co-host", plan: "flirting" }, null, "hooking-up", ACCESS_NOW), false);
+});
+
+test("meetsAccessTier follows the open-access override", () => {
+  const userDoc = memberOn("flirting");
+  assert.equal(withOpenAccess("false", () => meetsAccessTier(userDoc, null, "moving-in", ACCESS_NOW)), false);
+  assert.equal(withOpenAccess("true", () => meetsAccessTier(userDoc, null, "moving-in", ACCESS_NOW)), true);
+  assert.equal(
+    withOpenAccess("true", () => meetsAccessTier({ ...userDoc, paymentStatus: "cancelled" }, null, "moving-in", ACCESS_NOW)),
+    false
+  );
 });

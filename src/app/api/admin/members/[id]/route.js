@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireModerator, guardJson } from "@/lib/server/authorize";
+import { requireModerator, requireOwner, guardJson } from "@/lib/server/authorize";
 import { logAudit } from "@/lib/server/audit";
 import { getPrisma } from "@/lib/db/prisma";
 import { isActiveSub } from "@/lib/server/billing";
@@ -25,6 +25,13 @@ export async function PATCH(req, { params }) {
 
   const body = await req.json().catch(() => ({}));
   const { suspended, foundingMember } = body;
+  const isOwner = auth.userDoc?.role === "owner";
+  if (suspended !== undefined && !isOwner) {
+    return NextResponse.json({ error: "Only the owner can change suspension status" }, { status: 403 });
+  }
+  if (foundingMember !== undefined && !isOwner) {
+    return NextResponse.json({ error: "Only the owner can change founding member status" }, { status: 403 });
+  }
   const planResult = normalizeAdminPlan(body.plan);
   if (!planResult.ok) return NextResponse.json({ error: planResult.error }, { status: 400 });
   const roleResult = normalizeAdminRole(body.role);
@@ -38,17 +45,27 @@ export async function PATCH(req, { params }) {
   let expiresAt = expiryResult.expiresAt;
 
   const prisma = getPrisma();
-  const existing = await prisma.user.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: "Member not found" }, { status: 404 });
+  if (!prisma) {
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+  }
+  const changesMembership = plan !== undefined || hasExpiry;
+  let existing;
+  let existingSub = null;
+  try {
+    existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+    if (changesMembership) {
+      existingSub = await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } });
+    }
+  } catch (err) {
+    logError("admin.members.lookup_failed", { error: err.message, uid: id });
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }
 
   const update = {};
   let periodEnd = null;
-  const changesMembership = plan !== undefined || hasExpiry;
-  const existingSub = changesMembership
-    ? await prisma.subscription.findFirst({ where: { OR: [{ id }, { userId: id }] } })
-    : null;
 
   const previousEffectivePlan = existingSub
     ? isActiveSub(existingSub) ? existingSub.tier || "flirting" : "flirting"
@@ -70,9 +87,6 @@ export async function PATCH(req, { params }) {
     update.suspended = Boolean(suspended);
   }
   if (foundingMember !== undefined) {
-    if (auth.userDoc.role !== "owner") {
-      return NextResponse.json({ error: "Only the owner can change founding member status" }, { status: 403 });
-    }
     update.foundingMember = Boolean(foundingMember);
   }
   if (changesMembership) {
@@ -175,13 +189,34 @@ export async function PATCH(req, { params }) {
       metadata: { role, prevRole: existing.role },
     });
   }
+  if (update.suspended !== undefined && Boolean(existing.suspended) !== update.suspended) {
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: auth.userDoc?.name || auth.user.email || "",
+      action: "member.suspension_changed",
+      targetId: id,
+      metadata: { suspended: update.suspended, prevSuspended: Boolean(existing.suspended) },
+    });
+  }
+  if (update.foundingMember !== undefined && Boolean(existing.foundingMember) !== update.foundingMember) {
+    await logAudit({
+      actorId: auth.user.uid,
+      actorName: auth.userDoc?.name || auth.user.email || "",
+      action: "member.founding_member_changed",
+      targetId: id,
+      metadata: {
+        foundingMember: update.foundingMember,
+        prevFoundingMember: Boolean(existing.foundingMember),
+      },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req, { params }) {
   const { id } = await params;
-  const auth = await requireModerator();
+  const auth = await requireOwner();
   const denied = guardJson(auth);
   if (denied) return denied;
 
@@ -190,24 +225,18 @@ export async function DELETE(req, { params }) {
   }
 
   const prisma = getPrisma();
-  const userRow = await prisma.user.findUnique({ where: { id } });
+  if (!prisma) {
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+  }
+  let userRow;
+  try {
+    userRow = await prisma.user.findUnique({ where: { id } });
+  } catch (err) {
+    logError("admin.members.delete_lookup_failed", { error: err.message, uid: id });
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+  }
   if (!userRow) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
-  }
-  if (userRow.role === "owner" && auth.userDoc.role !== "owner") {
-    return NextResponse.json({ error: "Only the owner can delete the owner" }, { status: 403 });
-  }
-
-  try {
-    if (SUPABASE_UUID.test(id)) {
-      const { default: supabaseAdmin } = await import("@/lib/supabase/service");
-      await supabaseAdmin.auth.admin.deleteUser(id);
-    } else {
-      logInfo("admin.members.delete_legacy_uid_skipped", { uid: id });
-    }
-  } catch (err) {
-    logError("admin.members.delete_supabase_failed", { uid: id, error: err.message });
-    return NextResponse.json({ error: "Failed to delete account" }, { status: 500 });
   }
 
   try {
@@ -224,6 +253,24 @@ export async function DELETE(req, { params }) {
     targetId: id,
     metadata: { name: userRow.name, email: userRow.email },
   });
+
+  if (SUPABASE_UUID.test(id)) {
+    try {
+      const { default: supabaseAdmin } = await import("@/lib/supabase/service");
+      await supabaseAdmin.auth.admin.deleteUser(id);
+    } catch (err) {
+      logError("admin.members.delete_supabase_failed_after_local_delete", {
+        uid: id,
+        error: err.message,
+      });
+      return NextResponse.json(
+        { error: "Member data deleted, but the sign-in account could not be removed. Remove it manually in Supabase Auth." },
+        { status: 500 }
+      );
+    }
+  } else {
+    logInfo("admin.members.delete_legacy_uid_skipped", { uid: id });
+  }
 
   return NextResponse.json({ ok: true });
 }

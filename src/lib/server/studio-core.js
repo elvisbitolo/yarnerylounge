@@ -2,9 +2,9 @@
 //
 // The Studio stores its catalogue as a JSON manifest inside the existing
 // private `recordings` Storage bucket (no new Prisma model, so no schema
-// change): member-visible videos uploaded by signed-in community members, each
-// with a poster/cover image. Everything here is side-effect free so it can be
-// unit tested without Supabase.
+// change): member-visible videos published by the Studio allowlist, each with
+// a poster/cover image. Everything here is side-effect free so it can be unit
+// tested without Supabase.
 
 export const STUDIO_BUCKET = "recordings";
 export const STUDIO_MANIFEST_PATH = "studio/manifest.json";
@@ -53,6 +53,18 @@ export function isStudioAdminEmail(email, allowlist = DEFAULT_STUDIO_ADMIN_EMAIL
   if (!email) return false;
   const wanted = String(email).trim().toLowerCase();
   return (allowlist || []).some((allowed) => String(allowed).trim().toLowerCase() === wanted);
+}
+
+/**
+ * Server-side gate for both steps of publishing. Keep this pure so the
+ * allowlist rule can be tested without a request or Supabase client.
+ */
+export function studioPublishDecision(user, allowlist = parseStudioAdminEmails(process.env.STUDIO_ADMIN_EMAILS)) {
+  if (!user?.uid) return { ok: false, status: 401, error: "Sign in to publish a video" };
+  if (!isStudioAdminEmail(user.email, allowlist)) {
+    return { ok: false, status: 403, error: "Only Studio admins can publish videos" };
+  }
+  return { ok: true };
 }
 
 /** Strip anything that could traverse out of the bucket or break a key. */

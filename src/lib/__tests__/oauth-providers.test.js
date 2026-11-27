@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import { oauthAuthorizeOptions, oauthFailedKey } from "../oauth-providers.js";
 
 const APP = "https://www.christasspeakeasy.com";
-
-// --- redirectTo -------------------------------------------------------------
+const SUPPORTED = ["google", "facebook"];
 
 test("login returns to /login carrying the provider marker", () => {
   const options = oauthAuthorizeOptions({ provider: "google", mode: "login", appUrl: APP });
@@ -16,10 +15,8 @@ test("signup returns to /signup carrying the provider marker", () => {
   assert.equal(options.redirectTo, `${APP}/signup?provider=facebook`);
 });
 
-// The marker is what lets the return leg tell a real return from a stale link
-// and which provider's failure copy to show, so it must never be dropped.
-test("the provider marker survives for every provider", () => {
-  for (const provider of ["google", "facebook", "linkedin_oidc", "twitch"]) {
+test("the provider marker survives for every supported provider", () => {
+  for (const provider of SUPPORTED) {
     for (const mode of ["login", "signup"]) {
       const { redirectTo } = oauthAuthorizeOptions({ provider, mode, appUrl: APP });
       assert.ok(redirectTo.includes(`?provider=${provider}`), `${provider}/${mode}`);
@@ -27,50 +24,30 @@ test("the provider marker survives for every provider", () => {
   }
 });
 
-// The regression: Google's authorize options were reused verbatim for every
-// provider once a second one was added. Facebook has no `openid` scope and no
-// account chooser, and passing either makes the authorize call fail — so the
-// button would render, the member would tap it, and nothing would happen.
 test("facebook is NOT given google's scopes or account chooser", () => {
   const options = oauthAuthorizeOptions({ provider: "facebook", mode: "login", appUrl: APP });
   assert.equal(options.scopes, undefined);
   assert.equal(options.prompt, undefined);
 });
 
-test("facebook is NOT given google's scopes on signup either", () => {
-  const options = oauthAuthorizeOptions({ provider: "facebook", mode: "signup", appUrl: APP });
-  assert.equal(options.scopes, undefined);
-  assert.equal(options.prompt, undefined);
-});
-
-// Facebook relies on GoTrue's own default scopes (which request `email`, and
-// that is what yields a verified address), so its options must be an empty
-// object rather than an override that could drift.
 test("facebook sends only the redirect, leaving scopes to GoTrue", () => {
-  const options = oauthAuthorizeOptions({ provider: "facebook", mode: "login", appUrl: APP });
+  const options = oauthAuthorizeOptions({ provider: "facebook", mode: "signup", appUrl: APP });
   assert.deepEqual(Object.keys(options), ["redirectTo"]);
 });
 
-// Google's space-separated `scopes` looks like the LinkedIn bug and is not:
-// GoTrue splits custom scopes on commas, so this becomes one token, and oauth2
-// joins the array with spaces again. Google ends up receiving
-// scope=email profile profile email openid — every element valid, so it is
-// tolerated. LinkedIn gets a single bogus token and rejects it. Left alone
-// deliberately: it works, and changing live auth for tidiness is not a trade
-// worth making.
 test("google keeps its scopes and account chooser", () => {
   const options = oauthAuthorizeOptions({ provider: "google", mode: "login", appUrl: APP });
   assert.equal(options.scopes, "profile email openid");
   assert.equal(options.prompt, "select_account");
 });
 
-// --- unsupported providers ---------------------------------------------------
-
-test("an unknown provider throws instead of silently signing in with google", () => {
-  assert.throws(
-    () => oauthAuthorizeOptions({ provider: "spotify", mode: "login", appUrl: APP }),
-    /Unsupported sign-in provider: spotify/
-  );
+test("unsupported providers throw instead of silently signing in with google", () => {
+  for (const provider of ["spotify", "linkedin_oidc", "twitch"]) {
+    assert.throws(
+      () => oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP }),
+      /Unsupported sign-in provider/
+    );
+  }
 });
 
 test("a missing provider throws", () => {
@@ -80,77 +57,18 @@ test("a missing provider throws", () => {
   );
 });
 
-// --- failure copy ------------------------------------------------------------
-
-test("each provider reports its own failure", () => {
+test("each supported provider reports its own failure", () => {
   assert.equal(oauthFailedKey("facebook"), "facebookFailed");
   assert.equal(oauthFailedKey("google"), "googleFailed");
 });
 
 test("an unknown marker still gets real copy", () => {
-  assert.equal(oauthFailedKey("spotify"), "googleFailed");
-  assert.equal(oauthFailedKey(undefined), "googleFailed");
-  assert.equal(oauthFailedKey(null), "googleFailed");
-});
-
-// --- linkedin / twitch --------------------------------------------------------
-
-// The regression. GoTrue appends custom scopes with strings.Split(s, ",")
-// (provider/linkedin_oidc.go), so `scopes: "openid email profile"` arrived as a
-// single token containing literal spaces and LinkedIn rejected the authorize
-// call. GoTrue already hardcodes openid/email/profile for this provider — the
-// only three LinkedIn supports — so sending nothing is both correct and
-// sufficient.
-test("linkedin sends only the redirect, leaving scopes to GoTrue", () => {
-  const options = oauthAuthorizeOptions({ provider: "linkedin_oidc", mode: "login", appUrl: APP });
-  assert.deepEqual(Object.keys(options), ["redirectTo"]);
-  assert.equal(options.scopes, undefined);
-  assert.equal(options.prompt, undefined);
-});
-
-// Twitch, like Facebook and now LinkedIn, relies on GoTrue's own default scopes
-// (user:read:email). An override here would be the thing that breaks it.
-test("twitch sends only the redirect, leaving scopes to GoTrue", () => {
-  const options = oauthAuthorizeOptions({ provider: "twitch", mode: "signup", appUrl: APP });
-  assert.deepEqual(Object.keys(options), ["redirectTo"]);
-});
-
-// Facebook, LinkedIn and Twitch must all send no scopes. GoTrue hardcodes a
-// correct default for each — including exactly openid/email/profile for
-// LinkedIn — so an override can only ever add a token the provider does not
-// recognise. Pinned per provider so the LinkedIn regression cannot return via a
-// different provider's config.
-test("providers with GoTrue defaults send no scope override", () => {
-  for (const provider of ["facebook", "linkedin_oidc", "twitch"]) {
-    const options = oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP });
-    assert.equal(options.scopes, undefined, `${provider} must not override scopes`);
-    assert.equal(options.prompt, undefined, `${provider} has no account chooser`);
+  for (const provider of ["spotify", "linkedin_oidc", "twitch", undefined, null]) {
+    assert.equal(oauthFailedKey(provider), "googleFailed");
   }
-});
-
-// Spotify remains the documented exclusion, so the throw is now load-bearing:
-// it proves the guard rejects the one provider that can never pass the
-// verified-email check rather than rendering a dead button.
-test("spotify stays rejected while the supported four are accepted", () => {
-  for (const provider of ["google", "facebook", "linkedin_oidc", "twitch"]) {
-    assert.ok(oauthAuthorizeOptions({ provider, mode: "login", appUrl: APP }).redirectTo, provider);
-  }
-  assert.throws(
-    () => oauthAuthorizeOptions({ provider: "spotify", mode: "login", appUrl: APP }),
-    /Unsupported sign-in provider: spotify/
-  );
-});
-
-// The provider id is `linkedin_oidc` but the message key is `linkedInFailed`,
-// so neither `provider + "Failed"` nor a rename would line them up. A wrong key
-// renders as a literal string in the UI rather than failing loudly, so both
-// halves are pinned explicitly.
-test("linkedin and twitch report their own failures", () => {
-  assert.equal(oauthFailedKey("linkedin_oidc"), "linkedInFailed");
-  assert.equal(oauthFailedKey("twitch"), "twitchFailed");
 });
 
 test("every supported provider has a distinct failure key", () => {
-  const keys = ["google", "facebook", "linkedin_oidc", "twitch"].map(oauthFailedKey);
+  const keys = SUPPORTED.map(oauthFailedKey);
   assert.equal(new Set(keys).size, keys.length);
 });

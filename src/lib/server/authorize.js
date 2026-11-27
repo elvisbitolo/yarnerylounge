@@ -5,7 +5,8 @@ import {
   canModerate,
 } from "@/lib/server/auth";
 import { SESSION_NEEDS_CONSENT, SESSION_OK } from "@/lib/server/session-store";
-import { getAccessSub, isActiveSub } from "@/lib/server/subscription";
+import { getAccessSub, getSubscription, isActiveSub } from "@/lib/server/subscription";
+import { meetsAccessTier } from "@/lib/server/membership";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { getScopedHostRights } from "@/lib/server/hosts";
@@ -55,6 +56,9 @@ export async function authorize(options = {}) {
   if (needsSub) {
     sub = await getAccessSub(user.uid);
     if (!isActiveSub(sub)) return deny(403, "Active membership required");
+    if (tier && !meetsAccessTier(userDoc, await getSubscription(user.uid), tier)) {
+      return deny(403, "Membership tier required");
+    }
   }
 
   if (groupId) {

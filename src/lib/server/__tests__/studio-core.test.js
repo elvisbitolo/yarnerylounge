@@ -10,6 +10,7 @@ import {
   parseStudioManifest,
   serializeStudioManifest,
   sortStudioVideos,
+  studioPublishDecision,
 } from "../studio-core.js";
 
 test("parseStudioAdminEmails: falls back to the built-in allowlist", () => {
@@ -33,6 +34,16 @@ test("isStudioAdminEmail: case-insensitive and exact", () => {
   assert.equal(isStudioAdminEmail("stranger@example.com", DEFAULT_STUDIO_ADMIN_EMAILS), false);
   assert.equal(isStudioAdminEmail("", DEFAULT_STUDIO_ADMIN_EMAILS), false);
   assert.equal(isStudioAdminEmail(null, DEFAULT_STUDIO_ADMIN_EMAILS), false);
+});
+
+test("studioPublishDecision: server-side allowlist gate", () => {
+  const allowlist = ["boss@example.com"];
+  assert.equal(studioPublishDecision({ uid: "u1", email: "Boss@Example.com" }, allowlist).ok, true);
+  const denied = studioPublishDecision({ uid: "u2", email: "member@example.com" }, allowlist);
+  assert.equal(denied.ok, false);
+  assert.equal(denied.status, 403);
+  assert.equal(studioPublishDecision({ email: "boss@example.com" }, allowlist).status, 401);
+  assert.equal(studioPublishDecision({ uid: "u1", email: "" }, allowlist).ok, false);
 });
 
 test("path builders: sanitize and pick an extension", () => {

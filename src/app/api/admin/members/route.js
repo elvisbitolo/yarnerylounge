@@ -247,10 +247,12 @@ export async function GET() {
   if (denied) return denied;
 
   const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+  }
   try {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: "asc" },
-      take: 500,
       select: {
         id: true,
         name: true,
@@ -267,7 +269,6 @@ export async function GET() {
     });
     const userIds = users.map((u) => u.id);
     const subs = await prisma.subscription.findMany({
-      take: 1000,
       select: {
         id: true,
         userId: true,
@@ -284,7 +285,7 @@ export async function GET() {
     }
     const sessions = await prisma.session.groupBy({
       by: ["userId"],
-      where: { userId: { in: userIds } },
+      where: { userId: { in: userIds }, revokedAt: null },
       _max: { lastSeenAt: true },
     });
     const lastSeenMap = new Map();
@@ -325,6 +326,6 @@ export async function GET() {
     return NextResponse.json({ members });
   } catch (err) {
     logError("admin.members.prisma_failed", { error: err.message });
-    return NextResponse.json({ members: [] });
+    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }
 }

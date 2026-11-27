@@ -5,7 +5,7 @@ import { rateLimitGuard } from "@/lib/server/rate-limit";
 export const dynamic = "force-dynamic";
 
 const ALLOWED_ACTIONS = new Set(["login", "signup", "oauth_login", "oauth_signup"]);
-const ALLOWED_PROVIDERS = new Set(["email", "google", "facebook", "linkedin_oidc", "twitch", "unknown"]);
+const ALLOWED_PROVIDERS = new Set(["email", "google", "facebook", "unknown"]);
 
 function cleanText(value, maxLength) {
   return String(value ?? "")

@@ -35,7 +35,7 @@ export default async function StudioPage() {
     loadError = error?.message || "Failed to load Studio videos";
   }
 
-  const canUpload = true;
+  const canUpload = isStudioAdmin(user.email);
 
   return (
     <div className={styles.page}>
@@ -49,8 +49,8 @@ export default async function StudioPage() {
         <p className={styles.eyebrow}>The Secret Yarnery</p>
         <h1 className={styles.title}>Studio</h1>
         <p className={styles.subtitle}>
-          A shared video space for the whole community. Discover member tutorials, project walk-throughs
-          and stitch-alongs — or upload a video of your own for everyone to enjoy.
+          A shared video space for the whole community. Discover tutorials, project walk-throughs and
+          stitch-alongs published by the Studio team.
         </p>
       </header>
 

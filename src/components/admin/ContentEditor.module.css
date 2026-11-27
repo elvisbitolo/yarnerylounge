@@ -145,6 +145,78 @@
   font-weight: 600;
 }
 
+.blockCard {
+  border: 1px solid #e6e6ef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #fcfcff;
+}
+
+.blockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.blockLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #4a4a5e;
+  overflow-wrap: anywhere;
+}
+
+.blockActions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.blockHead .blockActions {
+  margin-bottom: 0;
+  flex-wrap: nowrap;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e6e6ef;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #4a4a5e;
+  cursor: pointer;
+}
+
+.iconBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.previewLink {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 14px;
+  border: 1px solid #e6e6ef;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4a5e;
+  text-decoration: none;
+}
+
+.previewLink[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .editor {
     padding: 14px 13px;

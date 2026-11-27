@@ -4,8 +4,8 @@ import { getRoomBySlugEnsuringAlwaysOn } from "@/lib/server/rooms";
 import { getSpace, isSpaceMember } from "@/lib/server/spaces";
 import { getUpcomingRoomStart } from "@/lib/server/events";
 import {
-  requireActiveMember,
   requireGroupMember,
+  requireTier,
   guardJson,
 } from "@/lib/server/authorize";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
@@ -35,7 +35,7 @@ function logJwtDiagnostics(token) {
 
 export async function POST(req) {
   try {
-    const auth = await requireActiveMember();
+    const auth = await requireTier("hooking-up");
     const denied = guardJson(auth);
     if (denied) return denied;
 

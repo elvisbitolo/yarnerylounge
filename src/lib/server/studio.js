@@ -1,7 +1,8 @@
 // Studio video library: storage + persistence.
 //
-// All signed-in members can publish and watch clips at /community/studio.
-// Publishers can remove their own clips; Studio admins can moderate the full library.
+// Signed-in members can watch clips; the STUDIO_ADMIN_EMAILS allowlist can
+// publish. Uploaders can remove their own clips; Studio admins can moderate the
+// full library.
 //
 // Videos are large, so the browser uploads the bytes straight to Supabase
 // Storage through short-lived signed upload URLs — the bytes never pass through
@@ -29,6 +30,7 @@ import {
   safeStudioId,
   serializeStudioManifest,
   sortStudioVideos,
+  studioPublishDecision,
 } from "./studio-core";
 
 // Playback/poster links are handed to member browsers; keep them short-lived.
@@ -98,7 +100,8 @@ async function saveStudioManifest(videos) {
  * each *Upload is { path, token } for supabase-js uploadToSignedUrl().
  */
 export async function createStudioUploadTargets({ user, video, poster } = {}) {
-  if (!user?.uid) return { ok: false, status: 401, error: "Sign in to publish a video" };
+  const publish = studioPublishDecision(user, studioAdminEmails());
+  if (!publish.ok) return publish;
 
   const videoType = String(video?.type || "").toLowerCase();
   if (!STUDIO_VIDEO_MIME_TYPES.includes(videoType)) {
@@ -159,7 +162,8 @@ const POSTER_NAME = /^poster\.(jpg|png|webp)$/;
  * landed in Storage. Idempotent: a re-finalize replaces the same id.
  */
 export async function finalizeStudioVideo({ user, id, title, description, durationSec, width, height, sizeBytes } = {}) {
-  if (!user?.uid) return { ok: false, status: 401, error: "Sign in to publish a video" };
+  const publish = studioPublishDecision(user, studioAdminEmails());
+  if (!publish.ok) return publish;
   const safe = safeStudioId(id);
   if (!safe) return { ok: false, status: 400, error: "Missing video id" };
 

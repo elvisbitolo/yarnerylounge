@@ -5,8 +5,7 @@ import { CAPABILITIES } from "./capabilities-core.js";
 import { isOpenAccess, openAccessPlan } from "./access-policy.js";
 import { effectiveSubscription } from "./subscription-core.js";
 import { effectiveExpiryMillis } from "./billing.js";
-import { isPaidTier } from "./plans.js";
-import { displayTier, tierForRole } from "./plans.js";
+import { displayTier, isPaidTier, meetsTier, tierForRole } from "./plans.js";
 
 // Derives a cheap, read-efficient membership snapshot from the user doc only.
 // This mirrors getAccessSub/getCapabilities (subscription doc) with a single
@@ -62,5 +61,10 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
     profileBadge: caps.profileBadge,
     theme: userDoc?.extra?.dashboardTheme || userDoc?.dashboardTheme || null,
   };
+}
+
+export function meetsAccessTier(userDoc, sub, requiredTier, now = Date.now()) {
+  if (!requiredTier) return true;
+  return meetsTier(deriveMembership(userDoc, now, sub).planKey, requiredTier);
 }
 

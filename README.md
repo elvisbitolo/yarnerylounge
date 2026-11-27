@@ -10,7 +10,7 @@ Production: [christasspeakeasy.com](https://www.christasspeakeasy.com)
 - **Membership self-service** — plan upgrades through Shopify cart links, immediate local downgrades/cancellations, and owner-only billing follow-up requests in the audit log.
 - **Member dashboard** — community activity, upcoming events and rooms, featured videos, member discovery, and contribution progress.
 - **Community feed** — posts, photos, video attachments, polls, questions, comments, and reactions.
-- **Community Studio** — every signed-in member can upload, publish, and watch tutorials, project videos, and stitch-alongs. Members can delete their own uploads; Studio moderators can manage the full library.
+- **Community Studio** — signed-in members can watch tutorials, project videos, and stitch-alongs. Only the Studio allowlist can publish; uploaders can delete their own videos and Studio moderators can manage the full library.
 - **Live video lounges** — hosted video rooms powered by JaaS (8x8/Jitsi), with room chat and related live-community features.
 - **Groups and spaces** — member-created groups, neighbourhoods, and shared community spaces.
 - **Events and availability** — event listings, RSVPs, and member availability.
@@ -94,7 +94,7 @@ Use [`.env.example`](.env.example) as the source of truth for environment variab
 - **Vercel Blob:** `BLOB_READ_WRITE_TOKEN` for feed media uploads.
 - **JaaS:** `JITSI_APP_ID`, `JITSI_API_KEY_ID`, and `JITSI_PRIVATE_KEY` for signed meeting access; configure `JITSI_WEBHOOK_SECRET` for recording webhooks.
 - **Shopify:** `SHOPIFY_WEBHOOK_SECRET` verifies paid-order webhooks that grant plans. `NEXT_PUBLIC_SHOPIFY_PRICING_URL` sets the storefront origin used for cart permalinks. `SHOPIFY_OPEN_ACCESS` is an explicit switch for a temporary open-access period; keep it disabled for normal paid-plan gating.
-- **Studio:** `STUDIO_ADMIN_EMAILS` configures the Studio moderation allowlist. All signed-in members can publish; upload ownership controls who can remove a video, while moderators can manage the full library.
+- **Studio:** `STUDIO_ADMIN_EMAILS` configures the Studio publishing/moderation allowlist, enforced on every write route. Upload ownership controls who can remove a video, while moderators can manage the full library.
 - **Cron:** `CRON_SECRET` protects scheduled Vercel endpoints.
 - **Origins:** `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_CANONICAL_HOST`, and `NEXT_PUBLIC_OWN_HOSTS` must match the domains used by the deployment.
 

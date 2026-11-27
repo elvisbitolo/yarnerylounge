@@ -7,7 +7,9 @@ export function isPurchasable(item) {
 }
 
 export function canAccessPaid(targetType, item, purchasedKeys) {
-  return true;
+  if (!isPurchasable(item)) return true;
+  if (!item.id) return false;
+  return typeof purchasedKeys?.has === "function" && purchasedKeys.has(purchaseKey(targetType, item.id));
 }
 
 export function verifyPurchaseAmount(paidCents, expectedCents) {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { listSpaces, getSpaceMembers, isSpaceMember } from "@/lib/server/spaces";
 import { getPurchasedKeys } from "@/lib/server/purchases";
+import { canAccessPaid } from "@/lib/server/purchases-core";
 import SpacesBoard from "./SpacesBoard";
 import styles from "./spaces.module.css";
 
@@ -33,7 +34,7 @@ export default async function SpacesPage() {
       features: space.features || {},
       memberCount: members.length,
       joined: !!membership,
-      purchased: purchasedKeys.has(`space:${space.id}`),
+      purchased: canAccessPaid("space", space, purchasedKeys),
     });
   }
 

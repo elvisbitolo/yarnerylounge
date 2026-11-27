@@ -18,6 +18,7 @@ export const ADMIN_SECTIONS = [
   ] },
   { label: "Editorial", items: [
     { href: "/admin/articles", label: "Articles", guard: "moderator", isNew: true, basis: "/api/admin/content/article -> moderator policy" },
+    { href: "/admin/content/pages", label: "Public page blocks", guard: "moderator", isNew: true, basis: "/api/admin/pages/[slug] -> requireModerator()" },
     { href: "/admin/collections", label: "Collections", guard: "owner", basis: "/api/admin/collections -> requireOwner()" },
   ] },
   { label: "Live", items: [

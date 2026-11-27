@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getSpaceBySlug, isSpaceMember } from "@/lib/server/spaces";
+import { getAccessSub } from "@/lib/server/subscription";
+import { meetsAccessTier } from "@/lib/server/membership";
+import { getPurchasedKeys } from "@/lib/server/purchases";
+import { canAccessPaid } from "@/lib/server/purchases-core";
 import { getPageBySlug } from "@/lib/server/pages";
 import BackButton from "@/components/BackButton";
 import PageContent from "./PageContent";
@@ -31,19 +35,25 @@ export default async function SpacePageDetail({ params }) {
   const isOwner = userDoc?.role === "owner";
   const membership = await isSpaceMember(space.id, user.uid);
   const isMember = !!membership;
+  const [purchasedKeys, accessSub] = await Promise.all([
+    getPurchasedKeys(user.uid),
+    getAccessSub(user.uid),
+  ]);
+  const paidUnlocked = canAccessPaid("space", space, purchasedKeys);
+  const tierUnlocked = space.requiredTier !== "premium" || meetsAccessTier(userDoc, accessSub, "moving-in");
 
-  const canView =
+  const baseView =
     isMember ||
-    isOwner ||
     space.access === "public" ||
     (space.access !== "invite" && space.publicPreview);
+  const canView = isOwner || (baseView && paidUnlocked && tierUnlocked);
 
   if (!canView) {
     return (
         <main className={styles.page}>
           <div className={styles.container}>
             <h1 className={styles.notFound}>Not available</h1>
-            <p className={styles.subtitle}>Join this space to view this page.</p>
+            <p className={styles.subtitle}>Join or unlock this space to view this page.</p>
             <Link className={styles.link} href={`/spaces/${space.slug}`}>Back to space</Link>
           </div>
         </main>

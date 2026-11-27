@@ -11,6 +11,10 @@ import {
   listCoursesForSpace,
 } from "@/lib/server/spaces";
 import { canManageScope } from "@/lib/server/hosts";
+import { getAccessSub } from "@/lib/server/subscription";
+import { meetsAccessTier } from "@/lib/server/membership";
+import { getPurchasedKeys } from "@/lib/server/purchases";
+import { canAccessPaid } from "@/lib/server/purchases-core";
 import { expandEvents } from "@/lib/server/events";
 import BackButton from "@/components/BackButton";
 import Feed from "@/app/feed/Feed";
@@ -49,7 +53,13 @@ export default async function SpacePage({ params }) {
   const memberNames = members.slice(0, 8).map((m) => m.name);
   const features = space.features || {};
 
-  const canEnter = membership || isOwner;
+  const [purchasedKeys, accessSub] = await Promise.all([
+    getPurchasedKeys(user.uid),
+    getAccessSub(user.uid),
+  ]);
+  const paidUnlocked = canAccessPaid("space", space, purchasedKeys);
+  const tierUnlocked = space.requiredTier !== "premium" || meetsAccessTier(userDoc, accessSub, "moving-in");
+  const canEnter = isOwner || (!!membership && paidUnlocked && tierUnlocked);
   const isInviteOnly = space.access === "invite";
 
   let eventsSerialized = [];
@@ -127,7 +137,7 @@ export default async function SpacePage({ params }) {
             <p className={styles.notMember}>
               {isInviteOnly
                 ? "This space is invite only — ask the host to add you."
-                : "You're not a member yet — join from the spaces page."}
+                : "Join or unlock this space from the spaces page."}
             </p>
           ) : (
             <div className={styles.spaceActions}>

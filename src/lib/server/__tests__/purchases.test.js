@@ -23,11 +23,20 @@ test("canAccessPaid: free items are always accessible", () => {
   assert.equal(canAccessPaid("course", { id: "a" }, undefined), true);
 });
 
-test("canAccessPaid: paid items are accessible regardless of keys", () => {
+test("canAccessPaid: paid items require the matching type and id key", () => {
   const item = { id: "a", purchasePriceCents: 4900 };
-  assert.equal(canAccessPaid("course", item, new Set()), true);
   assert.equal(canAccessPaid("course", item, new Set(["course:a"])), true);
-  assert.equal(canAccessPaid("event", item, new Set(["course:a"])), true);
+  assert.equal(canAccessPaid("course", item, new Set()), false);
+  assert.equal(canAccessPaid("course", item, undefined), false);
+  assert.equal(canAccessPaid("course", item, new Set(["course:b"])), false);
+  assert.equal(canAccessPaid("event", item, new Set(["course:a"])), false);
+  assert.equal(canAccessPaid("event", item, new Set(["event:a"])), true);
+});
+
+test("canAccessPaid: a paid item without an id or a usable key set is denied", () => {
+  const item = { purchasePriceCents: 4900 };
+  assert.equal(canAccessPaid("course", item, new Set(["course:undefined"])), false);
+  assert.equal(canAccessPaid("course", { id: "a", purchasePriceCents: 4900 }, {}), false);
 });
 
 test("verifyPurchaseAmount: accepts exact match", () => {
