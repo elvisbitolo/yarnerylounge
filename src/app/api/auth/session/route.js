@@ -318,11 +318,24 @@ export async function POST(req) {
           logError("automation.new_member_failed", { uid: identity.uid, error: err.message });
         });
       }
-    } else if (identity.photoURL && !member.photoURL) {
-      member = await prisma.user.update({
-        where: { id: member.id },
-        data: { photoURL: identity.photoURL },
-      });
+    } else {
+      // Preserve an existing profile name. Only backfill the legacy name column
+      // when it is empty, using the name explicitly submitted at signup or the
+      // verified Supabase identity metadata.
+      const memberUpdate = {};
+      if (!String(member.name || "").trim()) {
+        const verifiedName = String(name || identity.name || "").trim().slice(0, 100);
+        if (verifiedName) memberUpdate.name = verifiedName;
+      }
+      if (identity.photoURL && !member.photoURL) {
+        memberUpdate.photoURL = identity.photoURL;
+      }
+      if (Object.keys(memberUpdate).length > 0) {
+        member = await prisma.user.update({
+          where: { id: member.id },
+          data: memberUpdate,
+        });
+      }
     }
 
     if (addAccount) {
