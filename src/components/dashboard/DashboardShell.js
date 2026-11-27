@@ -10,15 +10,13 @@ import {
   DashboardMemberAvatar,
   WelcomeBanner,
   QuickActions,
-  CreatorHub,
   CommunityHub,
-  UpcomingRooms,
   ContentPerformance,
   NeedsAttention,
 } from "./Sections";
 import EventsSpotlight from "./EventsSpotlight";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
-import { DashboardActiveMembers, DashboardCommunityFeed, DashboardStudioCard, DashboardFeaturedVideos, DashboardMemberDiscovery, DashboardProfileCompletion, DashboardCommunityBuilderCard, DashboardEngagementProgress, DashboardYourCommunity } from "./DashboardCommunitySections";
+import { DashboardActiveMembers, DashboardStudioCard, DashboardFeaturedVideos, DashboardProfileCompletion, DashboardEngagementProgress } from "./DashboardCommunitySections";
 import { CardSkeleton, SectionError } from "./Section";
 import styles from "./dashboard.module.css";
 
@@ -220,24 +218,13 @@ export default function DashboardShell() {
             <SectionError message={t("spotlightLoadError")} onRetry={handleRetry} />
           )
         )}
-        {upcomingRooms?.ok ? (
-          <div data-tour="tour-rooms">
-            <UpcomingRooms data={roomsValue} />
-          </div>
-        ) : (
-          <SectionError message={t("roomsLoadError")} onRetry={handleRetry} />
-        )}
         <DashboardProfileCompletion photoURL={user.photoURL} username={user.username} />
-        <DashboardCommunityBuilderCard />
-        {user.plan === "moving-in" && <DashboardYourCommunity />}
-        <CreatorHub isMovingIn={user.plan === "moving-in"} />
         <DashboardEngagementProgress />
         <DashboardFeaturedVideos />
         <DashboardStudioCard />
         <ChristaLiveInvitation />
         <section className={styles.dashboardCommunityGrid} aria-label="Community connections">
           <DashboardActiveMembers />
-          <DashboardMemberDiscovery />
         </section>
         <div data-tour="tour-actions">
           <QuickActions isStaff={isStaff} />
@@ -246,7 +233,6 @@ export default function DashboardShell() {
         <div data-tour="tour-community">
           <CommunityHub />
         </div>
-        <DashboardCommunityFeed />
 
         <div className={styles.kpiGrid} data-tour="tour-kpis">
           {deferredLoading ? (
