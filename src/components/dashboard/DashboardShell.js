@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import StatCard from "./StatCard";
 import {
-  DashboardMemberAvatar,
   WelcomeBanner,
   QuickActions,
   CommunityHub,
@@ -69,7 +67,6 @@ export default function DashboardShell() {
               stats: { ok: false, error: "Failed to load" },
               activity: { ok: false, error: "Failed to load" },
               content: { ok: false, error: "Failed to load" },
-              leaderboard: { ok: false, error: "Failed to load" },
             } : current);
             setDeferredLoading(false);
           });
@@ -136,7 +133,7 @@ export default function DashboardShell() {
     );
   }
 
-  const { user, isStaff, stats, spotlight, content, leaderboard } = data;
+  const { user, isStaff, stats, spotlight, content } = data;
 
   const statsValue = stats?.ok ? stats.value : null;
   const contentValue = content?.ok ? content.value : null;
@@ -249,36 +246,6 @@ export default function DashboardShell() {
               <SectionError message={t("contentLoadError")} onRetry={handleRetry} />
             )}
           </div>
-
-          {deferredLoading && isStaff ? (
-            <div className={styles.dashboardInsightRecognition}>
-              <CardSkeleton lines={5} />
-            </div>
-          ) : leaderboard?.ok && leaderboard.value.length > 0 ? (
-            <div className={styles.dashboardInsightRecognition}>
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>{t("recognition")}</h2>
-                  <Link className={styles.cardLink} href="/leaderboard">
-                    {t("leaderboard")}
-                  </Link>
-                </div>
-                <ul className={styles.list}>
-                  {leaderboard.value.map((entry) => (
-                    <li key={entry.userId}>
-                      <Link className={`${styles.item} ${styles.dashboardRecognitionItem}`} href={`/members/${entry.userId}`}>
-                        <DashboardMemberAvatar name={entry.name} photoURL={entry.photoURL} />
-                        <span className={styles.dashboardRecognitionName}>
-                          <span className={styles.itemTitle}>#{entry.rank} {entry.name}</span>
-                          <span className={styles.itemMeta}>{t("pts", { points: entry.points, badges: entry.badgeCount })}</span>
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ) : null}
         </section>
       </div>
     </div>

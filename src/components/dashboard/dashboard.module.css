@@ -1510,25 +1510,6 @@
   color: inherit;
   text-decoration: none;
 }
-.dashboardRecognitionItem {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-}
-.dashboardRecognitionName {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-.dashboardRecognitionName .itemTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 @media (max-width: 560px) {
   .dashboardMemberAvatar,
   .dashboardMemberAvatarFallback {
@@ -2579,8 +2560,7 @@
   min-width: 0;
   width: 100%;
 }
-.dashboardInsightTopContent,
-.dashboardInsightRecognition {
+.dashboardInsightTopContent {
   min-width: 0;
   width: 100%;
 }
@@ -2652,10 +2632,6 @@
 }
 .dashboardContentBody .itemMeta {
   white-space: normal;
-}
-.dashboardInsightRecognition > :global(section),
-.dashboardInsightRecognition > :global(div) {
-  width: 100%;
 }
 @media (max-width: 760px) {
   .dashboardContentItem {
