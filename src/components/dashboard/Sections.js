@@ -441,29 +441,6 @@ export function ContentPerformance({ data }) {
   );
 }
 
-export function NeedsAttention({ data }) {
-  const t = useTranslations("dashboard");
-  return (
-    <Card title={t("needsAttention")} theme="rose">
-      {data.length === 0 ? (
-        <EmptyState text={t("allCaughtUp")} />
-      ) : (
-        <ul className={styles.list}>
-          {data.map((item) => (
-            <li key={item.id}>
-              <Link className={styles.attention} href={item.href}>
-                <span className={styles.attentionIcon}>!</span>
-                <span className={styles.attentionText}>{item.label}</span>
-                <span className={styles.attentionMeta}>{t("review")}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
 export function OnboardingProgress({ data }) {
   const total = data?.total || 0;
   const done = data?.doneCount || 0;

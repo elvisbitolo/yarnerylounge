@@ -12,7 +12,6 @@ import {
   QuickActions,
   CommunityHub,
   ContentPerformance,
-  NeedsAttention,
 } from "./Sections";
 import EventsSpotlight from "./EventsSpotlight";
 import ChristaLiveInvitation from "./ChristaLiveInvitation";
@@ -70,7 +69,6 @@ export default function DashboardShell() {
               stats: { ok: false, error: "Failed to load" },
               activity: { ok: false, error: "Failed to load" },
               content: { ok: false, error: "Failed to load" },
-              needsAttention: { ok: false, error: "Failed to load" },
               leaderboard: { ok: false, error: "Failed to load" },
             } : current);
             setDeferredLoading(false);
@@ -138,11 +136,10 @@ export default function DashboardShell() {
     );
   }
 
-  const { user, isStaff, stats, spotlight, content, needsAttention, leaderboard } = data;
+  const { user, isStaff, stats, spotlight, content, leaderboard } = data;
 
   const statsValue = stats?.ok ? stats.value : null;
   const contentValue = content?.ok ? content.value : null;
-  const attentionValue = needsAttention?.ok ? needsAttention.value : [];
 
   const kpis = [];
   if (statsValue) {
@@ -243,16 +240,6 @@ export default function DashboardShell() {
         </div>
 
         <section className={styles.dashboardInsightsGrid} aria-label="Community insights">
-          <div className={styles.dashboardInsightAttention}>
-            {deferredLoading ? (
-              <CardSkeleton lines={2} />
-            ) : needsAttention?.ok ? (
-              <NeedsAttention data={attentionValue} />
-            ) : (
-              <SectionError message={t("queueLoadError")} onRetry={handleRetry} />
-            )}
-          </div>
-
           <div className={styles.dashboardInsightTopContent}>
             {deferredLoading ? (
               <CardSkeleton lines={4} />

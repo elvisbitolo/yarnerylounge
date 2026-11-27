@@ -255,7 +255,7 @@
   pointer-events: none;
 }
 
-.card :is(.cardTitle, .itemTitle, .attentionText) {
+.card :is(.cardTitle, .itemTitle) {
   color: var(--card-text, var(--dash-text, #f5f5f5));
 }
 
@@ -438,43 +438,6 @@
   height: 100%;
   background: var(--dash-accent, var(--secondary));
   border-radius: 999px;
-}
-
-.attention {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 6px;
-  border-radius: 8px;
-}
-
-.attention:hover {
-  background: var(--dash-border, #2e2e38);
-}
-
-.attentionIcon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--error);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 15px;
-}
-
-.attentionText {
-  font-size: 13px;
-  color: var(--dash-text, #d4d4dc);
-}
-
-.attentionMeta {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--dash-muted, #6b6b7b);
-  white-space: nowrap;
 }
 
 .chartToolbar {
@@ -2580,8 +2543,8 @@
   line-height: 1.3;
 }
 
-.pageWrap :is(.itemBody, .itemMeta, .kpiLabel, .kpiDelta, .tag, .attentionText,
-  .attentionMeta, .chartBtn, .chartCaption, .legendItem, .activeMemberName,
+.pageWrap :is(.itemBody, .itemMeta, .kpiLabel, .kpiDelta, .tag,
+  .chartBtn, .chartCaption, .legendItem, .activeMemberName,
   .profileCompletionEyebrow, .profileCompletionDescription, .profileCompletionCount,
   .profileCompletionCopy strong, .profileCompletionCopy span, .profileCompletionAction,
   .communityBuilderPill, .communityBuilderDescription, .communityBuilderPrimary,
@@ -2616,14 +2579,10 @@
   min-width: 0;
   width: 100%;
 }
-.dashboardInsightAttention,
 .dashboardInsightTopContent,
 .dashboardInsightRecognition {
   min-width: 0;
   width: 100%;
-}
-.dashboardInsightAttention > :global(section) {
-  padding-block: 15px;
 }
 .dashboardInsightTopContent > :global(section) {
   padding: clamp(16px, 2.2vw, 28px);
