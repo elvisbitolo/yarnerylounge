@@ -146,6 +146,11 @@ test("fetchShopifyCustomerProfile and cancelShopifyContracts use the Customer AP
   const helper = await import(`../shopify-customer.js?test=${crypto.randomUUID()}`);
   globalThis.fetch = async (url, options) => {
     state.fetches.push({ url: String(url), options });
+    if (String(url).includes("/.well-known/customer-account-api")) {
+      return response({
+        graphql_api: "https://shopify.com/21839020096/account/customer/api/2026-10/graphql",
+      });
+    }
     const body = JSON.parse(options.body);
     if (body.query.includes("CustomerBillingProfile")) {
       return response({
@@ -175,9 +180,15 @@ test("fetchShopifyCustomerProfile and cancelShopifyContracts use the Customer AP
   );
   assert.equal(profile.customer.id, "gid://shopify/Customer/123");
   assert.equal(profile.contractNodes.length, 2);
-  const graphqlCall = state.fetches[0];
-  assert.match(graphqlCall.url, /customer\/api\/2026-10\/graphql$/);
+  const graphqlCall = state.fetches.find((entry) =>
+    entry.url.includes("/account/customer/api/2026-10/graphql"),
+  );
+  assert.equal(
+    graphqlCall.url,
+    "https://shopify.com/21839020096/account/customer/api/2026-10/graphql",
+  );
   assert.equal(graphqlCall.options.headers.Authorization, "access-token");
+  assert.ok(!state.fetches.some((entry) => entry.url.includes("example.myshopify.com/customer/api/")));
 
   const result = await helper.cancelShopifyContracts({
     accessToken: "access-token",

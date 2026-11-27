@@ -22,8 +22,8 @@ import {
 } from "./shopify-customer-core.js";
 
 const DISCOVERY_TTL = 30 * 60 * 1000;
-const GRAPHQL_API_VERSION = "2026-10";
 const discoveryCache = new Map();
+const apiDiscoveryCache = new Map();
 
 export { ShopifyCustomerError } from "./shopify-customer-core.js";
 
@@ -110,6 +110,34 @@ async function getDiscovery(config) {
     );
   }
   discoveryCache.set(config.storeDomain, { at: Date.now(), value });
+  return value;
+}
+
+async function getApiDiscovery(config) {
+  const cached = apiDiscoveryCache.get(config.storeDomain);
+  if (cached && Date.now() - cached.at < DISCOVERY_TTL) return cached.value;
+
+  const url = new URL(`https://${config.storeDomain}/.well-known/customer-account-api`);
+  const payload = await fetchJson(url, { method: "GET" }, "Shopify Customer API discovery endpoint");
+  const endpoint = String(payload?.graphql_api || "").trim();
+  if (!endpoint) {
+    throw new ShopifyCustomerError(
+      "CONFIG_MISSING",
+      "Shopify discovery did not return a GraphQL endpoint.",
+      503,
+    );
+  }
+  let value;
+  try {
+    value = new URL(endpoint).toString();
+  } catch {
+    throw new ShopifyCustomerError(
+      "CONFIG_MISSING",
+      "Shopify discovery returned an invalid GraphQL endpoint.",
+      503,
+    );
+  }
+  apiDiscoveryCache.set(config.storeDomain, { at: Date.now(), value });
   return value;
 }
 
@@ -288,7 +316,7 @@ export async function resolveShopifyAccessToken(user, origin) {
 }
 
 async function customerGraphql({ config, accessToken, query, variables }) {
-  const endpoint = `https://${config.storeDomain}/customer/api/${GRAPHQL_API_VERSION}/graphql`;
+  const endpoint = await getApiDiscovery(config);
   return fetchJson(
     endpoint,
     {
