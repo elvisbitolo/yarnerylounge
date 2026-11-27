@@ -162,6 +162,23 @@ export function findRoomByMeeting(rooms, meetingName) {
   return rooms.find((room) => roomMatchesMeeting(room, meetingName)) || null;
 }
 
+/**
+ * Playback is decided from the recording's room policy, not just the `share`
+ * flag. Owner-only recordings are deliberately stored with share=false so the
+ * public library query never surfaces them, but their owner must still be able
+ * to play them back.
+ */
+export function canPlayRecording(recording, policy = {}, viewer = {}) {
+  if (!recording || recording.status !== "ready" || !recording.storagePath || recording.deletedAt) {
+    return false;
+  }
+  if (policy.recordingAllowed === false) return false;
+  if (policy.replayVisibility === "owner") {
+    return viewer?.role === "owner";
+  }
+  return recording.share === true;
+}
+
 /** Clamp a byte length into the Prisma Int range, flagging anything oversized. */
 export function clampSize(bytes) {
   const n = Number(bytes);

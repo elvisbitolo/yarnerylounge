@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import {
   buildStoragePath,
   buildThumbnailPath,
+  canPlayRecording,
   clampDimension,
   clampSize,
   extractMeetingName,
@@ -489,4 +490,20 @@ test("parseThumbnailDataUrl: rejects malformed or disallowed data URLs", () => {
 test("parseThumbnailDataUrl: rejects anything over the byte cap", () => {
   const big = dataUrl("image/jpeg", JPEG_BYTES);
   assert.equal(parseThumbnailDataUrl(big, { maxBytes: 4 }), null);
+});
+
+test("canPlayRecording: member replay follows the room policy", () => {
+  const recording = { status: "ready", storagePath: "a.mp4", share: true };
+  assert.equal(canPlayRecording(recording, { replayVisibility: "members" }, { role: "member" }), true);
+  assert.equal(canPlayRecording(recording, { recordingAllowed: false }, { role: "owner" }), false);
+  assert.equal(canPlayRecording({ ...recording, share: false }, { replayVisibility: "members" }, { role: "member" }), false);
+  assert.equal(canPlayRecording({ ...recording, deletedAt: new Date() }, {}, { role: "owner" }), false);
+});
+
+test("canPlayRecording: owner-only replay is available only to the owner", () => {
+  const recording = { status: "ready", storagePath: "a.mp4", share: false };
+  const policy = { replayVisibility: "owner" };
+  assert.equal(canPlayRecording(recording, policy, { role: "owner" }), true);
+  assert.equal(canPlayRecording(recording, policy, { role: "moderator" }), false);
+  assert.equal(canPlayRecording(recording, policy, { role: "member" }), false);
 });

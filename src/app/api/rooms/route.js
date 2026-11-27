@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { listRooms, createRoom } from "@/lib/server/rooms";
+import { listVisibleCommunityRooms, createRoom } from "@/lib/server/rooms";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { getScopedHostRights } from "@/lib/server/hosts";
+import { getScopedHostRights, setHostAssignment } from "@/lib/server/hosts";
 import { getCapabilities, canHost } from "@/lib/server/capabilities";
 import { logAudit } from "@/lib/server/audit";
 import { getSpace } from "@/lib/server/spaces";
@@ -13,7 +13,7 @@ export async function GET() {
   const auth = await requireUser();
   const denied = guardJson(auth);
   if (denied) return denied;
-  const rooms = await listRooms();
+  const rooms = await listVisibleCommunityRooms(auth.user.uid, auth.userDoc);
   return NextResponse.json({ rooms: serialize(rooms) });
 }
 
@@ -48,7 +48,6 @@ export async function POST(req) {
     kind = "standard",
     publicPreview = false,
     opensAt = null,
-    alwaysOn = false,
     vibe = "",
     vibeMode = "",
     color = "",
@@ -122,7 +121,6 @@ export async function POST(req) {
     publicPreview,
     createdBy: auth.user.uid,
     opensAt: parsedOpensAt,
-    alwaysOn,
     vibe,
     vibeMode,
     color,
@@ -139,6 +137,20 @@ export async function POST(req) {
     return NextResponse.json({ error: "Failed to create room" }, { status: 500 });
   }
 
+  // A paid member may create a lounge without a group/space scope. They must
+  // still own the room they created, or every management surface treats the
+  // creator as a stranger.
+  const assignment = await setHostAssignment({
+    scopeType: "room",
+    scopeId: room.id,
+    userId: auth.user.uid,
+    role: "host",
+    grantedBy: auth.user.uid,
+  });
+  if (!assignment.ok) {
+    logError("room.creator_host_assignment_failed", { error: assignment.error, roomId: room.id });
+  }
+
   await logAudit({
     actorId: auth.user.uid,
     actorName: auth.userDoc?.name || auth.user.email || "",
@@ -150,7 +162,7 @@ export async function POST(req) {
       groupId,
       spaceId,
       kind: room.kind,
-      alwaysOn: !!alwaysOn,
+      alwaysOn: false,
       vibeMode,
       opened: !!parsedOpensAt,
     },

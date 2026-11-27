@@ -38,6 +38,19 @@ export const ROOM_VIBE_MODES = [
 
 const VIBE_MODE_VALUES = new Set(ROOM_VIBE_MODES.map((mode) => mode.value));
 
+// Only the seeded signature lounges are public always-on rooms. The flag must
+// never turn an arbitrary member-created lounge into a scope-free room.
+export const CANONICAL_ALWAYS_ON_SLUGS = new Set([
+  "happy-hour-hub",
+  "lo-fi-and-loops",
+  "velvet-den",
+  "silent-studio",
+]);
+
+export function isCanonicalAlwaysOnRoom(room) {
+  return !!room?.alwaysOn && CANONICAL_ALWAYS_ON_SLUGS.has(room.slug);
+}
+
 /** Curated accent colours for lounge cards. */
 export const ROOM_ACCENT_COLORS = [
   "#e91e63",

@@ -3,6 +3,8 @@
 
 // Room appearance rules live in a neutral module so the admin client can share
 // them; re-exported here so server callers keep a single import point.
+import { isCanonicalAlwaysOnRoom } from "../room-config.js";
+
 export {
   ROOM_ACCENT_COLORS,
   ROOM_VIBE_MODES,
@@ -10,6 +12,7 @@ export {
   normalizeRoomVibeMode,
   roomAudioFlagsForVibeMode,
   sanitizeRoomAppearance,
+  isCanonicalAlwaysOnRoom,
 } from "../room-config.js";
 
 export function mapRoomRow(row) {
@@ -43,6 +46,8 @@ export function mapRoomRow(row) {
     createdBy: row.createdBy || "",
     createdAt: row.createdAt || null,
     pinned: !!row.pinned,
+    recordingAllowed: row.recordingAllowed !== false,
+    replayVisibility: row.replayVisibility || "members",
   };
 }
 
@@ -53,7 +58,7 @@ export function mapRoomRow(row) {
  */
 export function isRoomLive(room, now = Date.now()) {
   if (!room || room.status === "deleted") return false;
-  if (room.alwaysOn) return true;
+  if (isCanonicalAlwaysOnRoom(room)) return true;
   if (!room.opensAt) return true;
 
   const opensAt = room.opensAt?.toMillis

@@ -47,9 +47,11 @@ async function readBodyBounded(upstream, capBytes) {
 
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { getRoom } from "@/lib/server/rooms";
 import {
   buildStoragePath,
   buildThumbnailPath,
+  canPlayRecording,
   clampDimension,
   clampSize,
   defaultRecordingTitle,
@@ -209,6 +211,11 @@ export async function pullRecording(recording) {
   if (!recording) return { ok: false, error: "no_recording" };
   if (recording.status === "ready" && recording.storagePath) return { ok: true, skipped: "ready" };
 
+  const policy = await getRecordingPolicy(recording);
+  if (!policy.recordingAllowed) {
+    return { ok: false, skipped: "recording_not_allowed" };
+  }
+
   const link = recording.sourceLink;
   if (!link) return { ok: false, error: "no_source_link" };
   if (isSourceExpired(recording.sourceExpiresAt)) {
@@ -296,7 +303,7 @@ export async function pullRecording(recording) {
       where: { id: recording.id },
       data: {
         status: "ready",
-        share: true,
+        share: policy.replayVisibility !== "owner",
         storageBucket: RECORDINGS_BUCKET,
         storagePath: path,
         sizeBytes,
@@ -405,6 +412,18 @@ export async function listRecordings({ roomId = null, limit = 60, includeUnready
 export async function getRecording(id) {
   if (!id) return null;
   return getPrisma().recording.findUnique({ where: { id } });
+}
+
+export async function getRecordingPolicy(recording) {
+  const room = recording?.roomId ? await getRoom(recording.roomId) : null;
+  return {
+    recordingAllowed: room ? room.recordingAllowed !== false : true,
+    replayVisibility: room?.replayVisibility || "members",
+  };
+}
+
+export async function canMemberPlayRecording(recording, viewer) {
+  return canPlayRecording(recording, await getRecordingPolicy(recording), viewer);
 }
 
 /**

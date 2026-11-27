@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  isCanonicalAlwaysOnRoom,
   isRoomLive,
   mapRoomRow,
   pickBannerRooms,
@@ -13,7 +14,7 @@ import {
 
 test("isRoomLive: always-on rooms stay live despite a stale schedule", () => {
   assert.equal(
-    isRoomLive({ status: "active", alwaysOn: true, opensAt: new Date(Date.now() + 86_400_000) }),
+    isRoomLive({ status: "active", slug: "happy-hour-hub", alwaysOn: true, opensAt: new Date(Date.now() + 86_400_000) }),
     true
   );
 });
@@ -59,6 +60,8 @@ test("mapRoomRow: maps a full Postgres row", () => {
   assert.equal(room.maxParticipants, 20);
   assert.equal(room.alwaysOn, true);
   assert.equal(room.kind, "standard");
+  assert.equal(room.recordingAllowed, true);
+  assert.equal(room.replayVisibility, "members");
 });
 
 test("mapRoomRow: blank row yields safe defaults", () => {
@@ -212,4 +215,10 @@ test("sanitizeRoomAppearance: trims text and rejects an invalid colour", () => {
   assert.equal(data.vibe, "social");
   assert.equal(data.color, "");
   assert.equal(data.imageUrl, "https://example.com/x.jpg");
+});
+
+test("isCanonicalAlwaysOnRoom: only seeded signature lounges bypass scope gates", () => {
+  assert.equal(isCanonicalAlwaysOnRoom({ slug: "happy-hour-hub", alwaysOn: true }), true);
+  assert.equal(isCanonicalAlwaysOnRoom({ slug: "member-lounge", alwaysOn: true }), false);
+  assert.equal(isCanonicalAlwaysOnRoom({ slug: "happy-hour-hub", alwaysOn: false }), false);
 });

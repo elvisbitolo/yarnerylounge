@@ -80,7 +80,6 @@ export const EDITABLE_FIELDS = {
       vibeMode: { type: "select", options: ROOM_VIBE_MODES },
       color: { type: "string", max: 20 },
       imageUrl: { type: "string", max: 600 },
-      alwaysOn: { type: "boolean" },
       maxParticipants: { type: "number", min: 2, max: 500 },
       musicName: { type: "string", max: 200 },
       musicUrl: { type: "string", max: 2000 },

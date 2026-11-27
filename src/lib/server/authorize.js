@@ -38,9 +38,15 @@ export async function authorize(options = {}) {
 
   if (host) {
     const sub = await getAccessSub(user.uid);
+    // getAccessSub falls back to an active Flirting doc for expired/canceled
+    // members. A role of "host" must not survive that fallback: host is a paid
+    // privilege, not a permanent badge.
+    const realHostAccess =
+      sub?.isStaffAccess ||
+      (!sub?.isFreeAccess && !sub?.isOpenAccess && isActiveSub(sub));
     let isHost =
       userDoc?.role === "owner" ||
-      (userDoc?.role === "host" && isActiveSub(sub));
+      (userDoc?.role === "host" && realHostAccess);
     // The Moving In tier sells "host privileges to create ... live video rooms" and
     // "launch independent crochet circles". Those were role-only, so a paying
     // customer with role "member" was denied while a free member manually given

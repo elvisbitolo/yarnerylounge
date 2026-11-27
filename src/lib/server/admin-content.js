@@ -2,6 +2,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { logAudit } from "@/lib/server/audit";
 import { EDITABLE_FIELDS, sanitizePatch } from "./admin-content-core.js";
+import { CANONICAL_ALWAYS_ON_SLUGS } from "../room-config.js";
 
 export { EDITABLE_FIELDS, sanitizePatch, isEditableKind } from "./admin-content-core.js";
 
@@ -19,6 +20,14 @@ export async function updateContent(kind, id, body, actor) {
     const delegate = prisma[spec.model];
     const existing = await delegate.findUnique({ where: { id } });
     if (!existing) return { ok: false, status: 404, error: `${spec.label} not found` };
+
+    // Always-on is owned by the seeder, not by the content editor; otherwise a
+    // moderator could turn any lounge into a scope-free public room. Signature
+    // lounges keep their canonical names so links and presets stay aligned.
+    if (kind === "room") {
+      delete data.alwaysOn;
+      if (CANONICAL_ALWAYS_ON_SLUGS.has(existing.slug)) delete data.name;
+    }
 
     const updated = await delegate.update({ where: { id }, data });
 

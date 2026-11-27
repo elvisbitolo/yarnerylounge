@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/server/audit";
 import { clean } from "@/lib/server/validate";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
+import { CANONICAL_ALWAYS_ON_SLUGS } from "@/lib/room-config";
 
 function isStaff(auth) {
   return auth.userDoc?.role === "owner" || auth.userDoc?.role === "moderator";
@@ -39,12 +40,12 @@ export async function PATCH(req, { params }) {
     const prisma = getPrisma();
     const row = await prisma.room.findUnique({
       where: { id },
-      select: { id: true, spaceId: true, groupId: true },
+      select: { id: true, spaceId: true, groupId: true, slug: true },
     });
     if (!row) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
-    room = { id, spaceId: row.spaceId, groupId: row.groupId };
+    room = { id, spaceId: row.spaceId, groupId: row.groupId, slug: row.slug };
   } catch (err) {
     logError("room.prisma_read_failed", { error: err.message });
     return NextResponse.json({ error: "Failed to load room" }, { status: 500 });
@@ -56,6 +57,9 @@ export async function PATCH(req, { params }) {
   }
 
   const body = await req.json();
+  if (typeof body.name === "string" && CANONICAL_ALWAYS_ON_SLUGS.has(room.slug)) {
+    return NextResponse.json({ error: "This lounge keeps its canonical name" }, { status: 403 });
+  }
   const update = {};
   const changed = [];
 
@@ -147,6 +151,10 @@ export async function DELETE(req, { params }) {
   } catch (err) {
     logError("room.prisma_read_failed", { error: err.message });
     return NextResponse.json({ error: "Failed to load room" }, { status: 500 });
+  }
+
+  if (CANONICAL_ALWAYS_ON_SLUGS.has(room.slug)) {
+    return NextResponse.json({ error: "This lounge cannot be deleted" }, { status: 403 });
   }
 
   const access = await canManageRoom(auth, room);

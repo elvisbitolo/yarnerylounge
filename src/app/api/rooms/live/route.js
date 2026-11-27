@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
-import { listRooms } from "@/lib/server/rooms";
+import { listVisibleCommunityRooms } from "@/lib/server/rooms";
 import { isRoomLive, pickBannerRooms } from "@/lib/server/rooms-core";
 import { countActiveRoomMembers, activeRoomMemberCounts } from "@/lib/server/room-presence";
 
@@ -9,7 +9,7 @@ export async function GET() {
   const denied = guardJson(auth);
   if (denied) return denied;
 
-  const rooms = await listRooms();
+  const rooms = await listVisibleCommunityRooms(auth.user.uid, auth.userDoc);
 
   const live = pickBannerRooms(
     rooms.filter((room) => room.status === "active" && isRoomLive(room))

@@ -5,7 +5,12 @@
 // sitting in a DOM a member could copy and share.
 
 import { NextResponse } from "next/server";
-import { getRecording, signPlaybackUrl, signTranscriptUrl } from "@/lib/server/recordings";
+import {
+  canMemberPlayRecording,
+  getRecording,
+  signPlaybackUrl,
+  signTranscriptUrl,
+} from "@/lib/server/recordings";
 import { guardJson, requireActiveMember } from "@/lib/server/authorize";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +25,7 @@ export async function GET(req, { params }) {
 
   // 404 rather than 403 for anything not readable: a member has no way to act
   // on the difference, and it avoids confirming that a row exists.
-  if (!recording || recording.status !== "ready" || !recording.share) {
+  if (!(await canMemberPlayRecording(recording, auth.userDoc))) {
     return NextResponse.json({ error: "Recording not found" }, { status: 404 });
   }
 

@@ -64,27 +64,29 @@ export async function POST(req, { params }) {
       hasActiveRoomPresence(room.id, auth.user.uid),
     ]);
     alreadyPresent = present;
-    if (headcount.ok) {
-      const exempt =
-        auth.userDoc?.role === "owner" ||
-        auth.userDoc?.role === "moderator" ||
-        rights.isHost ||
-        rights.isCoHost;
-      const verdict = evaluateJoinCapacity({
-        maxParticipants: room.maxParticipants,
-        activeCount: headcount.count,
-        alreadyPresent,
-        exempt,
-      });
-      if (!verdict.allowed) {
-        return NextResponse.json(
-          { error: "This lounge is full", cap: verdict.cap },
-          { status: 409 }
-        );
-      }
+    if (!headcount.ok) {
+      return NextResponse.json(
+        { error: "Unable to check lounge capacity. Please try again." },
+        { status: 503 }
+      );
     }
-    // headcount.ok === false means we could not ask the database. Admit rather
-    // than lock everyone out of every lounge on a transient read failure.
+    const exempt =
+      auth.userDoc?.role === "owner" ||
+      auth.userDoc?.role === "moderator" ||
+      rights.isHost ||
+      rights.isCoHost;
+    const verdict = evaluateJoinCapacity({
+      maxParticipants: room.maxParticipants,
+      activeCount: headcount.count,
+      alreadyPresent,
+      exempt,
+    });
+    if (!verdict.allowed) {
+      return NextResponse.json(
+        { error: "This lounge is full", cap: verdict.cap },
+        { status: 409 }
+      );
+    }
     //
     // Note the count-then-upsert window: two members joining in the same
     // millisecond can both read a headcount below the cap and both be admitted,

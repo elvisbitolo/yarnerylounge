@@ -1,6 +1,10 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
-import { mapRoomRow, sanitizeRoomAppearance } from "./rooms-core.js";
+import {
+  mapRoomRow,
+  sanitizeRoomAppearance,
+  isCanonicalAlwaysOnRoom,
+} from "./rooms-core.js";
 
 export function slugify(name) {
   return name
@@ -146,6 +150,8 @@ function canonicalDefaultRoom(spec) {
     maxParticipants: 20,
     opensAt: null,
     createdAt: new Date(0),
+    recordingAllowed: true,
+    replayVisibility: "members",
   };
 }
 
@@ -181,7 +187,6 @@ export async function createRoom({
   const slug = `${slugify(name)}-${Math.random().toString(36).slice(2, 6)}`;
   const appearance = sanitizeRoomAppearance({
     maxParticipants,
-    alwaysOn,
     vibe,
     vibeMode,
     color,
@@ -209,6 +214,7 @@ export async function createRoom({
           kind: normalizedKind,
           publicPreview: !!publicPreview,
           opensAt: opensAt ? new Date(opensAt) : null,
+          alwaysOn: false,
           createdBy,
           ...appearance,
         },
@@ -253,7 +259,7 @@ export async function listVisibleCommunityRooms(uid, userDoc) {
   }
 
   return active.filter((room) => {
-    if (room.alwaysOn) return true;
+    if (isCanonicalAlwaysOnRoom(room)) return true;
     if (hostRoomIds.has(room.id)) return true;
     if (room.groupId) return groupIds.has(room.groupId);
     if (room.spaceId) return spaceIds.has(room.spaceId);

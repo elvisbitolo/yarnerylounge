@@ -25,6 +25,7 @@ import {
 } from "@/lib/server/jitsi";
 import { logError, logInfo } from "@/lib/server/log";
 import { toMillis } from "@/lib/server/user-core";
+import { isCanonicalAlwaysOnRoom } from "@/lib/room-config";
 
 // Development-only diagnostic sink. Never logs the token itself or the key.
 function logJwtDiagnostics(token) {
@@ -59,7 +60,7 @@ export async function POST(req) {
     const isHost = rights.isHost;
     const isCoHost = rights.isCoHost;
 
-    if (!room.alwaysOn) {
+    if (!isCanonicalAlwaysOnRoom(room)) {
       let opensAt = await getUpcomingRoomStart(room.slug);
       if (!opensAt && room.opensAt) opensAt = toMillis(room.opensAt);
       // Only block before the room has actually opened — an already-open room
@@ -116,23 +117,26 @@ export async function POST(req) {
       countActiveRoomParticipants(room.id),
       hasActiveRoomPresence(room.id, auth.user.uid),
     ]);
-    if (headcount.ok) {
-      const verdict = evaluateJoinCapacity({
-        maxParticipants: room.maxParticipants,
-        activeCount: headcount.count,
-        alreadyPresent,
-        exempt: roomHost || canHost(caps),
-      });
-      if (!verdict.allowed) {
-        logInfo("jitsi.token.denied_capacity", { cap: verdict.cap, count: verdict.activeCount });
-        return NextResponse.json(
-          { error: "This lounge is full", code: "room_full", cap: verdict.cap },
-          { status: 409 }
-        );
-      }
+    if (!headcount.ok) {
+      logError("jitsi.token.capacity_check_failed", { roomId: room.id });
+      return NextResponse.json(
+        { error: "Unable to check lounge capacity. Please try again.", code: "capacity_unavailable" },
+        { status: 503 }
+      );
     }
-    // headcount.ok === false: admit. A transient read failure must not empty
-    // every lounge in the building.
+    const verdict = evaluateJoinCapacity({
+      maxParticipants: room.maxParticipants,
+      activeCount: headcount.count,
+      alreadyPresent,
+      exempt: roomHost,
+    });
+    if (!verdict.allowed) {
+      logInfo("jitsi.token.denied_capacity", { cap: verdict.cap, count: verdict.activeCount });
+      return NextResponse.json(
+        { error: "This lounge is full", code: "room_full", cap: verdict.cap },
+        { status: 409 }
+      );
+    }
 
     const canPublishUser = canPublishRemote(caps) || canHost(caps);
 

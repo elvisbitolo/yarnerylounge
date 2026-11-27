@@ -4,6 +4,9 @@ import { logError } from "@/lib/server/log";
 import { getActiveRoomEnsuring } from "@/lib/server/rooms";
 import { getScopedHostRights } from "@/lib/server/hosts";
 import { isSpaceMember } from "@/lib/server/spaces";
+import { getUpcomingRoomStart } from "@/lib/server/events";
+import { toMillis } from "@/lib/server/user-core";
+import { isCanonicalAlwaysOnRoom } from "@/lib/room-config";
 
 // Single authorization choke point for every room-chat surface (messages,
 // signals, presence, reactions, pins, deletes and the room page itself).
@@ -21,13 +24,20 @@ export async function resolveRoomAccess(roomKey, uid, userDoc) {
   if (!room || (room.status && room.status !== "active")) {
     return { denied: "not_found" };
   }
-  if (room.alwaysOn) return { room };
+  if (isCanonicalAlwaysOnRoom(room)) return { room };
 
   const staff = userDoc?.role === "owner" || userDoc?.role === "moderator";
-  if (staff) return { room };
-
   const rights = await getScopedHostRights(uid, "room", room.id);
-  if (rights.isHost || rights.isCoHost) return { room };
+  const roomHost = rights.isHost || rights.isCoHost;
+  if (staff || roomHost) return { room };
+
+  // Scheduled lounges are visible in the listing, but the room surface itself
+  // must not open before the event starts. The token route mirrors this check.
+  const upcoming = await getUpcomingRoomStart(room.slug);
+  const opensAtMillis = toMillis(upcoming || room.opensAt);
+  if (opensAtMillis && opensAtMillis > Date.now()) {
+    return { denied: "not_open" };
+  }
 
   if (room.spaceId && !(await spaceMember(room.spaceId, uid))) {
     return { denied: "not_found" };
