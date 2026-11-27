@@ -358,69 +358,6 @@ export function DashboardStudioCard() {
   );
 }
 
-export function DashboardCommunityFeed() {
-  const { value, loading } = useDashboardResource("/api/posts?limit=5", "posts");
-  const posts = Array.isArray(value) ? value.slice(0, 5) : [];
-  return (
-    <DashboardCard title="Latest from your community" href="/feed" linkLabel="Open feed">
-      {loading ? <p className={styles.itemBody}>Loading recent posts…</p> : posts.length ? (
-        <ul className={styles.list}>
-          {posts.map((post) => {
-            const authorName = post.authorName || "Community member";
-            const initials = authorName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "M";
-            const profileHref = post.authorId ? `/members/${encodeURIComponent(post.authorId)}` : "/members";
-            return (
-              <li key={post.id}>
-                <div className={styles.item}>
-                  <div className={styles.communityPostHeader}>
-                    <Link className={styles.communityPostAuthor} href={profileHref} aria-label={`View ${authorName}'s profile`}>
-                      {post.authorPhotoUrl ? (
-                        <img className={styles.communityPostAvatar} src={post.authorPhotoUrl} alt="" loading="lazy" />
-                      ) : (
-                        <span className={styles.communityPostAvatarFallback} aria-hidden="true">{initials}</span>
-                      )}
-                      <span className={styles.itemTitle}>{authorName}</span>
-                    </Link>
-                    <span className={styles.itemMeta}>{relativeTime(post.createdAt)}</span>
-                  </div>
-                  <Link className={styles.communityPostContent} href="/feed">
-                    {post.title ? <strong className={styles.itemTitle}>{post.title}</strong> : null}
-                    <span className={styles.itemBody}>{(post.text || post.excerpt || "Shared a community update").slice(0, 180)}</span>
-                    <span className={styles.itemMeta}>{Object.keys(post.likes || {}).length} likes · {post.commentCount || 0} comments</span>
-                  </Link>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : <p className={styles.itemBody}>No recent posts to show yet. Be the first to start a conversation.</p>}
-    </DashboardCard>
-  );
-}
-
-export function DashboardMemberDiscovery() {
-  const { value, loading } = useDashboardResource("/api/members/similar", "members");
-  const members = Array.isArray(value) ? value.slice(0, 4) : [];
-  return (
-    <DashboardCard title="People you may want to meet" href="/members" linkLabel="Discover members">
-      {loading ? <p className={styles.itemBody}>Finding people with shared interests…</p> : members.length ? (
-        <div className={styles.memberSuggestions}>
-          {members.map((member) => (
-            <Link className={styles.memberSuggestion} href={`/members/${encodeURIComponent(member.id)}`} key={member.id}>
-              {member.photoURL ? <img src={member.photoURL} alt="" /> : <span className={styles.memberAvatar}>{(member.name || "M").slice(0, 1).toUpperCase()}</span>}
-              <span className={styles.memberSuggestionText}>
-                <strong>{member.name}</strong>
-                <span>{member.headline || member.country || "Yarnery member"}</span>
-                {member.score ? <small>{member.score}% profile match</small> : null}
-              </span>
-            </Link>
-          ))}
-        </div>
-      ) : <p className={styles.itemBody}>Complete your profile and interests to help us find good connections.</p>}
-    </DashboardCard>
-  );
-}
-
 export function DashboardMembershipCard() {
   const { value, loading } = useDashboardResource("/api/membership/me", "membership");
   const membership = value && typeof value === "object" ? value : null;

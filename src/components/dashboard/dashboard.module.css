@@ -1210,66 +1210,6 @@
 }
 
 
-/* Personal community command-centre panels */
-.memberSuggestions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-.memberSuggestion {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--dash-border, #eadfd2);
-  border-radius: 12px;
-  color: inherit;
-  text-decoration: none;
-  transition: border-color .15s ease, transform .15s ease;
-}
-.memberSuggestion:hover {
-  border-color: var(--dash-accent, #f42e79);
-  transform: translateY(-1px);
-}
-.memberSuggestion img,
-.memberAvatar {
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-.memberAvatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--dash-border, #eadfd2);
-  color: var(--dash-text, #0a0e2a);
-  font-weight: 800;
-}
-.memberSuggestionText {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.memberSuggestionText strong,
-.memberSuggestionText span,
-.memberSuggestionText small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.memberSuggestionText strong {
-  color: var(--dash-text, #0a0e2a);
-  font-size: 13px;
-}
-.memberSuggestionText span,
-.memberSuggestionText small {
-  color: var(--dash-muted, #8b8b9b);
-  font-size: 11px;
-}
 .membershipSummary {
   display: flex;
   align-items: center;
@@ -1277,10 +1217,6 @@
   gap: 10px;
   margin-bottom: 12px;
 }
-@media (max-width: 560px) {
-  .memberSuggestions { grid-template-columns: 1fr; }
-}
-
 
 /* Mobile dashboard polish: theme-aware discovery text and safe scrolling. */
 .pageWrap {
@@ -1291,48 +1227,7 @@
   margin-top: 18px;
 }
 
-.memberSuggestion {
-  min-height: 76px;
-  padding: 9px 12px;
-  background: var(--card-bg, transparent);
-  border-color: var(--card-border, var(--dash-border, #eadfd2));
-}
-
-.memberAvatar {
-  background: var(--card-border, var(--dash-border, #eadfd2));
-  color: var(--card-text, #0a0e2a);
-}
-
-.memberSuggestionText strong {
-  color: var(--card-text, var(--dash-text, #f5f5f5));
-  line-height: 1.35;
-}
-
-.memberSuggestionText span,
-.memberSuggestionText small {
-  color: var(--card-muted, var(--dash-muted, #8b8b9b));
-  line-height: 1.4;
-}
-
 @media (max-width: 560px) {
-  .memberSuggestions {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .memberSuggestion {
-    min-height: 68px;
-    padding: 8px 10px;
-    gap: 10px;
-  }
-
-  .memberSuggestion img,
-  .memberAvatar {
-    width: 40px;
-    height: 40px;
-    flex-basis: 40px;
-  }
-
   .spotlight {
     margin-top: 16px;
   }
@@ -1594,75 +1489,6 @@
   .videoSectionTitle { font-size: 19px; }
   .videoFeaturedMedia { height: 180px; }
   .videoPosterFallback { min-height: 0; }
-}
-
-
-/* Author identity in the dashboard's latest community feed. */
-.communityPostHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-.communityPostAuthor {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
-}
-.communityPostAuthor:hover .itemTitle {
-  color: var(--card-accent, var(--dash-accent, #f42e79));
-}
-.communityPostAvatar,
-.communityPostAvatarFallback {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  border-radius: 50%;
-}
-.communityPostAvatar {
-  display: block;
-  object-fit: cover;
-  background: var(--card-border, var(--dash-border, #eadfd2));
-}
-.communityPostAvatarFallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--card-border, var(--dash-border, #eadfd2));
-  color: var(--card-text, var(--dash-text, #f5f5f5));
-  font-size: 12px;
-  font-weight: 800;
-}
-.communityPostAuthor .itemTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.communityPostContent {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding-left: 48px;
-  color: inherit;
-  text-decoration: none;
-}
-.communityPostContent:hover .itemTitle {
-  color: var(--card-accent, var(--dash-accent, #f42e79));
-}
-@media (max-width: 560px) {
-  .communityPostHeader { gap: 6px; }
-  .communityPostAvatar,
-  .communityPostAvatarFallback {
-    width: 36px;
-    height: 36px;
-    flex-basis: 36px;
-  }
-  .communityPostContent { padding-left: 46px; }
 }
 
 
@@ -2778,18 +2604,6 @@
 }
 
 
-/* Balanced dashboard layout after removing streak, activity and audience cards. */
-.dashboardCommunityGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 16px;
-  margin-block: 22px;
-}
-.dashboardCommunityGrid > * {
-  min-width: 0;
-  height: 100%;
-}
 .dashboardInsightsGrid {
   display: flex;
   flex-direction: column;
@@ -2906,11 +2720,5 @@
   .dashboardContentPostHeading {
     flex-wrap: wrap;
     gap: 6px 10px;
-  }
-}
-
-@media (max-width: 760px) {
-  .dashboardCommunityGrid {
-    grid-template-columns: minmax(0, 1fr);
   }
 }

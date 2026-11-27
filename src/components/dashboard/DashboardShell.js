@@ -222,9 +222,7 @@ export default function DashboardShell() {
         <DashboardFeaturedVideos />
         <DashboardStudioCard />
         <ChristaLiveInvitation />
-        <section className={styles.dashboardCommunityGrid} aria-label="Community connections">
-          <DashboardActiveMembers />
-        </section>
+        <DashboardActiveMembers />
         <div data-tour="tour-actions">
           <QuickActions isStaff={isStaff} />
         </div>
