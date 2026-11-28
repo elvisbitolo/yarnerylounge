@@ -30,6 +30,7 @@ export const ADMIN_SECTIONS = [
     { href: "/admin/questions", label: "Questions", guard: "owner", basis: "/api/admin/questions -> requireOwner()" },
   ] },
   { label: "System", items: [
+    { href: "/admin/integrations", label: "Integrations", guard: "owner", isNew: true, basis: "Owner-managed crochet marketplace configuration" },
     { href: "/admin/automations", label: "Automations", guard: "owner", basis: "/api/admin/automations -> requireOwner()" },
     { href: "/admin/re-engagement", label: "Member reactivation", guard: "moderator", isNew: true, basis: "/api/admin/re-engagement/analytics -> canModerate()" },
     { href: "/admin/analytics", label: "Analytics", guard: "owner", basis: "/api/admin/analytics -> requireOwner()" },
