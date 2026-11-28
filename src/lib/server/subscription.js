@@ -68,7 +68,7 @@ export const getAccessSub = cache(async function getAccessSub(uid) {
     return FREE_ACCESS_SUB;
   }
   const paymentStatus = String(userDoc?.paymentStatus || "").toLowerCase();
-  if (!storedSub && isPaidTier(userDoc?.plan) && ["cancelled", "canceled", "refunded"].includes(paymentStatus)) {
+  if (isPaidTier(userDoc?.plan) && ["cancelled", "canceled", "refunded"].includes(paymentStatus)) {
     return FREE_ACCESS_SUB;
   }
 
