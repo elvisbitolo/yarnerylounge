@@ -5,7 +5,6 @@ import { auth, onAuthStateChanged } from "@/lib/auth-client";
 import { tierBadge } from "@/lib/server/plans";
 
 const CACHE_PREFIX = "yarnery:membership:";
-const CACHE_TTL_MS = 10 * 60 * 1000;
 
 // Hardcoded fallback so the app never depends on the API for badges/locked UI.
 // The tier badge is pulled from plans.js so the fallback matches the tier the
@@ -31,19 +30,6 @@ function cacheKey(uid) {
   return `${CACHE_PREFIX}${uid}`;
 }
 
-export function readCachedMembership(uid) {
-  if (typeof window === "undefined" || !uid) return null;
-  try {
-    const raw = window.sessionStorage.getItem(cacheKey(uid));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > CACHE_TTL_MS) return null;
-    return parsed.membership || null;
-  } catch {
-    return null;
-  }
-}
-
 export function forgetCachedMembership(uid) {
   if (typeof window === "undefined" || !uid) return;
   try {
@@ -53,58 +39,68 @@ export function forgetCachedMembership(uid) {
   }
 }
 
-function writeCache(uid, membership) {
-  if (typeof window === "undefined" || !uid) return;
-  try {
-    window.sessionStorage.setItem(
-      cacheKey(uid),
-      JSON.stringify({ savedAt: Date.now(), membership })
-    );
-  } catch {
-    /* quota — ignore */
-  }
-}
-
 const MembershipContext = createContext(null);
 
 export function MembershipProvider({ children }) {
   const [membership, setMembership] = useState(null);
 
   const load = useCallback(async (uid) => {
-    const cached = readCachedMembership(uid);
-    if (cached) setMembership(cached); // paint immediately from cache
     try {
       const res = await fetch("/api/membership/me", {
         credentials: "include",
         cache: "no-store",
       });
       const data = await res.json().catch(() => null);
-      if (data?.membership) {
-        writeCache(uid, data.membership);
-        setMembership(data.membership);
-      } else if (!cached) {
-        setMembership(FREE_MEMBERSHIP);
-      }
+      // Never preserve a previously paid client-side tier when the server
+      // cannot verify current entitlement. Server routes remain authoritative.
+      if (auth.currentUser?.uid !== uid) return;
+      setMembership(res.ok && data?.membership ? data.membership : FREE_MEMBERSHIP);
     } catch {
-      if (!cached) setMembership(FREE_MEMBERSHIP);
+      if (auth.currentUser?.uid === uid) setMembership(FREE_MEMBERSHIP);
     }
   }, []);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        setMembership(null);
-        return;
+    let uid = null;
+    let loading = false;
+    let active = true;
+
+    const refresh = async () => {
+      if (!active || !uid || loading || document.visibilityState === "hidden") return;
+      loading = true;
+      try {
+        await load(uid);
+      } finally {
+        loading = false;
       }
-      load(user.uid);
+    };
+
+    const unsub = onAuthStateChanged(auth, (user) => {
+      uid = user?.uid || null;
+      setMembership(user ? FREE_MEMBERSHIP : null);
+      if (uid) refresh();
     });
-    return unsub;
+
+    // Installed PWAs often resume from the background without a full reload.
+    // Revalidate entitlement on resume/focus and periodically while open.
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    const interval = window.setInterval(refresh, 60_000);
+
+    return () => {
+      active = false;
+      unsub();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      window.clearInterval(interval);
+    };
   }, [load]);
 
   const refresh = useCallback(async () => {
     const user = auth.currentUser;
     if (!user) return;
     forgetCachedMembership(user.uid);
+    setMembership(FREE_MEMBERSHIP);
     await load(user.uid);
   }, [load]);
 
