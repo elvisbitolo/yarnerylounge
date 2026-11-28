@@ -58,7 +58,7 @@ export function isMembershipExpired(userDoc, sub, now = Date.now()) {
   // Owner and moderator access is administrative, not a paid member tier.
   if (userDoc?.role === "owner" || userDoc?.role === "moderator") return false;
   const paymentStatus = String(userDoc?.paymentStatus || "").toLowerCase();
-  if (isPaidTier(userDoc?.plan) && ["cancelled", "canceled", "refunded"].includes(paymentStatus)) return true;
+  if (!sub && isPaidTier(userDoc?.plan) && ["cancelled", "canceled", "refunded"].includes(paymentStatus)) return true;
   const storedTier = String(sub?.tier || sub?.planName || "").toLowerCase();
   if (storedTier === "flirting") return false;
   if (sub && isPaidTier(storedTier)) return !isActiveSub(sub, now);
