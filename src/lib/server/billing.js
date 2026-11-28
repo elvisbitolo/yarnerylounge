@@ -1,4 +1,5 @@
 import { isPaidTier } from "./plans.js";
+import { isCanceledSubscription } from "./subscription-core.js";
 import { isPaidPlanExpired } from "./user-core.js";
 
 export const ACTIVE_STATUSES = ["active", "trialing", "past_due"];
@@ -54,9 +55,14 @@ export function isAccessExpired(sub, userDoc, now = Date.now()) {
 // member into a redirect loop: the subscription says active, but an older
 // user-level expiry timestamp sends the dashboard straight back here.
 export function isMembershipExpired(userDoc, sub, now = Date.now()) {
+  // Owner and moderator access is administrative, not a paid member tier.
+  if (userDoc?.role === "owner" || userDoc?.role === "moderator") return false;
+  const paymentStatus = String(userDoc?.paymentStatus || "").toLowerCase();
+  if (isPaidTier(userDoc?.plan) && ["cancelled", "canceled", "refunded"].includes(paymentStatus)) return true;
   const storedTier = String(sub?.tier || sub?.planName || "").toLowerCase();
   if (storedTier === "flirting") return false;
   if (sub && isPaidTier(storedTier)) return !isActiveSub(sub, now);
+  if (isCanceledSubscription(sub) && isPaidTier(userDoc?.plan)) return true;
   return isPaidPlanExpired(userDoc, now);
 }
 

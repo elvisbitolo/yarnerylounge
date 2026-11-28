@@ -252,6 +252,27 @@ test("staff roles keep Moving In even when a paid plan has expired", () => {
   }
 });
 
+
+test("expired membership exposes an explicit inactive state for client navigation", () => {
+  const m = withOpenAccess("false", () =>
+    deriveMembership({ role: "member", plan: "hooking-up", expiresAt: ACCESS_NOW - 1 }, ACCESS_NOW)
+  );
+  assert.equal(m.isExpired, true);
+  assert.equal(m.planKey, "flirting");
+  assert.equal(m.capabilities.video.canJoin, false);
+  assert.equal(m.capabilities.matchmaker, false);
+});
+
+test("staff access is not marked expired by a lapsed member plan", () => {
+  for (const role of ["owner", "moderator"]) {
+    const m = withOpenAccess("false", () =>
+      deriveMembership({ role, plan: "moving-in", expiresAt: ACCESS_NOW - 1 }, ACCESS_NOW)
+    );
+    assert.equal(m.isExpired, false);
+    assert.equal(m.planKey, "moving-in");
+  }
+});
+
 test("an unset access override means strict access, not open", () => {
   // This used to be open access, resolving every member to the top tier
   // regardless of plan. The default is now strict, so the plan decides.
@@ -435,6 +456,26 @@ function activeSub(tier, overrides = {}) {
 function memberOn(tier) {
   return { role: "member", plan: tier };
 }
+
+
+test("an active subscription overrides an expired legacy user timestamp", () => {
+  const sub = activeSub("hooking-up", { currentPeriodEnd: new Date(ACCESS_NOW + 86_400_000) });
+  const m = withOpenAccess("false", () => deriveMembership({
+    role: "member", plan: "hooking-up", expiresAt: ACCESS_NOW - 10_000,
+  }, ACCESS_NOW, sub));
+  assert.equal(m.planKey, "hooking-up");
+  assert.equal(m.isExpired, false);
+});
+
+test("a stale canceledAt timestamp does not revoke an active subscription", () => {
+  const sub = activeSub("hooking-up", {
+    canceledAt: new Date(ACCESS_NOW - 10_000),
+    currentPeriodEnd: new Date(ACCESS_NOW + 86_400_000),
+  });
+  const m = withOpenAccess("false", () => deriveMembership(memberOn("hooking-up"), ACCESS_NOW, sub));
+  assert.equal(m.planKey, "hooking-up");
+  assert.equal(m.isExpired, false);
+});
 
 test("meetsAccessTier ranks the resolved tier against the required tier", () => {
   assert.equal(meetsAccessTier(memberOn("flirting"), activeSub("flirting"), "hooking-up", ACCESS_NOW), false);

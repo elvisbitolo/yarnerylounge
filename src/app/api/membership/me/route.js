@@ -3,6 +3,7 @@ import { requireUser, guardJson } from "@/lib/server/authorize";
 import { deriveMembership } from "@/lib/server/membership";
 import { getSubscription } from "@/lib/server/subscription";
 import { effectiveExpiryMillis } from "@/lib/server/billing";
+import { getCapabilities } from "@/lib/server/capabilities";
 import { logError } from "@/lib/server/log";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +17,26 @@ export async function GET() {
     const denied = guardJson(auth);
     if (denied) return denied;
 
-    const sub = await getSubscription(auth.user.uid);
+    const [sub, capabilities] = await Promise.all([
+      getSubscription(auth.user.uid),
+      getCapabilities(auth.user.uid),
+    ]);
     const expiryMs = effectiveExpiryMillis(sub, auth.userDoc);
     const expiresAt = expiryMs > 0 ? new Date(expiryMs).toISOString() : null;
     const daysRemaining = expiresAt ? Math.max(0, Math.ceil((expiryMs - Date.now()) / 86400000)) : null;
-    const membership = deriveMembership(auth.userDoc, Date.now(), sub);
-    return NextResponse.json({ ok: true, membership: { ...membership, expiresAt, daysRemaining }, expiresAt, daysRemaining });
+    const membership = {
+      ...deriveMembership(auth.userDoc, Date.now(), sub),
+      planKey: capabilities.key || "flirting",
+      label: capabilities.label || "Flirting",
+      capabilities,
+      profileBadge: capabilities.profileBadge || null,
+    };
+    return NextResponse.json({
+      ok: true,
+      membership: { ...membership, isExpired: membership.isExpired === true, expiresAt, daysRemaining },
+      expiresAt,
+      daysRemaining,
+    }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (err) {
     logError("membership.me_failed", { error: err.message });
     return NextResponse.json(

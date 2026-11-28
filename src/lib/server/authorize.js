@@ -116,6 +116,11 @@ export const requireGroupMember = (groupId, options = {}) =>
 async function scopeBase(options = {}) {
   const base = await authorize({ active: false, ...options });
   if (!base.ok) return base;
+  // Scoped host assignments do not outlive the Moving In entitlement. A
+  // former paid host/co-host must not retain room, group, or space controls.
+  if (!canHost(await getCapabilities(base.user.uid))) {
+    return deny(403, "Active Moving In membership required");
+  }
   const { scopeType, scopeId } = options;
   if (!scopeType || !scopeId) return deny(400, "Scope required");
   const rights = await getScopedHostRights(base.user.uid, scopeType, scopeId);

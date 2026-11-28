@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-  const VERSION = "v37";
+  const VERSION = "v38";
 
 // API requests are left to the network by default: a cached /api/me JSON that
 // carries a uid replays long after the session cookie is gone, which makes
@@ -41,7 +41,18 @@ const SHELL_URLS = [
   "/calendar",
 ];
 
-const NO_CACHE_DOCUMENT_PREFIXES = ["/account", "/admin", "/membership", "/plan-expired"];
+const NO_CACHE_DOCUMENT_PREFIXES = [
+  "/account",
+  "/admin",
+  "/membership",
+  "/plan-expired",
+  "/rooms",
+  "/match",
+  "/host",
+  "/neighbourhoods",
+  "/groups",
+  "/spaces",
+];
 
 const isNoCacheDocument = (url) => {
   try {
@@ -90,7 +101,6 @@ const PRECACHE_URLS = [
   "/terms",
   "/explore",
   "/articles",
-  "/host",
   "/icon-192.png",
   "/icon-512.png",
 ];

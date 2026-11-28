@@ -84,7 +84,7 @@ export function isPaidPlanExpired(
   const plan = userDoc?.plan || "flirting";
   if (!paidPlans.includes(plan)) return false;
   const expiresAtMs = toMillis(userDoc?.expiresAt);
-  return expiresAtMs > 0 && expiresAtMs < now;
+  return expiresAtMs > 0 && expiresAtMs <= now;
 }
 
 export function mapUserForApi(row) {

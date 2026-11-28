@@ -3,8 +3,8 @@
 // __tests__/tier-resolution.test.js. All three targets live in this directory.
 import { CAPABILITIES } from "./capabilities-core.js";
 import { isOpenAccess, openAccessPlan } from "./access-policy.js";
-import { effectiveSubscription } from "./subscription-core.js";
-import { effectiveExpiryMillis } from "./billing.js";
+import { effectiveSubscription, isCanceledSubscription } from "./subscription-core.js";
+import { effectiveExpiryMillis, isActiveSub } from "./billing.js";
 import { displayTier, isPaidTier, meetsTier, tierForRole } from "./plans.js";
 
 // Derives a cheap, read-efficient membership snapshot from the user doc only.
@@ -22,12 +22,16 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
   const canonicalPlan = displayTier(planSource, null);
   const expiresAtMs = effectiveExpiryMillis(effectiveSub, userDoc);
   const paidPlan = isPaidTier(canonicalPlan);
-  const expired = paidPlan && expiresAtMs > 0 && expiresAtMs < now;
+  const hasAuthoritativeTier = Boolean(effectiveSub?.tier || effectiveSub?.planName || effectiveSub?.plan);
+  // A recognized subscription row outranks legacy User.expiresAt. This keeps
+  // a currently active Shopify period from being demoted by an older user row.
+  const expired = paidPlan && (hasAuthoritativeTier
+    ? !isActiveSub(effectiveSub, now)
+    : expiresAtMs > 0 && expiresAtMs <= now);
+  const paymentStatus = String(userDoc?.paymentStatus || "").toLowerCase();
   const explicitlyCanceled =
-    userDoc?.paymentStatus === "cancelled" ||
-    userDoc?.paymentStatus === "refunded" ||
-    effectiveSub?.status === "canceled" ||
-    Boolean(effectiveSub?.canceledAt);
+    ["cancelled", "canceled", "refunded"].includes(paymentStatus) ||
+    isCanceledSubscription(effectiveSub);
 
   let planKey = "flirting";
   // Staff roles are independent of billing and always keep the top tier.
@@ -52,8 +56,14 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
         ? CAPABILITIES.paid
         : CAPABILITIES.free;
 
+  const isExpired =
+    paidPlan &&
+    (explicitlyCanceled || (!isOpenAccess() && expired)) &&
+    !staffTier;
+
   return {
     planKey,
+    isExpired,
     label: caps.label,
     plan,
     role,
