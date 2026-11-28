@@ -515,7 +515,7 @@ export default function Nav({ role, children }) {
 
         <div className={styles.content}>
           <InviteClaimer />
-          {!isRoomPage && <LiveNowBanner />}
+          {!isRoomPage && canJoinLounges && <LiveNowBanner />}
           {children}
         </div>
       </div>
