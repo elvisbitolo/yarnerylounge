@@ -215,17 +215,6 @@ export default function MembersDirectory({
   const frameRef = useRef(null);
   const [frameWidth, setFrameWidth] = useState(0);
 
-  useLayoutEffect(() => {
-    const el = frameRef.current;
-    if (!el) return undefined;
-    const ro = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width) setFrameWidth(width);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   useEffect(() => {
     let active = true;
     const refresh = async () => {
@@ -247,7 +236,7 @@ export default function MembersDirectory({
   }, []);
 
   const preset = PRESETS[viewportKey];
-  const scale = frameWidth > 0 ? frameWidth / preset.width : 0;
+  const scale = frameWidth > 0 ? frameWidth / preset.width : 1;
 
   function showDetails(member, e) {
     // A tooltip anchored to a rect that is being dragged away is worse than
@@ -391,6 +380,22 @@ export default function MembersDirectory({
     () => applyMemberTab(searched, tab, { nowMs: LAYOUT_NOW, todayKey }),
     [searched, tab, todayKey]
   );
+
+  const hasVisibleMembers = filtered.length > 0;
+
+  useLayoutEffect(() => {
+    const el = frameRef.current;
+    if (!el) return undefined;
+    const width = el.getBoundingClientRect().width;
+    if (width) setFrameWidth(width);
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width;
+      if (nextWidth) setFrameWidth(nextWidth);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasVisibleMembers]);
 
   const activeFilterCount = useMemo(() => {
     let n = 0;
@@ -693,11 +698,10 @@ export default function MembersDirectory({
       ) : (
         <div className={styles.canvasFrame} ref={frameRef} style={{ height: frameHeight }}>
           <span className={styles.canvasGlow} aria-hidden="true" />
-          {scale > 0 && (
-            <div
-              className={styles.canvasLayer}
-              style={{ width: preset.width, height: virtualHeight, transform: `scale(${scale})` }}
-            >
+          <div
+            className={styles.canvasLayer}
+            style={{ width: preset.width, height: virtualHeight, transform: `scale(${scale})` }}
+          >
               {placed.map((slot) => {
                 const member = memberById.get(slot.id);
                 if (!member) return null;
@@ -782,9 +786,8 @@ export default function MembersDirectory({
                     ) : null}
                   </Link>
                 );
-              })}
-      </div>
-          )}
+            })}
+          </div>
         </div>
       )}
 
