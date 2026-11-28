@@ -2,8 +2,9 @@ import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 import { cache } from "react";
 import { isActiveSub as isActiveSubLogic } from "@/lib/server/billing";
-import { mapSubscriptionRow, effectiveSubscription } from "./subscription-core.js";
+import { mapSubscriptionRow, effectiveSubscription, isCanceledSubscription } from "./subscription-core.js";
 import { isOpenAccess, openAccessPlan } from "@/lib/server/access-policy";
+import { isPaidTier } from "@/lib/server/plans";
 
 const FREE_ACCESS_SUB = {
   provider: "free",
@@ -44,9 +45,14 @@ export const getAccessSub = cache(async function getAccessSub(uid) {
     if (prisma) {
       const row = await prisma.user.findUnique({
         where: { id: uid },
-        select: { id: true, role: true },
+        select: { id: true, role: true, plan: true, paymentStatus: true },
       });
-      if (row) userDoc = { id: row.id, role: row.role || null };
+      if (row) userDoc = {
+        id: row.id,
+        role: row.role || null,
+        plan: row.plan || "flirting",
+        paymentStatus: row.paymentStatus || "unpaid",
+      };
     }
   } catch (err) {
     logError("subscription.prisma_user_failed", { error: err.message });
@@ -58,7 +64,11 @@ export const getAccessSub = cache(async function getAccessSub(uid) {
   // An explicit member cancellation takes precedence over the global
   // open-access override: the member chose to end paid access immediately.
   const storedSub = effectiveSubscription(await getSubscription(uid));
-  if (storedSub?.status === "canceled" || storedSub?.canceledAt) {
+  if (isCanceledSubscription(storedSub)) {
+    return FREE_ACCESS_SUB;
+  }
+  const paymentStatus = String(userDoc?.paymentStatus || "").toLowerCase();
+  if (!storedSub && isPaidTier(userDoc?.plan) && ["cancelled", "canceled", "refunded"].includes(paymentStatus)) {
     return FREE_ACCESS_SUB;
   }
 
