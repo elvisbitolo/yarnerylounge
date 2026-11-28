@@ -140,7 +140,9 @@ export async function GET() {
       : null,
   };
 
-  const res = NextResponse.json(payload);
+  const res = NextResponse.json(payload, {
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
   if (sid) {
     res.cookies.set(AUTH_COOKIE, serializeSessionCookie(sid), {
       httpOnly: true,
