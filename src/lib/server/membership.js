@@ -3,7 +3,7 @@
 // __tests__/tier-resolution.test.js. All three targets live in this directory.
 import { CAPABILITIES } from "./capabilities-core.js";
 import { isOpenAccess, openAccessPlan } from "./access-policy.js";
-import { effectiveSubscription } from "./subscription-core.js";
+import { effectiveSubscription, isCanceledSubscription } from "./subscription-core.js";
 import { effectiveExpiryMillis } from "./billing.js";
 import { displayTier, isPaidTier, meetsTier, tierForRole } from "./plans.js";
 
@@ -26,8 +26,7 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
   const explicitlyCanceled =
     userDoc?.paymentStatus === "cancelled" ||
     userDoc?.paymentStatus === "refunded" ||
-    effectiveSub?.status === "canceled" ||
-    Boolean(effectiveSub?.canceledAt);
+    isCanceledSubscription(effectiveSub);
 
   let planKey = "flirting";
   // Staff roles are independent of billing and always keep the top tier.
