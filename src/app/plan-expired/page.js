@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getUserDoc } from "@/lib/server/auth";
 import { getSubscription } from "@/lib/server/subscription";
-import { subscriptionStatus } from "@/lib/server/billing";
+import { isMembershipExpired } from "@/lib/server/billing";
 import { isOpenAccess } from "@/lib/server/access-policy";
 import ExpiredPanel from "./ExpiredPanel";
 import styles from "./plan-expired.module.css";
@@ -12,19 +12,17 @@ export default async function PlanExpiredPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  // While open access is on, tiers do not apply — a signed-in member is always
-  // admitted, so the renewal screen is never shown.
   if (isOpenAccess()) redirect("/dashboard");
 
-  const userDoc = await getUserDoc(user.uid);
-  const plan = userDoc?.plan || "flirting";
-  if (plan === "flirting") redirect("/dashboard");
+  const [userDoc, sub] = await Promise.all([
+    getUserDoc(user.uid),
+    getSubscription(user.uid),
+  ]);
 
-  const sub = await getSubscription(user.uid);
-  const status = subscriptionStatus(sub);
-  if (status === "active" || status === "trialing" || status === "past_due") {
-    redirect("/dashboard");
-  }
+  // Keep this decision identical to the dashboard/lounge gate. If the
+  // subscription is active, an old User.expiresAt value must not bounce the
+  // member between /dashboard and /plan-expired.
+  if (!isMembershipExpired(userDoc, sub)) redirect("/dashboard");
 
   return (
     <main className={styles.wrap}>
@@ -32,8 +30,8 @@ export default async function PlanExpiredPage() {
         <p className={styles.emoji}>🤫</p>
         <h1 className={styles.title}>Your Key No Longer Works...</h1>
         <p className={styles.subtitle}>
-          It looks like your subscription has ended. To get back into the 24/7
-          video lounges and continue matching with crafters, renew your plan.
+          Your paid membership is not currently active. Renew your plan to
+          restore access to the 24/7 video lounges and matching.
         </p>
         <ExpiredPanel />
       </div>
