@@ -17,6 +17,7 @@ import { getGamification } from "@/lib/server/gamification";
 import { getSubscription } from "@/lib/server/subscription";
 import { deriveMembership } from "@/lib/server/membership";
 import { effectiveExpiryMillis } from "@/lib/server/billing";
+import { getCapabilities } from "@/lib/server/capabilities";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -87,9 +88,10 @@ export async function GET() {
   }
   const user = current.identity;
   const userDoc = await getUserDoc(user.uid);
-  const [gamification, sub] = await Promise.all([
+  const [gamification, sub, capabilities] = await Promise.all([
     getGamification(user.uid),
     getSubscription(user.uid),
+    getCapabilities(user.uid),
   ]);
   const membership = deriveMembership(userDoc, Date.now(), sub);
 
@@ -102,7 +104,7 @@ export async function GET() {
   // The profile API exposes the same effective tier used by server-side
   // capability checks. Raw billing data remains available separately for
   // account/admin views; it must never drive a member-facing badge.
-  const plan = membership.planKey;
+  const plan = capabilities.key || "flirting";
   const rawPlan = userDoc?.plan || "flirting";
   const isExpired = membership.isExpired === true;
 
