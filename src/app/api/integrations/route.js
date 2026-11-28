@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireUser, guardJson } from "@/lib/server/authorize";
 import { getPrisma } from "@/lib/db/prisma";
 import {
-  INTEGRATION_CATALOG,
   defaultCommunityIntegrations,
   isAllowedIntegrationUrl,
 } from "@/lib/integrations/catalog";
