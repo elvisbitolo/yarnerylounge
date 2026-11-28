@@ -457,6 +457,17 @@ function memberOn(tier) {
   return { role: "member", plan: tier };
 }
 
+
+test("a stale canceledAt timestamp does not revoke an active subscription", () => {
+  const sub = activeSub("hooking-up", {
+    canceledAt: new Date(ACCESS_NOW - 10_000),
+    currentPeriodEnd: new Date(ACCESS_NOW + 86_400_000),
+  });
+  const m = withOpenAccess("false", () => deriveMembership(memberOn("hooking-up"), ACCESS_NOW, sub));
+  assert.equal(m.planKey, "hooking-up");
+  assert.equal(m.isExpired, false);
+});
+
 test("meetsAccessTier ranks the resolved tier against the required tier", () => {
   assert.equal(meetsAccessTier(memberOn("flirting"), activeSub("flirting"), "hooking-up", ACCESS_NOW), false);
   assert.equal(meetsAccessTier(memberOn("hooking-up"), activeSub("hooking-up"), "hooking-up", ACCESS_NOW), true);
