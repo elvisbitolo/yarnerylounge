@@ -31,12 +31,16 @@ export default function MemberBadge({
   // The role falls back to the provider too, so the glyph and the tooltip
   // below always resolve the same tier.
   const resolvedRole = role || membership?.role || "member";
-  const resolvedPlan = displayTier(plan || membership?.planKey, resolvedRole);
+  // Only administrative staff roles are permanent tier overrides. A former
+  // paid host must use the provider's server-resolved tier after expiry.
+  const tierRole = resolvedRole === "owner" || resolvedRole === "moderator" ? resolvedRole : null;
+  const resolvedPlan = displayTier(plan || membership?.planKey, tierRole);
   const badge = tierBadge(resolvedPlan);
   const showTier = Boolean(badge);
   const showHostPill =
     showHost &&
-    (isHost || resolvedRole === "owner" || resolvedRole === "moderator" || resolvedRole === "host");
+    (resolvedRole === "owner" || resolvedRole === "moderator" ||
+      ((isHost || resolvedRole === "host") && membership?.capabilities?.hosting === true));
 
   if (!showTier && !showHostPill) return null;
 
@@ -47,7 +51,7 @@ export default function MemberBadge({
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, verticalAlign: "middle" }}>
       {showTier && (
         <span
-          title={tooltip ? memberBadgeTooltip(plan || membership?.planKey, resolvedRole) : undefined}
+          title={tooltip ? memberBadgeTooltip(plan || membership?.planKey, tierRole) : undefined}
           style={{
             fontSize: size,
             lineHeight: 1,
