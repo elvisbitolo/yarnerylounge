@@ -10,6 +10,10 @@ export default function LoungeExpiryGuard() {
   const checkedRef = useRef(false);
 
   useEffect(() => {
+    // This guard is what sends expired members to /plan-expired. Running it
+    // again on that destination would assign the same URL and reload forever.
+    const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
+    if (currentPath === "/plan-expired") return;
     if (checkedRef.current) return;
     checkedRef.current = true;
 
