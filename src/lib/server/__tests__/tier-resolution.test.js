@@ -458,6 +458,15 @@ function memberOn(tier) {
 }
 
 
+test("an active subscription overrides an expired legacy user timestamp", () => {
+  const sub = activeSub("hooking-up", { currentPeriodEnd: new Date(ACCESS_NOW + 86_400_000) });
+  const m = withOpenAccess("false", () => deriveMembership({
+    role: "member", plan: "hooking-up", expiresAt: ACCESS_NOW - 10_000,
+  }, ACCESS_NOW, sub));
+  assert.equal(m.planKey, "hooking-up");
+  assert.equal(m.isExpired, false);
+});
+
 test("a stale canceledAt timestamp does not revoke an active subscription", () => {
   const sub = activeSub("hooking-up", {
     canceledAt: new Date(ACCESS_NOW - 10_000),
