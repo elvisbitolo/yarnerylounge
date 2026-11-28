@@ -107,7 +107,7 @@ const LOUNGE_ITEMS = [
 ];
 
 const LEARN_ITEMS = [
-  { href: "/integrations", key: "integrations" },
+  { href: "/integrations", key: "integrations", label: "Integrations" },
   { href: "/courses", key: "courses" },
   { href: "/crochetalong", key: "crochetAlongs" },
   { href: "/quizzes", key: "quizzes" },
