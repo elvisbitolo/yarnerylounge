@@ -54,7 +54,7 @@ export default function IntegrationsAdmin() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <span className={styles.eyebrow}><Settings2 size={15}/> OWNER'S OFFICE / COMMUNITY</span>
+        <span className={styles.eyebrow}><Settings2 size={15}/> OWNER&apos;S OFFICE / COMMUNITY</span>
         <h1>Integrations</h1>
         <p>Choose which creative services appear in the member marketplace. These settings control the community directory; members still manage their own profile links independently.</p>
       </header>
