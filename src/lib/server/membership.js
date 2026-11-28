@@ -28,10 +28,9 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
   const expired = paidPlan && (hasAuthoritativeTier
     ? !isActiveSub(effectiveSub, now)
     : expiresAtMs > 0 && expiresAtMs <= now);
+  const paymentStatus = String(userDoc?.paymentStatus || "").toLowerCase();
   const explicitlyCanceled =
-    userDoc?.paymentStatus === "cancelled" ||
-    userDoc?.paymentStatus === "canceled" ||
-    userDoc?.paymentStatus === "refunded" ||
+    (!effectiveSub && ["cancelled", "canceled", "refunded"].includes(paymentStatus)) ||
     isCanceledSubscription(effectiveSub);
 
   let planKey = "flirting";
