@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, BookOpen, Camera, Check, ExternalLink, Heart, Instagram, Link2, LoaderCircle, Pin, Puzzle, Scissors, Store, Trash2, Video, Youtube } from "lucide-react";
+import { ArrowUpRight, BookOpen, Camera, Check, ExternalLink, Heart, Instagram, Link2, LoaderCircle, Pin, Puzzle, Scissors, Store, Trash2, Video, PlayCircle } from "lucide-react";
 import styles from "./integrations.module.css";
 
 const ICONS = {
   yarn: Scissors,
   pin: Pin,
   camera: Instagram,
-  play: Youtube,
+  play: PlayCircle,
   store: Store,
   video: Video,
 };
