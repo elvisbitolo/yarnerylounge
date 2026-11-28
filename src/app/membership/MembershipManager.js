@@ -28,7 +28,7 @@ async function postJson(url, payload) {
   return data;
 }
 
-export default function MembershipManager({ currentTier, canManage, tiers }) {
+export default function MembershipManager({ currentTier, canManage, isStaff = false, tiers }) {
   const router = useRouter();
   const [busy, setBusy] = useState("");
   const [reason, setReason] = useState("");
@@ -65,7 +65,7 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
         <div>
           <h2 className={styles.managerTitle} id="membership-manager-title">Manage your membership</h2>
           <p className={styles.managerCurrent}>
-            Saved plan: <strong>{currentLabel}</strong>
+            {isStaff ? "Saved billing plan" : "Saved plan"}: <strong>{currentLabel}</strong>
           </p>
         </div>
         <Link className={styles.managerAccountLink} href="/account/membership">
@@ -75,7 +75,9 @@ export default function MembershipManager({ currentTier, canManage, tiers }) {
 
       {!canManage ? (
         <p className={styles.managerNote}>
-          Staff membership access is controlled by your role, so it cannot be changed here.
+          {isStaff
+            ? "Your owner/moderator role grants staff access independently of paid membership. This saved billing plan is retained for payment-history accuracy; it does not control your staff privileges."
+            : "Staff membership access is controlled by your role, so it cannot be changed here."}
         </p>
       ) : (
         <>
