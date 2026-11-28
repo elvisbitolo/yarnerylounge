@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
@@ -231,12 +231,12 @@ export default function Nav({ role, children }) {
   const canUseMatchmaker = membership?.capabilities?.matchmaker === true;
   const canJoinNeighborhoods = membership?.capabilities?.neighborhoods?.join === true;
   const canUseHostTools = membership?.capabilities?.hosting === true || role === "owner" || role === "moderator";
-  const visibleCommunityItems = COMMUNITY_ITEMS.filter((item) => {
+  const visibleCommunityItems = useMemo(() => COMMUNITY_ITEMS.filter((item) => {
     if (item.href === "/match") return canUseMatchmaker;
     if (item.href === "/neighbourhoods") return canJoinNeighborhoods;
     return true;
-  });
-  const visibleLoungeItems = canJoinLounges ? LOUNGE_ITEMS : [];
+  }), [canUseMatchmaker, canJoinNeighborhoods]);
+  const visibleLoungeItems = useMemo(() => canJoinLounges ? LOUNGE_ITEMS : [], [canJoinLounges]);
   const pathname = usePathname();
   const router = useRouter();
   const isRoomPage = pathname?.startsWith("/rooms/");
@@ -252,7 +252,7 @@ export default function Nav({ role, children }) {
   const [mobileSearch, setMobileSearch] = useState(false);
   const mobileSearchInputRef = useRef(null);
   const [sidebarData, setSidebarData] = useState(null);
-  const administrationLinks = getAdministrationLinks(role);
+  const administrationLinks = useMemo(() => getAdministrationLinks(role), [role]);
   const close = () => setMobileOpen(false);
 
   async function handleTopbarLogout() {
