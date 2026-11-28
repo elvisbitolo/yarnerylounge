@@ -40,7 +40,8 @@ export default function MemberBadge({
   const showHostPill =
     showHost &&
     (resolvedRole === "owner" || resolvedRole === "moderator" ||
-      ((isHost || resolvedRole === "host") && membership?.capabilities?.hosting === true));
+      ((isHost || resolvedRole === "host") &&
+        (plan != null || membership?.capabilities?.hosting === true)));
 
   if (!showTier && !showHostPill) return null;
 
