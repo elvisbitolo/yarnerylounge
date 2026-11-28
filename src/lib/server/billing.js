@@ -54,6 +54,8 @@ export function isAccessExpired(sub, userDoc, now = Date.now()) {
 // member into a redirect loop: the subscription says active, but an older
 // user-level expiry timestamp sends the dashboard straight back here.
 export function isMembershipExpired(userDoc, sub, now = Date.now()) {
+  // Owner and moderator access is administrative, not a paid member tier.
+  if (userDoc?.role === "owner" || userDoc?.role === "moderator") return false;
   const storedTier = String(sub?.tier || sub?.planName || "").toLowerCase();
   if (storedTier === "flirting") return false;
   if (sub && isPaidTier(storedTier)) return !isActiveSub(sub, now);
