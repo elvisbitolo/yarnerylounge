@@ -1,4 +1,5 @@
 import { isPaidTier } from "./plans.js";
+import { isCanceledSubscription } from "./subscription-core.js";
 import { isPaidPlanExpired } from "./user-core.js";
 
 export const ACTIVE_STATUSES = ["active", "trialing", "past_due"];
@@ -59,7 +60,7 @@ export function isMembershipExpired(userDoc, sub, now = Date.now()) {
   const storedTier = String(sub?.tier || sub?.planName || "").toLowerCase();
   if (storedTier === "flirting") return false;
   if (sub && isPaidTier(storedTier)) return !isActiveSub(sub, now);
-  if ((sub?.status === "canceled" || sub?.canceledAt) && isPaidTier(userDoc?.plan)) return true;
+  if (isCanceledSubscription(sub) && isPaidTier(userDoc?.plan)) return true;
   return isPaidPlanExpired(userDoc, now);
 }
 
