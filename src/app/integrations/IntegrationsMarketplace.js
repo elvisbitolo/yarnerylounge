@@ -14,12 +14,28 @@ const ICONS = {
 };
 const CATEGORIES = ["All", "Patterns & projects", "Inspiration", "Share your makes", "Learning", "Handmade & patterns"];
 
+function getSavedUsername(item, savedUrl) {
+  if (!savedUrl) return "";
+  try {
+    const savedPath = new URL(savedUrl).pathname;
+    const prefixPath = new URL(item.profilePrefix).pathname;
+    if (savedPath.startsWith(prefixPath)) {
+      let savedUsername = savedPath.slice(prefixPath.length);
+      if (savedUsername.endsWith("/")) savedUsername = savedUsername.slice(0, -1);
+      return decodeURIComponent(savedUsername).replace(/^@/, "");
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
 export default function IntegrationsMarketplace() {
   const [items, setItems] = useState([]);
   const [connections, setConnections] = useState({});
   const [filter, setFilter] = useState("All");
   const [editing, setEditing] = useState(null);
-  const [url, setUrl] = useState("");
+  const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
@@ -43,10 +59,13 @@ export default function IntegrationsMarketplace() {
 
   const visible = useMemo(() => items.filter((item) => filter === "All" || item.category === filter), [items, filter]);
   const linkedCount = Object.keys(connections).length;
+  const profilePreview = editing && username.trim()
+    ? editing.profilePrefix + username.trim().replace(/^@/, "")
+    : "";
 
   function startLink(item) {
     setEditing(item);
-    setUrl(connections[item.id]?.url || "");
+    setUsername(getSavedUsername(item, connections[item.id]?.url || ""));
     setNotice("");
     setError("");
   }
@@ -61,7 +80,7 @@ export default function IntegrationsMarketplace() {
       const response = await fetch("/api/integrations", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: editing.id, url }),
+        body: JSON.stringify({ provider: editing.id, username: username.trim().replace(/^@/, "") }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not link account");
@@ -179,14 +198,34 @@ export default function IntegrationsMarketplace() {
             <button className={styles.modalClose} type="button" onClick={() => setEditing(null)} aria-label="Close">×</button>
             <span className={styles.sectionEyebrow}>PERSONAL PROFILE LINK</span>
             <h2 id="link-title">Link {editing.name}</h2>
-            <p>Paste the URL of your public {editing.name} profile. Your fellow members can open it from your Speakeasy integrations.</p>
+            <p>Enter your {editing.name} username below. We have already filled in the website address for you.</p>
             <form onSubmit={saveLink}>
-              <label htmlFor="integration-url">Public profile URL</label>
-              <input id="integration-url" type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder={editing.url + "/yourname"} required autoFocus />
+              <label htmlFor="integration-username">Your username</label>
+              <div className={styles.profileInputRow}>
+                <a className={styles.profilePrefix} href={editing.url} target="_blank" rel="noopener noreferrer">{editing.profilePrefix}</a>
+                <input
+                  id="integration-username"
+                  className={styles.profileInput}
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value.replace(/^@/, ""))}
+                  placeholder="yourusername"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck="false"
+                  minLength={1}
+                  maxLength={100}
+                  pattern="[A-Za-z0-9._-]+"
+                  title="Use letters, numbers, dots, underscores or hyphens only."
+                  required
+                  autoFocus
+                />
+              </div>
+              <p className={styles.profileHint}>Your profile link: <strong>{profilePreview || editing.profilePrefix + "yourusername"}</strong></p>
               {error && <p className={styles.error}>{error}</p>}
               <div className={styles.modalActions}>
                 <button className={styles.cancel} type="button" onClick={() => setEditing(null)} disabled={busy}>Cancel</button>
-                <button className={styles.connect} type="submit" disabled={busy}>{busy ? "Saving…" : "Save profile link"}</button>
+                <button className={styles.connect} type="submit" disabled={busy || !username.trim()}>{busy ? "Saving…" : "Save profile link"}</button>
               </div>
             </form>
           </section>

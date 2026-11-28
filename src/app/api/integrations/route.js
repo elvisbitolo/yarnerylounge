@@ -4,6 +4,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import {
   INTEGRATION_CATALOG,
   defaultCommunityIntegrations,
+  buildIntegrationProfileUrl,
   isAllowedIntegrationUrl,
 } from "@/lib/integrations/catalog";
 
@@ -48,9 +49,10 @@ export async function PUT(request) {
 
   const body = await request.json().catch(() => null);
   const provider = typeof body?.provider === "string" ? body.provider : "";
-  const url = typeof body?.url === "string" ? body.url.trim() : "";
-  if (!isAllowedIntegrationUrl(provider, url)) {
-    return NextResponse.json({ error: "Enter a valid HTTPS profile URL for this service." }, { status: 400 });
+  const username = typeof body?.username === "string" ? body.username : "";
+  const url = buildIntegrationProfileUrl(provider, username);
+  if (!url || !isAllowedIntegrationUrl(provider, url)) {
+    return NextResponse.json({ error: "Enter a valid username for this service. Use letters, numbers, dots, underscores or hyphens only." }, { status: 400 });
   }
 
   const prisma = getPrisma();
