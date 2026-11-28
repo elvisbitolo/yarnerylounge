@@ -21,7 +21,12 @@ export async function GET() {
     const expiresAt = expiryMs > 0 ? new Date(expiryMs).toISOString() : null;
     const daysRemaining = expiresAt ? Math.max(0, Math.ceil((expiryMs - Date.now()) / 86400000)) : null;
     const membership = deriveMembership(auth.userDoc, Date.now(), sub);
-    return NextResponse.json({ ok: true, membership: { ...membership, expiresAt, daysRemaining }, expiresAt, daysRemaining });
+    return NextResponse.json({
+      ok: true,
+      membership: { ...membership, isExpired: membership.isExpired === true, expiresAt, daysRemaining },
+      expiresAt,
+      daysRemaining,
+    }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (err) {
     logError("membership.me_failed", { error: err.message });
     return NextResponse.json(
