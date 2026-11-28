@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, guardJson } from "@/lib/server/authorize";
+import { requireHostUser, guardJson } from "@/lib/server/authorize";
 import { listHostAssignments } from "@/lib/server/hosts";
 import { getRoom } from "@/lib/server/rooms";
 import { getEvent } from "@/lib/server/events";
@@ -8,7 +8,7 @@ import { getGroup } from "@/lib/server/groups";
 import { getSpace } from "@/lib/server/spaces";
 
 export async function GET() {
-  const auth = await requireUser();
+  const auth = await requireHostUser();
   const denied = guardJson(auth);
   if (denied) return denied;
 
