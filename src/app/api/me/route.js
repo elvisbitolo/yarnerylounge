@@ -14,7 +14,9 @@ import {
 import { normalizeProfile } from "@/lib/server/profile";
 import { rateLimitGuard } from "@/lib/server/rate-limit";
 import { getGamification } from "@/lib/server/gamification";
-import { isOpenAccess } from "@/lib/server/access-policy";
+import { getSubscription } from "@/lib/server/subscription";
+import { deriveMembership } from "@/lib/server/membership";
+import { effectiveExpiryMillis } from "@/lib/server/billing";
 import { getPrisma } from "@/lib/db/prisma";
 import { logError } from "@/lib/server/log";
 
@@ -85,23 +87,24 @@ export async function GET() {
   }
   const user = current.identity;
   const userDoc = await getUserDoc(user.uid);
-  const gamification = await getGamification(user.uid);
+  const [gamification, sub] = await Promise.all([
+    getGamification(user.uid),
+    getSubscription(user.uid),
+  ]);
+  const membership = deriveMembership(userDoc, Date.now(), sub);
 
   // The SPA health-checks /api/me constantly; re-issuing the cookie here with a
   // fresh maxAge keeps the 14-day window sliding in the browser, so an active
   // member's cookie never quietly expires while the server session is alive.
   const sid = parseSessionCookie((await cookies()).get(AUTH_COOKIE)?.value)?.sid;
 
-  const expiresAt = userDoc?.expiresAt
-    ? (userDoc.expiresAt.toMillis
-        ? userDoc.expiresAt.toMillis()
-        : new Date(userDoc.expiresAt).getTime())
-    : 0;
-  const plan = userDoc?.plan || "flirting";
-  // While open access is on, tiers do not apply: a member with a lapsed paid
-  // plan is never "expired" and is never sent to /plan-expired.
-  const isExpired =
-    !isOpenAccess() && plan !== "flirting" && expiresAt > 0 && expiresAt < Date.now();
+  const expiresAt = effectiveExpiryMillis(sub, userDoc);
+  // The profile API exposes the same effective tier used by server-side
+  // capability checks. Raw billing data remains available separately for
+  // account/admin views; it must never drive a member-facing badge.
+  const plan = membership.planKey;
+  const rawPlan = userDoc?.plan || "flirting";
+  const isExpired = membership.isExpired === true;
 
   const payload = {
     uid: user.uid,
@@ -113,6 +116,7 @@ export async function GET() {
     roleLabel: userDoc?.roleLabel || "",
     plan,
     tier: plan,
+    rawPlan,
     expiresAt,
     isExpired,
     headline: userDoc?.headline || "",
