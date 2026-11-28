@@ -1,4 +1,5 @@
 import { isPaidTier } from "./plans.js";
+import { isPaidPlanExpired } from "./user-core.js";
 
 export const ACTIVE_STATUSES = ["active", "trialing", "past_due"];
 
@@ -46,6 +47,17 @@ export function isPaidUserRecordActive(userDoc, now = Date.now()) {
 export function isAccessExpired(sub, userDoc, now = Date.now()) {
   const end = effectiveExpiryMillis(sub, userDoc);
   return end > 0 && end <= now;
+}
+
+// The subscription row is the authoritative billing record when it contains a
+// recognized tier. Falling back to User.expiresAt in that case can send a
+// member into a redirect loop: the subscription says active, but an older
+// user-level expiry timestamp sends the dashboard straight back here.
+export function isMembershipExpired(userDoc, sub, now = Date.now()) {
+  const storedTier = String(sub?.tier || sub?.planName || "").toLowerCase();
+  if (storedTier === "flirting") return false;
+  if (sub && isPaidTier(storedTier)) return !isActiveSub(sub, now);
+  return isPaidPlanExpired(userDoc, now);
 }
 
 export function subscriptionStatus(sub, now = Date.now()) {
