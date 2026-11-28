@@ -62,7 +62,7 @@ export default function SidebarProfile({ points = 0, streak = 0, close }) {
         <div className={styles.profileCardBody}>
           <p className={styles.profileCardName}>
             {name}
-            <MemberBadge plan={profile?.plan} role={profile?.role} size={13} />
+            <MemberBadge role={profile?.role} size={13} />
           </p>
           <p className={styles.profileCardHandle}>{handle}</p>
           <p className={styles.profileCardMeta}>
