@@ -10,7 +10,7 @@ import SidebarProfile from "./SidebarProfile";
 import LiveNowBanner from "./LiveNowBanner";
 import InviteClaimer from "./InviteClaimer";
 import styles from "./Nav.module.css";
-import { Home, Map, Users, Heart, Newspaper, CalendarDays, Images, Video, Clapperboard, BriefcaseBusiness, Trophy, MessageCircle, GraduationCap, BookOpen, ClipboardList, Sparkles, FolderOpen, Star, LogOut } from "lucide-react";
+import { Home, Map, Users, Heart, Newspaper, CalendarDays, Images, Video, Clapperboard, BriefcaseBusiness, Trophy, MessageCircle, GraduationCap, BookOpen, ClipboardList, Sparkles, FolderOpen, Star, LogOut, Puzzle } from "lucide-react";
 import { logout } from "@/lib/client-auth";
 import { useMembership } from "@/lib/membership";
 const CHEVRON = (
@@ -107,6 +107,7 @@ const LOUNGE_ITEMS = [
 ];
 
 const LEARN_ITEMS = [
+  { href: "/integrations", key: "integrations" },
   { href: "/courses", key: "courses" },
   { href: "/crochetalong", key: "crochetAlongs" },
   { href: "/quizzes", key: "quizzes" },
@@ -117,7 +118,7 @@ const NAV_ICONS = {
   neighbourhoods: Map, members: Users, match: Heart, feed: Newspaper, events: CalendarDays,
   gallery: Images, recordings: Video, studio: Clapperboard, portfolio: BriefcaseBusiness,
   leaderboard: Trophy, profile: Home, membership: Star, courses: GraduationCap,
-  crochetAlongs: BookOpen, quizzes: ClipboardList, resources: FolderOpen,
+  crochetAlongs: BookOpen, quizzes: ClipboardList, resources: FolderOpen, integrations: Puzzle,
   roomHappyHour: MessageCircle, roomLofi: MessageCircle, roomVelvetDen: MessageCircle, roomSilentStudio: MessageCircle,
 };
 
