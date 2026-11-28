@@ -133,6 +133,7 @@ export default async function MembershipPage() {
         getSubscription(user.uid),
       ])
     : [null, null, null];
+  const isStaff = ["owner", "moderator"].includes(String(userDoc?.role || "").toLowerCase());
   const currentTier = caps?.key || null;
   const currentIndex = currentTier ? SHOP_TIERS.indexOf(currentTier) : -1;
   const savedTier = userDoc ? billingTier(userDoc, sub) : null;
@@ -166,22 +167,28 @@ export default async function MembershipPage() {
           <section className={styles.current}>
             <div className={styles.currentTop}>
               <h2 className={styles.currentLabel}>{caps.label}</h2>
-              {caps.profileBadge && (
+              {isStaff ? (
+                <span className={styles.badge}>Staff access</span>
+              ) : caps.profileBadge ? (
                 <span className={styles.badge} style={{ color: caps.profileBadge.color }}>
                   <TierIcon name={caps.profileBadge.icon} size={14} />{" "}
                   {STATUS_TEXT[subscriptionStatus(sub)] || "Active"}
                 </span>
-              )}
+              ) : null}
             </div>
             <p className={styles.status}>
-              {STATUS_TEXT[subscriptionStatus(sub)] || "Active"}
-              {sub?.currentPeriodEnd ? (
+              {isStaff ? "Staff access — no paid membership required." : (
                 <>
-                  {" · "}
-                  {subscriptionStatus(sub) === "canceled" ? "ends" : "renews"}{" "}
-                  <strong>{formatDate(sub.currentPeriodEnd)}</strong>
+                  {STATUS_TEXT[subscriptionStatus(sub)] || "Active"}
+                  {sub?.currentPeriodEnd ? (
+                    <>
+                      {" · "}
+                      {subscriptionStatus(sub) === "canceled" ? "ends" : "renews"}{" "}
+                      <strong>{formatDate(sub.currentPeriodEnd)}</strong>
+                    </>
+                  ) : null}
                 </>
-              ) : null}
+              )}
             </p>
             {openAccess && (
               <p className={styles.notice}>
@@ -196,6 +203,7 @@ export default async function MembershipPage() {
           <MembershipManager
             currentTier={savedTier}
             canManage={Boolean(userDoc) && canSelfManageMembership(userDoc.role)}
+            isStaff={isStaff}
             tiers={managerTiers}
           />
         )}
@@ -203,9 +211,9 @@ export default async function MembershipPage() {
         <div className={styles.ladder} id="plans">
           {SHOP_TIERS.map((tierKey) => {
             const { caps: tierCaps } = tierEntry(tierKey);
-            const isCurrent = tierKey === currentTier;
+            const isCurrent = !isStaff && tierKey === currentTier;
             const index = SHOP_TIERS.indexOf(tierKey);
-            const canUpgrade = !isCurrent && currentIndex >= 0 && index > currentIndex;
+            const canUpgrade = !isStaff && !isCurrent && currentIndex >= 0 && index > currentIndex;
             const product = TIER_PRODUCTS[tierKey];
 
             return (
@@ -243,7 +251,7 @@ export default async function MembershipPage() {
 
                 {isCurrent ? (
                   <span className={`${styles.cta} ${styles.ctaMuted}`}>Your current plan</span>
-                ) : user && !canUpgrade ? (
+                ) : user && !isStaff && !canUpgrade ? (
                   <span className={`${styles.cta} ${styles.ctaMuted}`}>Included in your current or higher tier</span>
                 ) : (
                   <ProductLinks tierKey={tierKey} compact />
