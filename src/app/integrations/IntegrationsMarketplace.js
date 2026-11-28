@@ -200,7 +200,7 @@ export default function IntegrationsMarketplace() {
             <form onSubmit={saveLink}>
               <label htmlFor="integration-username">Your username</label>
               <div className={styles.profileInputRow}>
-                <span className={styles.profilePrefix}>{editing.profilePrefix}</span>
+                <a className={styles.profilePrefix} href={editing.url} target="_blank" rel="noopener noreferrer">{editing.profilePrefix}</a>
                 <input
                   id="integration-username"
                   className={styles.profileInput}
