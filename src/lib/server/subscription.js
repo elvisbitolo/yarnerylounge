@@ -92,7 +92,10 @@ export const getAccessSub = cache(async function getAccessSub(uid) {
   // drops it and the member falls back to Flirting.
   const sub = storedSub;
   if (sub && isActiveSubLogic(sub)) {
-    return sub;
+    // The User role is the authoritative global host assignment; carrying it
+    // into the effective subscription keeps capability and badge resolution
+    // aligned. Expired/canceled subscriptions never reach this branch.
+    return { ...sub, role: userDoc?.role || sub.role || null };
   }
 
   return FREE_ACCESS_SUB;
