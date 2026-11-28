@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowUpRight, BookOpen, Camera, Check, ExternalLink, Heart, Instagram, Link2, LoaderCircle, Pin, Play, Puzzle, Scissors, ShoppingBag, Store, Trash2, Video, Youtube } from "lucide-react";
+import { ArrowUpRight, BookOpen, Camera, Check, ExternalLink, Heart, Instagram, Link2, LoaderCircle, Pin, Puzzle, Scissors, Store, Trash2, Video, Youtube } from "lucide-react";
 import styles from "./integrations.module.css";
 
 const ICONS = {
@@ -159,7 +158,7 @@ export default function IntegrationsMarketplace() {
                   ) : (
                     <>
                       <button className={styles.connect} type="button" onClick={() => startLink(item)}>Link your account <ArrowUpRight size={15}/></button>
-                      <a className={styles.providerLink} href={item.url} target="_blank" rel="noopener noreferrer">Visit service</a>
+                      <a className={styles.providerLink} href={item.communityUrl || item.url} target="_blank" rel="noopener noreferrer">{item.communityUrl ? "Community resource" : "Visit service"}</a>
                     </>
                   )}
                 </div>
