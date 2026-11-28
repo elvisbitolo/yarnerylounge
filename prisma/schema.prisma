@@ -72,6 +72,8 @@ model User {
   goToYarn               String?
   favoriteHookSize       String?
   socialLinks            Json?
+  // Member-owned public profile links to crochet and creative services.
+  integrations            Json?
   extra                  Json? // Fallback for profile fields without a dedicated column
   foundingMember         Boolean?
   suspended              Boolean?
@@ -1355,8 +1357,10 @@ model SpacePage {
 }
 
 model Setting {
-  id               String   @id // "community"
-  welcomeChecklist Json?
+  id                   String   @id // "community"
+  welcomeChecklist     Json?
+  // Owner-curated integrations visible in the member marketplace.
+  communityIntegrations Json?
   updatedAt        DateTime? @updatedAt
   createdAt        DateTime @default(now())
 }
