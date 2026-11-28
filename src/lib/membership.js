@@ -15,7 +15,7 @@ export const FREE_MEMBERSHIP = {
   plan: "flirting",
   role: "member",
   capabilities: {
-    video: { canJoin: true, canPublish: false, muted: true },
+    video: { canJoin: false, canPublish: false, muted: true },
     chat: { read: true, write: false },
     matchmaker: false,
     hosting: false,
