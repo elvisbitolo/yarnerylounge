@@ -101,7 +101,6 @@ const PRECACHE_URLS = [
   "/terms",
   "/explore",
   "/articles",
-  "/host",
   "/icon-192.png",
   "/icon-512.png",
 ];
