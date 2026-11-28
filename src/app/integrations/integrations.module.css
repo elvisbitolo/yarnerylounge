@@ -37,8 +37,8 @@
 .heroStats { display:flex; gap:24px; flex-wrap:wrap; margin-top:28px; color:#fff; font-size:15px; }
 .heroStats strong { color:#fff; font-size:20px; margin-right:4px; }
 .workflow { display:grid; grid-template-columns:1.1fr 1fr; gap:36px; align-items:center; padding:34px 4px 40px; border-bottom:1px solid #eee6eb; }
-.workflowIntro h2,.sectionHead h2 { margin:8px 0; font-family:Georgia,serif; font-size:clamp(27px,3vw,32px); font-weight:500; letter-spacing:-.02em; line-height:1.2; }
-.workflowIntro p { max-width:520px; margin:0; color:#51464e; font-size:16px; line-height:1.75; }
+.workflowIntro h2,.sectionHead h2 { margin:8px 0; font-family:Georgia,serif; color:#f6077a; font-size:clamp(27px,3vw,32px); font-weight:600; letter-spacing:-.02em; line-height:1.2; }
+.workflowIntro p { max-width:520px; margin:0; color:#8a174f; font-size:16px; line-height:1.75; }
 .workflowSteps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .workflowSteps>div { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:16px 12px; border:1px solid #eee6eb; border-radius:15px; background:#fff; }
 .stepIcon { display:grid; place-items:center; width:40px; height:40px; border-radius:11px; background:#fff0f7; color:#a51e65; }
