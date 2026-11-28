@@ -54,3 +54,18 @@ test("legacy user records still use their own expiry timestamp", () => {
   assert.equal(isMembershipExpired({ plan: "moving-in", expiresAt: past }, null, now), true);
   assert.equal(isMembershipExpired({ plan: "moving-in", expiresAt: future }, null, now), false);
 });
+
+test("owner and moderator never count as expired", () => {
+  assert.equal(
+    isMembershipExpired({ role: "owner", plan: "moving-in", expiresAt: past }, null, now),
+    false
+  );
+  assert.equal(
+    isMembershipExpired(
+      { role: "moderator", plan: "hooking-up", expiresAt: past },
+      { tier: "hooking-up", status: "canceled" },
+      now
+    ),
+    false
+  );
+});
