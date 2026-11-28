@@ -14,6 +14,30 @@ export default function Providers({ messages, locale: serverLocale, children }) 
   const [locale, setLocale] = useState(() => readLocale() || serverLocale || "en");
 
   useEffect(() => {
+    // Emergency recovery: visit any page with ?clear-sw=true to unregister
+    // this origin's Service Workers and clear their Cache Storage. Remove the
+    // flag before the one clean navigation so it cannot run repeatedly.
+    const recoveryUrl = new URL(window.location.href);
+    if (recoveryUrl.searchParams.get("clear-sw") === "true") {
+      recoveryUrl.searchParams.delete("clear-sw");
+      const cleanUrl = `${recoveryUrl.pathname}${recoveryUrl.search}${recoveryUrl.hash}`;
+      (async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+          }
+        } finally {
+          window.location.replace(cleanUrl);
+        }
+      })();
+      return;
+    }
+
     let cancelled = false;
     let timer;
     (async () => {

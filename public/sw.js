@@ -1,7 +1,7 @@
 // Bump VERSION on every release: an unchanged service worker never updates on
 // installed PWAs, so they silently keep serving the previous build's cached
 // shells (stale auth logic -> reload loops on mobile).
-  const VERSION = "v36";
+  const VERSION = "v37";
 
 // API requests are left to the network by default: a cached /api/me JSON that
 // carries a uid replays long after the session cookie is gone, which makes
@@ -41,7 +41,7 @@ const SHELL_URLS = [
   "/calendar",
 ];
 
-const NO_CACHE_DOCUMENT_PREFIXES = ["/account", "/admin", "/membership"];
+const NO_CACHE_DOCUMENT_PREFIXES = ["/account", "/admin", "/membership", "/plan-expired"];
 
 const isNoCacheDocument = (url) => {
   try {
@@ -120,7 +120,7 @@ const warmShell = async () => {
       try {
         const target = new URL(url, self.location.origin);
         const response = await fetch(target.href, { credentials: "same-origin" });
-        if (!response || !response.ok) return;
+        if (!response || !response.ok || response.redirected || (response.status >= 300 && response.status < 400)) return;
         if (new URL(response.url).pathname !== target.pathname) return;
         if (!SHELL_URLS.includes(url)) await cache.put(url, response.clone());
       } catch {
@@ -149,7 +149,10 @@ self.addEventListener("fetch", (event) => {
   // to /login or /signup caches that auth shell under the requested URL, which
   // later gets served offline and looks like the app is stuck reloading.
   const isCacheable = (response) => {
-    if (!response || !response.ok) return false;
+    // Fetch normally follows redirects, so response.redirected is the reliable
+    // signal even when the final response is a 200. Never persist redirect
+    // responses (including auth redirects) under the original request URL.
+    if (!response || !response.ok || response.redirected || (response.status >= 300 && response.status < 400)) return false;
     try {
       return new URL(response.url).pathname === new URL(request.url).pathname;
     } catch {
@@ -206,7 +209,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     if (isNoCacheDocument(request.url)) {
-      event.respondWith(fetch(request));
+      event.respondWith(fetch(request, { cache: "no-store" }));
       return;
     }
     event.respondWith(
