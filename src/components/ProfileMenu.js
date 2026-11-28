@@ -47,6 +47,14 @@ export default function ProfileMenu() {
     };
   }, []);
 
+  useEffect(() => {
+    function onStorage(e) {
+      if (e.key === "community:auth-switch") window.location.reload();
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   // Refresh the saved-account list every time the menu opens, so an account
   // just created in the admin form appears without a full page reload.
   useEffect(() => {
@@ -93,6 +101,9 @@ export default function ProfileMenu() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not switch accounts");
+      try {
+        localStorage.setItem("community:auth-switch", String(data.uid || ""));
+      } catch {}
       // Full reload rebinds every server and client view to the new identity.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload after the active session cookie changes
       window.location.assign("/dashboard");

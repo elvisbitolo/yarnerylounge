@@ -90,7 +90,7 @@ export async function POST(req) {
     metadata: { from: realUid, rootId: root.rootId, to: target.email || "" },
   });
 
-  const res = NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true, uid: target.id });
   res.cookies.set(AUTH_COOKIE, serializeSessionCookie(session.id), SESSION_COOKIE);
   return res;
 }
