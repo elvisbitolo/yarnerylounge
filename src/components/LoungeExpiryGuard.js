@@ -24,7 +24,7 @@ export default function LoungeExpiryGuard() {
         if (!res.ok) return;
         const me = await res.json();
         if (cancelled || !me) return;
-        if (me.isExpired && me.plan !== "flirting" && me.role !== "owner" && me.role !== "moderator") {
+        if (me.isExpired && me.role !== "owner" && me.role !== "moderator") {
           // Full reload so the renewal page renders server-side.
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- hard redirect to renewal
           window.location.assign("/plan-expired");
