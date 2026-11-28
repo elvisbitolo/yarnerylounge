@@ -12,6 +12,7 @@ import InviteClaimer from "./InviteClaimer";
 import styles from "./Nav.module.css";
 import { Home, Map, Users, Heart, Newspaper, CalendarDays, Images, Video, Clapperboard, BriefcaseBusiness, Trophy, MessageCircle, GraduationCap, BookOpen, ClipboardList, Sparkles, FolderOpen, Star, LogOut } from "lucide-react";
 import { logout } from "@/lib/client-auth";
+import { useMembership } from "@/lib/membership";
 const CHEVRON = (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
     <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -141,14 +142,14 @@ function SidebarGroup({ id, label, items, open, onToggle, t, close, children }) 
   );
 }
 
-function BottomNav({ t }) {
+function BottomNav({ t, canJoinLounges, canJoinNeighborhoods }) {
   const pathname = usePathname();
   const router = useRouter();
   const items = [
     { href: "/dashboard", label: t("home"), icon: "home", show: true },
     { href: "/community", label: t("footerCommunity"), icon: "community", show: true },
-    { href: "/rooms", label: t("footerLounges"), icon: "rooms", show: true },
-    { href: "/neighbourhoods", label: t("neighbourhoods"), icon: "neighbourhoods", show: true },
+    { href: "/rooms", label: t("footerLounges"), icon: "rooms", show: canJoinLounges },
+    { href: "/neighbourhoods", label: t("neighbourhoods"), icon: "neighbourhoods", show: canJoinNeighborhoods },
   ];
   const visible = items.filter((i) => i.show);
   if (pathname?.startsWith("/rooms/")) return null;
@@ -225,6 +226,17 @@ const icons = {
 
 export default function Nav({ role, children }) {
   const t = useTranslations("nav");
+  const { membership } = useMembership();
+  const canJoinLounges = membership?.capabilities?.video?.canJoin === true;
+  const canUseMatchmaker = membership?.capabilities?.matchmaker === true;
+  const canJoinNeighborhoods = membership?.capabilities?.neighborhoods?.join === true;
+  const canUseHostTools = membership?.capabilities?.hosting === true || role === "owner" || role === "moderator";
+  const visibleCommunityItems = COMMUNITY_ITEMS.filter((item) => {
+    if (item.href === "/match") return canUseMatchmaker;
+    if (item.href === "/neighbourhoods") return canJoinNeighborhoods;
+    return true;
+  });
+  const visibleLoungeItems = canJoinLounges ? LOUNGE_ITEMS : [];
   const pathname = usePathname();
   const router = useRouter();
   const isRoomPage = pathname?.startsWith("/rooms/");
@@ -287,8 +299,8 @@ export default function Nav({ role, children }) {
   useEffect(() => {
     const allGroups = [
       { id: "home", items: HOME_ITEMS },
-      { id: "community", items: COMMUNITY_ITEMS },
-      { id: "lounges", items: LOUNGE_ITEMS },
+      { id: "community", items: visibleCommunityItems },
+      { id: "lounges", items: visibleLoungeItems },
       { id: "learn", items: LEARN_ITEMS },
       { id: "administration", items: administrationLinks },
       { id: "host", items: hasHostTools && role !== "owner" ? [{ href: "/host" }] : [] },
@@ -304,7 +316,7 @@ export default function Nav({ role, children }) {
         return next;
       });
     }
-  }, [pathname, administrationLinks, hasHostTools, role]);
+  }, [pathname, administrationLinks, hasHostTools, role, visibleCommunityItems, visibleLoungeItems]);
 
   useEffect(() => {
     window.localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
@@ -339,14 +351,14 @@ export default function Nav({ role, children }) {
   }, []);
 
   useEffect(() => {
-    if (role === "owner" || role === "moderator") return;
+    if (!canUseHostTools || role === "owner" || role === "moderator") return;
     fetch("/api/host/scopes")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) setHasHostTools(data.scopes.length > 0);
       })
       .catch(() => {});
-  }, [role]);
+  }, [role, canUseHostTools]);
 
   // Admin has a dedicated console shell and navigation. Do not render the
   // community topbar, sidebar, or fixed bottom navigation around it. This must
@@ -447,8 +459,10 @@ export default function Nav({ role, children }) {
           <div className={styles.sidebarInner} data-tour="tour-sidebar">
             <nav className={styles.sidebarNav}>
               <SidebarGroup id="home" label={t("overview")} items={HOME_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
-              <SidebarGroup id="community" label={t("communitySection")} items={COMMUNITY_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
-              <SidebarGroup id="lounges" label={t("connect")} items={LOUNGE_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              <SidebarGroup id="community" label={t("communitySection")} items={visibleCommunityItems} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              {visibleLoungeItems.length > 0 && (
+                <SidebarGroup id="lounges" label={t("connect")} items={visibleLoungeItems} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
+              )}
               <SidebarGroup id="learn" label={t("learn")} items={LEARN_ITEMS} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               <Link className={styles.sidebarLink} href="/calendar" onClick={close}>{t("calendar")}</Link>
 
@@ -467,7 +481,7 @@ export default function Nav({ role, children }) {
                 </SidebarGroup>
               )}
 
-              {hasHostTools && role !== "owner" && (
+              {hasHostTools && canUseHostTools && role !== "owner" && (
                 <SidebarGroup id="host" label={t("host")} items={[{ href: "/host", key: "hostTools" }]} open={openGroups} onToggle={toggleGroup} t={t} close={close} />
               )}
 
@@ -505,7 +519,7 @@ export default function Nav({ role, children }) {
           {children}
         </div>
       </div>
-      <BottomNav t={t} />
+      <BottomNav t={t} canJoinLounges={canJoinLounges} canJoinNeighborhoods={canJoinNeighborhoods} />
     </>
   );
 }
