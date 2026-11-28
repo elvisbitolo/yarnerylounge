@@ -20,7 +20,9 @@ function getSavedUsername(item, savedUrl) {
     const savedPath = new URL(savedUrl).pathname;
     const prefixPath = new URL(item.profilePrefix).pathname;
     if (savedPath.startsWith(prefixPath)) {
-      return decodeURIComponent(savedPath.slice(prefixPath.length).replace(/\\/$/, "")).replace(/^@/, "");
+      let savedUsername = savedPath.slice(prefixPath.length);
+      if (savedUsername.endsWith("/")) savedUsername = savedUsername.slice(0, -1);
+      return decodeURIComponent(savedUsername).replace(/^@/, "");
     }
   } catch {
     return "";
