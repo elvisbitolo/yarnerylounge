@@ -59,6 +59,7 @@ export function isMembershipExpired(userDoc, sub, now = Date.now()) {
   const storedTier = String(sub?.tier || sub?.planName || "").toLowerCase();
   if (storedTier === "flirting") return false;
   if (sub && isPaidTier(storedTier)) return !isActiveSub(sub, now);
+  if ((sub?.status === "canceled" || sub?.canceledAt) && isPaidTier(userDoc?.plan)) return true;
   return isPaidPlanExpired(userDoc, now);
 }
 
