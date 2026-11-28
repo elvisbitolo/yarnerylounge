@@ -52,7 +52,10 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
         ? CAPABILITIES.paid
         : CAPABILITIES.free;
 
-  const isExpired = paidPlan && (expired || explicitlyCanceled) && !staffTier;
+  const isExpired =
+    paidPlan &&
+    (explicitlyCanceled || (!isOpenAccess() && expired)) &&
+    !staffTier;
 
   return {
     planKey,
