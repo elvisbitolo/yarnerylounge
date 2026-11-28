@@ -7,6 +7,9 @@ import { isMembershipExpired } from "@/lib/server/billing";
 // The lounge gate decides whether a signed-in user may stay on a page.
 // Returns a redirect target ("/plan-expired" or "/membership") or null to allow.
 export async function loungeGate(uid, userDoc, opts = {}) {
+  // Staff privileges are independent of paid membership expiry.
+  if (userDoc?.role === "owner" || userDoc?.role === "moderator") return null;
+
   if (!isOpenAccess()) {
     const sub = await getSubscription(uid);
     if (isMembershipExpired(userDoc, sub)) return "/plan-expired";

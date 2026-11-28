@@ -33,13 +33,17 @@ export default async function PlanExpiredPage() {
 
   if (session.status !== SESSION_OK || !session.identity) redirect("/login");
   const user = session.identity;
+  const userDoc = await getUserDoc(user.uid);
+
+  // Owner and moderator access is role-based, not subscription-based.
+  // Never send staff accounts through the paid-membership expiry screen.
+  if (userDoc?.role === "owner" || userDoc?.role === "moderator") {
+    redirect("/dashboard");
+  }
 
   if (isOpenAccess()) redirect("/dashboard");
 
-  const [userDoc, sub] = await Promise.all([
-    getUserDoc(user.uid),
-    getSubscription(user.uid),
-  ]);
+  const sub = await getSubscription(user.uid);
 
   // Keep this decision identical to the dashboard/lounge gate. If the
   // subscription is active, an old User.expiresAt value must not bounce the
