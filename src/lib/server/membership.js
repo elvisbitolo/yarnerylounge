@@ -30,6 +30,7 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
     : expiresAtMs > 0 && expiresAtMs <= now);
   const explicitlyCanceled =
     userDoc?.paymentStatus === "cancelled" ||
+    userDoc?.paymentStatus === "canceled" ||
     userDoc?.paymentStatus === "refunded" ||
     isCanceledSubscription(effectiveSub);
 
