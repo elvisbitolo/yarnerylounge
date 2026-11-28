@@ -52,8 +52,11 @@ export function deriveMembership(userDoc, now = Date.now(), sub = null) {
         ? CAPABILITIES.paid
         : CAPABILITIES.free;
 
+  const isExpired = paidPlan && (expired || explicitlyCanceled) && !staffTier;
+
   return {
     planKey,
+    isExpired,
     label: caps.label,
     plan,
     role,
